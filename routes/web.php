@@ -100,3 +100,14 @@ Route::get('/feeds/google-merchant.xml', function () {
     $feed = app(\App\Services\Merchant\MerchantFeedService::class)->generateXml();
     return response($feed, 200, ['Content-Type' => 'application/xml; charset=UTF-8']);
 })->name('merchant.feed');
+
+/*
+|--------------------------------------------------------------------------
+| Admin Data Export Download (auth-protected)
+|--------------------------------------------------------------------------
+*/
+
+Route::middleware(['auth'])->prefix('admin')->group(function () {
+    Route::get('/export/{dataExportJob}/download', [App\Http\Controllers\Admin\DataExportController::class, 'download'])
+        ->name('admin.export.download');
+});

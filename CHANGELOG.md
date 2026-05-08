@@ -2,6 +2,56 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.1.0] - 2026-05-09
+
+### Added — Import/Export Data System
+- Full import/export system for 4 modules: Product, Lead, Quote Request, BTU Calculation
+- Support for 4 file formats: XLSX, CSV (UTF-8 BOM), XML, JSON
+- Export with selectable field groups (Basic, Pricing, Specs, SEO, Media, etc.)
+- Import with 3 modes: Create only, Update existing, Upsert
+- Import preview/validation before writing to DB (no data written without admin confirm)
+- Per-row validation: phone format, email format, numeric fields, JSON validity, foreign key checks
+- Import preview shows: total/valid/error counts, first 20 rows, per-row errors & actions
+- Import result page with created/updated/failed statistics and error details
+- Chunked processing for large files (configurable chunk sizes)
+- DB transaction safety per chunk during import
+- Export/Import buttons on all 4 module list pages (Products, Leads, Báo giá, BTU)
+- Central Data Transfer admin page (System → Import / Export) with job history
+- UTF-8 encoding detection & auto-conversion for imported files
+- CSV export with UTF-8 BOM for proper Vietnamese display in Excel
+- XML export with `<?xml version="1.0" encoding="UTF-8"?>` declaration
+- JSON export with `JSON_UNESCAPED_UNICODE` for Vietnamese characters
+
+### Added — Database
+- `data_import_jobs` table — tracks every import with full audit trail
+- `data_export_jobs` table — tracks every export with file path & expiration
+- 8 new permissions: `{product,lead,quote_request,btu_calculation}.{import,export}`
+- 6 new site settings for import/export configuration
+
+### Added — Services
+- `DataExportService` — core export logic (XLSX, CSV, XML, JSON writers)
+- `DataImportService` — core import logic (file parsing, validation, preview, confirm)
+- `ModuleRegistry` — central field group & module configuration registry
+- `ImportHandlerInterface` — contract for module-specific import handlers
+- `ProductImportHandler` — brand/category name resolution, JSON parsing, unique slug gen
+- `LeadImportHandler` — phone/email validation
+- `QuoteRequestImportHandler` — product existence validation, HVAC field parsing
+- `BtuCalculationImportHandler` — numeric/JSON validation
+- `HasDataTransferActions` trait — reusable export/import buttons for any list page
+
+### Security
+- Import/export buttons hidden when user lacks permission
+- File upload: MIME type whitelist, size limit, private storage
+- Export download route requires authentication + module permission check
+- Export files auto-expire after configurable days (default: 30)
+- No executable file uploads (MIME whitelist: xlsx, csv, xml, json only)
+- Import files stored in `storage/app/private/` — never publicly accessible
+
+### Dependencies
+- Added `maatwebsite/excel` (^3.1) — PhpSpreadsheet wrapper for XLSX support
+
+---
+
 ## [1.0.0] - 2026-05-08
 
 ### Added
