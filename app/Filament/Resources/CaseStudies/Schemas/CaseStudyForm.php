@@ -9,6 +9,7 @@ use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Textarea;
 use Filament\Schemas\Schema;
+use App\Services\Media\MediaDiskService;
 
 class CaseStudyForm
 {
@@ -66,14 +67,14 @@ class CaseStudyForm
                                     ->schema([
                                         FileUpload::make('cover_image')
                                             ->image()
+                                            ->disk(fn () => app(MediaDiskService::class)->getUploadDisk())
                                             ->directory('case-studies'),
-                                            
                                         FileUpload::make('gallery_json')
                                             ->multiple()
                                             ->image()
+                                            ->disk(fn () => app(MediaDiskService::class)->getUploadDisk())
                                             ->directory('case-studies/gallery')
                                             ->panelLayout('grid'),
-                                            
                                     ])->columns(1),
 
                                 \Filament\Schemas\Components\Tabs\Tab::make('SEO')
@@ -84,8 +85,8 @@ class CaseStudyForm
                                         TextInput::make('robots')->default('index,follow'),
                                         FileUpload::make('og_image')
                                             ->image()
+                                            ->disk(fn () => app(MediaDiskService::class)->getUploadDisk())
                                             ->directory('seo'),
-                                            
                                     ])->columns(1),
                             ])
                             ->columnSpanFull()

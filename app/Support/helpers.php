@@ -23,7 +23,15 @@ if (! function_exists('setting')) {
 
 if (! function_exists('media_url')) {
     /**
-     * Get URL for a media file, handling R2 public URL fallback.
+     * Get URL for a media file.
+     *
+     * Priority:
+     * 1. Full external URL → return as-is
+     * 2. R2 enabled + file tracked as synced → CDN URL
+     * 3. Local file → local storage URL
+     * 4. Fallback
+     *
+     * NEVER returns CDN URL unless file is confirmed synced to R2.
      */
     function media_url(mixed $path = null, ?string $fallback = null): ?string
     {
@@ -36,44 +44,43 @@ if (! function_exists('media_url')) {
             return $fallback;
         }
 
+        // Full URL → return as-is (external images, already-resolved CDN URLs, etc.)
+        if (filter_var($path, FILTER_VALIDATE_URL)) {
+            return $path;
+        }
+
+        // Normalize: strip leading /storage/ to get relative path
+        $relativePath = $path;
+        if (str_starts_with($relativePath, '/storage/')) {
+            $relativePath = substr($relativePath, strlen('/storage/'));
+        }
+        $relativePath = ltrim($relativePath, '/');
+
         $r2Enabled = setting('r2_storage.r2_enabled', false);
         $publicUrl = setting('r2_storage.r2_public_url');
         $defaultFolder = setting('r2_storage.r2_default_folder');
-        
+
+        // Build CDN base URL
         $baseCdnUrl = $publicUrl;
         if (!empty($baseCdnUrl) && !empty($defaultFolder)) {
             $baseCdnUrl = rtrim($publicUrl, '/') . '/' . trim($defaultFolder, '/');
         }
 
-        // Handle full URLs
-        if (filter_var($path, FILTER_VALIDATE_URL)) {
-            if ($r2Enabled && !empty($publicUrl)) {
-                if (str_contains($path, '/storage/')) {
-                    $parts = explode('/storage/', $path);
-                    if (count($parts) === 2) {
-                        return rtrim($baseCdnUrl, '/') . '/' . ltrim($parts[1], '/');
-                    }
-                }
-            }
-            return $path;
-        }
-
-        // Handle paths starting with /storage/
-        $relativePath = str_starts_with($path, '/storage/') ? substr($path, strlen('/storage/')) : $path;
-
+        // R2 enabled: only return CDN URL if file is CONFIRMED synced
         if ($r2Enabled && !empty($publicUrl)) {
-            // Check if file is tracked as synced to R2
-            $isSynced = \Illuminate\Support\Facades\Cache::remember('media_file_synced_' . md5($relativePath), 600, function() use ($relativePath) {
-                return \App\Models\MediaFile::where('path', $relativePath)->where('is_synced_to_r2', true)->exists();
-            });
+            $isSynced = \Illuminate\Support\Facades\Cache::remember(
+                'media_synced_' . md5($relativePath), 600,
+                fn() => \App\Models\MediaFile::where('path', $relativePath)
+                    ->where('is_synced_to_r2', true)
+                    ->exists()
+            );
 
-            // If it's synced, OR if the local file doesn't exist (meaning it was a new upload straight to R2)
-            $localFilePath = public_path('storage/' . ltrim($relativePath, '/'));
-            if ($isSynced || !file_exists($localFilePath)) {
-                return rtrim($baseCdnUrl, '/') . '/' . ltrim($relativePath, '/');
+            if ($isSynced) {
+                return rtrim($baseCdnUrl, '/') . '/' . $relativePath;
             }
         }
 
+        // Fallback: local storage URL
         return \Illuminate\Support\Facades\Storage::disk('public')->url($relativePath);
     }
 }

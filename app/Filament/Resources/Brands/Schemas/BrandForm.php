@@ -10,6 +10,7 @@ use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Group;
 use Filament\Schemas\Schema;
+use App\Services\Media\MediaDiskService;
 
 class BrandForm
 {
@@ -55,6 +56,7 @@ class BrandForm
                             FileUpload::make('logo')
                                 ->label('Logo thương hiệu')
                                 ->image()
+                                ->disk(fn () => app(MediaDiskService::class)->getUploadDisk())
                                 ->directory('brands'),
                         ]),
                         

@@ -12,6 +12,7 @@ use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Group;
 use Filament\Schemas\Schema;
+use App\Services\Media\MediaDiskService;
 
 class ProductCategoryForm
 {
@@ -65,6 +66,7 @@ class ProductCategoryForm
                             FileUpload::make('image')
                                 ->label('Ảnh đại diện')
                                 ->image()
+                                ->disk(fn () => app(MediaDiskService::class)->getUploadDisk())
                                 ->directory('categories'),
                         ]),
                         

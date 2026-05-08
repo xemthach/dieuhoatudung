@@ -22,6 +22,7 @@ use Filament\Notifications\Notification;
 use Filament\Schemas\Components\Group;
 use Filament\Schemas\Schema;
 use Illuminate\Support\Str;
+use App\Services\Media\MediaDiskService;
 
 class ProductForm
 {
@@ -206,7 +207,7 @@ class ProductForm
                                         FileUpload::make('main_image')
                                             ->label('Hình ảnh chính')
                                             ->image()
-                                            
+                                            ->disk(fn () => app(MediaDiskService::class)->getUploadDisk())
                                             ->directory(config('media.folders.products'))
                                             ->imageEditor()
                                             ->maxSize(fn () => app(\App\Services\Settings\UploadSettingService::class)->productImageMaxSizeKb())
@@ -215,7 +216,7 @@ class ProductForm
                                             ->label('Thư viện hình ảnh')
                                             ->image()
                                             ->multiple()
-                                            
+                                            ->disk(fn () => app(MediaDiskService::class)->getUploadDisk())
                                             ->directory(config('media.folders.products_gallery'))
                                             ->imageEditor()
                                             ->reorderable()
@@ -229,7 +230,7 @@ class ProductForm
                                             ->label('Tài liệu kỹ thuật')
                                             ->multiple()
                                             ->acceptedFileTypes(['application/pdf'])
-                                            
+                                            ->disk(fn () => app(MediaDiskService::class)->getUploadDisk())
                                             ->directory('media/documents'),
                                     ]),
 
@@ -285,7 +286,7 @@ class ProductForm
                                                 FileUpload::make('og_image')
                                                     ->label('OG Image')
                                                     ->image()
-                                                    
+                                                    ->disk(fn () => app(MediaDiskService::class)->getUploadDisk())
                                                     ->directory('og'),
                                                 Toggle::make('schema_enabled')
                                                     ->label('Bật Schema.org cho trang này')

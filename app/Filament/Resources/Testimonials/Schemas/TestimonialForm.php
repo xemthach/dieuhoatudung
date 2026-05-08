@@ -11,6 +11,7 @@ use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Group;
 use Filament\Schemas\Schema;
+use App\Services\Media\MediaDiskService;
 
 class TestimonialForm
 {
@@ -61,11 +62,13 @@ class TestimonialForm
                                 ->label('Avatar (Ảnh đại diện)')
                                 ->image()
                                 ->imageEditor()
+                                ->disk(fn () => app(MediaDiskService::class)->getUploadDisk())
                                 ->directory('testimonials/avatars'),
                             FileUpload::make('image')
                                 ->label('Hình ảnh công trình/Sản phẩm (Tùy chọn)')
                                 ->image()
                                 ->imageEditor()
+                                ->disk(fn () => app(MediaDiskService::class)->getUploadDisk())
                                 ->directory('testimonials/images'),
                         ]),
                         Section::make('Liên kết (Tùy chọn)')->schema([

@@ -122,6 +122,7 @@ class UserResource extends Resource
                                 ->image()
                                 ->imageEditor()
                                 ->circleCropper()
+                                ->disk(fn () => app(\App\Services\Media\MediaDiskService::class)->getUploadDisk())
                                 ->directory('avatars')
                                 ->maxSize(fn () => app(\App\Services\Settings\UploadSettingService::class)->avatarMaxSizeKb())
                                 ->helperText(fn () => 'Tối đa ' . app(\App\Services\Settings\UploadSettingService::class)->formatMb(app(\App\Services\Settings\UploadSettingService::class)->avatarMaxSizeKb()))

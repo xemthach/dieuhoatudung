@@ -19,6 +19,7 @@ use Filament\Schemas\Components\Group;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 use Illuminate\Support\Str;
+use App\Services\Media\MediaDiskService;
 
 class PostForm
 {
@@ -56,7 +57,7 @@ class PostForm
                             FileUpload::make('cover_image')
                                 ->label('Ảnh đại diện')
                                 ->image()
-                                
+                                ->disk(fn () => app(MediaDiskService::class)->getUploadDisk())
                                 ->directory(config('media.directories.images'))
                                 ->columnSpanFull(),
                         ])->columns(2),
@@ -90,7 +91,7 @@ class PostForm
                                 FileUpload::make('og_image')
                                     ->label('OG Image')
                                     ->image()
-                                    
+                                    ->disk(fn () => app(MediaDiskService::class)->getUploadDisk())
                                     ->directory('og'),
                                 Toggle::make('schema_enabled')
                                     ->label('Bật Schema.org cho trang này')

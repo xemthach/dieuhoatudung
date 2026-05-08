@@ -35,7 +35,7 @@ class ProductDocumentsRelationManager extends RelationManager
                 Forms\Components\FileUpload::make('file_path')
                     ->label('File tài liệu')
                     ->required()
-                    
+                    ->disk(fn () => app(\App\Services\Media\MediaDiskService::class)->getUploadDisk())
                     ->directory('products/documents')
                     ->acceptedFileTypes(fn () => app(\App\Services\Settings\UploadSettingService::class)->allowedFileTypes())
                     ->maxSize(fn () => app(\App\Services\Settings\UploadSettingService::class)->documentMaxSizeKb())
