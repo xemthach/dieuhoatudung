@@ -9,11 +9,11 @@ class BrandFactory extends Factory
 {
     public function definition(): array
     {
-        $name = $this->faker->unique()->company();
+        $name = fake()->unique()->company();
         return [
             'name' => $name,
             'slug' => Str::slug($name),
-            'description' => $this->faker->sentence(),
+            'description' => fake()->sentence(),
             'is_active' => true,
         ];
     }

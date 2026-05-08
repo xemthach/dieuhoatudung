@@ -12,9 +12,9 @@ class LandingSectionFactory extends Factory
         return [
             'page_key' => 'home',
             'section_type' => LandingSectionType::Hero,
-            'title' => $this->faker->sentence(),
+            'title' => fake()->sentence(),
             'is_active' => true,
-            'sort_order' => $this->faker->numberBetween(1, 10),
+            'sort_order' => fake()->numberBetween(1, 10),
         ];
     }
 }

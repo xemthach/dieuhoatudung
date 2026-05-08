@@ -12,12 +12,12 @@ class PostFactory extends Factory
 {
     public function definition(): array
     {
-        $title = $this->faker->unique()->sentence();
+        $title = fake()->unique()->sentence();
         return [
             'title' => $title,
             'slug' => Str::slug($title),
-            'excerpt' => $this->faker->paragraph(),
-            'content' => $this->faker->paragraphs(5, true),
+            'excerpt' => fake()->paragraph(),
+            'content' => fake()->paragraphs(5, true),
             'post_category_id' => PostCategory::factory(),
             'author_id' => Author::factory(),
             'status' => PostStatus::Published,

@@ -9,11 +9,11 @@ class AuthorFactory extends Factory
 {
     public function definition(): array
     {
-        $name = $this->faker->name();
+        $name = fake()->name();
         return [
             'name' => $name,
             'slug' => Str::slug($name),
-            'bio' => $this->faker->paragraph(),
+            'bio' => fake()->paragraph(),
             'role' => 'Chuyên gia HVAC',
             'is_active' => true,
         ];

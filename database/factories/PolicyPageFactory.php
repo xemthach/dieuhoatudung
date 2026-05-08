@@ -10,11 +10,11 @@ class PolicyPageFactory extends Factory
 {
     public function definition(): array
     {
-        $title = 'Chính sách ' . $this->faker->word();
+        $title = 'Chính sách ' . fake()->word();
         return [
             'title' => $title,
             'slug' => Str::slug($title),
-            'content' => $this->faker->paragraphs(3, true),
+            'content' => fake()->paragraphs(3, true),
             'type' => PolicyType::Terms,
             'is_active' => true,
         ];

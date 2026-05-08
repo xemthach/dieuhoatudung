@@ -10,7 +10,7 @@ class ProductCategoryFactory extends Factory
 {
     public function definition(): array
     {
-        $name = $this->faker->unique()->words(3, true);
+        $name = fake()->unique()->words(3, true);
         return [
             'name' => ucfirst($name),
             'slug' => Str::slug($name),
