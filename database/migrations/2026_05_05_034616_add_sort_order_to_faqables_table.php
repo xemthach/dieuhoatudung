@@ -7,6 +7,11 @@ return new class extends Migration
 {
     public function up(): void
     {
+        // This migration uses raw MySQL DDL — skip on other drivers (e.g. SQLite tests)
+        if (DB::connection()->getDriverName() !== 'mysql') {
+            return;
+        }
+
         // Must drop FK constraint, then composite PK, then re-add all cleanly
         DB::statement('ALTER TABLE `faqables`
             DROP FOREIGN KEY `faqables_faq_id_foreign`
@@ -27,6 +32,10 @@ return new class extends Migration
 
     public function down(): void
     {
+        if (DB::connection()->getDriverName() !== 'mysql') {
+            return;
+        }
+
         DB::statement('ALTER TABLE `faqables`
             DROP FOREIGN KEY `faqables_faq_id_foreign`,
             DROP KEY `faqables_unique_pivot`,

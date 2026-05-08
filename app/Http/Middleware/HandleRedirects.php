@@ -56,11 +56,15 @@ class HandleRedirects
             return $next($request);
         }
 
-        // Look up active redirect
-        $normalized = '/' . $path;
-        $redirect = Redirect::where('is_active', true)
-            ->where('source_url', $normalized)
-            ->first();
+        // Look up active redirect (gracefully skip if table missing)
+        try {
+            $normalized = '/' . $path;
+            $redirect = Redirect::where('is_active', true)
+                ->where('source_url', $normalized)
+                ->first();
+        } catch (\Throwable) {
+            return $next($request);
+        }
 
         if ($redirect) {
             // Record hit asynchronously-safe (no exception breaks the redirect)

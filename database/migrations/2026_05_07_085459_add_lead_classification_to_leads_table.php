@@ -42,34 +42,36 @@ return new class extends Migration
             $table->index('created_at');
         });
 
-        // ── Backfill existing leads ──
-        // Quote-derived leads
-        \Illuminate\Support\Facades\DB::statement("
-            UPDATE leads SET lead_type = 'product', intent_score = 100
-            WHERE interested_product_id IS NOT NULL
-        ");
+        // ── Backfill existing leads (MySQL only — uses JOIN UPDATE syntax) ──
+        if (\Illuminate\Support\Facades\DB::connection()->getDriverName() === 'mysql') {
+            // Quote-derived leads
+            \Illuminate\Support\Facades\DB::statement("
+                UPDATE leads SET lead_type = 'product', intent_score = 100
+                WHERE interested_product_id IS NOT NULL
+            ");
 
-        // BTU calculator leads
-        \Illuminate\Support\Facades\DB::statement("
-            UPDATE leads SET lead_type = 'consultation', intent_score = 70
-            WHERE need_type = 'btu_calculator'
-        ");
+            // BTU calculator leads
+            \Illuminate\Support\Facades\DB::statement("
+                UPDATE leads SET lead_type = 'consultation', intent_score = 70
+                WHERE need_type = 'btu_calculator'
+            ");
 
-        // Quote request leads (without product)
-        \Illuminate\Support\Facades\DB::statement("
-            UPDATE leads SET lead_type = 'general', intent_score = 40
-            WHERE lead_type = 'general' AND need_type = 'quote_request'
-        ");
+            // Quote request leads (without product)
+            \Illuminate\Support\Facades\DB::statement("
+                UPDATE leads SET lead_type = 'general', intent_score = 40
+                WHERE lead_type = 'general' AND need_type = 'quote_request'
+            ");
 
-        // Backfill product metadata from products table
-        \Illuminate\Support\Facades\DB::statement("
-            UPDATE leads l
-            INNER JOIN products p ON l.interested_product_id = p.id
-            SET l.product_name = p.name,
-                l.product_sku = p.sku,
-                l.capacity_btu = p.btu
-            WHERE l.interested_product_id IS NOT NULL
-        ");
+            // Backfill product metadata from products table
+            \Illuminate\Support\Facades\DB::statement("
+                UPDATE leads l
+                INNER JOIN products p ON l.interested_product_id = p.id
+                SET l.product_name = p.name,
+                    l.product_sku = p.sku,
+                    l.capacity_btu = p.btu
+                WHERE l.interested_product_id IS NOT NULL
+            ");
+        }
     }
 
     public function down(): void
