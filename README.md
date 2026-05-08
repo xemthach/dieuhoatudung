@@ -1,128 +1,218 @@
-# Điều Hòa Tủ Đứng - Website
+# Điều Hòa Tủ Đứng
 
-Website chuyên sâu về điều hòa tủ đứng, xây dựng trên Laravel monolith.
+> CRM & E-commerce platform chuyên về điều hòa tủ đứng — Laravel monolith, Filament admin, HVAC BTU calculator.
 
-## Yêu cầu hệ thống
+![Version](https://img.shields.io/badge/version-1.0.0-blue)
+![Laravel](https://img.shields.io/badge/Laravel-13-red)
+![PHP](https://img.shields.io/badge/PHP-8.2+-purple)
+![License](https://img.shields.io/badge/license-proprietary-gray)
 
-- Laragon (PHP 8.2+, MySQL 8+, Apache/Nginx)
-- Node.js 18+
-- Composer 2+
+---
 
-## Cài đặt local (Laragon)
+## Features
 
-### 1. Clone và cài đặt dependencies
+### 🛒 E-commerce
+- Product catalog với brands, categories, filters
+- Product detail với reviews, Q&A, documents, FAQs
+- Product comparison tool
+- Google Merchant Feed
+- Promotion management
 
-```bash
-cd d:\laragon\www\dieuhoa-tudung
-composer install
-npm install
-```
+### 📋 Lead & CRM System
+- **3 lead flows:** General CTA, Product Quote (modal), BTU Consultation
+- Multi-step quote form (5 bước, HVAC-specific)
+- Lead scoring & classification (intent score)
+- Source/UTM tracking trên tất cả forms
+- GTM dataLayer integration
 
-### 2. Cấu hình môi trường
+### 🌡️ BTU Calculator
+- HVAC standard W/m² cooling load coefficients
+- Hỗ trợ 7 loại không gian (nhà ở, văn phòng, showroom...)
+- Điều chỉnh theo: người, ánh sáng, thiết bị sinh nhiệt
+- Đề xuất sản phẩm phù hợp theo BTU
 
-File `.env` đã được cấu hình sẵn cho Laragon:
+### ✉️ Mail System
+- Template engine với biến động
+- Admin notification + Customer confirmation
+- Mail log & resend
+- Visual template editor trong admin
 
-- **Fake domain:** `dieuhoa-tudung.test`
-- **Database:** `dieuhoa-tudung`
-- **DB User:** `root` (password trống)
+### 🔍 SEO & Content
+- Sitemap tự động (products, posts, categories)
+- Schema.org structured data (Product, Article, FAQ, Breadcrumb, Organization)
+- AI content generation (Gemini API)
+- Internal link suggestions
+- Redirect 301/302 management
+- Blog/content management
+- Case studies module
 
-### 3. Tạo database
+### 🛡️ Security
+- Role-based access control (5 roles, 130 permissions)
+- Honeypot spam protection trên tất cả forms
+- Rate limiting (5-10 requests/hour per IP)
+- CSRF protection
+- No secrets in codebase
 
-```bash
-mysql -u root -e "CREATE DATABASE IF NOT EXISTS `dieuhoa-tudung` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
-```
+---
 
-### 4. Chạy migrations
-
-```bash
-php artisan migrate
-```
-
-### 5. Tạo storage link
-
-```bash
-php artisan storage:link
-```
-
-### 6. Build assets
-
-```bash
-npm run build
-```
-
-Hoặc chạy dev server cho hot-reload:
-
-```bash
-npm run dev
-```
-
-### 7. Truy cập
-
-- **Website:** http://dieuhoa-tudung.test
-- **Admin:** http://dieuhoa-tudung.test/admin
-- **Admin login:** admin@dieuhoa-tudung.test / admin123
-
-## Stack
+## Tech Stack
 
 | Component | Technology |
-|-----------|-----------|
-| Framework | Laravel 13 |
-| Template | Blade |
+|---|---|
+| Framework | Laravel 13.7 |
+| PHP | 8.2+ |
+| Admin Panel | Filament v5 |
+| Frontend | Blade + Alpine.js |
 | CSS | Tailwind CSS v4 |
-| Admin | Filament v5 |
 | Database | MySQL 8 |
 | Queue | Database driver |
 | Cache | File driver |
+| RBAC | Spatie Permission |
 | AI | Gemini API |
-| CDN | Cloudflare R2 (S3-compatible) |
+| CDN/Storage | Cloudflare R2 (S3-compatible) |
 
-## Cấu trúc thư mục
+---
+
+## Quick Start (Local Development)
+
+### Requirements
+- PHP 8.2+ | MySQL 8+ | Composer 2+ | Node.js 20+
+
+### Setup
+
+```bash
+# Clone
+git clone https://github.com/xemthach/dieuhoatudung.git
+cd dieuhoatudung
+
+# Install dependencies
+composer install
+npm install
+
+# Configure
+cp .env.example .env
+# Edit .env: set DB_DATABASE, DB_USERNAME, DB_PASSWORD
+
+# One-command setup
+php artisan app:install --with-demo
+
+# Dev server
+npm run dev
+```
+
+### Access
+- **Website:** http://dieuhoa-tudung.test
+- **Admin:** http://dieuhoa-tudung.test/admin
+- **Login:** `admin@dieuhoa.vn` / password from `ADMIN_PASSWORD` in `.env`
+
+---
+
+## Production Deployment
+
+### First Install
+
+```bash
+composer install --no-dev --optimize-autoloader
+npm ci && npm run build
+cp .env.example .env
+# Edit .env with production values
+php artisan app:install --force
+```
+
+### Update Existing Server
+
+```bash
+git pull origin main
+composer install --no-dev --optimize-autoloader
+php artisan migrate --force
+php artisan db:seed --class=RolePermissionSeeder --force
+npm ci && npm run build
+php artisan optimize:clear
+```
+
+> 📖 See [DEPLOYMENT.md](DEPLOYMENT.md) for full deployment guide, nginx config, queue workers, rollback, and troubleshooting.
+
+---
+
+## Required Environment Variables
+
+```env
+# App
+APP_ENV=production
+APP_DEBUG=false
+APP_URL=https://your-domain.com
+
+# Database
+DB_DATABASE=
+DB_USERNAME=
+DB_PASSWORD=
+
+# Admin (used by seeders)
+ADMIN_NAME="Super Admin"
+ADMIN_EMAIL=admin@example.com
+ADMIN_PASSWORD=          # REQUIRED for production
+
+# Mail
+MAIL_MAILER=smtp
+MAIL_HOST=
+MAIL_PORT=587
+MAIL_USERNAME=
+MAIL_PASSWORD=
+MAIL_FROM_ADDRESS=
+```
+
+---
+
+## Project Structure
 
 ```
 app/
-  Actions/          # Business logic actions
-  Data/             # Data transfer objects
-  Enums/            # PHP Enums
-  Filament/         # Filament admin resources
-  Http/Controllers/ # Web controllers
-  Jobs/             # Queue jobs
-  Models/           # Eloquent models
-  Services/
-    SEO/            # SEO services
-    Schema/         # JSON-LD schema
-    Gemini/         # AI content generation
-    Media/          # Media management
-    Sitemap/        # Sitemap generation
-  View/Components/  # Blade view components
+├── Console/Commands/     # Artisan commands (app:install, permissions:sync)
+├── Enums/                # PHP Enums (LeadStatus, LandingSectionType...)
+├── Filament/             # Admin panel resources, pages, widgets
+├── Http/
+│   ├── Controllers/      # Web controllers (Quote, BTU, Product, Landing...)
+│   ├── Middleware/        # Redirects, CORS
+│   └── Requests/         # Form request validation
+├── Models/               # Eloquent models (Product, Lead, QuoteRequest...)
+├── Services/
+│   ├── Calculator/       # BTU calculator service
+│   ├── Mail/             # Mail dispatch & template engine
+│   ├── SEO/              # SEO services
+│   └── Schema/           # JSON-LD schema generators
+└── View/Components/      # Blade view components
 
 config/
-  seo.php           # SEO configuration
-  schema.php        # Schema.org configuration
-  media.php         # Media/R2 configuration
-  gemini.php        # Gemini AI configuration
+├── permissions.php       # RBAC permission registry (single source of truth)
+└── ...
 
-resources/views/
-  components/       # Blade components
-  layouts/          # Layout templates
-  pages/            # Page templates
-  products/         # Product templates
-  categories/       # Category templates
-  blog/             # Blog templates
-  partials/         # Partial includes
+database/
+├── migrations/           # 55+ migrations
+├── seeders/
+│   ├── DatabaseSeeder      # Orchestrator (base + conditional demo)
+│   ├── RolePermissionSeeder # 130 permissions, 5 roles
+│   ├── AdminUserSeeder     # Admin user from env
+│   ├── SiteSettingSeeder   # 60+ default settings
+│   ├── MailTemplateSeeder  # 9 email templates
+│   └── DemoDataSeeder     # Sample data (local/testing only)
+└── factories/            # 14 model factories
 ```
 
-## Phases triển khai
+---
 
-- [x] Phase 1: Setup nền tảng local
-- [x] Phase 2: Database, models, migrations
-- [x] Phase 3: Filament Admin
-- [x] Phase 4: Frontend foundation
-- [x] Phase 5: Landing page
-- [x] Phase 6: Product catalog và detail
-- [x] Phase 7: Blog SEO hub
-- [x] Phase 8: AI Blog Gemini
-- [x] Phase 9: SEO technical
-- [x] Phase 10: QA và hoàn thiện
+## Artisan Commands
+
+| Command | Description |
+|---|---|
+| `php artisan app:install` | First-time setup (migrate, seed, storage link) |
+| `php artisan app:install --with-demo` | Setup + seed demo data |
+| `php artisan permissions:sync --apply` | Sync permissions from config |
+
+---
+
+## Changelog
+
+See [CHANGELOG.md](CHANGELOG.md) for version history.
 
 ## License
 
