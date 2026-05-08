@@ -46,6 +46,14 @@
 - Blog/content management
 - Case studies module
 
+### ☁️ R2/CDN Storage
+- Cloudflare R2 integration (S3-compatible)
+- Admin UI: Scan → Upload → Replace URLs (3-step workflow)
+- Dry-run mode trước khi replace URLs thật
+- `media_url()` helper tự động fallback local ↔ CDN
+- Encrypted API keys trong database
+- 7 granular permissions cho R2 operations
+
 ### 🛡️ Security
 - Role-based access control (5 roles, 130 permissions)
 - Honeypot spam protection trên tất cả forms
@@ -159,6 +167,13 @@ MAIL_PORT=587
 MAIL_USERNAME=
 MAIL_PASSWORD=
 MAIL_FROM_ADDRESS=
+
+# Cloudflare R2 (optional — can also configure via admin Settings)
+CLOUDFLARE_R2_ACCESS_KEY_ID=
+CLOUDFLARE_R2_SECRET_ACCESS_KEY=
+CLOUDFLARE_R2_BUCKET=
+CLOUDFLARE_R2_URL=
+CLOUDFLARE_R2_ENDPOINT=
 ```
 
 ---
@@ -178,12 +193,15 @@ app/
 ├── Services/
 │   ├── Calculator/       # BTU calculator service
 │   ├── Mail/             # Mail dispatch & template engine
+│   ├── Media/            # R2 connection, sync, URL replace services
 │   ├── SEO/              # SEO services
 │   └── Schema/           # JSON-LD schema generators
+├── Jobs/                 # SyncR2MediaJob, ReplaceMediaUrlsJob
 └── View/Components/      # Blade view components
 
 config/
 ├── permissions.php       # RBAC permission registry (single source of truth)
+├── media.php             # Media folders, image settings
 └── ...
 
 database/
@@ -194,7 +212,8 @@ database/
 │   ├── AdminUserSeeder     # Admin user from env
 │   ├── SiteSettingSeeder   # 60+ default settings
 │   ├── MailTemplateSeeder  # 9 email templates
-│   └── DemoDataSeeder     # Sample data (local/testing only)
+│   ├── DemoDataSeeder     # Sample data (local/testing only)
+│   └── DemoProductSeeder  # 8 HVAC products with full specs
 └── factories/            # 14 model factories
 ```
 
@@ -207,6 +226,7 @@ database/
 | `php artisan app:install` | First-time setup (migrate, seed, storage link) |
 | `php artisan app:install --with-demo` | Setup + seed demo data |
 | `php artisan permissions:sync --apply` | Sync permissions from config |
+| `php artisan db:seed --class=DemoProductSeeder` | Seed 8 HVAC products with full specs |
 
 ---
 
