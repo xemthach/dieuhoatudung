@@ -1,0 +1,71 @@
+# Environment
+.env
+.env.*
+!.env.example
+
+# Dependencies
+/vendor
+/node_modules
+
+# Build artifacts
+/public/build
+/public/hot
+/public/storage
+
+# Storage (runtime)
+/storage/*.key
+/storage/logs/*.log
+/storage/framework/cache/*
+/storage/framework/sessions/*
+/storage/framework/views/*
+/storage/app/private/*
+/storage/pail
+
+# Keep storage directories via .gitkeep
+!storage/logs/.gitkeep
+!storage/framework/cache/.gitkeep
+!storage/framework/sessions/.gitkeep
+!storage/framework/views/.gitkeep
+!storage/app/private/.gitkeep
+!storage/app/public/.gitkeep
+
+# Bootstrap cache
+/bootstrap/cache/*.php
+
+# Testing
+.phpunit.result.cache
+/.phpunit.cache
+
+# IDE
+/.idea
+/.vscode
+/.cursor/
+/.codex
+/.nova
+/.zed
+.phpactor.json
+_ide_helper.php
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Backup & temp files
+*.bak
+*.old
+*.tmp
+*.backup
+*.log
+
+# Database dumps & archives
+*.zip
+*.sql
+*.sqlite
+
+# Auth
+/auth.json
+Homestead.json
+Homestead.yaml
+
+# Data import (not needed in repo)
+/data dieu hoa/
