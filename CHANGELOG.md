@@ -2,6 +2,38 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.3.0] - 2026-05-09
+
+### Fixed — Critical: Fake CDN URL Bug
+- **`media_url()` generated fake CDN URLs**: When R2 was enabled and a file didn't exist locally, the helper assumed it was on R2 and returned a CDN URL — but the file was never uploaded to R2. This caused all media (logos, product images, etc.) to show broken on frontend
+- **Root cause**: `!file_exists($localFilePath)` was used as a proxy for "file is on R2" — this is fundamentally wrong. Replaced with strict check: only return CDN URL when `MediaFile.is_synced_to_r2 = true`
+- Also removed auto-rewriting of `/storage/` URLs to CDN URLs for full URL inputs — this was another vector for generating invalid CDN links
+
+### Fixed — Branding Uploads Ignored R2
+- All 5 branding FileUpload components (`logo_image`, `logo_dark_image`, `logo_mobile_image`, `favicon`, `apple_touch_icon`) were hardcoded to `disk('public')`, bypassing R2 entirely even when enabled
+- Now use `MediaDiskService::getUploadDisk()` for dynamic disk selection
+
+### Fixed — All Resource Uploads Missing Disk
+- FileUpload components across **all Resources** (Product, Brand, Post, CaseStudy, Category, Testimonial, User, ProductDocument) had no explicit disk set
+- Filament falls back to `config('filesystems.default')` = `local` (private storage!) — files were uploaded but inaccessible via URL
+- All now use `MediaDiskService::getUploadDisk()` for dynamic R2/local switching
+
+### Changed — Import FK Validation
+- `ProductImportHandler::validateRow()` now checks `brand_id` and `product_category_id` exist in DB before import
+- `prepareData()` adds defensive null-set for missing FK IDs to prevent SQL constraint violations on production
+
+### Files Changed (10 files)
+- `app/Support/helpers.php` — Rewrote `media_url()` core logic
+- `app/Filament/Pages/ManageSiteSettings.php` — 5 branding uploads
+- `app/Filament/Resources/Products/Schemas/ProductForm.php` — 4 uploads
+- `app/Filament/Resources/Brands/Schemas/BrandForm.php` — 1 upload
+- `app/Filament/Resources/Posts/Schemas/PostForm.php` — 2 uploads
+- `app/Filament/Resources/CaseStudies/Schemas/CaseStudyForm.php` — 3 uploads
+- `app/Filament/Resources/ProductCategories/Schemas/ProductCategoryForm.php` — 1 upload
+- `app/Filament/Resources/Testimonials/Schemas/TestimonialForm.php` — 2 uploads
+- `app/Filament/Resources/Users/UserResource.php` — 1 upload
+- `app/Filament/Resources/Products/RelationManagers/ProductDocumentsRelationManager.php` — 1 upload
+
 ## [1.2.0] - 2026-05-09
 
 ### Fixed — Critical Import Bugs
