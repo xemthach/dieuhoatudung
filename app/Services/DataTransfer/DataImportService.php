@@ -115,35 +115,26 @@ class DataImportService
 
             $chunkSize = (int) setting('import_export.import_chunk_size', 100);
 
-            $rows->chunk($chunkSize)->each(function ($chunk) use ($job, $handler, &$stats) {
-                DB::beginTransaction();
+            foreach ($rows as $index => $row) {
                 try {
-                    foreach ($chunk as $index => $row) {
-                        try {
-                            $result = $handler->importRow($row, $job->mode, $job->matching_key);
-                            $stats['success']++;
-                            if ($result === 'created') $stats['created']++;
-                            if ($result === 'updated') $stats['updated']++;
-                            if ($result === 'skipped') $stats['skipped']++;
-                        } catch (\Throwable $e) {
-                            $stats['failed']++;
-                            $stats['errors'][] = [
-                                'row'    => $index + 1,
-                                'errors' => [$e->getMessage()],
-                                'data'   => array_slice($row, 0, 5), // partial data for debugging
-                            ];
-                        }
-                    }
+                    DB::beginTransaction();
+                    $result = $handler->importRow($row, $job->mode, $job->matching_key);
                     DB::commit();
+
+                    $stats['success']++;
+                    if ($result === 'created') $stats['created']++;
+                    if ($result === 'updated') $stats['updated']++;
+                    if ($result === 'skipped') $stats['skipped']++;
                 } catch (\Throwable $e) {
                     DB::rollBack();
-                    $stats['failed'] += $chunk->count();
+                    $stats['failed']++;
                     $stats['errors'][] = [
-                        'row'    => 'chunk',
-                        'errors' => ['Chunk transaction failed: ' . $e->getMessage()],
+                        'row'    => $index + 1,
+                        'errors' => [$e->getMessage()],
+                        'data'   => array_slice($row, 0, 5),
                     ];
                 }
-            });
+            }
 
             $job->update([
                 'status'            => 'completed',
@@ -386,7 +377,15 @@ class DataImportService
             $rowActions[$index] = $action;
         }
 
-        return compact('validCount', 'errorCount', 'createCount', 'updateCount', 'rowErrors', 'rowActions', 'allErrors');
+        return [
+            'valid_count'  => $validCount,
+            'error_count'  => $errorCount,
+            'create_count' => $createCount,
+            'update_count' => $updateCount,
+            'row_errors'   => $rowErrors,
+            'row_actions'  => $rowActions,
+            'all_errors'   => $allErrors,
+        ];
     }
 
     /**

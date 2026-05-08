@@ -2,6 +2,45 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.0] - 2026-05-09
+
+### Fixed — Critical Import Bugs
+- **SoftDeletes slug collision**: `Product::where('slug')->exists()` skipped soft-deleted rows, but MySQL unique index still enforced them → all imports crashed with duplicate entry errors. Fixed by adding `withTrashed()` to all uniqueness checks (`ensureUniqueSlug`, `findExisting`, `validateRow`)
+- **Cascade transaction failure**: Chunked `DB::beginTransaction()` meant one row's constraint violation invalidated the entire chunk (all 108 rows failed even though only 1 had an error). Replaced with per-row transaction isolation
+- **CREATE mode missing guard**: CREATE mode didn't check if record already existed → blind `Product::create()` → crash. Now detects existing records and skips with clear error message suggesting UPSERT mode
+
+### Improved — Import Preview Page (Production UI)
+- Rebuilt with card-based architecture: Summary Stats → File Info → Error Table → Preview Table
+- File info displayed as proper HTML table (Module / Tên file / Định dạng / Matching Key)
+- Summary stat cards with colored accent bars (green/red/blue/yellow/purple) and `text-3xl` numbers
+- Preview table: sticky header, zebra rows, hover highlight, monospace for model/sku codes
+- Smart data resolution: `brand_id → "Gree"`, `category_id → "Điều hòa âm trần Cassette"`, booleans → badges, prices → formatted
+- Footer info box with stat counters: **108** TỔNG DÒNG · **20** ĐANG PREVIEW · **88** CÒN LẠI
+- Tooltip on truncated text (product name, slug)
+- Error table with dot-list formatting and row badges
+
+### Improved — Import Confirmation UX
+- Confirm modal: warning icon (⚠), descriptive heading, bullet-point summary, "Hành động này không thể hoàn tác" notice
+- Cancel button now requires confirmation: "Dữ liệu preview sẽ bị xóa. Bạn sẽ cần upload lại file."
+
+### Improved — Data Transfer Dashboard
+- Refactored from debug-style text list to professional admin dashboard
+- 4 separate cards: Summary Stats (4-col grid) → Export Jobs table → Import Jobs table → Module Reference (collapsible)
+- Export table: ID, Module badge, Format badge, Row count, Status badge, Creator, Timestamp, Download icon
+- Import table: ID, Module badge, Filename (truncated + tooltip), Mode badge (CREATE/UPDATE/UPSERT), Total/OK/Error counts, Status badge, Timestamp, Action icon buttons
+- Status badges: Hoàn thành (green), Lỗi (red), Preview (yellow), Đang import (blue), Chờ xử lý (gray)
+- Action buttons: eye icon → preview, document icon → result, warning icon → error log
+- Empty states with icon + descriptive message
+- Responsive: mobile card stack, horizontal table scroll
+
+### Changed
+- `DataImportService::confirmImport()` — per-row transaction instead of chunked transaction
+- `ProductImportHandler::ensureUniqueSlug()` — truncates slug to 200 chars, uses `withTrashed()`
+- `ProductImportHandler::findExisting()` — includes soft-deleted records in all lookups
+- `ProductImportHandler::validateRow()` — detects existing records in CREATE mode, warns about duplicate slugs
+
+---
+
 ## [1.1.0] - 2026-05-09
 
 ### Added — Import/Export Data System

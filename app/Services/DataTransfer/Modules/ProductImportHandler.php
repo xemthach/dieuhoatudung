@@ -24,6 +24,22 @@ class ProductImportHandler implements ImportHandlerInterface
             $errors[] = 'SKU là bắt buộc khi import mode Update theo SKU.';
         }
 
+        // ── CREATE mode: detect existing records to prevent duplicate errors ──
+        if ($mode === 'create') {
+            $existing = $this->findExisting($row, $matchingKey);
+            if ($existing) {
+                $errors[] = "Sản phẩm đã tồn tại (#{$existing->id}: {$existing->name}). Dùng mode UPSERT nếu muốn cập nhật.";
+            }
+
+            // Also check slug uniqueness if slug is provided (include soft-deleted)
+            if (!empty($row['slug'] ?? null)) {
+                $slugExists = Product::withTrashed()->where('slug', $row['slug'])->exists();
+                if ($slugExists) {
+                    $errors[] = "Slug \"{$row['slug']}\" đã tồn tại. Slug sẽ được tự động tạo mới nếu bỏ trống cột slug.";
+                }
+            }
+        }
+
         // Validate prices
         foreach (['regular_price', 'sale_price'] as $priceField) {
             if (!empty($row[$priceField] ?? null) && !is_numeric($row[$priceField])) {
@@ -58,10 +74,11 @@ class ProductImportHandler implements ImportHandlerInterface
 
     public function findExisting(array $row, string $matchingKey): mixed
     {
+        // withTrashed: MySQL unique index includes soft-deleted rows
         return match ($matchingKey) {
-            'sku'  => !empty($row['sku']) ? Product::where('sku', $row['sku'])->first() : null,
-            'slug' => !empty($row['slug']) ? Product::where('slug', $row['slug'])->first() : null,
-            'id'   => !empty($row['id']) ? Product::find($row['id']) : null,
+            'sku'  => !empty($row['sku']) ? Product::withTrashed()->where('sku', $row['sku'])->first() : null,
+            'slug' => !empty($row['slug']) ? Product::withTrashed()->where('slug', $row['slug'])->first() : null,
+            'id'   => !empty($row['id']) ? Product::withTrashed()->find($row['id']) : null,
             default => null,
         };
     }
@@ -71,32 +88,66 @@ class ProductImportHandler implements ImportHandlerInterface
         $data = $this->prepareData($row);
         $existing = $this->findExisting($row, $matchingKey);
 
+        // ── UPDATE mode ──
         if ($mode === 'update') {
             if (!$existing) return 'skipped';
             $existing->update($data);
             return 'updated';
         }
 
+        // ── UPSERT mode ──
         if ($mode === 'upsert') {
             if ($existing) {
                 $existing->update($data);
                 return 'updated';
             }
+            // Fall through to create
         }
 
-        // Create mode or upsert without existing
-        if (empty($data['slug']) && !empty($data['name'])) {
-            $data['slug'] = Str::slug($data['name']);
-            // Ensure unique slug
-            $baseSlug = $data['slug'];
-            $counter = 1;
-            while (Product::where('slug', $data['slug'])->exists()) {
-                $data['slug'] = $baseSlug . '-' . $counter++;
-            }
+        // ── CREATE mode ──
+        // Skip if record already exists (defensive — prevents duplicate errors)
+        if ($mode === 'create' && $existing) {
+            return 'skipped';
         }
+
+        // Always ensure slug uniqueness — even when slug is provided from file
+        $data['slug'] = $this->ensureUniqueSlug(
+            $data['slug'] ?? null,
+            $data['name'] ?? ''
+        );
 
         Product::create($data);
         return 'created';
+    }
+
+    /**
+     * Generate or validate a unique slug.
+     * Uses withTrashed() because MySQL unique index includes soft-deleted rows.
+     */
+    protected function ensureUniqueSlug(?string $slug, string $name): string
+    {
+        if (empty($slug) && !empty($name)) {
+            $slug = Str::slug($name);
+        }
+
+        if (empty($slug)) {
+            $slug = Str::slug('product-' . Str::random(8));
+        }
+
+        // Truncate to 200 chars to prevent utf8mb4 index overflow
+        if (mb_strlen($slug) > 200) {
+            $slug = mb_substr($slug, 0, 200);
+        }
+
+        $baseSlug = $slug;
+        $counter = 1;
+
+        // CRITICAL: withTrashed() — MySQL unique index includes soft-deleted rows
+        while (Product::withTrashed()->where('slug', $slug)->exists()) {
+            $slug = mb_substr($baseSlug, 0, 200) . '-' . $counter++;
+        }
+
+        return $slug;
     }
 
     protected function prepareData(array $row): array

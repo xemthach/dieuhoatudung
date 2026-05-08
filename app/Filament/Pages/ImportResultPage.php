@@ -28,14 +28,22 @@ class ImportResultPage extends Page
     public function getTitle(): string
     {
         $moduleName = ModuleRegistry::modules()[$this->job?->module ?? ''] ?? '';
-        return "Kết quả Import: {$moduleName}";
+        return "Ket qua Import: {$moduleName}";
+    }
+
+    public function getBreadcrumbs(): array
+    {
+        return [
+            DataTransferPage::getUrl() => 'Import / Export',
+            '#' => 'Ket qua Import',
+        ];
     }
 
     protected function getHeaderActions(): array
     {
         return [
             Action::make('back')
-                ->label('Quay lại Import/Export')
+                ->label('Quay lai Import/Export')
                 ->color('gray')
                 ->icon('heroicon-o-arrow-left')
                 ->url(DataTransferPage::getUrl()),
