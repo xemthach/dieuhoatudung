@@ -130,7 +130,7 @@ HTML;
                     . self::tableRow('Email', '{{customer_email}}', true)
                     . self::tableRow('Loại công trình', '{{project_type}}')
                     . self::tableRow('Ngân sách', '{{budget_range}}', true)
-                    . self::tableRow('BTU đề xuất', '{{btu}} BTU')
+                    . self::tableRow('BTU đề xuất', '{{btu}}')
                     . self::tableRow('Ghi chú', '{{message}}', true)
                     . self::tableRow('Nguồn', '{{source}}')
                     . '</table>'

@@ -8,6 +8,7 @@ use App\Enums\LandingSectionType;
 use App\Enums\PostStatus;
 use App\Http\Requests\StoreLeadRequest;
 use App\Models\Brand;
+use Illuminate\Support\Facades\RateLimiter;
 use App\Models\Lead;
 use App\Models\CaseStudy;
 use App\Models\Faq;
@@ -169,11 +170,25 @@ class LandingController extends Controller
      */
     public function storeLead(StoreLeadRequest $request)
     {
+        // ── Spam protection ──────────────────────────────────────────
+        // Honeypot: bot-only field — must be empty for real users
+        if ($request->filled('website_url')) {
+            return redirect()->route('landing')->with('lead_success', 'Cảm ơn!');
+        }
+
+        // Rate limiting: max 5 submissions per IP per hour
+        $key = 'landing_lead:' . $request->ip();
+        if (RateLimiter::tooManyAttempts($key, 5)) {
+            return redirect()->route('landing')
+                ->withErrors(['__global' => 'Bạn gửi quá nhiều yêu cầu. Vui lòng thử lại sau.']);
+        }
+        RateLimiter::hit($key, 3600);
+
         $lead = Lead::createGeneralLead([
             'full_name'   => $request->name,
             'phone'       => $request->phone,
             'email'       => $request->email,
-            'source_page' => $request->source ?? 'landing_page',
+            'source_page' => $request->source_page ?? url()->current(),
             'status'      => LeadStatus::New,
             'ip_address'  => $request->ip(),
         ], [
@@ -185,15 +200,15 @@ class LandingController extends Controller
         try {
             $this->mailService->sendEvent(
                 event:       'lead_admin',
-                vars: [
+                vars: array_filter([
                     'customer_name'  => $lead->full_name,
-                    'customer_phone' => $lead->phone ?? '—',
-                    'customer_email' => $lead->email ?? '—',
+                    'customer_phone' => $lead->phone,
+                    'customer_email' => $lead->email,
                     'need_type'      => 'Landing page',
-                    'area'           => $request->room_area ? $request->room_area . 'm²' : '—',
-                    'message'        => $lead->message ?? '—',
+                    'area'           => $request->room_area ? $request->room_area . 'm²' : null,
+                    'message'        => $lead->message ?: null,
                     'source'         => $lead->source_page,
-                ],
+                ], fn ($v) => $v !== null && $v !== ''),
                 adminEmail:  setting('lead.lead_notify_email', ''),
                 relatedType: 'Lead',
                 relatedId:   $lead->id
@@ -208,9 +223,10 @@ class LandingController extends Controller
                 $this->mailService->sendCustomerEvent(
                     event:         'lead_customer',
                     customerEmail: $lead->email,
-                    vars: [
-                        'customer_name' => $lead->full_name,
-                    ],
+                    vars: array_filter([
+                        'customer_name'  => $lead->full_name,
+                        'customer_phone' => $lead->phone,
+                    ], fn ($v) => $v !== null && $v !== ''),
                     relatedType: 'Lead',
                     relatedId:   $lead->id
                 );

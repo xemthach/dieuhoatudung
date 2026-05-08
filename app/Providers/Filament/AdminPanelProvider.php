@@ -47,6 +47,12 @@ class AdminPanelProvider extends PanelProvider
                     ->url(fn () => Profile::getUrl()),
             ])
 
+            // ── Version display in sidebar footer ─────────────────────
+            ->renderHook(
+                'panels::sidebar.footer',
+                fn () => '<div style="padding:0.5rem 1rem;text-align:center;font-size:0.7rem;color:#9ca3af;">v' . trim(file_get_contents(base_path('VERSION'))) . '</div>'
+            )
+
             ->middleware([
                 EncryptCookies::class,
                 AddQueuedCookiesToResponse::class,

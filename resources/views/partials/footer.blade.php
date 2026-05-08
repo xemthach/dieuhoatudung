@@ -89,6 +89,7 @@
         <div class="container-main flex flex-col items-center justify-between gap-2 py-4 text-xs text-surface-500 sm:flex-row">
             <p>&copy; {{ date('Y') }} {{ setting('general.company_name', setting('general.site_name', '')) }}. Tất cả quyền được bảo lưu.</p>
             <p>{{ setting('general.site_slogan', '') }}</p>
+            <p>v{{ trim(file_get_contents(base_path('VERSION'))) }}</p>
         </div>
     </div>
 </footer>

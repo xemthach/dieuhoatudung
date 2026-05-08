@@ -47,6 +47,9 @@
             <input type="hidden" name="product_name" value="{{ $product->name }}">
             <input type="hidden" name="product_sku"  value="{{ $product->sku ?? '' }}">
             <input type="hidden" name="product_url"  value="{{ route('product.show', $product->slug) }}">
+            <input type="hidden" name="product_brand"    value="{{ $product->brand?->name ?? '' }}">
+            <input type="hidden" name="product_category" value="{{ $product->category?->name ?? '' }}">
+            <input type="hidden" name="product_capacity_btu" value="{{ $product->btu ?? '' }}">
             @endif
             <input type="hidden" name="source_page"  value="{{ url()->current() }}">
             <input type="hidden" name="utm_source"   value="{{ request('utm_source') }}">
@@ -78,6 +81,13 @@
                         class="qqf-input"
                         placeholder="email@example.com"
                         autocomplete="email">
+                </div>
+                <div>
+                    <label class="qqf-label" for="qq_city">Tỉnh / Thành phố <span class="text-surface-400 font-normal">(không bắt buộc)</span></label>
+                    <input type="text" id="qq_city" name="province_city"
+                        class="qqf-input"
+                        placeholder="Hà Nội, TP.HCM, Đà Nẵng..."
+                        autocomplete="address-level1">
                 </div>
                 <button type="submit"
                     :disabled="sending"

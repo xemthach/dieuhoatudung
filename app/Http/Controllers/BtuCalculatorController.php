@@ -8,6 +8,7 @@ use App\Services\Calculator\BtuCalculatorService;
 use App\Services\Mail\MailDispatchService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\RateLimiter;
 
 class BtuCalculatorController extends Controller
 {
@@ -47,6 +48,19 @@ class BtuCalculatorController extends Controller
      */
     public function calculate(Request $request)
     {
+        // ── Spam protection ──────────────────────────────────────────
+        if ($request->filled('website_url')) {
+            return redirect()->route('btu-calculator.index');
+        }
+
+        $key = 'btu_calc:' . $request->ip();
+        if (RateLimiter::tooManyAttempts($key, 10)) {
+            return back()
+                ->withInput()
+                ->withErrors(['area_m2' => 'Quá nhiều yêu cầu. Vui lòng thử lại sau.']);
+        }
+        RateLimiter::hit($key, 3600);
+
         $validated = $request->validate([
             'area_m2'        => ['required', 'numeric', 'min:5', 'max:5000'],
             'ceiling_height' => ['nullable', 'numeric', 'min:2', 'max:15'],
@@ -57,15 +71,22 @@ class BtuCalculatorController extends Controller
             'priority'       => ['nullable', 'in:tiet_kiem_dien,gia_tot,van_hanh_ben_bi,thuong_hieu_cao_cap'],
             // Contact optional
             'full_name'      => ['nullable', 'string', 'max:100'],
-            'phone'          => ['nullable', 'string', 'max:20'],
+            'phone'          => ['nullable', 'string', 'regex:/^(0|\+84)[0-9]{8,10}$/'],
             'email'          => ['nullable', 'email', 'max:150'],
             'note'           => ['nullable', 'string', 'max:1000'],
+            // Tracking
+            'utm_source'     => ['nullable', 'string', 'max:100'],
+            'utm_medium'     => ['nullable', 'string', 'max:100'],
+            'utm_campaign'   => ['nullable', 'string', 'max:100'],
+            // Honeypot
+            'website_url'    => ['nullable', 'max:0'],
         ], [
             'area_m2.required' => 'Vui lòng nhập diện tích phòng.',
             'area_m2.numeric'  => 'Diện tích phải là số.',
             'area_m2.min'      => 'Diện tích tối thiểu 5 m².',
             'space_type.required' => 'Vui lòng chọn loại không gian.',
             'space_type.in'    => 'Loại không gian không hợp lệ.',
+            'phone.regex'      => 'Số điện thoại không hợp lệ.',
         ]);
 
         $areaMq    = (float) $validated['area_m2'];

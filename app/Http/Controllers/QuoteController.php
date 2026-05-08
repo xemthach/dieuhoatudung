@@ -65,6 +65,7 @@ class QuoteController extends Controller
             'full_name'              => ['required', 'string', 'max:100'],
             'phone'                  => ['required', 'string', 'regex:/^(0|\+84)[0-9]{8,10}$/'],
             'email'                  => ['nullable', 'email', 'max:150'],
+            'province_city'          => ['nullable', 'string', 'max:100'],
             'message'                => ['nullable', 'string', 'max:1000'],
             'product_id'             => ['nullable', 'integer', 'exists:products,id'],
             'product_name'           => ['nullable', 'string', 'max:255'],
@@ -109,6 +110,7 @@ class QuoteController extends Controller
             'phone'                      => $validated['phone'],
             'message'                    => $validated['message'] ?? null,
             'email'                      => $validated['email'] ?? null,
+            'province_city'              => $validated['province_city'] ?? null,
             'product_id'                 => $validated['product_id'] ?? null,
             'product_name'               => $validated['product_name'] ?? $productModel?->name,
             'product_sku'                => $validated['product_sku'] ?? $productModel?->sku,
@@ -144,6 +146,7 @@ class QuoteController extends Controller
             'message'              => $quote->message,
             'customer_note'        => $quote->message,
             'customer_email'       => $quote->email,
+            'province_city'        => $quote->province_city,
             'source'               => $quote->source_page,
             'utm_source'           => $quote->utm_source,
             'utm_campaign'         => $quote->utm_campaign,
@@ -186,6 +189,7 @@ class QuoteController extends Controller
                         'customer_name'        => $quote->full_name,
                         'customer_phone'       => $quote->phone,
                         'customer_email'       => $quote->email,
+                        'province_city'        => $quote->province_city,
                         'product_name'         => $quote->product_name,
                         'product_sku'          => $quote->product_sku,
                         'product_capacity_btu' => $quote->product_capacity_btu ? number_format($quote->product_capacity_btu) . ' BTU' : null,
@@ -263,7 +267,7 @@ class QuoteController extends Controller
             'need_site_survey'         => ['nullable','boolean'],
             // Step 5 — Contact
             'full_name'                => ['required','string','max:100'],
-            'phone'                    => [$requirePhone ? 'required' : 'nullable','string','max:20'],
+            'phone'                    => [$requirePhone ? 'required' : 'nullable','string','regex:/^(0|\+84)[0-9]{8,10}$/'],
             'email'                    => [$requireEmail ? 'required' : 'nullable','nullable','email','max:150'],
             'province_city'            => ['nullable','string','max:100'],
             'address'                  => ['nullable','string','max:255'],
@@ -287,34 +291,30 @@ class QuoteController extends Controller
             'email.email'        => 'Email không đúng định dạng.',
         ]);
 
-        // ── Calculate BTU with env conditions ────────────────────────
+        // ── Calculate BTU using BtuCalculatorService (single source of truth) ──
         $calculatedBtu = $validated['preferred_btu'] ?? null;
         $suggestedRange = null;
+        $recommendedProductIds = [];
         if (! empty($validated['area_m2'])) {
             try {
-                $areaMq = (float) $validated['area_m2'];
-                $height = (float) ($validated['ceiling_height'] ?? 3.0);
-                $people = (int) ($validated['number_of_people'] ?? 0);
-                // Base: 600–800 BTU/m2
-                $baseBtu = $areaMq * 700;
-                // Volume correction if ceiling > 3m
-                if ($height > 3) { $baseBtu *= ($areaMq * $height) / ($areaMq * 3); }
-                // Sun exposure
-                if (($validated['sun_exposure'] ?? '') === 'nang_nhieu') $baseBtu *= 1.15;
-                elseif (($validated['sun_exposure'] ?? '') === 'nang_vua') $baseBtu *= 1.08;
-                // Glass area
-                if (($validated['glass_area'] ?? '') === 'vach_kinh') $baseBtu *= 1.12;
-                elseif (($validated['glass_area'] ?? '') === 'nhieu_kinh') $baseBtu *= 1.07;
-                // People (300 BTU/person)
-                $baseBtu += $people * 300;
-                // Insulation correction
-                if (($validated['insulation_quality'] ?? '') === 'kem') $baseBtu *= 1.10;
-                $calculatedBtu = (int) round($baseBtu / 1000) * 1000;
-                // BTU brackets for suggested range
-                $brackets = [9000,12000,18000,24000,28000,36000,42000,48000,60000,100000];
-                $lower = collect($brackets)->last(fn($b) => $b <= $calculatedBtu) ?? $brackets[0];
-                $upper = collect($brackets)->first(fn($b) => $b >= $calculatedBtu) ?? last($brackets);
-                $suggestedRange = $lower === $upper ? number_format($lower).' BTU' : number_format($lower).'-'.number_format($upper).' BTU';
+                $areaMq   = (float) $validated['area_m2'];
+                $height   = (float) ($validated['ceiling_height'] ?? 3.0);
+                $people   = (int) ($validated['number_of_people'] ?? 0);
+                $sunlight = ($validated['sun_exposure'] ?? '') === 'nang_nhieu';
+                $heatEquip = false; // quote form doesn't have this field
+
+                // Map project_type → calculator space_type
+                $spaceMap = [
+                    'nha_o' => 'nha_o', 'can_ho' => 'nha_o', 'van_phong' => 'van_phong',
+                    'cua_hang' => 'cua_hang', 'showroom' => 'showroom', 'nha_hang' => 'nha_hang',
+                    'hoi_truong' => 'hoi_truong', 'nha_xuong' => 'nha_xuong',
+                    'truong_hoc' => 'phong_hoc', 'khach_san' => 'khach_san', 'khac' => 'van_phong',
+                ];
+                $spaceType = $spaceMap[$validated['project_type'] ?? ''] ?? 'van_phong';
+
+                $result = $this->calculator->calculate($areaMq, $height, $spaceType, $people, $sunlight, $heatEquip);
+                $calculatedBtu = $result['recommended_btu'];
+                $suggestedRange = $result['area_range'] ? number_format($result['recommended_btu']) . ' BTU' : null;
 
                 $matchedProducts = $this->calculator->matchProducts($calculatedBtu, '');
                 $recommendedProductIds = $matchedProducts->pluck('id')->take(6)->toArray();

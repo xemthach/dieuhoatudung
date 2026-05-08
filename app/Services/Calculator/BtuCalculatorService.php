@@ -37,7 +37,7 @@ class BtuCalculatorService
         // Commercial
         'cua_hang'           => ['w_per_m2' => 165,  'label_vi' => 'Cửa hàng',                     'label_en' => 'Clothing / Shoe Stores'],
         'sieu_thi'           => ['w_per_m2' => 160,  'label_vi' => 'Siêu thị',                     'label_en' => 'Supermarkets'],
-        'showroom'           => ['w_per_m2' => 900,  'label_vi' => 'Showroom',                      'label_en' => 'Showroom (high load)'],
+        'showroom'           => ['w_per_m2' => 300,  'label_vi' => 'Showroom',                      'label_en' => 'Showroom (commercial)'],
         'ngan_hang'          => ['w_per_m2' => 175,  'label_vi' => 'Ngân hàng',                     'label_en' => 'Banks'],
         // F&B
         'nha_hang'           => ['w_per_m2' => 330,  'label_vi' => 'Nhà hàng',                      'label_en' => 'Restaurants'],

@@ -120,7 +120,8 @@ class ProductInteractionController extends Controller
                     'customer_name'  => $validated['customer_name'],
                     'customer_phone' => $validated['customer_phone'] ?? '—',
                     'rating'         => $validated['rating'],
-                    'content'        => $validated['content'],
+                    'review_content' => $validated['content'],
+                    'content'        => $validated['content'], // BC compat with existing templates
                     'status'         => $autoApprove ? 'Đã duyệt tự động' : 'Chờ duyệt',
                 ],
                 adminEmail:  setting('mail_notify.review_notify_email') ?: setting('lead.lead_notify_email', ''),

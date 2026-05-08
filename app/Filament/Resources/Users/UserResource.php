@@ -53,12 +53,12 @@ class UserResource extends Resource
 
     public static function canCreate(): bool
     {
-        return auth()->user()?->can('user.manage') || auth()->user()?->isSuperAdmin();
+        return auth()->user()?->can('user.create') ?? false;
     }
 
     public static function canEdit($record): bool
     {
-        return auth()->user()?->can('user.manage') || auth()->user()?->isSuperAdmin();
+        return auth()->user()?->can('user.edit') ?? false;
     }
 
     public static function canDelete($record): bool
@@ -66,7 +66,7 @@ class UserResource extends Resource
         // Cannot delete self or super_admin
         if ($record->id === auth()->id()) return false;
         if ($record->hasRole('super_admin') && !auth()->user()?->isSuperAdmin()) return false;
-        return auth()->user()?->can('user.manage') || auth()->user()?->isSuperAdmin();
+        return auth()->user()?->can('user.delete') ?? false;
     }
 
     public static function form(Schema $schema): Schema
@@ -259,7 +259,11 @@ class UserResource extends Resource
                             ->success()
                             ->send();
                     })
-                    ->visible(fn (User $r) => $r->id !== auth()->id()),
+                    ->visible(fn (User $r) =>
+                        $r->id !== auth()->id()
+                        && !$r->hasRole('super_admin')
+                        && auth()->user()?->can('user.reset_password')
+                    ),
 
                 DeleteAction::make()
                     ->label('Xóa')

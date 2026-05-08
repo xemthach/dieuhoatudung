@@ -107,15 +107,22 @@ class ProductController extends Controller
         if ($enableReviews) {
             $reviews = $product->approvedReviews()->take(5)->get();
 
-            // Rating statistics
-            $allApproved = $product->approvedReviews();
-            $totalReviews = $allApproved->count();
-            $avgRating = $totalReviews > 0 ? round($allApproved->avg('rating'), 1) : 0;
+            // Rating statistics — optimized: single query with groupBy
+            $ratingCounts = $product->approvedReviews()
+                ->reorder() // strip default orderBy('created_at') — incompatible with GROUP BY
+                ->selectRaw('rating, COUNT(*) as count')
+                ->groupBy('rating')
+                ->pluck('count', 'rating');
+
+            $totalReviews = $ratingCounts->sum();
+            $avgRating = $totalReviews > 0
+                ? round($ratingCounts->sum(fn($count, $rating) => $count * $rating) / $totalReviews, 1)
+                : 0;
 
             $ratingBreakdown = [];
             if ($totalReviews > 0) {
                 for ($i = 5; $i >= 1; $i--) {
-                    $count = $product->approvedReviews()->where('rating', $i)->count();
+                    $count = $ratingCounts->get($i, 0);
                     $ratingBreakdown[$i] = [
                         'count' => $count,
                         'percent' => round(($count / $totalReviews) * 100),

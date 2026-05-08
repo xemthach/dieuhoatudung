@@ -37,7 +37,7 @@ class ViewBtuCalculation extends ViewRecord
 
                     TextEntry::make('area_m2')
                         ->label('Diện tích')
-                        ->formatStateUsing(fn ($state) => $state . ' m'),
+                        ->formatStateUsing(fn ($state) => $state . ' m²'),
 
                     TextEntry::make('space_type')
                         ->label('Loại không gian')
@@ -48,6 +48,23 @@ class ViewBtuCalculation extends ViewRecord
                     TextEntry::make('created_at')
                         ->label('Thời gian')
                         ->dateTime('d/m/Y H:i'),
+                ]),
+            ]),
+
+            // ── Chi tiết kỹ thuật ────────────────────────────────
+            Section::make('Chi tiết kỹ thuật')->schema([
+                Grid::make(['default' => 2, 'md' => 4])->schema([
+
+                    TextEntry::make('calculated_btu')
+                        ->label('BTU tính toán (raw)')
+                        ->formatStateUsing(fn ($state) => $state ? number_format($state) . ' BTU' : null)
+                        ->visible(fn ($record) => !empty($record->calculated_btu) && $record->calculated_btu !== $record->recommended_btu),
+
+                    TextEntry::make('cooling_w_per_m2')
+                        ->label('Tải lạnh')
+                        ->formatStateUsing(fn ($state) => $state ? $state . ' W/m²' : null)
+                        ->badge()->color('info')
+                        ->visible(fn ($record) => !empty($record->cooling_w_per_m2)),
                 ]),
             ]),
 

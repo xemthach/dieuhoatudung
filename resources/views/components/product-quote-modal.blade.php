@@ -16,7 +16,7 @@
         sending: false,
         sent: false,
         errors: {},
-        formData: { full_name: '', phone: '', message: '' },
+        formData: { full_name: '', phone: '', email: '', province_city: '', message: '' },
 
         submit() {
             if (this.sending) return;
@@ -42,7 +42,7 @@
                     window.dataLayer = window.dataLayer || [];
                     dataLayer.push({ event: 'quote_submitted', lead_type: 'product', product_id: {{ $product?->id ?? 'null' }} });
                     // Auto close after 3s
-                    setTimeout(() => { this.open = false; this.sent = false; this.formData = { full_name: '', phone: '', message: '' }; }, 3000);
+                    setTimeout(() => { this.open = false; this.sent = false; this.formData = { full_name: '', phone: '', email: '', province_city: '', message: '' }; }, 3000);
                 } else {
                     this.errors = d.errors || {};
                 }
@@ -190,6 +190,40 @@
                             autocomplete="tel"
                         >
                         <p x-show="errors.phone" x-text="errors.phone" class="pqm-error"></p>
+                    </div>
+
+                    {{-- Email (optional) --}}
+                    <div>
+                        <label class="pqm-label" for="pqm_email">
+                            Email
+                            <span class="pqm-optional">(không bắt buộc)</span>
+                        </label>
+                        <input
+                            type="email"
+                            id="pqm_email"
+                            name="email"
+                            x-model="formData.email"
+                            class="pqm-input"
+                            placeholder="email@example.com"
+                            autocomplete="email"
+                        >
+                    </div>
+
+                    {{-- Tinh thanh (optional) --}}
+                    <div>
+                        <label class="pqm-label" for="pqm_city">
+                            Tỉnh / Thành phố
+                            <span class="pqm-optional">(không bắt buộc)</span>
+                        </label>
+                        <input
+                            type="text"
+                            id="pqm_city"
+                            name="province_city"
+                            x-model="formData.province_city"
+                            class="pqm-input"
+                            placeholder="Hà Nội, TP.HCM, Đà Nẵng..."
+                            autocomplete="address-level1"
+                        >
                     </div>
 
                     {{-- Ghi chu (optional) --}}
