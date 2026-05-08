@@ -228,15 +228,101 @@ sudo supervisorctl start dieuhoa-worker:*
 | 500 error after deploy | `php artisan optimize:clear` then check `storage/logs/laravel.log` |
 | Permission denied | `chmod -R 775 storage bootstrap/cache` |
 | Admin can't login | `php artisan db:seed --class=AdminUserSeeder --force` |
-| Missing permissions | `php artisan db:seed --class=RolePermissionSeeder --force` |
+| Changed ADMIN_PASSWORD but can't login | Must re-run: `php artisan db:seed --class=AdminUserSeeder --force` |
+| Missing permissions/roles | `php artisan db:seed --class=RolePermissionSeeder --force` |
 | Missing settings | `php artisan db:seed --class=SiteSettingSeeder --force` |
 | Missing mail templates | `php artisan db:seed --class=MailTemplateSeeder --force` |
 | CSS/JS not loading | `npm run build` then `php artisan optimize:clear` |
 | Storage images broken | `php artisan storage:link` |
+| Livewire JS 404 / MIME mismatch | `php artisan livewire:publish --assets && php artisan optimize:clear` |
+| Admin page blank / no interactivity | Livewire assets issue — see Cloudflare section below |
+| Login page shows but can't submit | Check Livewire routes: `php artisan route:list --name=livewire` |
 
 ---
 
-## G. Important Notes
+## G. Nginx Config (Reference)
+
+```nginx
+server {
+    listen 443 ssl;
+    server_name dieuhoatudung.com;
+
+    # IMPORTANT: root must point to /public
+    root /home/dieuhoatudung.com/public_html/public;
+    index index.php index.html;
+
+    location / {
+        try_files $uri $uri/ /index.php?$query_string;
+    }
+
+    location ~ \.php$ {
+        fastcgi_pass unix:/var/run/php/php8.3-fpm.sock;
+        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+        include fastcgi_params;
+    }
+
+    location ~ /\.(?!well-known).* {
+        deny all;
+    }
+}
+```
+
+> **Key:** `root` must point to the `public/` subdirectory, NOT the project root.
+
+---
+
+## H. Cloudflare Notes
+
+### After Every Deploy
+
+Cloudflare caches static assets aggressively. After deploying new CSS/JS:
+
+1. Go to **Cloudflare Dashboard** → domain → **Caching** → **Purge Everything**
+2. Or enable **Development Mode** temporarily (bypasses cache for 3 hours)
+
+### Livewire + Cloudflare
+
+Livewire v3 uses hashed route prefixes (e.g., `livewire-3ba6fe55/`). If Livewire stops working:
+
+```bash
+# 1. Publish Livewire static assets
+php artisan livewire:publish --assets
+
+# 2. Clear Laravel cache
+php artisan optimize:clear
+
+# 3. Purge Cloudflare cache (from dashboard or API)
+```
+
+### Cloudflare Page Rules (Recommended)
+
+| URL Pattern | Setting |
+|---|---|
+| `dieuhoatudung.com/admin/*` | Cache Level: Bypass |
+| `dieuhoatudung.com/livewire*` | Cache Level: Bypass |
+
+This prevents Cloudflare from caching admin/Livewire routes.
+
+---
+
+## I. Changing Admin Password
+
+Simply editing `.env` does NOT update the database. You must re-seed:
+
+```bash
+# 1. Edit .env
+nano .env
+# Change: ADMIN_PASSWORD=NewPassword123!
+
+# 2. Re-run admin seeder
+php artisan db:seed --class=AdminUserSeeder --force
+
+# 3. Login with new password
+```
+
+---
+
+## J. Important Notes
 
 > **NEVER** run `migrate:fresh` on production — it drops ALL tables!
 
@@ -245,3 +331,6 @@ sudo supervisorctl start dieuhoa-worker:*
 > Always use `--force` flag for `migrate` and `db:seed` on production.
 
 > After every deploy, run `php artisan optimize:clear`.
+
+> After every deploy with CSS/JS changes, **purge Cloudflare cache**.
+
