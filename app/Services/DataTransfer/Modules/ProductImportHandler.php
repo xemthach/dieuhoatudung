@@ -40,6 +40,19 @@ class ProductImportHandler implements ImportHandlerInterface
             }
         }
 
+        // ── Validate foreign keys exist in DB ──
+        if (!empty($row['brand_id'] ?? null) && is_numeric($row['brand_id'])) {
+            if (!Brand::find((int) $row['brand_id'])) {
+                $errors[] = "Brand ID {$row['brand_id']} không tồn tại trong hệ thống.";
+            }
+        }
+
+        if (!empty($row['product_category_id'] ?? null) && is_numeric($row['product_category_id'])) {
+            if (!ProductCategory::find((int) $row['product_category_id'])) {
+                $errors[] = "Category ID {$row['product_category_id']} không tồn tại trong hệ thống.";
+            }
+        }
+
         // Validate prices
         foreach (['regular_price', 'sale_price'] as $priceField) {
             if (!empty($row[$priceField] ?? null) && !is_numeric($row[$priceField])) {
@@ -56,7 +69,18 @@ class ProductImportHandler implements ImportHandlerInterface
 
         // Validate brand_id exists (if provided as name, we'll resolve it)
         if (!empty($row['brand_id'] ?? null) && !is_numeric($row['brand_id'])) {
-            // Treat as brand name - will resolve during import
+            $brand = Brand::where('name', $row['brand_id'])->first();
+            if (!$brand) {
+                $errors[] = "Brand \"{$row['brand_id']}\" không tìm thấy.";
+            }
+        }
+
+        // Validate category name resolution
+        if (!empty($row['product_category_id'] ?? null) && !is_numeric($row['product_category_id'])) {
+            $cat = ProductCategory::where('name', $row['product_category_id'])->first();
+            if (!$cat) {
+                $errors[] = "Category \"{$row['product_category_id']}\" không tìm thấy.";
+            }
         }
 
         // Validate JSON fields
@@ -187,6 +211,18 @@ class ProductImportHandler implements ImportHandlerInterface
         if (!empty($data['product_category_id']) && !is_numeric($data['product_category_id'])) {
             $cat = ProductCategory::where('name', $data['product_category_id'])->first();
             $data['product_category_id'] = $cat?->id;
+        }
+
+        // Defensive: verify numeric FK IDs exist (prevent FK constraint violation)
+        if (!empty($data['brand_id']) && is_numeric($data['brand_id'])) {
+            if (!Brand::find((int) $data['brand_id'])) {
+                $data['brand_id'] = null;
+            }
+        }
+        if (!empty($data['product_category_id']) && is_numeric($data['product_category_id'])) {
+            if (!ProductCategory::find((int) $data['product_category_id'])) {
+                $data['product_category_id'] = null;
+            }
         }
 
         // Parse JSON fields
