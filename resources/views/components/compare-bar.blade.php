@@ -110,13 +110,8 @@ function compareBar() {
         
         async removeItem(slug) {
             try {
-                const res = await fetch('{{ route('compare.remove') }}', {
+                const res = await csrfFetch('{{ route('compare.remove') }}', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
-                        'Accept': 'application/json'
-                    },
                     body: JSON.stringify({ slug: slug })
                 });
                 
@@ -135,12 +130,8 @@ function compareBar() {
         
         async clearAll() {
             try {
-                const res = await fetch('{{ route('compare.clear') }}', {
-                    method: 'POST',
-                    headers: {
-                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
-                        'Accept': 'application/json'
-                    }
+                const res = await csrfFetch('{{ route('compare.clear') }}', {
+                    method: 'POST'
                 });
                 
                 if (res.ok) {
@@ -177,13 +168,8 @@ window.addToCompare = async function(slug) {
     }
     
     try {
-        const res = await fetch('{{ route('compare.add') }}', {
+        const res = await csrfFetch('{{ route('compare.add') }}', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
-                'Accept': 'application/json'
-            },
             body: JSON.stringify({ slug: slug })
         });
         
@@ -193,8 +179,6 @@ window.addToCompare = async function(slug) {
             items.push(data.product || slug);
             localStorage.setItem('compare.products', JSON.stringify(items));
             window.dispatchEvent(new CustomEvent('compare-updated'));
-            
-            // alert(data.message); // Optional success message
         } else {
             alert(data.message || 'Có lỗi xảy ra.');
         }

@@ -20,6 +20,11 @@ use Illuminate\Support\Facades\Route;
 
 Route::get('/', [PageController::class, 'home'])->name('home');
 
+// CSRF Token Refresh (used by frontend csrfFetch() for 419 recovery)
+Route::get('/csrf-token', function () {
+    return response()->json(['token' => csrf_token()]);
+})->name('csrf.token');
+
 // Landing Page (SEO main keyword page)
 Route::get('/dieu-hoa-tu-dung', [LandingController::class, 'index'])->name('landing');
 Route::post('/dieu-hoa-tu-dung/bao-gia', [LandingController::class, 'storeLead'])->name('landing.lead');

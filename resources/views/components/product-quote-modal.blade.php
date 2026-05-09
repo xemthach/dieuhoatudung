@@ -28,7 +28,7 @@
             const form = this.$refs.qform;
             const fd   = new FormData(form);
 
-            fetch(form.action, {
+            csrfFetch(form.action, {
                 method: 'POST',
                 body: fd,
                 headers: { 'X-Requested-With': 'XMLHttpRequest' }

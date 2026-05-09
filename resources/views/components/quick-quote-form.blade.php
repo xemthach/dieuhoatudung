@@ -30,9 +30,10 @@
             @submit.prevent="
                 if(sending) return;
                 sending = true;
-                fetch($el.action, {
+                const fd = new FormData($el);
+                csrfFetch($el.action, {
                     method: 'POST',
-                    body: new FormData($el),
+                    body: fd,
                     headers: {'X-Requested-With': 'XMLHttpRequest'}
                 })
                 .then(r => r.ok ? (sent = true) : r.json().then(d => { sending = false; alert(Object.values(d.errors || {}).flat().join('\n')); }))

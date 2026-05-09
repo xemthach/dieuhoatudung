@@ -10,6 +10,103 @@ Alpine.plugin(collapse);
 window.Alpine = Alpine;
 Alpine.start();
 
+// ==========================================
+// CSRF Token Management & 419 Recovery
+// ==========================================
+
+/**
+ * Get current CSRF token from meta tag.
+ */
+window.getCsrfToken = () => {
+    const meta = document.querySelector('meta[name="csrf-token"]');
+    return meta ? meta.getAttribute('content') : '';
+};
+
+/**
+ * Refresh CSRF token from server (used when session expires).
+ * Returns the new token or empty string on failure.
+ */
+window.refreshCsrfToken = async () => {
+    try {
+        const res = await fetch('/csrf-token', {
+            method: 'GET',
+            headers: { 'Accept': 'application/json' },
+            credentials: 'same-origin'
+        });
+        if (res.ok) {
+            const data = await res.json();
+            const newToken = data.token || '';
+            // Update meta tag
+            const meta = document.querySelector('meta[name="csrf-token"]');
+            if (meta && newToken) {
+                meta.setAttribute('content', newToken);
+            }
+            // Update all hidden _token inputs in forms
+            document.querySelectorAll('input[name="_token"]').forEach(input => {
+                input.value = newToken;
+            });
+            return newToken;
+        }
+    } catch (e) {
+        console.warn('[CSRF] Failed to refresh token:', e);
+    }
+    return '';
+};
+
+/**
+ * CSRF-safe fetch wrapper with automatic 419 recovery.
+ *
+ * Usage:
+ *   const res = await csrfFetch('/api/compare/add', {
+ *       method: 'POST',
+ *       body: JSON.stringify({ slug: 'xxx' })
+ *   });
+ *
+ * Automatically:
+ *   1. Adds X-CSRF-TOKEN header
+ *   2. On 419 → refreshes token → retries ONCE
+ *   3. On second 419 → prompts user to reload
+ */
+window.csrfFetch = async (url, options = {}) => {
+    const headers = {
+        'X-CSRF-TOKEN': getCsrfToken(),
+        'Accept': 'application/json',
+        ...(options.headers || {})
+    };
+
+    // Add Content-Type for JSON body (not FormData)
+    if (options.body && typeof options.body === 'string') {
+        headers['Content-Type'] = headers['Content-Type'] || 'application/json';
+    }
+
+    let res = await fetch(url, { ...options, headers, credentials: 'same-origin' });
+
+    // Handle 419 CSRF token mismatch — refresh and retry once
+    if (res.status === 419) {
+        console.warn('[CSRF] Token expired, refreshing...');
+        const newToken = await refreshCsrfToken();
+        if (newToken) {
+            headers['X-CSRF-TOKEN'] = newToken;
+
+            // If body is FormData, update _token field
+            if (options.body instanceof FormData) {
+                options.body.set('_token', newToken);
+            }
+
+            res = await fetch(url, { ...options, headers, credentials: 'same-origin' });
+        }
+
+        // Still 419 after refresh → session completely dead
+        if (res.status === 419) {
+            alert('Phiên làm việc đã hết hạn. Trang sẽ được tải lại.');
+            location.reload();
+            return res;
+        }
+    }
+
+    return res;
+};
+
 
 // ==========================================
 // Mobile Menu Toggle
