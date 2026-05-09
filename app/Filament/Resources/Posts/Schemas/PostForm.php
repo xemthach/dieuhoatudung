@@ -48,8 +48,8 @@ class PostForm
                                 ->columnSpanFull(),
                             RichEditor::make('content')
                                 ->label('Nội dung bài viết')
-                                ->fileAttachmentsDisk(config('media.disk'))
-                                ->fileAttachmentsDirectory(config('media.directories.images'))
+                                ->fileAttachmentsDisk(fn () => app(MediaDiskService::class)->getUploadDisk())
+                                ->fileAttachmentsDirectory(config('media.folders.blog'))
                                 ->columnSpanFull(),
                         ]),
                         
@@ -58,7 +58,7 @@ class PostForm
                                 ->label('Ảnh đại diện')
                                 ->image()
                                 ->disk(fn () => app(MediaDiskService::class)->getUploadDisk())
-                                ->directory(config('media.directories.images'))
+                                ->directory(config('media.folders.blog'))
                                 ->columnSpanFull(),
                         ])->columns(2),
 

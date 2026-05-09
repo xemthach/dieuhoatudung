@@ -43,8 +43,7 @@ return [
             'root' => storage_path('app/public'),
             'url' => rtrim(env('APP_URL', 'http://localhost'), '/').'/storage',
             'visibility' => 'public',
-            'throw' => false,
-            'report' => false,
+            'throw' => true,
         ],
 
         's3' => [
@@ -68,9 +67,8 @@ return [
             'bucket' => env('CLOUDFLARE_R2_BUCKET'),
             'url' => env('CLOUDFLARE_R2_URL'),
             'endpoint' => env('CLOUDFLARE_R2_ENDPOINT'),
-            'use_path_style_endpoint' => false,
-            'throw' => false,
-            'report' => false,
+            'use_path_style_endpoint' => true,
+            'throw' => true,
         ],
 
     ],

@@ -33,6 +33,18 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Directory Aliases (backward compatibility)
+    |--------------------------------------------------------------------------
+    | Some forms reference config('media.directories.images').
+    | This maps to the same folders as above.
+    */
+
+    'directories' => [
+        'images' => 'media/blog',
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Image Settings
     |--------------------------------------------------------------------------
     */

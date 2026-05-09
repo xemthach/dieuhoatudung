@@ -32,14 +32,40 @@ class MediaDiskService
     }
 
     /**
+     * Check if R2 configuration is complete and valid.
+     * Must have key, secret, bucket, and endpoint.
+     */
+    public function r2ConfigValid(): bool
+    {
+        if (!$this->isR2Enabled()) {
+            return false;
+        }
+
+        $key      = $this->settingService->get('r2_storage.r2_access_key_id');
+        $secret   = $this->settingService->get('r2_storage.r2_secret_access_key');
+        $bucket   = $this->settingService->get('r2_storage.r2_bucket');
+        $endpoint = $this->settingService->get('r2_storage.r2_endpoint');
+
+        return !empty($key) && !empty($secret) && !empty($bucket) && !empty($endpoint);
+    }
+
+    /**
      * Get the active upload disk name.
      *
-     * - R2 enabled → 'r2' (configured by AppServiceProvider::boot)
+     * - R2 enabled + config valid → 'r2'
+     * - R2 enabled but config invalid → 'public' (with warning log)
      * - R2 disabled → 'public' (local storage)
      */
     public function getUploadDisk(): string
     {
-        return $this->isR2Enabled() ? 'r2' : 'public';
+        if ($this->isR2Enabled()) {
+            if ($this->r2ConfigValid()) {
+                return 'r2';
+            }
+            Log::warning('[MediaDiskService] R2 is enabled but config is incomplete — falling back to public disk.');
+        }
+
+        return 'public';
     }
 
     /**
@@ -53,10 +79,16 @@ class MediaDiskService
 
     /**
      * Normalize a path: strip leading/trailing slashes, remove /storage/ prefix.
+     * Also extracts relative path from full URLs if they match known base URLs.
      */
     public function normalizePath(?string $path): string
     {
         if (empty($path)) return '';
+
+        // If it's a full URL, try to extract relative path
+        if ($this->isFullUrl($path)) {
+            $path = $this->toRelativePath($path) ?? $path;
+        }
 
         // Strip leading /storage/
         if (str_starts_with($path, '/storage/')) {
@@ -75,9 +107,56 @@ class MediaDiskService
     }
 
     /**
+     * Convert a full URL to a relative path by stripping known base URLs.
+     * Returns null if the URL doesn't match any known base.
+     */
+    public function toRelativePath(?string $urlOrPath): ?string
+    {
+        if (empty($urlOrPath)) return null;
+
+        // Already relative
+        if (!$this->isFullUrl($urlOrPath)) {
+            $path = $urlOrPath;
+            if (str_starts_with($path, '/storage/')) {
+                $path = substr($path, strlen('/storage/'));
+            }
+            return ltrim($path, '/');
+        }
+
+        // Try to strip known base URLs
+        $baseUrls = [];
+
+        // APP_URL/storage
+        $appUrl = config('app.url');
+        if ($appUrl) {
+            $baseUrls[] = rtrim($appUrl, '/') . '/storage';
+        }
+
+        // R2 CDN URL
+        $r2PublicUrl = $this->settingService->get('r2_storage.r2_public_url');
+        if ($r2PublicUrl) {
+            $defaultFolder = $this->settingService->get('r2_storage.r2_default_folder');
+            if ($defaultFolder) {
+                $baseUrls[] = rtrim($r2PublicUrl, '/') . '/' . trim($defaultFolder, '/');
+            }
+            $baseUrls[] = rtrim($r2PublicUrl, '/');
+        }
+
+        foreach ($baseUrls as $base) {
+            $baseWithSlash = rtrim($base, '/') . '/';
+            if (str_starts_with($urlOrPath, $baseWithSlash)) {
+                return substr($urlOrPath, strlen($baseWithSlash));
+            }
+        }
+
+        // Not a recognized URL — return null
+        return null;
+    }
+
+    /**
      * Check if a file exists on the active disk.
      */
-    public function exists(string $path): bool
+    public function exists(?string $path): bool
     {
         $path = $this->normalizePath($path);
         if (empty($path)) return false;
@@ -88,7 +167,7 @@ class MediaDiskService
     /**
      * Delete a file from the active disk.
      */
-    public function delete(string $path): bool
+    public function delete(?string $path): bool
     {
         $path = $this->normalizePath($path);
         if (empty($path)) return false;
@@ -99,11 +178,15 @@ class MediaDiskService
     /**
      * Store an uploaded file to the active disk.
      *
+     * When R2 is enabled but upload fails, throws an exception
+     * to prevent saving a fake/empty path to the database.
+     *
      * @param  \Illuminate\Http\UploadedFile  $file
      * @param  string  $directory
-     * @return string|false  The stored path or false on failure
+     * @return string  The stored path
+     * @throws \RuntimeException  If upload fails on R2 or local disk
      */
-    public function putUploadedFile($file, string $directory): string|false
+    public function putUploadedFile($file, string $directory): string
     {
         $disk = $this->getUploadDisk();
 
@@ -113,14 +196,22 @@ class MediaDiskService
                 'visibility' => 'public',
             ]);
 
-            if ($path) {
-                Log::info("[MediaDiskService] Uploaded to disk '{$disk}': {$path}");
+            if (!$path) {
+                throw new \RuntimeException("Upload returned empty path on disk '{$disk}'.");
             }
+
+            Log::info("[MediaDiskService] Uploaded to disk '{$disk}': {$path}");
 
             return $path;
         } catch (\Throwable $e) {
             Log::error("[MediaDiskService] Upload failed on disk '{$disk}': {$e->getMessage()}");
-            return false;
+
+            // Do NOT return false silently — this prevents saving fake paths to DB
+            throw new \RuntimeException(
+                "Upload failed on disk '{$disk}': {$e->getMessage()}",
+                0,
+                $e
+            );
         }
     }
 

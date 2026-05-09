@@ -58,6 +58,8 @@ class AppServiceProvider extends ServiceProvider
                     Config::set('filesystems.disks.r2.bucket',   setting('r2_storage.r2_bucket', config('filesystems.disks.r2.bucket')));
                     Config::set('filesystems.disks.r2.url',      setting('r2_storage.r2_public_url', config('filesystems.disks.r2.url')));
                     Config::set('filesystems.disks.r2.endpoint', setting('r2_storage.r2_endpoint', config('filesystems.disks.r2.endpoint')));
+                    Config::set('filesystems.disks.r2.use_path_style_endpoint', true);
+                    Config::set('filesystems.disks.r2.throw', true);
 
                     // Force Filament to use r2 disk for uploads when R2 is enabled
                     Config::set('filament.default_filesystem_disk', 'r2');

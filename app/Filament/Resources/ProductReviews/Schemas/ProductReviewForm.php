@@ -17,10 +17,6 @@ class ProductReviewForm
 {
     public static function configure(Schema $schema): Schema
     {
-        $mediaDisk = app(MediaDiskService::class);
-        $mediaDisk->configureR2Disk();
-        $disk = $mediaDisk->getUploadDisk();
-
         return $schema
             ->columns(1)
             ->components([
@@ -91,7 +87,7 @@ class ProductReviewForm
                         Section::make('Hình ảnh')->schema([
                             FileUpload::make('images_json')
                                 ->label('Hình ảnh đánh giá')
-                                ->disk($disk)
+                                ->disk(fn () => app(MediaDiskService::class)->getUploadDisk())
                                 ->directory('reviews')
                                 ->image()
                                 ->multiple()

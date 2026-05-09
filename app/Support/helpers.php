@@ -27,11 +27,12 @@ if (! function_exists('media_url')) {
      *
      * Priority:
      * 1. Full external URL → return as-is
-     * 2. R2 enabled + file tracked as synced → CDN URL
+     * 2. R2 enabled + file exists on R2 → CDN URL
      * 3. Local file → local storage URL
      * 4. Fallback
      *
-     * NEVER returns CDN URL unless file is confirmed synced to R2.
+     * Checks both media_files sync table AND actual R2 disk existence
+     * to support files uploaded directly via Filament (bypassing sync flow).
      */
     function media_url(mixed $path = null, ?string $fallback = null): ?string
     {
@@ -66,13 +67,27 @@ if (! function_exists('media_url')) {
             $baseCdnUrl = rtrim($publicUrl, '/') . '/' . trim($defaultFolder, '/');
         }
 
-        // R2 enabled: only return CDN URL if file is CONFIRMED synced
+        // R2 enabled: return CDN URL if file is confirmed on R2
         if ($r2Enabled && !empty($publicUrl)) {
+            // Check 1: Is it tracked as synced in media_files table?
             $isSynced = \Illuminate\Support\Facades\Cache::remember(
                 'media_synced_' . md5($relativePath), 600,
-                fn() => \App\Models\MediaFile::where('path', $relativePath)
-                    ->where('is_synced_to_r2', true)
-                    ->exists()
+                function () use ($relativePath) {
+                    // Check media_files sync record
+                    $synced = \App\Models\MediaFile::where('path', $relativePath)
+                        ->where('is_synced_to_r2', true)
+                        ->exists();
+
+                    if ($synced) return true;
+
+                    // Check 2: File uploaded directly to R2 via Filament (no sync record)
+                    // Only check if R2 disk is actually configured
+                    try {
+                        return \Illuminate\Support\Facades\Storage::disk('r2')->exists($relativePath);
+                    } catch (\Throwable $e) {
+                        return false;
+                    }
+                }
             );
 
             if ($isSynced) {
@@ -82,5 +97,20 @@ if (! function_exists('media_url')) {
 
         // Fallback: local storage URL
         return \Illuminate\Support\Facades\Storage::disk('public')->url($relativePath);
+    }
+}
+
+if (! function_exists('media_disk')) {
+    /**
+     * Get the active media disk name.
+     * Shorthand for MediaDiskService::getUploadDisk().
+     */
+    function media_disk(): string
+    {
+        try {
+            return app(\App\Services\Media\MediaDiskService::class)->getUploadDisk();
+        } catch (\Throwable $e) {
+            return 'public';
+        }
     }
 }

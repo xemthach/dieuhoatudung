@@ -194,7 +194,7 @@ class ProductForm
                                             ->rows(3),
                                         RichEditor::make('long_description')
                                             ->label('Mô tả chi tiết')
-                                            ->fileAttachmentsDisk(config('media.disk'))
+                                            ->fileAttachmentsDisk(fn () => app(MediaDiskService::class)->getUploadDisk())
                                             ->fileAttachmentsDirectory(config('media.folders.products')),
                                         RichEditor::make('warranty_info')
                                             ->label('Thông tin bảo hành'),
