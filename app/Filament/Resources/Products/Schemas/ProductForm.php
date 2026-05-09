@@ -93,6 +93,14 @@ class ProductForm
                                                 TextInput::make('btu')
                                                     ->label('Công suất BTU')
                                                     ->numeric(),
+                                                TextInput::make('capacity_kw')
+                                                    ->label('Công suất kW')
+                                                    ->numeric()
+                                                    ->step(0.01),
+                                                TextInput::make('hp')
+                                                    ->label('Mã lực (HP)')
+                                                    ->numeric()
+                                                    ->step(0.1),
                                                 Toggle::make('inverter')
                                                     ->label('Công nghệ Inverter')
                                                     ->default(false)
@@ -127,7 +135,8 @@ class ProductForm
                                             ]),
                                         
                                         Repeater::make('specs_json')
-                                            ->label('Thông số kỹ thuật mở rộng (JSON)')
+                                            ->label('Thông số kỹ thuật mở rộng')
+                                            ->helperText('Chỉ thêm thông số KHÔNG có field chuẩn ở trên. VD: pipe_length, EER, COP...')
                                             ->schema([
                                                 TextInput::make('key')->label('Tên thông số')->required(),
                                                 TextInput::make('value')->label('Giá trị')->required(),

@@ -2,6 +2,55 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.5.0] - 2026-05-10
+
+### Added — Product Import Mapper Service
+- **`ProductImportMapper`** (`app/Services/Product/ProductImportMapper.php`) — Central mapping layer that routes import keys to dedicated DB columns and isolates unknown fields into `specs_json`
+- 30+ import key aliases mapped to 15 standard DB columns (e.g. `capacity_btu` → `btu`, `power_input_kw` → `power_consumption`, `phase` → `voltage`)
+- Metadata exclusion list prevents product identity fields (name, slug, brand_id) from leaking into JSON specs
+- `castValue()` — Type-safe casting per column (int for BTU, float for kW/HP, boolean for inverter, enum normalization for cooling_type)
+- `flattenSpecs()` / `toRepeaterFormat()` — Bidirectional conversion between Filament Repeater format and flat key-value
+
+### Added — `product:clean-specs` CLI Command
+- `php artisan product:clean-specs` — Migrates standard fields from `specs_json` back to dedicated DB columns, removes metadata keys, deduplicates
+- `--dry-run` mode for safe preview
+- Normalizes `cooling_type` values: `"1 chiều"` → `"1_chieu"`, `"2 chiều"` → `"2_chieu"`
+
+### Added — `product:audit-catalogue-specs` CLI Command
+- `php artisan product:audit-catalogue-specs` — Audits all products for spec coverage, detects misplaced standard fields in JSON, duplicate spec keys, and critical missing data
+- `--fix` flag to auto-repair: moves standard fields from JSON to columns, deduplicates, removes metadata
+- Reports: total standard fields filled, extra specs count, low coverage products, critical missing
+
+### Added — Database Schema: `capacity_kw` and `hp` Columns
+- New columns `capacity_kw` (decimal 8,2) and `hp` (decimal 5,1) on `products` table
+- Migration includes data normalization: `cooling_type` enum values standardized to `1_chieu` / `2_chieu`
+- Reversible migration with proper `down()` method
+
+### Changed — ProductForm Technical Specs Tab
+- Added `capacity_kw` (Công suất kW) and `hp` (Mã lực HP) input fields to the technical specifications section
+- Renamed specs_json Repeater label from `"Thông số kỹ thuật mở rộng (JSON)"` to `"Thông số kỹ thuật mở rộng"` with helper text explaining usage
+- Repeater now shows guidance: "Chỉ thêm thông số KHÔNG có field chuẩn ở trên"
+
+### Changed — Product Model Casts
+- Added explicit casts: `btu` → `integer`, `capacity_kw` → `decimal:2`, `hp` → `decimal:1`
+- Ensures consistent type handling across Filament forms, API responses, and import pipeline
+
+### DevOps — Build Assets
+- Rebuilt production CSS (`public/build/assets/app-B21MSLaX.css`)
+- Updated `public/build/manifest.json` with new asset hashes
+
+### Files Changed (8 files)
+- `app/Services/Product/ProductImportMapper.php` — **NEW** (287 lines)
+- `app/Console/Commands/CleanProductSpecs.php` — **NEW** (105 lines)
+- `app/Console/Commands/AuditCatalogueSpecs.php` — **NEW** (148 lines)
+- `database/migrations/2026_05_09_185109_add_capacity_kw_and_hp_to_products_table.php` — **NEW** (38 lines)
+- `app/Filament/Resources/Products/Schemas/ProductForm.php` — Added kW/HP fields + repeater label
+- `app/Models/Product.php` — Added casts for new columns
+- `public/build/manifest.json` — Updated asset hashes
+- `public/build/assets/app-B21MSLaX.css` — Rebuilt production CSS
+
+---
+
 ## [1.4.1] - 2026-05-09
 
 ### Fixed — Critical: R2 Upload Silent Failures
