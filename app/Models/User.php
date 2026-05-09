@@ -50,10 +50,15 @@ class User extends Authenticatable implements FilamentUser, HasAvatar
 
     /**
      * Filament: avatar support.
+     * Uses media_url() to resolve CDN/local URL correctly.
      */
     public function getFilamentAvatarUrl(): ?string
     {
-        return $this->avatar_url;
+        if (empty($this->avatar_url)) {
+            return null;
+        }
+
+        return media_url($this->avatar_url);
     }
 
     /**

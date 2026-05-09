@@ -14,13 +14,18 @@
             <span style="font-size:13px;font-weight:600;color:#111827;">Thông tin hồ sơ</span>
         </div>
 
-        {{-- Avatar + Name --}}
+        {{-- Avatar + Name + Role --}}
         <div style="display:flex; align-items:center; gap:16px; padding:20px 20px 0 20px;">
-            @if($avatar_url)
-                <img src="{{ $avatar_url }}" alt="Avatar"
+            @php
+                $avatarDisplay = $avatar_url
+                    ? (filter_var($avatar_url, FILTER_VALIDATE_URL) ? $avatar_url : media_url($avatar_url))
+                    : null;
+            @endphp
+            @if($avatarDisplay)
+                <img src="{{ $avatarDisplay }}" alt="Avatar"
                      style="width:60px;height:60px;border-radius:50%;object-fit:cover;border:2px solid #e5e7eb;flex-shrink:0;">
             @else
-                <div style="width:60px;height:60px;border-radius:50%;background:#1a56db;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                <div style="width:60px;height:60px;border-radius:50%;background:linear-gradient(135deg,#1a56db,#3b82f6);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
                     <span style="color:#fff;font-size:22px;font-weight:700;">{{ strtoupper(substr($name ?: 'U', 0, 1)) }}</span>
                 </div>
             @endif
@@ -37,31 +42,25 @@
             </div>
         </div>
 
-        {{-- Form --}}
+        {{-- Profile Form --}}
         <form wire:submit.prevent="saveProfile" style="padding:20px;">
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
                 <div>
                     <label style="display:block;font-size:12px;font-weight:500;color:#374151;margin-bottom:4px;">Họ tên <span style="color:#ef4444;">*</span></label>
-                    <input wire:model="name" type="text"
+                    <input wire:model="name" type="text" id="profile-name"
                            style="width:100%;box-sizing:border-box;padding:7px 10px;border:1px solid #d1d5db;border-radius:8px;font-size:13px;color:#111827;background:#fff;outline:none;">
                     @error('name') <p style="color:#ef4444;font-size:11px;margin-top:2px;">{{ $message }}</p> @enderror
                 </div>
                 <div>
                     <label style="display:block;font-size:12px;font-weight:500;color:#374151;margin-bottom:4px;">Email <span style="color:#ef4444;">*</span></label>
-                    <input wire:model="email" type="email"
+                    <input wire:model="email" type="email" id="profile-email"
                            style="width:100%;box-sizing:border-box;padding:7px 10px;border:1px solid #d1d5db;border-radius:8px;font-size:13px;color:#111827;background:#fff;outline:none;">
                     @error('email') <p style="color:#ef4444;font-size:11px;margin-top:2px;">{{ $message }}</p> @enderror
                 </div>
             </div>
 
-            <div style="margin-bottom:16px;">
-                <label style="display:block;font-size:12px;font-weight:500;color:#374151;margin-bottom:4px;">URL Ảnh đại diện</label>
-                <input wire:model="avatar_url" type="url" placeholder="https://example.com/avatar.jpg"
-                       style="width:100%;box-sizing:border-box;padding:7px 10px;border:1px solid #d1d5db;border-radius:8px;font-size:13px;color:#111827;background:#fff;outline:none;">
-            </div>
-
             <div style="display:flex;justify-content:flex-end;">
-                <button type="submit"
+                <button type="submit" id="save-profile-btn"
                         style="display:inline-flex;align-items:center;gap:6px;padding:8px 16px;background:#1a56db;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;">
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"
                          style="width:13px;height:13px;">
@@ -73,7 +72,46 @@
         </form>
     </div>
 
-    {{-- ── Change Password Card ─────────────────────────────────────────── --}}
+    {{-- ── Avatar Card ────────────────────────────────────────────────── --}}
+    <div style="background:#fff; border-radius:12px; border:1px solid #e5e7eb; box-shadow:0 1px 3px rgba(0,0,0,.07); overflow:hidden;">
+        <div style="display:flex; align-items:center; gap:8px; padding:14px 20px; border-bottom:1px solid #f3f4f6;">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="#059669"
+                 style="width:16px;height:16px;flex-shrink:0;">
+                <path stroke-linecap="round" stroke-linejoin="round"
+                      d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909M3.75 21h16.5A2.25 2.25 0 0 0 22.5 18.75V5.25A2.25 2.25 0 0 0 20.25 3H3.75A2.25 2.25 0 0 0 1.5 5.25v13.5A2.25 2.25 0 0 0 3.75 21Z"/>
+            </svg>
+            <span style="font-size:13px;font-weight:600;color:#111827;">Ảnh đại diện</span>
+        </div>
+
+        <form wire:submit.prevent="saveAvatar" style="padding:20px;">
+            <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
+                @if($avatarDisplay ?? null)
+                    <img src="{{ $avatarDisplay }}" alt="Avatar preview"
+                         style="width:48px;height:48px;border-radius:50%;object-fit:cover;border:2px solid #e5e7eb;flex-shrink:0;">
+                @endif
+                <div style="flex:1;">
+                    <label style="display:block;font-size:12px;font-weight:500;color:#374151;margin-bottom:4px;">URL ảnh đại diện</label>
+                    <input wire:model="avatar_url" type="url" id="avatar-url" placeholder="https://example.com/avatar.jpg"
+                           style="width:100%;box-sizing:border-box;padding:7px 10px;border:1px solid #d1d5db;border-radius:8px;font-size:13px;color:#111827;background:#fff;outline:none;">
+                    @error('avatar_url') <p style="color:#ef4444;font-size:11px;margin-top:2px;">{{ $message }}</p> @enderror
+                </div>
+            </div>
+            <div style="display:flex;justify-content:flex-end;gap:8px;">
+                @if($avatar_url)
+                    <button type="button" wire:click="removeAvatar" id="remove-avatar-btn"
+                            style="display:inline-flex;align-items:center;gap:4px;padding:8px 14px;background:#fff;color:#ef4444;border:1px solid #fca5a5;border-radius:8px;font-size:12px;font-weight:500;cursor:pointer;">
+                        Xóa avatar
+                    </button>
+                @endif
+                <button type="submit" id="save-avatar-btn"
+                        style="display:inline-flex;align-items:center;gap:4px;padding:8px 14px;background:#059669;color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:500;cursor:pointer;">
+                    Lưu ảnh
+                </button>
+            </div>
+        </form>
+    </div>
+
+    {{-- ── Change Password Card ───────────────────────────────────────── --}}
     <div style="background:#fff; border-radius:12px; border:1px solid #e5e7eb; box-shadow:0 1px 3px rgba(0,0,0,.07); overflow:hidden;">
 
         {{-- Header --}}
@@ -90,7 +128,7 @@
         <form wire:submit.prevent="changePassword" style="padding:20px;">
             <div style="margin-bottom:12px;">
                 <label style="display:block;font-size:12px;font-weight:500;color:#374151;margin-bottom:4px;">Mật khẩu hiện tại <span style="color:#ef4444;">*</span></label>
-                <input wire:model="current_password" type="password" autocomplete="current-password"
+                <input wire:model="current_password" type="password" autocomplete="current-password" id="current-password"
                        style="width:100%;box-sizing:border-box;padding:7px 10px;border:1px solid #d1d5db;border-radius:8px;font-size:13px;color:#111827;background:#fff;outline:none;">
                 @error('current_password') <p style="color:#ef4444;font-size:11px;margin-top:2px;">{{ $message }}</p> @enderror
             </div>
@@ -98,20 +136,20 @@
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
                 <div>
                     <label style="display:block;font-size:12px;font-weight:500;color:#374151;margin-bottom:4px;">Mật khẩu mới <span style="color:#ef4444;">*</span></label>
-                    <input wire:model="new_password" type="password" autocomplete="new-password"
+                    <input wire:model="new_password" type="password" autocomplete="new-password" id="new-password"
                            style="width:100%;box-sizing:border-box;padding:7px 10px;border:1px solid #d1d5db;border-radius:8px;font-size:13px;color:#111827;background:#fff;outline:none;">
                     @error('new_password') <p style="color:#ef4444;font-size:11px;margin-top:2px;">{{ $message }}</p> @enderror
                 </div>
                 <div>
                     <label style="display:block;font-size:12px;font-weight:500;color:#374151;margin-bottom:4px;">Xác nhận mật khẩu <span style="color:#ef4444;">*</span></label>
-                    <input wire:model="new_password_confirm" type="password" autocomplete="new-password"
+                    <input wire:model="new_password_confirm" type="password" autocomplete="new-password" id="new-password-confirm"
                            style="width:100%;box-sizing:border-box;padding:7px 10px;border:1px solid #d1d5db;border-radius:8px;font-size:13px;color:#111827;background:#fff;outline:none;">
                     @error('new_password_confirm') <p style="color:#ef4444;font-size:11px;margin-top:2px;">{{ $message }}</p> @enderror
                 </div>
             </div>
 
             <div style="display:flex;justify-content:flex-end;">
-                <button type="submit"
+                <button type="submit" id="change-password-btn"
                         style="display:inline-flex;align-items:center;gap:6px;padding:8px 16px;background:#d97706;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;">
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"
                          style="width:13px;height:13px;">
