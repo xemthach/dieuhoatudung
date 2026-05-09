@@ -2,6 +2,36 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.5.1] - 2026-05-10
+
+### Added — ProductSpecLabel Mapping System
+- **`ProductSpecLabel`** (`app/Support/ProductSpecLabel.php`) — Central mapping of 89 HVAC spec keys to Vietnamese display labels
+- **100% coverage** of all spec keys in DB — no raw snake_case keys visible to users
+- 10 spec groups for organized frontend display: Hiệu suất năng lượng, Công suất & Điện năng, Dàn lạnh, Mặt nạ, Dàn nóng, Đường ống lắp đặt, Gas lạnh, Kích thước & Đóng gói, Vận hành, Solar/Inverter
+- Auto-formatting: adds units (mm, kg, dB, m), cleans pipe inch notation, normalizes dimension separators
+- Fallback `humanize()` for any future unmapped keys — always produces readable labels
+- Hidden metadata keys (`source_catalogue`, `source_page`, `indoor_model`, `outdoor_model`) excluded from frontend display
+
+### Changed — Frontend Product Spec Table
+- Specs now grouped with colored section headers (`bg-primary-50`) instead of flat list
+- All spec labels display in Vietnamese with proper HVAC terminology
+- Values auto-formatted with correct units (kg, mm, dB(A), m)
+
+### Changed — Admin Repeater UX
+- Key input now has `datalist` autocomplete with all mapped key suggestions
+- Live `hint()` shows Vietnamese label preview while typing
+- Collapsed view with `itemLabel` showing "Label: Value" for each spec entry
+- Improved helper text guidance
+
+### Files Changed (5 files)
+- `app/Support/ProductSpecLabel.php` — **NEW** (351 lines)
+- `resources/views/products/show.blade.php` — Grouped spec display
+- `app/Filament/Resources/Products/Schemas/ProductForm.php` — Repeater UX improvements
+- `public/build/manifest.json` — Updated asset hashes
+- `public/build/assets/app-Ct6c5dpS.css` — Rebuilt production CSS
+
+---
+
 ## [1.5.0] - 2026-05-10
 
 ### Added — Product Import Mapper Service

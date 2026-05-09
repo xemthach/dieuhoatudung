@@ -18,6 +18,7 @@ use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Actions;
 use Filament\Actions\Action;
 use App\Services\Product\ProductAIContentService;
+use App\Support\ProductSpecLabel;
 use Filament\Notifications\Notification;
 use Filament\Schemas\Components\Group;
 use Filament\Schemas\Schema;
@@ -136,12 +137,19 @@ class ProductForm
                                         
                                         Repeater::make('specs_json')
                                             ->label('Thông số kỹ thuật mở rộng')
-                                            ->helperText('Chỉ thêm thông số KHÔNG có field chuẩn ở trên. VD: pipe_length, EER, COP...')
+                                            ->helperText('Chỉ thêm thông số KHÔNG có field chuẩn ở trên.')
                                             ->schema([
-                                                TextInput::make('key')->label('Tên thông số')->required(),
+                                                TextInput::make('key')
+                                                    ->label('Tên thông số')
+                                                    ->required()
+                                                    ->datalist(array_keys(ProductSpecLabel::MAP))
+                                                    ->hint(fn ($state) => $state ? ProductSpecLabel::label($state) : '')
+                                                    ->live(debounce: 500),
                                                 TextInput::make('value')->label('Giá trị')->required(),
                                             ])
                                             ->columns(2)
+                                            ->itemLabel(fn (array $state): ?string => isset($state['key']) ? ProductSpecLabel::label($state['key']) . ': ' . ($state['value'] ?? '') : null)
+                                            ->collapsed()
                                             ->defaultItems(0),
                                     ]),
 

@@ -236,13 +236,21 @@
                             @if($product->weight)<tr><td class="bg-surface-50 px-4 py-3 font-medium text-surface-700">Trọng lượng</td><td class="px-4 py-3 text-surface-600">{{ $product->weight }}</td></tr>@endif
                             @if($product->recommended_area)<tr><td class="bg-surface-50 px-4 py-3 font-medium text-surface-700">Diện tích phù hợp</td><td class="px-4 py-3 text-surface-600">{{ $product->recommended_area }}</td></tr>@endif
 
-                            {{-- Dynamic specs from JSON --}}
+                            {{-- Dynamic specs from JSON — grouped with Vietnamese labels --}}
                             @if($product->specs_json)
-                                @foreach($product->specs_json as $spec)
+                                @php
+                                    $groupedSpecs = \App\Support\ProductSpecLabel::groupSpecs($product->specs_json);
+                                @endphp
+                                @foreach($groupedSpecs as $groupLabel => $items)
                                     <tr>
-                                        <td class="bg-surface-50 px-4 py-3 font-medium text-surface-700">{{ $spec['key'] ?? '' }}</td>
-                                        <td class="px-4 py-3 text-surface-600">{{ $spec['value'] ?? '' }}</td>
+                                        <td colspan="2" class="bg-primary-50 px-4 py-2.5 text-xs font-bold uppercase tracking-wider text-primary-700">{{ $groupLabel }}</td>
                                     </tr>
+                                    @foreach($items as $item)
+                                        <tr>
+                                            <td class="bg-surface-50 px-4 py-3 font-medium text-surface-700">{{ $item['label'] }}</td>
+                                            <td class="px-4 py-3 text-surface-600">{{ $item['value'] }}</td>
+                                        </tr>
+                                    @endforeach
                                 @endforeach
                             @endif
                         </tbody>
