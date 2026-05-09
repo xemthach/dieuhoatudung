@@ -33,7 +33,7 @@ class MediaDiskService
 
     /**
      * Check if R2 configuration is complete and valid.
-     * Must have key, secret, bucket, and endpoint.
+     * Must have key (32 chars), secret (64 chars), bucket, and endpoint.
      */
     public function r2ConfigValid(): bool
     {
@@ -46,7 +46,23 @@ class MediaDiskService
         $bucket   = $this->settingService->get('r2_storage.r2_bucket');
         $endpoint = $this->settingService->get('r2_storage.r2_endpoint');
 
-        return !empty($key) && !empty($secret) && !empty($bucket) && !empty($endpoint);
+        if (empty($key) || empty($secret) || empty($bucket) || empty($endpoint)) {
+            return false;
+        }
+
+        // Cloudflare R2 access key must be exactly 32 characters
+        if (strlen($key) !== 32) {
+            Log::warning("[MediaDiskService] R2 Access Key has length " . strlen($key) . ", expected 32. Check Site Settings → R2 Storage.");
+            return false;
+        }
+
+        // Cloudflare R2 secret key must be exactly 64 characters
+        if (strlen($secret) !== 64) {
+            Log::warning("[MediaDiskService] R2 Secret Key has length " . strlen($secret) . ", expected 64. Check Site Settings → R2 Storage.");
+            return false;
+        }
+
+        return true;
     }
 
     /**
