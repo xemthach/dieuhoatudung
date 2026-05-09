@@ -62,8 +62,22 @@ class ManageSiteSettings extends Page
 
         foreach ($allSettings as $s) {
             $formKey = $s->group . '__' . $s->key;
-            // Encrypted: ÃâÃ¡Â»Æ trÃ¡Â»âng Ã¢â¬â khÃÂ´ng hiÃ¡Â»Æn thÃ¡Â»â¹ ciphertext
-            $formatted[$formKey] = $s->is_encrypted ? '' : $s->value;
+
+            // Encrypted fields: show empty to avoid revealing ciphertext
+            if ($s->is_encrypted) {
+                $formatted[$formKey] = '';
+                continue;
+            }
+
+            // Boolean type: cast '0'/'1' string to actual PHP bool
+            // so that Filament Toggle displays the correct ON/OFF state.
+            // Without this, string '0' is treated as truthy by Toggle.
+            if ($s->type === 'boolean') {
+                $formatted[$formKey] = filter_var($s->value, FILTER_VALIDATE_BOOLEAN);
+                continue;
+            }
+
+            $formatted[$formKey] = $s->value;
         }
 
         // FileUpload fields require array state for Livewire's deep-set path
@@ -284,40 +298,79 @@ class ManageSiteSettings extends Page
 
                     /* ── Tab 6: Cloudflare R2 ── */
                     Tabs\Tab::make('R2 Storage')->icon('heroicon-o-cloud')->schema([
-                        Toggle::make('r2_storage__r2_enabled')->label('Bật Cloudflare R2 Storage'),
-                        TextInput::make('r2_storage__r2_access_key_id')
-                            ->label('R2 Access Key ID')->password()->revealable()
-                            ->placeholder('Để trống = giữ nguyên'),
-                        TextInput::make('r2_storage__r2_secret_access_key')
-                            ->label('R2 Secret Access Key')->password()->revealable()
-                            ->placeholder('Để trống = giữ nguyên'),
-                        TextInput::make('r2_storage__r2_bucket')->label('Bucket Name'),
-                        TextInput::make('r2_storage__r2_endpoint')->label('Endpoint URL'),
-                        TextInput::make('r2_storage__r2_public_url')->label('Public URL'),
-                        TextInput::make('r2_storage__r2_default_folder')->label('Default Folder'),
-                        \Filament\Schemas\Components\Section::make('Cấu hình đồng bộ (Sync) & URL Replace')
+                        \Filament\Schemas\Components\Section::make('Trạng thái R2')
+                            ->description('Bật/tắt Cloudflare R2 Storage cho toàn hệ thống. Khi TẮT, hệ thống dùng local disk.')
                             ->schema([
-                                Toggle::make('r2_storage__r2_sync_enabled')->label('Bật R2 Sync'),
+                                Toggle::make('r2_storage__r2_enabled')
+                                    ->label('Bật Cloudflare R2 Storage')
+                                    ->helperText('Khi BẬT: file upload sẽ lên R2, media_url() ưu tiên CDN. Khi TẮT: mọi thứ dùng local storage.')
+                                    ->live(),
+                            ]),
+
+                        \Filament\Schemas\Components\Section::make('Thông tin kết nối R2')
+                            ->description('Lấy từ Cloudflare Dashboard > R2 > API Tokens. Access Key và Secret sẽ được mã hóa khi lưu.')
+                            ->schema([
+                                TextInput::make('r2_storage__r2_access_key_id')
+                                    ->label('R2 Access Key ID')->password()->revealable()
+                                    ->placeholder('Để trống = giữ nguyên giá trị đã lưu'),
+                                TextInput::make('r2_storage__r2_secret_access_key')
+                                    ->label('R2 Secret Access Key')->password()->revealable()
+                                    ->placeholder('Để trống = giữ nguyên giá trị đã lưu'),
+                                TextInput::make('r2_storage__r2_bucket')
+                                    ->label('Bucket Name')
+                                    ->helperText('Tên bucket trên Cloudflare R2'),
+                                TextInput::make('r2_storage__r2_endpoint')
+                                    ->label('Endpoint URL')
+                                    ->helperText('Dạng: https://<account_id>.r2.cloudflarestorage.com'),
+                                TextInput::make('r2_storage__r2_public_url')
+                                    ->label('Public URL (CDN)')
+                                    ->helperText('URL công khai để truy cập file. Vd: https://cloud-data.yourdomain.com'),
+                                TextInput::make('r2_storage__r2_default_folder')
+                                    ->label('Default Folder')
+                                    ->helperText('Thư mục gốc trên R2. Để trống nếu lưu ở root bucket.'),
+                            ])->columns(2),
+
+                        \Filament\Schemas\Components\Section::make('Cấu hình đồng bộ (Sync)')
+                            ->description('Điều khiển quá trình upload file local lên R2 và thay thế URL trong database.')
+                            ->icon('heroicon-o-arrow-path')
+                            ->schema([
+                                Toggle::make('r2_storage__r2_sync_enabled')
+                                    ->label('Bật tính năng Sync')
+                                    ->helperText('Cho phép chạy Sync Upload từ R2 Sync Manager.'),
+                                Toggle::make('r2_storage__r2_sync_replace_urls_enabled')
+                                    ->label('Bật tính năng thay thế URL')
+                                    ->helperText('Cho phép Replace URLs từ R2 Sync Manager. Chỉ thay thế file đã xác nhận sync.'),
                                 Toggle::make('r2_storage__r2_sync_delete_local_after_upload')
-                                    ->label('Xóa local file sau khi upload (KHÔNG KHUYẾN NGHỊ)')
-                                    ->helperText('Nguy hiểm: Nếu bật, file trên server sẽ bị xóa sau khi lên R2.')
+                                    ->label('Xóa local file sau khi upload')
+                                    ->helperText('⚠️ NGUY HIỂM: File trên server sẽ bị xóa vĩnh viễn sau khi upload lên R2. Chỉ bật khi đã xác nhận R2 hoạt động ổn định.')
                                     ->default(false),
-                                Toggle::make('r2_storage__r2_sync_replace_urls_enabled')->label('Bật tính năng thay thế URL'),
-                                TextInput::make('r2_storage__r2_sync_batch_size')->label('Sync Batch Size')->numeric()->default(50),
+                                TextInput::make('r2_storage__r2_sync_batch_size')
+                                    ->label('Batch Size')
+                                    ->numeric()
+                                    ->default(50)
+                                    ->helperText('Số file xử lý mỗi batch. Giảm nếu server yếu.'),
+                            ])->columns(2),
+
+                        \Filament\Schemas\Components\Section::make('URL Replace Config')
+                            ->description('Cấu hình cho chức năng thay thế URL cũ thành CDN URL mới trong database.')
+                            ->icon('heroicon-o-link')
+                            ->schema([
                                 Textarea::make('r2_storage__r2_old_base_urls')
-                                    ->label('Các URL cũ (Old Base URLs)')
-                                    ->helperText('Nhập các base URL cũ cần thay thế, mỗi dòng 1 URL. Vd: http://localhost/storage hoặc https://old-domain.com/storage')
+                                    ->label('Các URL cũ cần thay thế (Old Base URLs)')
+                                    ->helperText('Mỗi dòng 1 URL. Vd: http://localhost/storage hoặc https://old-domain.com/storage')
                                     ->rows(3),
                                 TextInput::make('r2_storage__r2_new_cdn_base_url')
-                                    ->label('New CDN Base URL')
-                                    ->helperText('Nếu trống, sẽ dùng Public URL ở trên.'),
-                                \Filament\Schemas\Components\Actions::make([
-                                    \Filament\Actions\Action::make('open_sync_manager')
-                                        ->label('Mở R2 Sync Manager')
-                                        ->color('primary')
-                                        ->url('/admin/r2-sync-manager'),
-                                ]),
+                                    ->label('New CDN Base URL (override)')
+                                    ->helperText('Nếu trống, hệ thống tự dùng Public URL ở trên.'),
                             ]),
+
+                        \Filament\Schemas\Components\Actions::make([
+                            \Filament\Actions\Action::make('open_sync_manager')
+                                ->label('Mở R2 Sync Manager')
+                                ->icon('heroicon-o-arrow-top-right-on-square')
+                                ->color('primary')
+                                ->url('/admin/r2-sync-manager'),
+                        ]),
                     ]),
 
                     /* ── Tab 7: Lead Form ── */

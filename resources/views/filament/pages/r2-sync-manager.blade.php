@@ -31,6 +31,17 @@
         </div>
     </div>
 
+    {{-- R2 OFF Warning --}}
+    @if(!$isR2Enabled)
+        <div class="mt-3 rounded-lg bg-amber-50 border border-amber-200 p-4 flex items-start gap-3">
+            <x-filament::icon icon="heroicon-o-exclamation-triangle" class="h-5 w-5 text-amber-500 mt-0.5 shrink-0" />
+            <div>
+                <h4 class="text-sm font-bold text-amber-800">R2 Storage đang TẮT</h4>
+                <p class="mt-1 text-sm text-amber-700">Upload và Replace URLs yêu cầu R2 phải BẬT. Scan Local Media vẫn hoạt động bình thường. Cấu hình R2 tại <a href="/admin/manage-settings" class="font-semibold underline hover:text-amber-900">Site Settings → R2 Storage</a>.</p>
+            </div>
+        </div>
+    @endif
+
     {{-- Action State Panel --}}
     <x-filament::card>
         @if(!$latestJob)
@@ -53,6 +64,7 @@
                             Tiến trình gần nhất: {{ $latestJob->name }}
                             <x-filament::badge :color="match($latestJob->status) {
                                 'completed' => 'success',
+                                'completed_with_errors' => 'warning',
                                 'failed', 'cancelled' => 'danger',
                                 default => 'warning',
                             }">{{ strtoupper($latestJob->status) }}</x-filament::badge>
@@ -60,6 +72,8 @@
                         <p class="text-sm text-surface-500 mt-1 flex items-center gap-4">
                             <span><x-filament::icon icon="heroicon-o-clock" class="inline w-4 h-4 mr-1"/> Cập nhật: {{ $latestJob->updated_at->diffForHumans() }}</span>
                             @if($latestJob->mode === 'upload_only')
+                                <span><x-filament::icon icon="heroicon-o-document" class="inline w-4 h-4 mr-1"/> Phát hiện: <strong class="text-surface-700">{{ number_format($latestJob->total_files) }} file</strong></span>
+                            @elseif($latestJob->mode === 'scan_only')
                                 <span><x-filament::icon icon="heroicon-o-document" class="inline w-4 h-4 mr-1"/> Phát hiện: <strong class="text-surface-700">{{ number_format($latestJob->total_files) }} file</strong></span>
                             @endif
                         </p>
@@ -87,6 +101,26 @@
                             <div class="ml-3">
                                 <h3 class="text-sm font-bold text-success-800">Scan & Upload hoàn tất!</h3>
                                 <p class="mt-1 text-sm text-success-700">Tất cả file đã sẵn sàng trên R2. Hãy tiếp tục bấm <strong>Dry Run Replace URLs</strong> để kiểm tra thay thế DB an toàn.</p>
+                            </div>
+                        </div>
+                    </div>
+                @elseif($latestJob->status === 'completed_with_errors')
+                    <div class="rounded-lg bg-amber-50 p-4 border border-amber-200">
+                        <div class="flex">
+                            <x-filament::icon icon="heroicon-o-exclamation-triangle" class="h-6 w-6 text-amber-500" />
+                            <div class="ml-3">
+                                <h3 class="text-sm font-bold text-amber-800">Hoàn thành với cảnh báo</h3>
+                                <p class="mt-1 text-sm text-amber-700">{{ $latestJob->error_message ?? 'Một số file bị bỏ qua hoặc thất bại. Kiểm tra logs để biết chi tiết.' }}</p>
+                            </div>
+                        </div>
+                    </div>
+                @elseif($latestJob->mode === 'scan_only' && $latestJob->status === 'completed')
+                    <div class="rounded-lg bg-primary-50 p-4 border border-primary-200">
+                        <div class="flex">
+                            <x-filament::icon icon="heroicon-o-check-circle" class="h-6 w-6 text-primary-500" />
+                            <div class="ml-3">
+                                <h3 class="text-sm font-bold text-primary-800">Scan hoàn tất!</h3>
+                                <p class="mt-1 text-sm text-primary-700">Đã quét <strong>{{ number_format($latestJob->total_files) }}</strong> file local. Bật R2 và bấm <strong>Sync Upload to R2</strong> để upload lên Cloudflare.</p>
                             </div>
                         </div>
                     </div>

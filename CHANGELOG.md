@@ -2,6 +2,81 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.4.0] - 2026-05-09
+
+### Fixed — Critical: Boolean Toggle Display Bug
+- **All toggles in Site Settings showed ON regardless of actual DB value** — Root cause: `mount()` loaded boolean-type settings as raw strings (`"0"`, `"1"`). Filament Toggle treats non-empty string `"0"` as truthy → every toggle appeared ON even when DB stored OFF
+- Fix: `mount()` now uses `filter_var($value, FILTER_VALIDATE_BOOLEAN)` to cast boolean-type settings to actual PHP `bool` before passing to form components
+- This affected **all 50+ toggles** across the entire Settings page (R2, Mail, SEO, Sitemap, etc.)
+- Also fixed corrupted UTF-8 comments in the file that prevented clean editing
+
+### Fixed — SyncR2MediaJob URL Generation
+- `SyncR2MediaJob` used `Storage::disk('r2')->url()` to generate public URLs — this relies on the disk driver config which may not be correctly configured
+- Now uses `R2SyncService::buildPublicUrl()` which reads the actual Public URL from database settings
+- Added **post-upload R2 object verification** (`$disk->fileExists()`) — if the file doesn't exist on R2 after upload, the item is marked as failed instead of falsely recorded as synced
+- Added mid-job cancellation support (checks `$job->fresh()->status` each iteration)
+- New status `completed_with_errors` when some files fail but others succeed
+- Added structured logging for each upload success/failure
+
+### Fixed — ProductDocumentsRelationManager Download URL
+- Download action used `Storage::disk(config('media.disk', 'public'))->url()` — but `config('media.disk')` doesn't exist, silently falling back to `'public'` which may not resolve CDN URLs
+- Now uses `media_url()` helper which correctly resolves to CDN or local URL
+
+### Added — `media:audit` CLI Command
+- `php artisan media:audit` — scans all media fields across 10 models (Product, Brand, Post, CaseStudy, ProductDocument, Testimonial, ProductReview, User, SiteSetting branding)
+- Reports: DB path, local file existence, R2 sync status, fake CDN URLs
+- Detects fake CDN URLs (CDN domain + path but `is_synced_to_r2 = false`)
+- Handles JSON array fields (gallery, images_json)
+- Options: `--model=Product` (filter), `--fix` (show repair suggestions)
+
+### Added — `media:repair-paths` CLI Command
+- `php artisan media:repair-paths` — converts full CDN/local URLs in DB back to relative paths
+- `--dry-run` preview mode (no DB writes)
+- Per-model filtering with `--model=`
+- Handles JSON arrays, simple string paths
+- Skips HTML content fields (needs full URLs to render)
+- Collects base URLs from: APP_URL, R2 settings, old base URLs config
+
+### Added — R2 Sync Manager Safety Guards
+- Upload, Dry Run, and Replace URLs actions now **block with notification** when R2 is OFF — previously they created a job that immediately failed
+- Modal descriptions explain what each action does
+- Warning banner when R2 is OFF with link to Site Settings configuration
+
+### Changed — MediaUrlReplaceService Rewrite
+- `replaceUrls()` now verifies R2 sync status before any URL replacement — only replaces paths that are confirmed in `media_files` table with `is_synced_to_r2 = true`
+- Pre-loads all synced paths into cache to avoid N+1 queries during batch replace
+- Tracks `skipped_files` count and reports `completed_with_errors` when files are skipped
+- Per-file regex-based replacement with individual logging
+
+### Changed — MediaDiskService Upgrade
+- Added `exists()`, `delete()`, `putUploadedFile()` methods for centralized storage operations
+- Enhanced `normalizePath()` to strip `/storage/` prefix
+- Added `isFullUrl()` utility
+- Deprecated `configureR2Disk()` (now a no-op — `AppServiceProvider` handles R2 config globally at boot)
+
+### Changed — R2 Storage Settings Tab Redesign
+- Reorganized into 4 clear sections: Trạng thái R2, Thông tin kết nối, Cấu hình đồng bộ, URL Replace Config
+- Added proper descriptions, helper texts, and danger warnings for destructive toggles
+- 2-column layout for connection credentials
+- R2 enabled toggle now has `->live()` for reactive UI feedback
+
+### Changed — R2 Sync Manager Blade View
+- Added `completed_with_errors` status badge (warning color)
+- Scan completed panel shows file count and next-step guidance
+- Warning banner with link to Settings when R2 is OFF
+
+### Files Changed (9 files)
+- `app/Filament/Pages/ManageSiteSettings.php` — Boolean cast fix + R2 tab redesign
+- `app/Filament/Pages/R2SyncManager.php` — R2 guards + status handling
+- `app/Filament/Resources/Products/RelationManagers/ProductDocumentsRelationManager.php` — media_url() fix
+- `app/Jobs/SyncR2MediaJob.php` — URL generation + verification + logging
+- `app/Services/Media/MediaDiskService.php` — Full service upgrade
+- `app/Services/Media/MediaUrlReplaceService.php` — R2 existence verification
+- `resources/views/filament/pages/r2-sync-manager.blade.php` — Status panel improvements
+- `app/Console/Commands/MediaAudit.php` — **NEW** CLI audit tool
+- `app/Console/Commands/MediaRepairPaths.php` — **NEW** CLI repair tool
+
+
 ## [1.3.0] - 2026-05-09
 
 ### Fixed — Critical: Fake CDN URL Bug

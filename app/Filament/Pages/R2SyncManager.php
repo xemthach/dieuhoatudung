@@ -67,6 +67,7 @@ class R2SyncManager extends Page implements HasForms, HasTable
                     ->badge()
                     ->color(fn (string $state): string => match ($state) {
                         'scanning', 'syncing', 'replacing' => 'warning',
+                        'completed_with_errors' => 'warning',
                         'pending' => 'gray',
                         'completed' => 'success',
                         'completed_with_errors' => 'warning',
@@ -219,7 +220,22 @@ class R2SyncManager extends Page implements HasForms, HasTable
                 ->icon('heroicon-o-arrow-up-tray')
                 ->color('primary')
                 ->requiresConfirmation()
+                ->modalHeading('Xác nhận Upload lên R2')
+                ->modalDescription(fn () => setting('r2_storage.r2_enabled', false)
+                    ? 'Hệ thống sẽ upload toàn bộ file local lên Cloudflare R2. Tiếp tục?'
+                    : '⚠️ R2 đang TẮT! Vui lòng bật R2 và cấu hình credentials trước.')
                 ->action(function (\App\Services\Media\R2SyncService $svc) {
+                    // Guard: R2 must be enabled
+                    if (!setting('r2_storage.r2_enabled', false)) {
+                        Notification::make()
+                            ->title('R2 đang TẮT')
+                            ->body('Vui lòng bật R2 Storage và cấu hình Access Key, Secret, Bucket, Endpoint trong Site Settings trước khi upload.')
+                            ->danger()
+                            ->persistent()
+                            ->send();
+                        return;
+                    }
+
                     // Check latest completed scan
                     $latestScan = \App\Models\R2SyncJob::where('mode', 'scan_only')
                         ->where('status', 'completed')
@@ -247,7 +263,8 @@ class R2SyncManager extends Page implements HasForms, HasTable
                         $statusMsg = $job->failed_files > 0
                             ? "Upload xong với {$job->failed_files} lỗi"
                             : "Upload thành công {$job->synced_files} files!";
-                        Notification::make()->title($statusMsg)->success()->send();
+                        $color = $job->failed_files > 0 ? 'warning' : 'success';
+                        Notification::make()->title($statusMsg)->color($color)->send();
                     } catch (\Throwable $e) {
                         $job->update([
                             'status' => 'failed',
@@ -264,7 +281,17 @@ class R2SyncManager extends Page implements HasForms, HasTable
                 ->icon('heroicon-o-document-text')
                 ->color('warning')
                 ->requiresConfirmation()
+                ->modalHeading('Dry Run — Kiểm tra thay thế URL')
+                ->modalDescription('Chạy thử thay thế URL trong DB (không ghi). Chỉ file đã sync R2 mới được thay.')
                 ->action(function (\App\Services\Settings\SettingService $settingService) {
+                    // Guard: R2 must be enabled
+                    if (!setting('r2_storage.r2_enabled', false)) {
+                        Notification::make()
+                            ->title('R2 đang TẮT')
+                            ->body('Cần bật R2 và cấu hình Public URL trước khi thay thế URL.')
+                            ->danger()->send();
+                        return;
+                    }
                     $oldUrls = $settingService->get('r2_storage.r2_old_base_urls', '/storage');
                     $oldUrlsArr = array_filter(array_map('trim', explode("\n", $oldUrls)));
                     if (empty($oldUrlsArr)) {
@@ -312,7 +339,17 @@ class R2SyncManager extends Page implements HasForms, HasTable
                 ->icon('heroicon-o-check-circle')
                 ->color('danger')
                 ->requiresConfirmation()
+                ->modalHeading('⚠️ Thay thế URL thật — Không thể undo')
+                ->modalDescription('Hệ thống sẽ thay thế URL trong DB. Chỉ file đã xác nhận sync R2 mới được thay. Đảm bảo đã chạy Dry Run trước.')
                 ->action(function (\App\Services\Settings\SettingService $settingService) {
+                    // Guard: R2 must be enabled
+                    if (!setting('r2_storage.r2_enabled', false)) {
+                        Notification::make()
+                            ->title('R2 đang TẮT')
+                            ->body('Cần bật R2 và cấu hình Public URL trước khi thay thế URL.')
+                            ->danger()->send();
+                        return;
+                    }
                     $lastDryRun = \App\Models\R2SyncJob::where('mode', 'replace_urls_only')->where('dry_run', true)->exists();
                     if (!$lastDryRun) {
                         Notification::make()->title('Vui lòng chạy Dry Run trước để an toàn!')->danger()->send();

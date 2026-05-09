@@ -153,7 +153,7 @@ class ProductDocumentsRelationManager extends RelationManager
                     ->label('Tải về')
                     ->icon('heroicon-o-arrow-down-tray')
                     ->color('success')
-                    ->url(fn ($record) => Storage::disk(config('media.disk', 'public'))->url($record->file_path))
+                    ->url(fn ($record) => media_url($record->file_path))
                     ->openUrlInNewTab(),
                 EditAction::make(),
                 DeleteAction::make(),
