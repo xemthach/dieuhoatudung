@@ -2,6 +2,58 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.4.1] - 2026-05-09
+
+### Fixed — Critical: R2 Upload Silent Failures
+- **R2 disk `throw => false`** — Upload failures were silently swallowed, returning `false` instead of throwing exceptions. Changed to `throw => true` on both `r2` and `public` disks in `config/filesystems.php`
+- **R2 disk `use_path_style_endpoint => false`** — Cloudflare R2 requires path-style endpoints. Without this, S3 requests fail silently. Changed to `true`
+- **`AppServiceProvider` missing R2 runtime config** — Runtime R2 config override (from DB settings) was missing `use_path_style_endpoint` and `throw` keys → requests defaulted to virtual-hosted style which R2 doesn't support
+
+### Fixed — PostForm Crash: Non-existent Config Key
+- `PostForm.php` used `config('media.directories.images')` — this key **did not exist** in `config/media.php`, returning `null` → FileUpload directory was empty, files uploaded to root
+- Cover image and RichEditor attachments both affected
+- Fixed: changed to `config('media.folders.blog')` which is the correct existing key
+- Added `directories.images` backward-compat alias in `config/media.php` for safety
+
+### Fixed — RichEditor Disk Bypass
+- `PostForm.php` and `ProductForm.php` RichEditor components used `config('media.disk')` (static `.env` value) instead of `MediaDiskService::getUploadDisk()` (dynamic R2-aware)
+- When R2 enabled via admin, RichEditor inline images still uploaded to local `public` disk
+- Now uses dynamic closure: `fn () => app(MediaDiskService::class)->getUploadDisk()`
+
+### Fixed — ProductReviewForm Deprecated Disk Pattern
+- Used `configureR2Disk()` (deprecated no-op) and captured disk into static `$disk` variable at form construction time
+- If R2 state changed after form was built, the old disk name persisted until next request
+- Replaced with dynamic closure matching all other upload fields in the system
+
+### Changed — MediaDiskService Config Validation
+- `getUploadDisk()` now validates R2 credentials (key, secret, bucket, endpoint) before returning `'r2'`
+- If R2 enabled but config incomplete → falls back to `'public'` with warning log instead of returning `'r2'` that will crash on first upload
+- New method: `r2ConfigValid()` — checks all 4 required R2 credentials exist
+- `putUploadedFile()` now **throws `RuntimeException`** on failure instead of returning `false` — prevents saving empty/fake paths to DB
+
+### Changed — `media_url()` Direct R2 Upload Support
+- Previously only returned CDN URL if file existed in `media_files` table with `is_synced_to_r2 = true`
+- Files uploaded directly to R2 via Filament FileUpload (bypassing sync flow) had no `media_files` record → always fell back to local URL
+- Now also checks `Storage::disk('r2')->exists()` as fallback when sync record doesn't exist
+- Added `media_disk()` helper function — shorthand for `MediaDiskService::getUploadDisk()`
+
+### DevOps — Build Assets
+- Updated `public/build/` CSS assets — previous commit had stale CSS causing MIME type errors on production
+
+### Files Changed (10 files)
+- `config/filesystems.php` — `throw => true`, `use_path_style_endpoint => true`
+- `config/media.php` — Added `directories.images` backward compat key
+- `app/Services/Media/MediaDiskService.php` — Config validation, throw on failure, new methods
+- `app/Support/helpers.php` — `media_url()` R2 direct check, `media_disk()` helper
+- `app/Providers/AppServiceProvider.php` — R2 `use_path_style_endpoint` + `throw`
+- `app/Filament/Resources/ProductReviews/Schemas/ProductReviewForm.php` — Dynamic disk closure
+- `app/Filament/Resources/Posts/Schemas/PostForm.php` — Dynamic disk + correct config key
+- `app/Filament/Resources/Products/Schemas/ProductForm.php` — Dynamic RichEditor disk
+- `public/build/manifest.json` — Updated asset hashes
+- `public/build/assets/app-*.css` — Rebuilt production CSS
+
+---
+
 ## [1.4.0] - 2026-05-09
 
 ### Fixed — Critical: Boolean Toggle Display Bug
