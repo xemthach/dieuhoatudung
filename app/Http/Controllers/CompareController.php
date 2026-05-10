@@ -3,11 +3,16 @@
 namespace App\Http\Controllers;
 
 use App\Models\Product;
+use App\Services\Product\ProductComparisonService;
 use Illuminate\Http\Request;
 
 class CompareController extends Controller
 {
     private const MAX_PRODUCTS = 4;
+
+    public function __construct(
+        private readonly ProductComparisonService $comparisonService
+    ) {}
 
     /**
      * Display the compare page.
@@ -24,40 +29,26 @@ class CompareController extends Controller
             $slugs = $request->session()->get('compare.products', []);
         }
 
-        // 2. Fetch products from DB
-        $products = [];
-        if (!empty($slugs)) {
-            // Keep order of slugs
-            $dbProducts = Product::whereIn('slug', $slugs)
-                ->where('is_active', true)
-                ->with('brand')
-                ->get()
-                ->keyBy('slug');
-            
-            foreach ($slugs as $slug) {
-                if (isset($dbProducts[$slug])) {
-                    $products[] = $dbProducts[$slug];
-                }
-            }
-        }
+        // 2. Fetch products using service
+        $products = $this->comparisonService->getProducts($slugs);
 
         // 3. SEO Metadata
         $seoTitle = 'So sánh sản phẩm điều hòa tủ đứng';
-        if (count($products) > 0) {
-            $names = collect($products)->pluck('name')->join('vs ');
+        if ($products->count() > 0) {
+            $names = $products->pluck('name')->join(' vs ');
             $seoTitle = "So sánh: {$names}";
         }
         
         $seoDescription = 'Công cụ so sánh thông số kỹ thuật, tính năng, và giá bán các dòng máy lạnh điều hòa tủ đứng. Giúp bạn chọn mua sản phẩm phù hợp nhất.';
         $canonical = url('/so-sanh-san-pham');
 
-        // 4. Build compare rows using service
-        $compareRows = [];
-        if (count($products) > 0) {
-            $compareRows = app(\App\Services\Product\ProductCompareSpecService::class)->buildRows($products);
+        // 4. Build grouped compare specs using service
+        $groupedSpecs = [];
+        if ($products->count() > 0) {
+            $groupedSpecs = $this->comparisonService->buildGroupedSpecs($products);
         }
 
-        return view('pages.compare', compact('products', 'compareRows', 'seoTitle', 'seoDescription', 'canonical'));
+        return view('pages.compare', compact('products', 'groupedSpecs', 'seoTitle', 'seoDescription', 'canonical'));
     }
 
     /**
@@ -143,5 +134,66 @@ class CompareController extends Controller
         }
 
         return redirect()->route('compare.index');
+    }
+
+    // ──────────────────────────────────────────────
+    // Export endpoints
+    // ──────────────────────────────────────────────
+
+    /**
+     * Export comparison to PDF.
+     */
+    public function exportPdf(Request $request)
+    {
+        $products = $this->resolveExportProducts($request);
+
+        if ($products->isEmpty()) {
+            return back()->with('error', 'Không có sản phẩm nào để xuất.');
+        }
+
+        return $this->comparisonService->exportPdf($products);
+    }
+
+    /**
+     * Export comparison to Excel XLSX.
+     */
+    public function exportExcel(Request $request)
+    {
+        $products = $this->resolveExportProducts($request);
+
+        if ($products->isEmpty()) {
+            return back()->with('error', 'Không có sản phẩm nào để xuất.');
+        }
+
+        return $this->comparisonService->exportExcel($products);
+    }
+
+    /**
+     * Export comparison to CSV.
+     */
+    public function exportCsv(Request $request)
+    {
+        $products = $this->resolveExportProducts($request);
+
+        if ($products->isEmpty()) {
+            return back()->with('error', 'Không có sản phẩm nào để xuất.');
+        }
+
+        return $this->comparisonService->exportCsv($products);
+    }
+
+    /**
+     * Resolve products for export from query string or session.
+     */
+    private function resolveExportProducts(Request $request): \Illuminate\Support\Collection
+    {
+        // Try query string first
+        if ($request->has('products')) {
+            $slugs = array_filter(explode(',', $request->query('products')));
+        } else {
+            $slugs = $request->session()->get('compare.products', []);
+        }
+
+        return $this->comparisonService->getProducts($slugs);
     }
 }

@@ -2,6 +2,69 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.6.0] - 2026-05-10
+
+### Added — Product Comparison Module Upgrade
+- **`ProductComparisonService`** (`app/Services/Product/ProductComparisonService.php`) — New central service that builds the full comparison matrix from both standard DB columns AND all `specs_json` extra specs
+- **9 HVAC-domain groups**: Thông tin chung, Công suất & Hiệu suất, Điện & Môi chất lạnh, Dàn lạnh, Mặt nạ (Panel), Dàn nóng, Lắp đặt, Nguồn dữ liệu, Thông số khác
+- **60+ spec fields** compared (up from 12 hardcoded fields) — includes EER/COP, rated current, refrigerant charge, indoor/outdoor packaging, panel specs, pipe dimensions, installation limits
+- **Auto-collects ungrouped specs** — any extra key in `specs_json` not in predefined groups appears under "Thông số khác" (no specs lost)
+- **Diff highlighting** — values that differ across products are highlighted in amber for easy identification
+
+### Added — Export Comparison Data
+- **PDF export** (`/so-sanh-san-pham/export/pdf`) — A4 landscape, mPDF with DejaVu Sans font for full Vietnamese diacritics support, grouped sections, diff highlighting, footer with site domain, multi-page support
+- **Excel export** (`/so-sanh-san-pham/export/excel`) — XLSX with frozen panes (B2), indigo group headers, amber diff cells, auto column width, sheet name "So sánh sản phẩm"
+- **CSV export** (`/so-sanh-san-pham/export/csv`) — UTF-8 BOM for Excel compatibility, comma delimiter, full Vietnamese character support
+- **`ProductComparisonExport`** (`app/Exports/ProductComparisonExport.php`) — Maatwebsite Excel export class with professional styling
+
+### Added — Compare Page UX Improvements
+- **Export dropdown button** — "Xuất dữ liệu" dropdown with PDF/Excel/CSV options with animated transition
+- **Sticky first column** — Label column stays visible when scrolling horizontally on wide tables
+- **Color-coded group headers** — Each HVAC domain has a unique pastel color (slate, blue, amber, cyan, violet, orange, emerald, gray)
+- **Text truncation with tooltip** — Long values truncate with hover-to-expand behavior
+- **Mobile scroll hint** — Animated arrow indicator for horizontal scroll on mobile/tablet
+- **Transition animations** — Smooth hover effects on spec rows
+
+### Changed — CompareController Refactored
+- Injected `ProductComparisonService` via constructor DI (replaced inline DB queries and `ProductCompareSpecService` usage)
+- View variable renamed: `$compareRows` → `$groupedSpecs` (grouped by HVAC domain instead of flat basic/technical/physical)
+- Added 3 export endpoints: `exportPdf()`, `exportExcel()`, `exportCsv()` with `resolveExportProducts()` helper
+- Products fetched via service with `brand` + `category` eager loading (was only loading `brand`)
+
+### Changed — Compare Blade View Rewritten
+- Replaced hardcoded `$row()` PHP closure with dynamic `@foreach` loop over grouped specs
+- Group headers rendered from service data instead of static HTML blocks
+- Product values escaped with `{{ }}` instead of mixed `{!! !!}` / `htmlspecialchars()` — eliminated raw HTML injection risk from `stock_status` and `inverter` fields
+- Added responsive scrollbar styling via `<style>` block
+
+### Changed — ProductSpecLabel
+- Added `source_table` → `'Bảng catalogue'` label mapping
+
+### Changed — .gitignore
+- Added `/storage/app/mpdf-tmp` to prevent mPDF runtime cache from being committed
+
+### Dependencies
+- Added `mpdf/mpdf` (^8.3) — PDF generation with full Unicode/Vietnamese support via DejaVu Sans font
+
+### Routes Added (3)
+- `GET /so-sanh-san-pham/export/pdf` → `compare.export.pdf`
+- `GET /so-sanh-san-pham/export/excel` → `compare.export.excel`
+- `GET /so-sanh-san-pham/export/csv` → `compare.export.csv`
+
+### Files Changed (10 files)
+- `app/Services/Product/ProductComparisonService.php` — **NEW** (377 lines)
+- `app/Exports/ProductComparisonExport.php` — **NEW** (157 lines)
+- `app/Http/Controllers/CompareController.php` — Refactored with DI + export methods
+- `resources/views/pages/compare.blade.php` — Full rewrite with grouped specs + UX
+- `routes/web.php` — +3 export routes
+- `app/Support/ProductSpecLabel.php` — +1 label
+- `.gitignore` — +1 mpdf-tmp exclusion
+- `composer.json` — +mpdf/mpdf dependency
+- `composer.lock` — Updated lock file
+- `public/build/` — Rebuilt production assets (new CSS hash)
+
+---
+
 ## [1.5.1] - 2026-05-10
 
 ### Added — ProductSpecLabel Mapping System

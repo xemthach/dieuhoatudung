@@ -112,6 +112,7 @@ class ProductSpecLabel
         // ── Catalogue metadata ──
         'source_catalogue'              => 'Nguồn catalogue',
         'source_page'                   => 'Trang catalogue',
+        'source_table'                  => 'Bảng catalogue',
 
         // ── Fallback OCR keys (Vietnamese without diacritics from PDF extraction) ──
         'model_dn_lnh'                  => 'Model dàn lạnh',

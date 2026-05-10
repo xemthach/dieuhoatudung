@@ -3,6 +3,67 @@
 @push('head')
     {{-- Always noindex for compare page as it creates many duplicate combinations --}}
     <meta name="robots" content="noindex, follow">
+    <style>
+        /* Compare table: sticky first column */
+        .compare-table-wrap {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+        .compare-table {
+            min-width: 700px;
+        }
+        .compare-table .sticky-col {
+            position: sticky;
+            left: 0;
+            z-index: 10;
+            background-color: inherit;
+        }
+        .compare-table thead .sticky-col {
+            z-index: 20;
+        }
+        .compare-table .sticky-col::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            right: 0;
+            bottom: 0;
+            width: 1px;
+            background: #e5e7eb;
+        }
+        /* Group header row */
+        .compare-group-header td {
+            font-weight: 700;
+            font-size: 0.7rem;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+        }
+        /* Diff highlight */
+        .compare-diff {
+            background-color: #fef9c3 !important;
+        }
+        /* Tooltip for truncated text */
+        .compare-cell-value {
+            max-width: 200px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        @media (min-width: 1024px) {
+            .compare-cell-value {
+                max-width: 260px;
+            }
+        }
+        .compare-cell-value:hover {
+            white-space: normal;
+            overflow: visible;
+            word-break: break-word;
+        }
+        /* Smooth scroll indicator */
+        .compare-table-wrap::-webkit-scrollbar { height: 6px; }
+        .compare-table-wrap::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 3px; }
+        .compare-table-wrap::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 3px; }
+        .compare-table-wrap::-webkit-scrollbar-thumb:hover { background: #64748b; }
+    </style>
 @endpush
 
 <div class="container-main py-8 lg:py-12">
@@ -20,13 +81,45 @@
         </div>
         
         @if(count($products) > 0)
-        <form method="POST" action="{{ route('compare.clear') }}" class="shrink-0">
-            @csrf
-            <button type="submit" class="inline-flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm font-medium text-red-600 transition hover:bg-red-100 hover:text-red-700">
-                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-                Xóa tất cả
-            </button>
-        </form>
+        <div class="flex items-center gap-3 shrink-0 flex-wrap">
+            {{-- Export buttons --}}
+            @php
+                $exportSlugs = collect($products)->pluck('slug')->join(',');
+            @endphp
+            <div class="flex items-center gap-2" x-data="{ exportOpen: false }">
+                <div class="relative">
+                    <button @click="exportOpen = !exportOpen" @click.away="exportOpen = false"
+                        class="inline-flex items-center gap-2 rounded-xl border border-surface-200 bg-white px-4 py-2 text-sm font-medium text-surface-700 transition hover:border-primary-300 hover:bg-primary-50 hover:text-primary-600 shadow-sm">
+                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                        Xuất dữ liệu
+                        <svg class="h-3 w-3 transition-transform" :class="exportOpen ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                    </button>
+                    <div x-show="exportOpen" x-transition:enter="transition ease-out duration-150" x-transition:enter-start="opacity-0 scale-95 -translate-y-1" x-transition:enter-end="opacity-100 scale-100 translate-y-0" x-transition:leave="transition ease-in duration-100" x-transition:leave-start="opacity-100 scale-100" x-transition:leave-end="opacity-0 scale-95"
+                         class="absolute right-0 top-full mt-2 w-48 rounded-xl border border-surface-200 bg-white py-1 shadow-lg z-30" x-cloak>
+                        <a href="{{ route('compare.export.pdf', ['products' => $exportSlugs]) }}" class="flex items-center gap-3 px-4 py-2.5 text-sm text-surface-700 hover:bg-surface-50 hover:text-primary-600 transition">
+                            <svg class="h-4 w-4 text-red-500" fill="currentColor" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zM6 20V4h7v5h5v11H6z"/><path d="M8 12h1.5v1.5H11V12h1.5v4H11v-1.5H9.5V16H8v-4zm5 0h1.5v2.5H16V16h-3v-4zm-5 5h8v1H8v-1z"/></svg>
+                            Xuất PDF
+                        </a>
+                        <a href="{{ route('compare.export.excel', ['products' => $exportSlugs]) }}" class="flex items-center gap-3 px-4 py-2.5 text-sm text-surface-700 hover:bg-surface-50 hover:text-primary-600 transition">
+                            <svg class="h-4 w-4 text-green-600" fill="currentColor" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zM6 20V4h7v5h5v11H6z"/><path d="M8 12l2 4 2-4h1.5L11 16.5 13.5 21H12l-2-4-2 4H6.5L9 16.5 6.5 12H8z"/></svg>
+                            Xuất Excel
+                        </a>
+                        <a href="{{ route('compare.export.csv', ['products' => $exportSlugs]) }}" class="flex items-center gap-3 px-4 py-2.5 text-sm text-surface-700 hover:bg-surface-50 hover:text-primary-600 transition">
+                            <svg class="h-4 w-4 text-blue-500" fill="currentColor" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zM6 20V4h7v5h5v11H6z"/><path d="M8 13h8v1H8zm0 2h8v1H8zm0 2h5v1H8z"/></svg>
+                            Xuất CSV
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <form method="POST" action="{{ route('compare.clear') }}">
+                @csrf
+                <button type="submit" class="inline-flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm font-medium text-red-600 transition hover:bg-red-100 hover:text-red-700">
+                    <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                    Xóa tất cả
+                </button>
+            </form>
+        </div>
         @endif
     </div>
 
@@ -43,18 +136,18 @@
     </div>
     @else
     
-    <div class="relative overflow-x-auto rounded-2xl border border-surface-200 bg-white shadow-sm scrollbar-thin scrollbar-track-surface-100 scrollbar-thumb-surface-300">
-        <table class="w-full min-w-[800px] text-left text-sm">
-            {{-- HEADER: Hình ảnh & Tên --}}
+    <div class="compare-table-wrap rounded-2xl border border-surface-200 bg-white shadow-sm">
+        <table class="compare-table w-full text-left text-sm">
+            {{-- HEADER: Product images & names --}}
             <thead class="bg-surface-50">
                 <tr>
-                    <th class="w-48 border-b border-surface-200 p-4 font-semibold text-surface-700">
+                    <th class="sticky-col w-48 border-b border-surface-200 p-4 font-semibold text-surface-700 bg-surface-50">
                         Sản phẩm ({{ count($products) }}/4)
                     </th>
                     @foreach($products as $product)
-                    <th class="w-64 border-b border-l border-surface-200 p-4 align-top">
+                    <th class="w-64 border-b border-l border-surface-200 p-4 align-top bg-surface-50">
                         <div class="relative flex h-full flex-col">
-                            {{-- Nút xóa --}}
+                            {{-- Remove button --}}
                             <form method="POST" action="{{ route('compare.remove') }}" class="absolute right-0 top-0">
                                 @csrf
                                 <input type="hidden" name="slug" value="{{ $product->slug }}">
@@ -115,56 +208,54 @@
             </thead>
             
             <tbody>
-                {{-- Helper macro for generating rows --}}
                 @php
-                    $row = function($label, $group, $field, $isHtml = false) use ($products, $compareRows) {
-                        echo '<tr class="group hover:bg-surface-50"><td class="border-b border-surface-200 p-4 font-medium text-surface-700 bg-white group-hover:bg-surface-50 sticky left-0 shadow-[1px_0_0_0_#e5e7eb] z-10">' . $label . '</td>';
-                        foreach($products as $p) {
-                            $val = $compareRows[$p->id][$group][$field] ?? '—';
-                            if ($val === null || $val === '') $val = '—';
-                            echo '<td class="border-b border-l border-surface-200 p-4 text-surface-600">' . ($isHtml ? $val : htmlspecialchars($val)) . '</td>';
-                        }
-                        for($i = count($products); $i < 4; $i++) {
-                            echo '<td class="border-b border-l border-surface-200 p-4 bg-surface-50/50"></td>';
-                        }
-                        echo '</tr>';
-                    };
+                    $groupColors = [
+                        'Thông tin chung'         => 'bg-slate-100 text-slate-700',
+                        'Công suất & Hiệu suất'  => 'bg-blue-50 text-blue-800',
+                        'Điện & Môi chất lạnh'    => 'bg-amber-50 text-amber-800',
+                        'Dàn lạnh'                => 'bg-cyan-50 text-cyan-800',
+                        'Mặt nạ (Panel)'          => 'bg-violet-50 text-violet-800',
+                        'Dàn nóng'                => 'bg-orange-50 text-orange-800',
+                        'Lắp đặt'                 => 'bg-emerald-50 text-emerald-800',
+                        'Nguồn dữ liệu'          => 'bg-gray-100 text-gray-600',
+                        'Thông số khác'           => 'bg-surface-100 text-surface-600',
+                    ];
                 @endphp
 
-                <tr class="bg-surface-100">
-                    <td colspan="5" class="px-4 py-2 text-xs font-bold uppercase tracking-wider text-surface-600">Thông tin chung</td>
-                </tr>
-                
-                @php $row('Thương hiệu', 'basic', 'brand') @endphp
-                @php $row('Model', 'basic', 'model_code') @endphp
-                @php $row('Mã SKU', 'basic', 'sku') @endphp
-                @php $row('Danh mục', 'basic', 'category') @endphp
-                @php $row('Tình trạng', 'basic', 'stock_status', true) @endphp
-                @php $row('Bảo hành', 'basic', 'warranty', true) @endphp
+                @foreach($groupedSpecs as $groupLabel => $rows)
+                    {{-- Group header --}}
+                    @php $groupClass = $groupColors[$groupLabel] ?? 'bg-surface-100 text-surface-600'; @endphp
+                    <tr class="compare-group-header">
+                        <td colspan="{{ count($products) + 1 + (4 - count($products)) }}" class="px-4 py-2.5 {{ $groupClass }}">
+                            {{ $groupLabel }}
+                        </td>
+                    </tr>
 
-                <tr class="bg-surface-100">
-                    <td colspan="5" class="px-4 py-2 text-xs font-bold uppercase tracking-wider text-surface-600">Thông số kỹ thuật</td>
-                </tr>
-                
-                @php $row('Công suất lạnh', 'technical', 'btu') @endphp
-                @php $row('Công nghệ Inverter', 'technical', 'inverter', true) @endphp
-                @php $row('Loại máy', 'technical', 'cooling_type') @endphp
-                @php $row('Điện áp', 'technical', 'voltage') @endphp
-                @php $row('Loại Gas', 'technical', 'refrigerant_gas') @endphp
-                @php $row('Tiêu thụ điện', 'technical', 'power_consumption') @endphp
-                @php $row('Lưu lượng gió', 'technical', 'airflow') @endphp
-                @php $row('Độ ồn', 'technical', 'noise_level') @endphp
-
-                <tr class="bg-surface-100">
-                    <td colspan="5" class="px-4 py-2 text-xs font-bold uppercase tracking-wider text-surface-600">Kích thước & Trọng lượng</td>
-                </tr>
-                @php $row('Kích thước dàn lạnh', 'physical', 'indoor_dimensions') @endphp
-                @php $row('Kích thước dàn nóng', 'physical', 'outdoor_dimensions') @endphp
-                @php $row('Trọng lượng', 'physical', 'weight') @endphp
-                @php $row('Ống đồng', 'physical', 'pipe_size') @endphp
-
+                    {{-- Spec rows --}}
+                    @foreach($rows as $row)
+                    <tr class="group hover:bg-surface-50 transition-colors">
+                        <td class="sticky-col border-b border-surface-200 p-4 font-medium text-surface-700 bg-white group-hover:bg-surface-50 text-[13px]" title="{{ $row['label'] }}">
+                            {{ $row['label'] }}
+                        </td>
+                        @foreach($row['values'] as $idx => $value)
+                        <td class="border-b border-l border-surface-200 p-4 text-surface-600 text-[13px] {{ $row['differs'] && $value !== '—' ? 'compare-diff' : '' }}">
+                            <span class="compare-cell-value inline-block" title="{{ $value }}">{{ $value }}</span>
+                        </td>
+                        @endforeach
+                        @for($i = count($products); $i < 4; $i++)
+                        <td class="border-b border-l border-surface-200 p-4 bg-surface-50/50"></td>
+                        @endfor
+                    </tr>
+                    @endforeach
+                @endforeach
             </tbody>
         </table>
+    </div>
+
+    {{-- Mobile scroll hint --}}
+    <div class="mt-3 flex items-center justify-center gap-2 text-xs text-surface-400 lg:hidden">
+        <svg class="h-4 w-4 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/></svg>
+        Vuốt ngang để xem thêm
     </div>
     
     @endif

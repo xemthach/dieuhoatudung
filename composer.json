@@ -12,6 +12,7 @@
         "laravel/tinker": "^3.0",
         "league/flysystem-aws-s3-v3": "^3.32",
         "maatwebsite/excel": "^3.1",
+        "mpdf/mpdf": "^8.3",
         "spatie/laravel-permission": "^7.4"
     },
     "require-dev": {

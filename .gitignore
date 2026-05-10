@@ -18,6 +18,7 @@
 /storage/framework/sessions/*
 /storage/framework/views/*
 /storage/app/private/*
+/storage/app/mpdf-tmp
 /storage/pail
 
 # Keep storage directories via .gitkeep
