@@ -33,6 +33,14 @@ class PolicyPage extends Model
         return $query->whereJsonContains('display_locations', $location);
     }
 
+    /**
+     * Alias for displayedIn — used in user-facing code.
+     */
+    public function scopeVisibleIn(Builder $query, string $location): Builder
+    {
+        return $this->scopeDisplayedIn($query, $location);
+    }
+
     // ─── Accessors ─────────────────────────────────────────
     public function getPublicUrlAttribute(): string
     {

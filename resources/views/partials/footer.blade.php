@@ -42,17 +42,7 @@
             <div>
                 <h3 class="mb-4 text-sm font-semibold uppercase tracking-wider text-white">Chính sách</h3>
                 <ul class="space-y-2 text-sm">
-                    @php
-                        $footerPolicies = \App\Models\PolicyPage::active()
-                            ->displayedIn('footer')
-                            ->orderBy('sort_order')
-                            ->get();
-                    @endphp
-                    @forelse($footerPolicies as $policy)
-                    <li><a href="{{ $policy->public_url }}" class="transition-colors hover:text-white">{{ $policy->title }}</a></li>
-                    @empty
-                    <li><span class="text-surface-500">Chưa có chính sách</span></li>
-                    @endforelse
+                    <x-policy-links display-location="footer" variant="list" />
                 </ul>
             </div>
 

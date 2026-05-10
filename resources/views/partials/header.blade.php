@@ -12,6 +12,7 @@
                 <span>{{ setting('general.working_hours', 'Miễn phí giao hàng & lắp đặt nội thành') }}</span>
             </div>
             <div class="flex items-center gap-4">
+                <x-policy-links display-location="header_top" variant="inline" />
                 <a href="/bang-gia/dieu-hoa-tu-dung" class="transition-colors hover:text-white">Bảng giá</a>
                 <a href="/faq/dieu-hoa-tu-dung" class="transition-colors hover:text-white">FAQ</a>
                 <a href="/lien-he" class="transition-colors hover:text-white">Liên hệ</a>

@@ -2,6 +2,45 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.10.0] - 2026-05-11
+
+### Added — Daikin & Panasonic Catalogue Import
+- **`ImportDaikinProducts` artisan command** (`app/Console/Commands/ImportDaikinProducts.php`) — Import 129 Daikin commercial HVAC products from Sky Air (116) + Packaged Inverter VN (13) catalogues. Idempotent upsert by `brand_id` + `model_code`. `--dry-run` mode supported
+- **`ImportPanasonicProducts` artisan command** (`app/Console/Commands/ImportPanasonicProducts.php`) — Import 71 Panasonic products from commercial catalogue. Maps indoor (S-xxx) + outdoor (U-xxx) pairs. Full specs: power_consumption, airflow, noise_level, indoor/outdoor dimensions, weight, pipe specs, CSPF, nanoe™ X generation
+- **Panasonic series classification**: NX cao cấp (nanoe™ X gen 3), NX tiêu chuẩn (gen 2), NX 2 chiều, Non-inverter, Tủ đứng Inverter, Mini Cassette
+- **Product categories covered**: Cassette 4 hướng (35), Nối ống gió (25), Áp trần (6), Tủ đứng (5) for Panasonic; 4 categories for Daikin
+- **System total**: 354 products across 4 brands (Daikin 129, Gree 81, LG 73, Panasonic 71)
+
+### Added — Policy Page Display Locations
+- **`<x-policy-links>` Blade component** (`app/View/Components/PolicyLinks.php` + `resources/views/components/policy-links.blade.php`) — Reusable component with 4 variants: `list` (footer), `inline` (header), `checkbox` (forms), `detail` (product pages). Self-hiding via `shouldRender()` when no policies match
+- **`PolicyLinks::ALL_LOCATIONS` constants** — Single source of truth for location keys (`footer`, `header_top`, `lead_form`, `product_detail`), used in both Filament form and frontend rendering
+- **`scopeVisibleIn()` model scope** — Alias for `displayedIn()` on `PolicyPage` model
+
+### Fixed — Policy Page Frontend Rendering
+- **3/4 display locations had no frontend rendering code** — Only `footer` had `displayedIn()` query. `header_top`, `lead_form`, `product_detail` were saved in DB but never rendered on frontend
+- **Header top bar** — Added `<x-policy-links display-location="header_top">` to `partials/header.blade.php`
+- **Quote form** — Added `<x-policy-links display-location="lead_form">` before submit button in `components/quote-form.blade.php`
+- **Product detail** — Added `<x-policy-links display-location="product_detail">` in warranty tab of `products/show.blade.php`
+- **Footer refactored** — Replaced inline `@php` query block with `<x-policy-links>` component
+
+### Changed
+- **PolicyPageForm** — Replaced hardcoded options array with `PolicyLinks::ALL_LOCATIONS` constant reference
+
+### Files Changed (10 files, 4 new)
+- `app/Console/Commands/ImportDaikinProducts.php` — **NEW**
+- `app/Console/Commands/ImportPanasonicProducts.php` — **NEW**
+- `app/View/Components/PolicyLinks.php` — **NEW**
+- `resources/views/components/policy-links.blade.php` — **NEW**
+- `app/Models/PolicyPage.php` — +8 lines (visibleIn scope)
+- `app/Filament/Resources/PolicyPages/Schemas/PolicyPageForm.php` — constants ref
+- `resources/views/partials/header.blade.php` — +1 line (header_top policy)
+- `resources/views/partials/footer.blade.php` — refactored to component
+- `resources/views/components/quote-form.blade.php` — +3 lines (lead_form policy)
+- `resources/views/products/show.blade.php` — +4 lines (product_detail policy)
+- `VERSION` — 1.9.0 → 1.10.0
+
+---
+
 ## [1.9.0] - 2026-05-10
 
 ### Added — LG SCAC Catalogue R32 Import

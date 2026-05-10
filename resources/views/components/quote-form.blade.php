@@ -306,6 +306,9 @@
                         @endif
                     </div>
                 </div>
+
+                {{-- Policy agreement --}}
+                <x-policy-links display-location="lead_form" variant="checkbox" class="mt-3" />
             </div>
 
             <div class="fqf-nav">

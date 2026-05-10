@@ -97,12 +97,7 @@ class PolicyPageForm
                                     ->required(),
                                 CheckboxList::make('display_locations')
                                     ->label('Vị trí hiển thị')
-                                    ->options([
-                                        'footer'         => 'Footer',
-                                        'header_top'     => 'Header phụ',
-                                        'lead_form'      => 'Form liên hệ/Báo giá',
-                                        'product_detail' => 'Chi tiết sản phẩm',
-                                    ])
+                                    ->options(\App\View\Components\PolicyLinks::ALL_LOCATIONS)
                                     ->default(['footer']),
                                 TextInput::make('sort_order')
                                     ->label('Thứ tự')

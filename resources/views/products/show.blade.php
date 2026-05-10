@@ -268,6 +268,10 @@
                     <h3>Lưu ý lắp đặt</h3>
                     {!! $product->installation_note !!}
                 @endif
+
+                {{-- Policy links for product detail --}}
+                <x-policy-links display-location="product_detail" variant="detail" class="mt-6 not-prose" />
+
                 @if(!$product->warranty_info && !$product->installation_note)
                     <p class="text-surface-400">Chưa có thông tin bảo hành & lắp đặt.</p>
                 @endif
