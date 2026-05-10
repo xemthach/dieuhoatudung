@@ -179,7 +179,7 @@ class ProductImportHandler implements ImportHandlerInterface
         $data = [];
         $fillableFields = [
             'name', 'slug', 'sku', 'model_code', 'brand_id', 'product_category_id',
-            'series', 'btu', 'inverter', 'cooling_type', 'voltage', 'refrigerant_gas',
+            'series', 'btu', 'capacity_kw', 'hp', 'inverter', 'cooling_type', 'voltage', 'refrigerant_gas',
             'power_consumption', 'airflow', 'noise_level', 'indoor_dimensions',
             'outdoor_dimensions', 'weight', 'recommended_area',
             'regular_price', 'sale_price', 'discount_percent',

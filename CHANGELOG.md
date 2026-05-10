@@ -2,6 +2,27 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.9.0] - 2026-05-10
+
+### Added — LG SCAC Catalogue R32 Import
+- **`ImportLgProducts` artisan command** (`app/Console/Commands/ImportLgProducts.php`) — Import 73 LG commercial HVAC products from extracted catalogue data (JSON). Supports `--dry-run` mode for preview. Upsert logic matches by `brand_id` + `model_code` (idempotent — re-run updates, never duplicates)
+- **5 product categories imported**: Cassette 4 hướng thổi (19), Cassette 1 hướng thổi (8), Cassette tròn (8), Tủ đứng (16), Nối ống gió (22)
+- **Full technical specs** per product: BTU, kW, HP, EER, airflow, noise level, indoor/outdoor dimensions, weight, pipe sizes, max pipe length, max height diff, compressor type, refrigerant gas
+- **Both cooling types**: 44 cooling-only (1 chiều) + 29 heat pump (2 chiều)
+- **Both phase types**: 1-phase (220-240V) and 3-phase (380-415V) variants
+- **R410A support**: 3 large floor-standing models (98K–200K BTU) correctly tagged as R410A instead of R32
+- **specs_json enriched**: Each product stores extended specs (indoor/outdoor model, EER, airflow detail, noise detail, pipe specs, compressor info) in structured JSON
+
+### Changed — ProductImportHandler fillable fields
+- Added `capacity_kw` and `hp` to `$fillableFields` array in `prepareData()` — these columns existed in DB (migration `2026_05_09_185109`) but were not whitelisted for import, causing them to be silently dropped during CSV/JSON imports
+
+### Files Changed (3 files)
+- `app/Console/Commands/ImportLgProducts.php` — **NEW** (121 lines)
+- `app/Services/DataTransfer/Modules/ProductImportHandler.php` — +2 fillable fields
+- `VERSION` — 1.8.1 → 1.9.0
+
+---
+
 ## [1.8.1] - 2026-05-10
 
 ### Fixed
