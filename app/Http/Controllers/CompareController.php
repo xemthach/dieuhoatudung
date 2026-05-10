@@ -101,20 +101,38 @@ class CompareController extends Controller
      */
     public function remove(Request $request)
     {
-        $validated = $request->validate([
-            'slug' => 'required|string',
-        ]);
+        // Accept either 'slug' or 'product_id' for backward compatibility
+        $slug = $request->input('slug') ?? $request->input('product_id');
 
-        $slug = $validated['slug'];
+        if (empty($slug)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Thiếu thông tin sản phẩm cần xóa.',
+            ], 422);
+        }
+
         $slugs = $request->session()->get('compare.products', []);
-        
         $slugs = array_values(array_filter($slugs, fn($s) => $s !== $slug));
-        $request->session()->put('compare.products', $slugs);
+
+        if (empty($slugs)) {
+            // Clear session entirely when no products remain
+            $request->session()->forget('compare.products');
+        } else {
+            $request->session()->put('compare.products', $slugs);
+        }
+
+        // Build remaining items with full data for frontend sync
+        $remainingItems = Product::whereIn('slug', $slugs)->get()->map(fn($p) => [
+            'slug' => $p->slug,
+            'name' => $p->name,
+            'image_url' => $p->compare_image_url
+        ])->values()->toArray();
 
         return response()->json([
             'success' => true,
             'message' => 'Đã xóa sản phẩm khỏi danh sách.',
-            'count'   => count($slugs)
+            'count'   => count($remainingItems),
+            'items'   => $remainingItems
         ]);
     }
 
@@ -125,11 +143,12 @@ class CompareController extends Controller
     {
         $request->session()->forget('compare.products');
 
-        if ($request->wantsJson()) {
+        if ($request->wantsJson() || $request->ajax()) {
             return response()->json([
                 'success' => true,
                 'message' => 'Đã xóa tất cả sản phẩm so sánh.',
-                'count'   => 0
+                'count'   => 0,
+                'items'   => []
             ]);
         }
 

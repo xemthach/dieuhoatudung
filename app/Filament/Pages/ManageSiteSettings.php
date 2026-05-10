@@ -575,12 +575,34 @@ class ManageSiteSettings extends Page
 
                     /* ── Tab 13: CTA ── */
                     Tabs\Tab::make('CTA')->icon('heroicon-o-cursor-arrow-rays')->schema([
-                        TextInput::make('cta__global_cta_text')->label('CTA Text toàn site'),
-                        TextInput::make('cta__global_cta_link')->label('CTA Link'),
-                        TextInput::make('cta__quote_cta_text')->label('Quote CTA Text'),
-                        TextInput::make('cta__quote_cta_link')->label('Quote CTA Link'),
-                        TextInput::make('cta__phone_cta_text')->label('Phone CTA Text'),
-                        TextInput::make('cta__zalo_cta_text')->label('Zalo CTA Text'),
+                        \Filament\Schemas\Components\Section::make('CTA Buttons')
+                            ->description('Cấu hình text và link cho các nút CTA toàn site.')
+                            ->schema([
+                                TextInput::make('cta__global_cta_text')->label('CTA Text toàn site')
+                                    ->helperText('Nút CTA chính trên header, hero, sections'),
+                                TextInput::make('cta__global_cta_link')->label('CTA Link'),
+                                TextInput::make('cta__quote_cta_text')->label('Quote CTA Text'),
+                                TextInput::make('cta__quote_cta_link')->label('Quote CTA Link'),
+                                TextInput::make('cta__phone_cta_text')->label('Phone CTA Text')
+                                    ->helperText('Label nút gọi điện. Vd: "Gọi ngay", "Gọi hotline tư vấn"'),
+                                TextInput::make('cta__zalo_cta_text')->label('Zalo CTA Text')
+                                    ->helperText('Label nút Zalo. Vd: "Chat Zalo", "Nhắn Zalo"'),
+                            ])->columns(2),
+
+                        \Filament\Schemas\Components\Section::make('Mobile Bottom Bar')
+                            ->description('Bật/tắt từng nút trên thanh CTA cố định dưới cùng (mobile).')
+                            ->schema([
+                                Toggle::make('cta__mobile_bar_call_enabled')->label('Hiện nút Gọi ngay')->default(true),
+                                Toggle::make('cta__mobile_bar_zalo_enabled')->label('Hiện nút Zalo')->default(true),
+                                Toggle::make('cta__mobile_bar_quote_enabled')->label('Hiện nút Báo giá')->default(true),
+                            ])->columns(3),
+
+                        \Filament\Schemas\Components\Section::make('Hiển thị số điện thoại')
+                            ->description('Số hiển thị cho khách (có thể format khác với số dùng cho tel:)')
+                            ->schema([
+                                TextInput::make('contact__hotline_display')->label('Hotline hiển thị')
+                                    ->helperText('Vd: "0909.123.456" hoặc "1800 1234". Nếu trống, dùng hotline gốc.'),
+                            ]),
                     ]),
 
 

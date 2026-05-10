@@ -98,8 +98,12 @@ window.csrfFetch = async (url, options = {}) => {
 
         // Still 419 after refresh → session completely dead
         if (res.status === 419) {
-            alert('Phiên làm việc đã hết hạn. Trang sẽ được tải lại.');
-            location.reload();
+            // Show a friendly toast instead of crude alert
+            const toast = document.createElement('div');
+            toast.className = 'fixed top-4 left-1/2 -translate-x-1/2 z-[99999] rounded-xl bg-surface-800 px-6 py-3 text-sm font-medium text-white shadow-2xl transition-all';
+            toast.textContent = 'Phiên làm việc đã hết hạn. Trang sẽ được tải lại...';
+            document.body.appendChild(toast);
+            setTimeout(() => location.reload(), 1500);
             return res;
         }
     }

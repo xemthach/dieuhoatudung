@@ -107,12 +107,16 @@
                 <span class="block text-primary-200 text-xl font-normal mt-2">Chúng tôi sẽ khảo sát và lên dự toán hoàn toàn miễn phí.</span>
             </h2>
             <div class="mt-8 flex lg:mt-0 lg:flex-shrink-0 gap-4">
-                <a href="{{ setting('contact.zalo', 'https://zalo.me/') }}" target="_blank" class="inline-flex items-center justify-center rounded-xl bg-white px-5 py-3 text-base font-bold text-primary-600 hover:bg-primary-50 transition-colors">
-                    Chat Zalo
+                @if(setting('contact.zalo_link'))
+                <a href="{{ setting('contact.zalo_link') }}" target="_blank" rel="noopener" class="inline-flex items-center justify-center rounded-xl bg-white px-5 py-3 text-base font-bold text-primary-600 hover:bg-primary-50 transition-colors">
+                    {{ setting('cta.zalo_cta_text', 'Chat Zalo') }}
                 </a>
-                <a href="tel:{{ setting('contact.hotline', '0900000000') }}" class="inline-flex items-center justify-center rounded-xl border border-transparent bg-primary-700 px-5 py-3 text-base font-bold text-white hover:bg-primary-800 transition-colors">
-                    Gọi {{ setting('contact.hotline', '0900000000') }}
+                @endif
+                @if(setting('contact.hotline'))
+                <a href="tel:{{ setting('contact.hotline') }}" class="inline-flex items-center justify-center rounded-xl border border-transparent bg-primary-700 px-5 py-3 text-base font-bold text-white hover:bg-primary-800 transition-colors">
+                    {{ setting('cta.phone_cta_text', 'Gọi ngay') }} {{ setting('contact.hotline_display', setting('contact.hotline')) }}
                 </a>
+                @endif
             </div>
         </div>
     </div>

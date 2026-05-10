@@ -2,6 +2,50 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.8.0] - 2026-05-10
+
+### Added
+- **Homepage Search Section** — Extracted search box from Hero Slider into independent `<x-home.homepage-search />` component. Search renders immediately on page load, unaffected by slide animations. New `homepage` variant added to `search-box.blade.php` with opaque white input and proper z-index for autocomplete dropdown
+- **Compare Bar AJAX State Sync** — Rewrote `compare-bar.blade.php` to use server-session as single source of truth. All add/remove/clear operations now return full `items[]` array from server. Replaced browser `alert()` with modern toast notifications. `localStorage` demoted to transient UX cache
+- **Admin CTA Mobile Bar Controls** — Added 3 toggle switches in Admin > Site Settings > CTA tab: `mobile_bar_call_enabled`, `mobile_bar_zalo_enabled`, `mobile_bar_quote_enabled`. Each mobile sticky bar button can now be individually toggled on/off
+- **Hotline Display Setting** — Added `contact.hotline_display` setting for formatted phone display (e.g., "0909.123.456") separate from raw `tel:` number
+
+### Fixed
+- **Empty `tel:` links** — Homepage CTA section and mobile sticky bar had `href="tel:"` with no phone number. Now uses `setting('contact.hotline')` with conditional rendering — link hidden entirely if no hotline configured
+- **405 MethodNotAllowed on GET /so-sanh-san-pham/remove** — Added GET fallback routes for `/add`, `/remove`, `/clear` that redirect to compare index instead of showing raw Symfony exception page. POST-only mutation routes remain unchanged
+- **Wrong Zalo setting key** — `case-studies/index.blade.php` used non-existent `setting('contact.zalo')` with hardcoded `https://zalo.me/` fallback. Corrected to `setting('contact.zalo_link')`
+- **Hardcoded phone fallback `0900000000`** — Removed fake phone number fallback from case studies CTA. Now uses actual admin-configured hotline
+
+### Changed
+- **Contact/CTA Dynamic Settings** — Refactored `sticky-cta.blade.php` (full rewrite), `home.blade.php` CTA section, and `case-studies/index.blade.php` CTA to use `setting()` helper for all phone numbers, Zalo links, and CTA labels. Zero hardcoded contact info remains in frontend
+- **CSRF Expiry Notification** — Replaced `alert('Phiên làm việc đã hết hạn')` with animated toast notification that auto-dismisses before page reload
+- **Responsive CSS Overhaul** — Added `overflow-x: hidden` global fix, hero slider overflow containment via `:has([x-data*="heroSlider"])`, `.scrollbar-none` utility, compare bar z-index layering (z-9998), sticky CTA auto-hide when compare bar visible, iOS safe area padding
+- **Hero Slider Mobile Typography** — Reduced h1 from `text-3xl` to `text-2xl` on mobile, `sm:text-4xl` to `sm:text-3xl` on tablet to prevent text overflow
+- **Search Box Mobile Optimization** — Added responsive padding (`pr-24` mobile → `pr-36` desktop), split button text ("Tìm" mobile / "Tìm sản phẩm" desktop)
+- **Admin CTA Tab Reorganization** — Restructured CTA settings into 3 sections: CTA Buttons (2-column layout), Mobile Bottom Bar (3 toggles), and Hotline Display
+
+### Security
+- **Compare routes enforce POST** — All mutation routes (`/add`, `/remove`, `/clear`) remain POST-only with CSRF protection. GET requests gracefully redirect instead of exposing stack traces
+
+### Files Changed (17 files)
+- `app/Http/Controllers/CompareController.php` — `remove()` returns full `items[]`, accepts `product_id` alias, `clear()` returns `items: []`
+- `app/Filament/Pages/ManageSiteSettings.php` — CTA tab expanded with mobile bar toggles and hotline_display
+- `resources/css/app.css` — +58 lines: responsive overflow fixes, z-index layering, iOS safe area, scrollbar utility
+- `resources/js/app.js` — CSRF 419 toast notification replaces `alert()`
+- `resources/views/components/compare-bar.blade.php` — Full rewrite: AJAX state sync, toast notifications, mobile-optimized
+- `resources/views/components/home/hero-slider.blade.php` — Removed search box, reduced mobile font sizes
+- `resources/views/components/home/homepage-search.blade.php` — **NEW** — Independent search section component
+- `resources/views/components/search-box.blade.php` — Added `homepage` variant, mobile-responsive padding/button
+- `resources/views/pages/home.blade.php` — Added homepage-search component, dynamic CTA settings
+- `resources/views/pages/case-studies/index.blade.php` — Fixed Zalo key, removed hardcoded fallbacks
+- `resources/views/partials/sticky-cta.blade.php` — Full rewrite: dynamic settings + per-button toggles
+- `routes/web.php` — Added GET fallback redirects for compare mutation routes
+- `.gitignore` — Added `/antigravity` and `/antigravity.pub`
+- `VERSION` — 1.7.1 → 1.8.0
+- `public/build/assets/app-*.css` — Rebuilt
+- `public/build/assets/app-*.js` — Rebuilt
+- `public/build/manifest.json` — Updated asset hashes
+
 ## [1.7.1] - 2026-05-10
 
 ### Fixed — BTU Calculator Audit (4 issues)

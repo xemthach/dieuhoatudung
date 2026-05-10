@@ -13,7 +13,7 @@
 
     @if($hasSlides)
     {{-- ═══ DYNAMIC SLIDES ═══ --}}
-    <div class="relative min-h-[480px] sm:min-h-[520px] lg:min-h-[560px]">
+    <div class="relative min-h-[360px] sm:min-h-[460px] lg:min-h-[540px]">
         @foreach($slides as $index => $slide)
         <div x-show="current === {{ $index }}"
              x-transition:enter="transition ease-out duration-700"
@@ -63,7 +63,7 @@
             </div>
 
             {{-- Content --}}
-            <div class="container-main relative flex min-h-[480px] sm:min-h-[520px] lg:min-h-[560px] items-center py-12 lg:py-16">
+            <div class="container-main relative flex min-h-[360px] sm:min-h-[460px] lg:min-h-[540px] items-center py-8 sm:py-12 lg:py-16">
                 <div class="w-full {{ match($slide->content_position) {
                     'left'   => 'max-w-2xl',
                     'right'  => 'max-w-2xl ml-auto',
@@ -80,7 +80,7 @@
                      x-transition:enter-end="opacity-100 translate-y-0 translate-x-0 scale-100">
 
                     @if($slide->title)
-                    <h1 class="text-3xl font-extrabold tracking-tight sm:text-4xl lg:text-5xl"
+                    <h1 class="text-2xl font-extrabold tracking-tight sm:text-3xl lg:text-5xl"
                         style="color: {{ $slide->text_color }}; text-align: {{ $slide->text_align }};">
                         {{ $slide->title }}
                         @if($slide->highlight_text)
@@ -96,10 +96,6 @@
                     </p>
                     @endif
 
-                    {{-- Search Box --}}
-                    <div class="mt-8">
-                        <x-search-box variant="hero" />
-                    </div>
 
                     {{-- CTAs --}}
                     @if($slide->cta_primary_text || $slide->cta_secondary_text)
@@ -165,7 +161,7 @@
     </div>
     <div class="container-main relative py-16 lg:py-24">
         <div class="mx-auto max-w-3xl text-center">
-            <h1 class="text-3xl font-extrabold tracking-tight text-white sm:text-4xl lg:text-5xl">
+            <h1 class="text-2xl font-extrabold tracking-tight text-white sm:text-3xl lg:text-5xl">
                 {{ setting('general.site_name', '') }} <span class="text-accent-400">Chính Hãng</span>
             </h1>
             <p class="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-primary-100">
@@ -173,10 +169,7 @@
                 Miễn phí lắp đặt, bảo hành chính hãng toàn quốc.
             </p>
 
-            {{-- Search Box --}}
-            <div class="mt-8">
-                <x-search-box variant="hero" />
-            </div>
+
 
             <div class="mt-8 flex flex-col items-center justify-center gap-4 sm:flex-row">
                 <a href="{{ route('quote.index') }}" class="btn-accent w-full px-8 py-4 text-base sm:w-auto">

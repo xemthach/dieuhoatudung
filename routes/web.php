@@ -80,6 +80,12 @@ Route::get('/so-sanh-san-pham', [\App\Http\Controllers\CompareController::class,
 Route::post('/so-sanh-san-pham/add', [\App\Http\Controllers\CompareController::class, 'add'])->name('compare.add');
 Route::post('/so-sanh-san-pham/remove', [\App\Http\Controllers\CompareController::class, 'remove'])->name('compare.remove');
 Route::post('/so-sanh-san-pham/clear', [\App\Http\Controllers\CompareController::class, 'clear'])->name('compare.clear');
+
+// GET fallbacks — redirect to compare index instead of showing raw 405 error
+Route::get('/so-sanh-san-pham/add', fn() => redirect()->route('compare.index'));
+Route::get('/so-sanh-san-pham/remove', fn() => redirect()->route('compare.index'));
+Route::get('/so-sanh-san-pham/clear', fn() => redirect()->route('compare.index'));
+
 Route::get('/so-sanh-san-pham/export/pdf', [\App\Http\Controllers\CompareController::class, 'exportPdf'])->name('compare.export.pdf');
 Route::get('/so-sanh-san-pham/export/excel', [\App\Http\Controllers\CompareController::class, 'exportExcel'])->name('compare.export.excel');
 Route::get('/so-sanh-san-pham/export/csv', [\App\Http\Controllers\CompareController::class, 'exportCsv'])->name('compare.export.csv');

@@ -69,3 +69,7 @@ Homestead.yaml
 
 # Data import (not needed in repo)
 /data dieu hoa/
+
+# Agent config
+/antigravity
+/antigravity.pub

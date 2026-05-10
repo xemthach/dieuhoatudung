@@ -2,7 +2,8 @@
 @props(['variant' => 'hero'])
 
 @php
-    $isHero = $variant === 'hero';
+    $isHero = $variant === 'hero' || $variant === 'homepage';
+    $isHomepage = $variant === 'homepage';
     $isInline = $variant === 'inline';
 @endphp
 
@@ -30,7 +31,8 @@
                 spellcheck="false"
                 maxlength="80"
                 placeholder="{{ $isInline ? 'Tìm model, SKU, thương hiệu...' : 'Nhập mã model, SKU hoặc tên sản phẩm cần tìm...' }}"
-                class="@if($isHero) w-full rounded-2xl border-0 bg-white/95 backdrop-blur-sm py-4 pl-12 pr-36 text-base text-surface-900 shadow-xl ring-2 ring-white/20 transition placeholder:text-surface-400 focus:bg-white focus:ring-accent-400 focus:outline-none
+                class="@if($isHomepage) w-full rounded-2xl border border-white/20 bg-white py-3.5 pl-11 pr-24 text-sm text-surface-900 shadow-lg transition placeholder:text-surface-400 focus:ring-2 focus:ring-accent-400 focus:outline-none sm:py-4 sm:pl-12 sm:pr-36 sm:text-base
+                       @elseif($isHero) w-full rounded-2xl border-0 bg-white/95 backdrop-blur-sm py-3.5 pl-11 pr-24 text-sm text-surface-900 shadow-xl ring-2 ring-white/20 transition placeholder:text-surface-400 focus:bg-white focus:ring-accent-400 focus:outline-none sm:py-4 sm:pl-12 sm:pr-36 sm:text-base
                        @elseif($isInline) w-full rounded-xl border border-surface-200 bg-white py-2.5 pl-11 pr-24 text-sm text-surface-900 shadow-sm transition placeholder:text-surface-400 focus:border-primary-400 focus:ring-2 focus:ring-primary-100 focus:outline-none
                        @else w-full rounded-xl border border-surface-200 bg-white py-3 pl-12 pr-28 text-sm text-surface-900 shadow-sm transition placeholder:text-surface-400 focus:border-primary-400 focus:ring-2 focus:ring-primary-100 focus:outline-none
                        @endif"
@@ -52,24 +54,26 @@
             </button>
 
             <button type="submit"
-                class="@if($isHero) absolute right-2 rounded-xl bg-accent-500 px-6 py-2.5 text-sm font-bold text-white transition hover:bg-accent-600 active:scale-95
+                class="@if($isHomepage) absolute right-1.5 rounded-xl bg-accent-500 px-4 py-2 text-xs font-bold text-white transition hover:bg-accent-600 active:scale-95 sm:right-2 sm:px-6 sm:py-2.5 sm:text-sm
+                       @elseif($isHero) absolute right-1.5 rounded-xl bg-accent-500 px-4 py-2 text-xs font-bold text-white transition hover:bg-accent-600 active:scale-95 sm:right-2 sm:px-6 sm:py-2.5 sm:text-sm
                        @elseif($isInline) absolute right-1.5 rounded-lg bg-primary-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-primary-700 active:scale-95
                        @else absolute right-1.5 rounded-lg bg-primary-600 px-4 py-2 text-xs font-bold text-white transition hover:bg-primary-700 active:scale-95
                        @endif"
                 id="search-submit-btn-{{ $variant }}">
-                {{ $isInline ? 'Tìm' : 'Tìm sản phẩm' }}
+                <span class="sm:hidden">{{ $isInline ? 'Tìm' : 'Tìm' }}</span>
+                <span class="hidden sm:inline">{{ $isInline ? 'Tìm' : 'Tìm sản phẩm' }}</span>
             </button>
         </div>
     </form>
 
-    {{-- Suggestion hints (hero only) --}}
+    {{-- Suggestion hints (homepage and hero variants) --}}
     @if($isHero)
-    <div class="mt-3 flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-xs text-primary-200/80" x-show="!showDropdown">
+    <div class="mt-3 flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-xs {{ $isHomepage ? 'text-primary-200' : 'text-primary-200/80' }}" x-show="!showDropdown">
         <span>Ví dụ:</span>
-        <button type="button" @click="quickSearch('GCC24S6I')" class="rounded-full bg-white/10 px-2.5 py-0.5 transition hover:bg-white/20">GCC24S6I</button>
-        <button type="button" @click="quickSearch('24000 BTU')" class="rounded-full bg-white/10 px-2.5 py-0.5 transition hover:bg-white/20">24.000 BTU</button>
-        <button type="button" @click="quickSearch('Gree')" class="rounded-full bg-white/10 px-2.5 py-0.5 transition hover:bg-white/20">Gree</button>
-        <button type="button" @click="quickSearch('cassette inverter')" class="rounded-full bg-white/10 px-2.5 py-0.5 transition hover:bg-white/20">cassette inverter</button>
+        <button type="button" @click="quickSearch('GCC24S6I')" class="rounded-full {{ $isHomepage ? 'bg-white/15 hover:bg-white/25' : 'bg-white/10 hover:bg-white/20' }} px-2.5 py-0.5 transition">GCC24S6I</button>
+        <button type="button" @click="quickSearch('24000 BTU')" class="rounded-full {{ $isHomepage ? 'bg-white/15 hover:bg-white/25' : 'bg-white/10 hover:bg-white/20' }} px-2.5 py-0.5 transition">24.000 BTU</button>
+        <button type="button" @click="quickSearch('Gree')" class="rounded-full {{ $isHomepage ? 'bg-white/15 hover:bg-white/25' : 'bg-white/10 hover:bg-white/20' }} px-2.5 py-0.5 transition">Gree</button>
+        <button type="button" @click="quickSearch('cassette inverter')" class="rounded-full {{ $isHomepage ? 'bg-white/15 hover:bg-white/25' : 'bg-white/10 hover:bg-white/20' }} px-2.5 py-0.5 transition">cassette inverter</button>
     </div>
     @endif
 
