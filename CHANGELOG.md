@@ -1,6 +1,19 @@
 # Changelog
 
 All notable changes to this project will be documented in this file.
+## [1.6.1] - 2026-05-10
+
+### Fixed — PDF Export Permission Denied on Production
+- **`mkdir(): Permission denied`** — mPDF's `Cache` class attempted to create `storage/app/mpdf-tmp` at runtime, but on production servers the web server user (www-data/nginx) may lack permission to create directories under `storage/app/`
+- Fix: `exportPdf()` now explicitly creates the temp directory with `mkdir($tempDir, 0775, true)` before mPDF instantiation
+- Added **fallback to `sys_get_temp_dir()`** — if `storage/app/mpdf-tmp` is not writable (e.g., restrictive hosting), mPDF falls back to the system temp directory
+- Removed unused `ConfigVariables` and `FontVariables` imports
+
+### Files Changed (2 files)
+- `app/Services/Product/ProductComparisonService.php` — Temp dir creation + fallback logic
+- `VERSION` — 1.6.0 → 1.6.1
+
+---
 
 ## [1.6.0] - 2026-05-10
 

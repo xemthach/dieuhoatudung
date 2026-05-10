@@ -7,8 +7,6 @@ use App\Support\ProductSpecLabel;
 use Illuminate\Support\Collection;
 use Maatwebsite\Excel\Facades\Excel;
 use Mpdf\Mpdf;
-use Mpdf\Config\ConfigVariables;
-use Mpdf\Config\FontVariables;
 
 /**
  * Central service for the product comparison module.
@@ -417,12 +415,18 @@ class ProductComparisonService
         // Build HTML
         $html = $this->buildPdfHtml($products, $grouped, $siteName, $siteUrl, $date);
 
-        // Create mPDF instance
-        $defaultConfig = (new ConfigVariables())->getDefaults();
-        $fontDirs = $defaultConfig['fontDir'];
-
-        $defaultFontConfig = (new FontVariables())->getDefaults();
-        $fontData = $defaultFontConfig['fontdata'];
+        // Ensure temp directory exists and is writable
+        $tempDir = storage_path('app/mpdf-tmp');
+        if (!is_dir($tempDir)) {
+            @mkdir($tempDir, 0775, true);
+        }
+        if (!is_dir($tempDir) || !is_writable($tempDir)) {
+            // Fallback to system temp directory if storage is not writable
+            $tempDir = sys_get_temp_dir() . '/mpdf-tmp';
+            if (!is_dir($tempDir)) {
+                @mkdir($tempDir, 0775, true);
+            }
+        }
 
         $mpdf = new Mpdf([
             'mode'            => 'utf-8',
@@ -434,7 +438,7 @@ class ProductComparisonService
             'margin_header'   => 5,
             'margin_footer'   => 5,
             'default_font'    => 'dejavusans',
-            'tempDir'         => storage_path('app/mpdf-tmp'),
+            'tempDir'         => $tempDir,
         ]);
 
         $mpdf->SetTitle('Bảng so sánh sản phẩm - ' . $siteName);
