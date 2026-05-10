@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.8.1] - 2026-05-10
+
+### Fixed
+- **Search API 500 on MySQL 5.7/MariaDB** — `JSON_EXTRACT(specs_json, '$[*].value')` uses `$[*]` wildcard which requires MySQL 8.0+. Replaced with `CAST(specs_json AS CHAR)` + `LIKE` for universal MySQL/MariaDB compatibility. Also added `whereNotNull('specs_json')` guard to prevent NULL column crashes
+
+### Files Changed (2 files)
+- `app/Services/Search/ProductSearchService.php` — MySQL-compatible JSON search fallback
+- `VERSION` — 1.8.0 → 1.8.1
+
 ## [1.8.0] - 2026-05-10
 
 ### Added

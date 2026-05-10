@@ -204,7 +204,12 @@ class ProductSearchService
                 }
 
                 // Search in specs_json for indoor/outdoor model
-                $query->orWhereRaw('LOWER(JSON_EXTRACT(specs_json, \'$[*].value\')) LIKE ?', [$likeQ]);
+                // Use simple LIKE on raw JSON column for MySQL 5.7/MariaDB compatibility
+                // (JSON_EXTRACT with $[*] wildcard requires MySQL 8.0+)
+                $query->orWhere(function ($sub) use ($likeQ) {
+                    $sub->whereNotNull('specs_json')
+                        ->where(DB::raw('LOWER(CAST(specs_json AS CHAR))'), 'LIKE', $likeQ);
+                });
 
                 // Multi-token: each token as separate OR
                 if (count($tokens) > 1) {
