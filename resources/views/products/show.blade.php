@@ -116,7 +116,10 @@
                                 <span class="text-xl font-bold text-primary-600">Liên hệ để nhận giá tốt nhất</span>
                             @endif
                         </div>
-                        <p class="mt-1 text-xs text-surface-500">Đã bao gồm VAT. Miễn phí lắp đặt nội thành.</p>
+                        <p class="mt-1.5 inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-medium text-emerald-600">
+                            <svg class="h-3 w-3" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+                            Đã bao gồm VAT
+                        </p>
                     </div>
 
                     {{-- Quick Specs --}}
