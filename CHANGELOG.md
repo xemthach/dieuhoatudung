@@ -2,6 +2,29 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.7.1] - 2026-05-10
+
+### Fixed — BTU Calculator Audit (4 issues)
+- **Showroom W/m² label mismatch** — Frontend select displayed "900 W/m²" while service used correct 300 W/m². Calculation was correct, but UI was misleading
+- **`energy_rating` sort pushed NULLs first** — When user selected "Tiết kiệm điện" priority, products without energy rating appeared first. Now NULLs sort to end via `$p->energy_rating ?? 999`
+- **Landing page Quick BTU widget used flat 600 BTU/m²** — Replaced with accurate W/m²-based calculation using the same 27 space types as the main calculator, with Alpine.js reactive dropdown, real BTU tier rounding, and HP/W/m² display
+
+### Changed — BTU Calculator Architecture
+- **Hardcoded `<option>` tags → dynamic rendering** — Replaced 44 hardcoded `<option>` lines with `BtuCalculatorService::spaceTypeGrouped()` loop. Adding/editing space types in the service now auto-updates all UIs
+- **Added `group` field to cooling load table** — Each of the 27 space types now has a `group` key (Nhà ở, Văn phòng, Thương mại, F&B, etc.) for `<optgroup>` rendering
+- **Added `getCoolingLoad()` method** — Public accessor for W/m² values, used by landing page widget for client-side JS calculation
+- **Added 3 missing VN market BTU tiers** — 30,000 (3.3HP), 42,000 (4.7HP), 45,000 (5.0HP) with corresponding area ranges
+- **Updated `btuToAreaRange` map** — Added area ranges for new tiers: 30K→38-52m², 42K→55-72m², 45K→58-78m²
+
+### Files Changed (5 files)
+- `app/Services/Calculator/BtuCalculatorService.php` — +group field, +getCoolingLoad(), +spaceTypeGrouped(), +3 tiers, energy_rating fix
+- `resources/views/components/btu-calculator.blade.php` — Dynamic options from service, Showroom label fix
+- `resources/views/landing/sections/advisory_content.blade.php` — Full widget rewrite with W/m² accuracy
+- `public/build/manifest.json` — Updated asset hashes
+- `VERSION` — 1.7.0 → 1.7.1
+
+---
+
 ## [1.7.0] - 2026-05-10
 
 ### Added — Product Search Module

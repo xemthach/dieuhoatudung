@@ -24,43 +24,43 @@ class BtuCalculatorService
     // W/m² Cooling Load Table (source: Excel BANG TINH TAI KINH NGHIEM)
     // ──────────────────────────────────────────────────────────
 
-    /** @var array<string, array{w_per_m2: int, label_vi: string, label_en: string}> */
+    /** @var array<string, array{w_per_m2: int, label_vi: string, label_en: string, group: string}> */
     protected array $coolingLoadTable = [
         // Residential
-        'nha_o'              => ['w_per_m2' => 120,  'label_vi' => 'Căn hộ, nhà ở',                'label_en' => 'Apartments, Residence'],
-        'phong_khach'        => ['w_per_m2' => 120,  'label_vi' => 'Phòng khách (nhà ở)',          'label_en' => 'Residence living room'],
-        'khach_san'          => ['w_per_m2' => 120,  'label_vi' => 'Khách sạn, nhà nghỉ',          'label_en' => 'Hotel, Motel Rooms'],
+        'nha_o'              => ['w_per_m2' => 120,  'label_vi' => 'Căn hộ, nhà ở',                'label_en' => 'Apartments, Residence',           'group' => 'Nhà ở'],
+        'phong_khach'        => ['w_per_m2' => 120,  'label_vi' => 'Phòng khách (nhà ở)',          'label_en' => 'Residence living room',           'group' => 'Nhà ở'],
+        'khach_san'          => ['w_per_m2' => 120,  'label_vi' => 'Khách sạn, nhà nghỉ',          'label_en' => 'Hotel, Motel Rooms',              'group' => 'Nhà ở'],
         // Office
-        'van_phong'          => ['w_per_m2' => 170,  'label_vi' => 'Văn phòng (viền ngoài)',       'label_en' => 'Office - General (perimeter)'],
-        'van_phong_interior' => ['w_per_m2' => 100,  'label_vi' => 'Văn phòng (bên trong)',        'label_en' => 'Office - General (interior)'],
-        'van_phong_private'  => ['w_per_m2' => 180,  'label_vi' => 'Văn phòng cá nhân',            'label_en' => 'Office - Private'],
+        'van_phong'          => ['w_per_m2' => 170,  'label_vi' => 'Văn phòng (viền ngoài)',       'label_en' => 'Office - General (perimeter)',    'group' => 'Văn phòng'],
+        'van_phong_interior' => ['w_per_m2' => 100,  'label_vi' => 'Văn phòng (bên trong)',        'label_en' => 'Office - General (interior)',     'group' => 'Văn phòng'],
+        'van_phong_private'  => ['w_per_m2' => 180,  'label_vi' => 'Văn phòng cá nhân',            'label_en' => 'Office - Private',                'group' => 'Văn phòng'],
         // Commercial
-        'cua_hang'           => ['w_per_m2' => 165,  'label_vi' => 'Cửa hàng',                     'label_en' => 'Clothing / Shoe Stores'],
-        'sieu_thi'           => ['w_per_m2' => 160,  'label_vi' => 'Siêu thị',                     'label_en' => 'Supermarkets'],
-        'showroom'           => ['w_per_m2' => 300,  'label_vi' => 'Showroom',                      'label_en' => 'Showroom (commercial)'],
-        'ngan_hang'          => ['w_per_m2' => 175,  'label_vi' => 'Ngân hàng',                     'label_en' => 'Banks'],
+        'cua_hang'           => ['w_per_m2' => 165,  'label_vi' => 'Cửa hàng',                     'label_en' => 'Clothing / Shoe Stores',          'group' => 'Thương mại'],
+        'sieu_thi'           => ['w_per_m2' => 160,  'label_vi' => 'Siêu thị',                     'label_en' => 'Supermarkets',                    'group' => 'Thương mại'],
+        'showroom'           => ['w_per_m2' => 300,  'label_vi' => 'Showroom',                      'label_en' => 'Showroom (commercial)',            'group' => 'Thương mại'],
+        'ngan_hang'          => ['w_per_m2' => 175,  'label_vi' => 'Ngân hàng',                     'label_en' => 'Banks',                           'group' => 'Thương mại'],
         // F&B
-        'nha_hang'           => ['w_per_m2' => 330,  'label_vi' => 'Nhà hàng',                      'label_en' => 'Restaurants'],
-        'cafe'               => ['w_per_m2' => 350,  'label_vi' => 'Quán cà phê',                   'label_en' => 'Cafeteries'],
-        'fastfood'           => ['w_per_m2' => 270,  'label_vi' => 'Thức ăn nhanh, giải khát',      'label_en' => 'Milk Bars, Fast food'],
+        'nha_hang'           => ['w_per_m2' => 330,  'label_vi' => 'Nhà hàng',                      'label_en' => 'Restaurants',                     'group' => 'F&B'],
+        'cafe'               => ['w_per_m2' => 350,  'label_vi' => 'Quán cà phê',                   'label_en' => 'Cafeteries',                      'group' => 'F&B'],
+        'fastfood'           => ['w_per_m2' => 270,  'label_vi' => 'Thức ăn nhanh, giải khát',      'label_en' => 'Milk Bars, Fast food',             'group' => 'F&B'],
         // Assembly
-        'hoi_truong'         => ['w_per_m2' => 280,  'label_vi' => 'Hội trường, giảng đường',       'label_en' => 'Auditorium'],
-        'phong_hop'          => ['w_per_m2' => 275,  'label_vi' => 'Phòng họp',                     'label_en' => 'Conference Rooms'],
-        'phong_hoc'          => ['w_per_m2' => 95,   'label_vi' => 'Phòng học',                     'label_en' => 'Classroom'],
-        'thu_vien'           => ['w_per_m2' => 150,  'label_vi' => 'Thư viện',                     'label_en' => 'Library'],
-        'rap_hat'            => ['w_per_m2' => 280,  'label_vi' => 'Rạp hát',                      'label_en' => 'Theatres'],
+        'hoi_truong'         => ['w_per_m2' => 280,  'label_vi' => 'Hội trường, giảng đường',       'label_en' => 'Auditorium',                      'group' => 'Hội trường / Giáo dục'],
+        'phong_hop'          => ['w_per_m2' => 275,  'label_vi' => 'Phòng họp',                     'label_en' => 'Conference Rooms',                'group' => 'Hội trường / Giáo dục'],
+        'phong_hoc'          => ['w_per_m2' => 95,   'label_vi' => 'Phòng học',                     'label_en' => 'Classroom',                       'group' => 'Hội trường / Giáo dục'],
+        'thu_vien'           => ['w_per_m2' => 150,  'label_vi' => 'Thư viện',                     'label_en' => 'Library',                         'group' => 'Hội trường / Giáo dục'],
+        'rap_hat'            => ['w_per_m2' => 280,  'label_vi' => 'Rạp hát',                      'label_en' => 'Theatres',                        'group' => 'Hội trường / Giáo dục'],
         // Medical
-        'benh_vien'          => ['w_per_m2' => 190,  'label_vi' => 'Bệnh viện, phòng khám',        'label_en' => 'Clinics'],
-        'phong_duoc'         => ['w_per_m2' => 185,  'label_vi' => 'Văn phòng dược',               'label_en' => 'Medical Offices'],
+        'benh_vien'          => ['w_per_m2' => 190,  'label_vi' => 'Bệnh viện, phòng khám',        'label_en' => 'Clinics',                         'group' => 'Y tế'],
+        'phong_duoc'         => ['w_per_m2' => 185,  'label_vi' => 'Văn phòng dược',               'label_en' => 'Medical Offices',                 'group' => 'Y tế'],
         // Industrial
-        'nha_xuong'          => ['w_per_m2' => 275,  'label_vi' => 'Nhà xưởng (CN nhẹ)',           'label_en' => 'Factory Light Manufacture'],
-        'nha_xuong_nang'     => ['w_per_m2' => 490,  'label_vi' => 'Nhà xưởng (CN nặng)',          'label_en' => 'Factory Heavy Manufacture'],
+        'nha_xuong'          => ['w_per_m2' => 275,  'label_vi' => 'Nhà xưởng (CN nhẹ)',           'label_en' => 'Factory Light Manufacture',       'group' => 'Công nghiệp'],
+        'nha_xuong_nang'     => ['w_per_m2' => 490,  'label_vi' => 'Nhà xưởng (CN nặng)',          'label_en' => 'Factory Heavy Manufacture',       'group' => 'Công nghiệp'],
         // Specialty
-        'phong_may_tinh'     => ['w_per_m2' => 480,  'label_vi' => 'Phòng máy tính / Server',      'label_en' => 'Computer Room'],
-        'phong_thi_nghiem'   => ['w_per_m2' => 230,  'label_vi' => 'Phòng thí nghiệm',             'label_en' => 'Laboratory'],
-        'tham_my_vien'       => ['w_per_m2' => 260,  'label_vi' => 'Thẩm mỹ viện',                 'label_en' => 'Beauty shops'],
-        'sanh_hanh_lang'     => ['w_per_m2' => 135,  'label_vi' => 'Sảnh, hành lang',              'label_en' => 'Mall'],
-        'tang_ham'           => ['w_per_m2' => 125,  'label_vi' => 'Tầng hầm',                     'label_en' => 'Basement'],
+        'phong_may_tinh'     => ['w_per_m2' => 480,  'label_vi' => 'Phòng máy tính / Server',      'label_en' => 'Computer Room',                   'group' => 'Đặc biệt'],
+        'phong_thi_nghiem'   => ['w_per_m2' => 230,  'label_vi' => 'Phòng thí nghiệm',             'label_en' => 'Laboratory',                      'group' => 'Đặc biệt'],
+        'tham_my_vien'       => ['w_per_m2' => 260,  'label_vi' => 'Thẩm mỹ viện',                 'label_en' => 'Beauty shops',                    'group' => 'Đặc biệt'],
+        'sanh_hanh_lang'     => ['w_per_m2' => 135,  'label_vi' => 'Sảnh, hành lang',              'label_en' => 'Mall',                            'group' => 'Đặc biệt'],
+        'tang_ham'           => ['w_per_m2' => 125,  'label_vi' => 'Tầng hầm',                     'label_en' => 'Basement',                        'group' => 'Đặc biệt'],
     ];
 
     /** BTU/h constant: 1 W = 3.412 BTU/h */
@@ -73,7 +73,7 @@ class BtuCalculatorService
      * Standard BTU tiers for floor-standing AC units.
      */
     protected array $btuTiers = [
-        9000, 12000, 18000, 24000, 28000, 36000, 48000, 50000, 60000, 100000,
+        9000, 12000, 18000, 24000, 28000, 30000, 36000, 42000, 45000, 48000, 50000, 60000, 100000,
     ];
 
     /**
@@ -222,6 +222,31 @@ class BtuCalculatorService
     }
 
     /**
+     * Get space types grouped by category for <optgroup> rendering.
+     *
+     * @return array<string, array<string, string>>  [group => [key => "Label (xxx W/m²)"]]
+     */
+    public static function spaceTypeGrouped(): array
+    {
+        $svc = new self();
+        $grouped = [];
+        foreach ($svc->coolingLoadTable as $key => $data) {
+            $group = $data['group'];
+            $grouped[$group][$key] = $data['label_vi'] . ' (' . $data['w_per_m2'] . ' W/m²)';
+        }
+        return $grouped;
+    }
+
+    /**
+     * Get W/m² value for a specific space type.
+     */
+    public function getCoolingLoad(string $spaceType): int
+    {
+        return $this->coolingLoadTable[$spaceType]['w_per_m2']
+            ?? $this->coolingLoadTable['van_phong']['w_per_m2'];
+    }
+
+    /**
      * Find matching products for recommended BTU.
      */
     public function matchProducts(int $recommendedBtu, string $priority = ''): \Illuminate\Database\Eloquent\Collection
@@ -259,7 +284,7 @@ class BtuCalculatorService
 
         // Sort by priority
         return match ($priority) {
-            'tiet_kiem_dien'      => $products->sortBy('energy_rating')->values(),
+            'tiet_kiem_dien'      => $products->sortBy(fn($p) => $p->energy_rating ?? 999)->values(),
             'gia_tot'             => $products->sortBy('sale_price')->values(),
             'thuong_hieu_cao_cap' => $products->sortByDesc('regular_price')->values(),
             default               => $products->sortBy(fn($p) => abs($p->btu - $recommendedBtu))->values(),
@@ -306,7 +331,10 @@ class BtuCalculatorService
             18000  => '20 – 30 m²',
             24000  => '25 – 40 m²',
             28000  => '35 – 48 m²',
+            30000  => '38 – 52 m²',
             36000  => '45 – 62 m²',
+            42000  => '55 – 72 m²',
+            45000  => '58 – 78 m²',
             48000  => '60 – 83 m²',
             50000  => '65 – 86 m²',
             60000  => '80 – 103 m²',

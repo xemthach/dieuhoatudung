@@ -74,49 +74,13 @@
                     <select name="space_type" required
                         class="w-full rounded-lg border border-surface-300 py-2.5 px-4 text-sm focus:border-primary-500 focus:ring-2 focus:ring-primary-200 @error('space_type') border-red-400 @enderror">
                         <option value="">-- Chọn loại không gian --</option>
-                        <optgroup label="Nhà ở">
-                            <option value="nha_o" {{ old('space_type') === 'nha_o' ? 'selected' : '' }}>Căn hộ, nhà ở (120 W/m²)</option>
-                            <option value="phong_khach" {{ old('space_type') === 'phong_khach' ? 'selected' : '' }}>Phòng khách nhà ở (120 W/m²)</option>
-                            <option value="khach_san" {{ old('space_type') === 'khach_san' ? 'selected' : '' }}>Khách sạn, nhà nghỉ (120 W/m²)</option>
+                        @foreach(\App\Services\Calculator\BtuCalculatorService::spaceTypeGrouped() as $group => $items)
+                        <optgroup label="{{ $group }}">
+                            @foreach($items as $key => $label)
+                            <option value="{{ $key }}" {{ old('space_type', 'van_phong') === $key ? 'selected' : '' }}>{{ $label }}</option>
+                            @endforeach
                         </optgroup>
-                        <optgroup label="Văn phòng">
-                            <option value="van_phong" {{ old('space_type', 'van_phong') === 'van_phong' ? 'selected' : '' }}>Văn phòng viền ngoài (170 W/m²)</option>
-                            <option value="van_phong_interior" {{ old('space_type') === 'van_phong_interior' ? 'selected' : '' }}>Văn phòng bên trong (100 W/m²)</option>
-                            <option value="van_phong_private" {{ old('space_type') === 'van_phong_private' ? 'selected' : '' }}>Văn phòng cá nhân (180 W/m²)</option>
-                            <option value="ngan_hang" {{ old('space_type') === 'ngan_hang' ? 'selected' : '' }}>Ngân hàng (175 W/m²)</option>
-                        </optgroup>
-                        <optgroup label="Thương mại">
-                            <option value="cua_hang" {{ old('space_type') === 'cua_hang' ? 'selected' : '' }}>Cửa hàng (165 W/m²)</option>
-                            <option value="sieu_thi" {{ old('space_type') === 'sieu_thi' ? 'selected' : '' }}>Siêu thị (160 W/m²)</option>
-                            <option value="showroom" {{ old('space_type') === 'showroom' ? 'selected' : '' }}>Showroom (900 W/m²)</option>
-                        </optgroup>
-                        <optgroup label="F&B">
-                            <option value="nha_hang" {{ old('space_type') === 'nha_hang' ? 'selected' : '' }}>Nhà hàng (330 W/m²)</option>
-                            <option value="cafe" {{ old('space_type') === 'cafe' ? 'selected' : '' }}>Quán cà phê (350 W/m²)</option>
-                            <option value="fastfood" {{ old('space_type') === 'fastfood' ? 'selected' : '' }}>Thức ăn nhanh (270 W/m²)</option>
-                        </optgroup>
-                        <optgroup label="Hội trường / Giáo dục">
-                            <option value="hoi_truong" {{ old('space_type') === 'hoi_truong' ? 'selected' : '' }}>Hội trường, giảng đường (280 W/m²)</option>
-                            <option value="phong_hop" {{ old('space_type') === 'phong_hop' ? 'selected' : '' }}>Phòng họp (275 W/m²)</option>
-                            <option value="phong_hoc" {{ old('space_type') === 'phong_hoc' ? 'selected' : '' }}>Phòng học (95 W/m²)</option>
-                            <option value="thu_vien" {{ old('space_type') === 'thu_vien' ? 'selected' : '' }}>Thư viện (150 W/m²)</option>
-                            <option value="rap_hat" {{ old('space_type') === 'rap_hat' ? 'selected' : '' }}>Rạp hát (280 W/m²)</option>
-                        </optgroup>
-                        <optgroup label="Y tế">
-                            <option value="benh_vien" {{ old('space_type') === 'benh_vien' ? 'selected' : '' }}>Bệnh viện, phòng khám (190 W/m²)</option>
-                            <option value="phong_duoc" {{ old('space_type') === 'phong_duoc' ? 'selected' : '' }}>Văn phòng dược (185 W/m²)</option>
-                        </optgroup>
-                        <optgroup label="Công nghiệp">
-                            <option value="nha_xuong" {{ old('space_type') === 'nha_xuong' ? 'selected' : '' }}>Nhà xưởng CN nhẹ (275 W/m²)</option>
-                            <option value="nha_xuong_nang" {{ old('space_type') === 'nha_xuong_nang' ? 'selected' : '' }}>Nhà xưởng CN nặng (490 W/m²)</option>
-                        </optgroup>
-                        <optgroup label="Đặc biệt">
-                            <option value="phong_may_tinh" {{ old('space_type') === 'phong_may_tinh' ? 'selected' : '' }}>Phòng máy tính / Server (480 W/m²)</option>
-                            <option value="phong_thi_nghiem" {{ old('space_type') === 'phong_thi_nghiem' ? 'selected' : '' }}>Phòng thí nghiệm (230 W/m²)</option>
-                            <option value="tham_my_vien" {{ old('space_type') === 'tham_my_vien' ? 'selected' : '' }}>Thẩm mỹ viện (260 W/m²)</option>
-                            <option value="sanh_hanh_lang" {{ old('space_type') === 'sanh_hanh_lang' ? 'selected' : '' }}>Sảnh, hành lang (135 W/m²)</option>
-                            <option value="tang_ham" {{ old('space_type') === 'tang_ham' ? 'selected' : '' }}>Tầng hầm (125 W/m²)</option>
-                        </optgroup>
+                        @endforeach
                     </select>
                 </div>
 

@@ -17,21 +17,55 @@
             </div>
 
             {{-- Quick BTU Calculator --}}
-            <div class="mt-8 rounded-2xl border border-accent-200 bg-gradient-to-br from-accent-50 to-white p-6 sm:p-8" x-data="{ area: 50, result: 30000 }" x-init="$watch('area', v => result = Math.ceil(v * 600 / 1000) * 1000)">
-                <h3 class="text-lg font-bold text-surface-900"> Tính công suất BTU phù hợp</h3>
-                <p class="mt-1 text-sm text-surface-500">Nhập diện tích phòng để ước tính công suất cần thiết</p>
+            @php
+                $grouped = \App\Services\Calculator\BtuCalculatorService::spaceTypeGrouped();
+                $svc = new \App\Services\Calculator\BtuCalculatorService();
+                $wMap = collect(\App\Services\Calculator\BtuCalculatorService::spaceTypeLabels())
+                    ->mapWithKeys(fn($label, $key) => [$key => $svc->getCoolingLoad($key)]);
+            @endphp
+            <div class="mt-8 rounded-2xl border border-accent-200 bg-gradient-to-br from-accent-50 to-white p-6 sm:p-8"
+                x-data="{
+                    area: 50,
+                    spaceType: 'van_phong',
+                    wTable: @js($wMap),
+                    tiers: [9000,12000,18000,24000,28000,30000,36000,42000,45000,48000,50000,60000,100000],
+                    get wPerM2() { return this.wTable[this.spaceType] || 170 },
+                    get rawBtu() { return Math.round(this.area * this.wPerM2 * 3.412) },
+                    get result() {
+                        for (let t of this.tiers) { if (this.rawBtu <= t) return t }
+                        return Math.ceil(this.rawBtu / 1000) * 1000
+                    },
+                    get hp() { return (this.result / 9000).toFixed(1) }
+                }">
+                <h3 class="text-lg font-bold text-surface-900">⚡ Tính công suất BTU phù hợp</h3>
+                <p class="mt-1 text-sm text-surface-500">Chọn loại không gian và nhập diện tích để ước tính chính xác</p>
 
-                <div class="mt-4 flex flex-col gap-4 sm:flex-row sm:items-end">
-                    <div class="flex-1">
-                        <label for="calc-area" class="mb-1 block text-sm font-medium text-surface-700">Diện tích (m²)</label>
-                        <input type="number" id="calc-area" x-model.number="area" min="10" max="500" step="5" class="w-full rounded-lg border border-surface-300 px-4 py-2.5 text-sm transition-colors focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-200">
+                <div class="mt-4 grid gap-4 sm:grid-cols-3">
+                    <div>
+                        <label for="calc-space" class="mb-1 block text-sm font-medium text-surface-700">Loại không gian</label>
+                        <select id="calc-space" x-model="spaceType" class="w-full rounded-lg border border-surface-300 px-3 py-2.5 text-sm transition-colors focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-200">
+                            @foreach($grouped as $group => $items)
+                            <optgroup label="{{ $group }}">
+                                @foreach($items as $key => $label)
+                                <option value="{{ $key }}">{{ $label }}</option>
+                                @endforeach
+                            </optgroup>
+                            @endforeach
+                        </select>
                     </div>
-                    <div class="flex-1">
-                        <p class="text-sm text-surface-500">Công suất ước tính:</p>
+                    <div>
+                        <label for="calc-area" class="mb-1 block text-sm font-medium text-surface-700">Diện tích (m²)</label>
+                        <input type="number" id="calc-area" x-model.number="area" min="5" max="5000" step="1" class="w-full rounded-lg border border-surface-300 px-4 py-2.5 text-sm transition-colors focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-200">
+                    </div>
+                    <div class="flex flex-col justify-end">
+                        <p class="text-sm text-surface-500">Công suất đề xuất:</p>
                         <p class="text-2xl font-bold text-primary-600"><span x-text="result.toLocaleString('vi-VN')"></span> BTU</p>
+                        <p class="text-xs text-surface-400">≈ <span x-text="hp"></span> HP · <span x-text="wPerM2"></span> W/m²</p>
                     </div>
                 </div>
-                <p class="mt-3 text-xs text-surface-400">* Công thức cơ bản: Diện tích × 600 BTU. Hệ số thực tế có thể cao hơn tùy điều kiện phòng.</p>
+                <p class="mt-3 text-xs text-surface-400">* Kết quả dựa trên hệ số W/m² tiêu chuẩn HVAC. Thực tế có thể cao hơn tùy trần cao, nắng, thiết bị sinh nhiệt.
+                    <a href="{{ route('btu-calculator.index') }}" class="text-primary-500 underline hover:text-primary-700">Tính chi tiết →</a>
+                </p>
             </div>
         </div>
     </div>
