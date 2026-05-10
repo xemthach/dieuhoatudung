@@ -181,17 +181,8 @@
                 </a>
             </div>
 
-            {{-- Why us --}}
-            <div class="rounded-2xl border border-surface-200 bg-white p-5">
-                <h3 class="mb-3 font-bold text-surface-800">Cam kết của chúng tôi</h3>
-                <ul class="space-y-2 text-sm text-surface-600">
-                    @foreach(['Báo giá trong 1–2 giờ làm việc', 'Tư vấn kỹ thuật miễn phí', 'Lắp đặt trọn gói tại TP.HCM', 'Bảo hành chính hãng', 'Hỗ trợ bảo trì định kỳ'] as $item)
-                    <li class="flex items-start gap-2">
-                        <span class="mt-0.5 text-green-500"></span> {{ $item }}
-                    </li>
-                    @endforeach
-                </ul>
-            </div>
+            {{-- Commitment block --}}
+            <x-quote.commitment-block />
         </div>
 
     </div>

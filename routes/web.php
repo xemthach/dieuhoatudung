@@ -84,6 +84,14 @@ Route::get('/so-sanh-san-pham/export/pdf', [\App\Http\Controllers\CompareControl
 Route::get('/so-sanh-san-pham/export/excel', [\App\Http\Controllers\CompareController::class, 'exportExcel'])->name('compare.export.excel');
 Route::get('/so-sanh-san-pham/export/csv', [\App\Http\Controllers\CompareController::class, 'exportCsv'])->name('compare.export.csv');
 
+// Search
+Route::get('/api/search/suggest', [\App\Http\Controllers\SearchController::class, 'suggest'])
+    ->middleware('throttle:30,1')
+    ->name('search.suggest');
+Route::get('/tim-kiem', [\App\Http\Controllers\SearchController::class, 'index'])
+    ->middleware('throttle:60,1')
+    ->name('search.index');
+
 /*
 |--------------------------------------------------------------------------
 | SEO Routes (Phase 9)

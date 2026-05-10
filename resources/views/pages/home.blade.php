@@ -3,77 +3,11 @@
     :seo-description="setting('seo.default_meta_description', 'Chuyên cung cấp điều hòa tủ đứng chính hãng. Giá tốt nhất, lắp đặt miễn phí, bảo hành toàn quốc.')"
     :canonical="config('app.url')"
 >
-    {{-- Hero Section --}}
-    <section class="relative overflow-hidden bg-gradient-to-br from-primary-900 via-primary-800 to-surface-900">
-        <div class="absolute inset-0 opacity-10">
-            <div class="absolute -right-20 -top-20 h-96 w-96 rounded-full bg-primary-400 blur-3xl"></div>
-            <div class="absolute -bottom-20 -left-20 h-80 w-80 rounded-full bg-accent-400 blur-3xl"></div>
-        </div>
-        <div class="container-main relative py-16 lg:py-24">
-            <div class="mx-auto max-w-3xl text-center">
-                <h1 class="text-3xl font-extrabold tracking-tight text-white sm:text-4xl lg:text-5xl">
-                    {{ setting('general.site_name', '') }} <span class="text-accent-400">Chính Hãng</span>
-                </h1>
-                <p class="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-primary-100">
-                    Giải pháp làm mát chuyên nghiệp cho không gian lớn. Đa dạng thương hiệu, công suất phù hợp mọi nhu cầu.
-                    Miễn phí lắp đặt, bảo hành chính hãng toàn quốc.
-                </p>
-                <div class="mt-8 flex flex-col items-center justify-center gap-4 sm:flex-row">
-                    <a href="{{ route('quote.index') }}" class="btn-accent w-full px-8 py-4 text-base sm:w-auto">
-                        <svg class="mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-                        Nhận báo giá miễn phí
-                    </a>
-                    <a href="{{ route('products.index') }}" class="btn-outline w-full border-white/30 px-8 py-4 text-base text-white hover:bg-white/10 sm:w-auto">
-                        Xem sản phẩm
-                    </a>
-                </div>
-            </div>
-        </div>
-    </section>
+    {{-- Hero Slider --}}
+    <x-home.hero-slider />
 
-    {{-- Trust Badges --}}
-    <section class="border-b border-surface-200 bg-white py-6">
-        <div class="container-main">
-            <div class="grid grid-cols-2 gap-4 sm:grid-cols-4">
-                <div class="flex items-center gap-3 rounded-lg p-3">
-                    <div class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-primary-100 text-primary-600">
-                        <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
-                    </div>
-                    <div>
-                        <p class="text-sm font-semibold text-surface-900">Chính hãng 100%</p>
-                        <p class="text-xs text-surface-500">Nhập khẩu trực tiếp</p>
-                    </div>
-                </div>
-                <div class="flex items-center gap-3 rounded-lg p-3">
-                    <div class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-accent-100 text-accent-600">
-                        <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
-                    </div>
-                    <div>
-                        <p class="text-sm font-semibold text-surface-900">Lắp đặt miễn phí</p>
-                        <p class="text-xs text-surface-500">Kỹ thuật chuyên nghiệp</p>
-                    </div>
-                </div>
-                <div class="flex items-center gap-3 rounded-lg p-3">
-                    <div class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-success-500/10 text-success-600">
-                        <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                    </div>
-                    <div>
-                        <p class="text-sm font-semibold text-surface-900">Bảo hành 3-5 năm</p>
-                        <p class="text-xs text-surface-500">Theo chính sách hãng</p>
-                    </div>
-                </div>
-                <div class="flex items-center gap-3 rounded-lg p-3">
-                    <div class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-warning-500/10 text-warning-600">
-                        <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
-                    </div>
-                    <div>
-                        <p class="text-sm font-semibold text-surface-900">Giá tốt nhất</p>
-                        <p class="text-xs text-surface-500">Cam kết cạnh tranh</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
+    {{-- Benefit Bar --}}
+    <x-home.benefit-bar />
 
     {{-- Featured Products --}}
     @if($featuredProducts->isNotEmpty())

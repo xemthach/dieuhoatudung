@@ -96,7 +96,7 @@
                 "@@type": "SearchAction",
                 "target": {
                     "@@type": "EntryPoint",
-                    "urlTemplate": "{{ setting('seo.canonical_base_url', config('app.url')) }}/san-pham?q={search_term_string}"
+                    "urlTemplate": "{{ setting('seo.canonical_base_url', config('app.url')) }}/tim-kiem?q={search_term_string}"
                 },
                 "query-input": "required name=search_term_string"
             }

@@ -1,6 +1,98 @@
 # Changelog
 
 All notable changes to this project will be documented in this file.
+
+## [1.7.0] - 2026-05-10
+
+### Added — Product Search Module
+- **`SearchController`** (`app/Http/Controllers/SearchController.php`) — Autocomplete API + full search results page
+- **`ProductSearchService`** (`app/Services/Search/ProductSearchService.php`) — Full-text search across product name, model, SKU, brand, category, BTU capacity with relevance scoring
+- **Search box component** (`resources/views/components/search-box.blade.php`) — Reusable component with `hero` and `inline` variants, Alpine.js autocomplete with debounce 300ms
+- **Search results page** (`/tim-kiem`) — Full results page with product cards, pagination, query highlighting
+- **Search suggest API** (`/api/search/suggest`) — JSON autocomplete endpoint with throttle (30/min)
+- **Inline search** added to `/san-pham` and category listing pages
+- **SEO schema** — Updated `SearchAction` URL template from `/san-pham?q=` to `/tim-kiem?q=`
+- Search logs table (`search_logs`) for analytics
+
+### Added — Hero Slider CMS Module
+- **`HeroSlide` model** (`app/Models/HeroSlide.php`) — Supports gradient, color, image, video, embed background types with overlay control
+- **`HeroSlideResource`** — Full Filament CRUD under "Landing & Pages → Hero Slider" with 5-tab form (Nội dung, Background, CTA, Hiệu ứng, Trạng thái)
+- **Hero slider component** (`resources/views/components/home/hero-slider.blade.php`) — Alpine.js carousel with autoplay, pause-on-hover, dot navigation, arrow controls, text animations (fade, slide-up, slide-left, zoom-in)
+- Drag-to-reorder slides, duplicate, per-slide toggle
+- CTA buttons with configurable URL, text, style (accent/outline)
+- Media upload via `MediaDiskService` (R2/local)
+- Fallback to static hero when no active slides exist
+- **`HeroSlideSeeder`** — Seeds default slide matching original static hero
+- Search box renders on **all slides** (not just first)
+
+### Added — Home Benefits CMS Module
+- **`HomeBenefitItem` model** (`app/Models/HomeBenefitItem.php`) — Supports heroicon (whitelist), image upload, custom SVG with sanitization
+- **`HomeBenefitItemResource`** — Full Filament CRUD under "Landing & Pages → Home Benefits" with drag reorder
+- **Benefit bar component** (`resources/views/components/home/benefit-bar.blade.php`) — Dynamic rendering with icon type switching, color presets, fallback to original 4 hardcoded items
+- 7 whitelisted icon names: shield-check, zap, clock, badge-dollar-sign, truck, wrench, check-circle
+- SVG sanitization (strips script tags, event handlers, javascript: URLs)
+- **`HomeBenefitItemSeeder`** — Seeds 4 default benefit items
+
+### Added — Quote Commitments CMS Module
+- **`QuoteCommitmentBlock` + `QuoteCommitmentItem` models** — Parent-child relationship with cascade delete
+- **`QuoteCommitmentBlockResource`** — Full Filament CRUD under "Landing & Pages → Quote Commitments" with Repeater for items (reorderable, collapsible, cloneable)
+- **Commitment block component** (`resources/views/components/quote/commitment-block.blade.php`) — Sidebar widget on `/bao-gia`, loads first active block with active items
+- 9 whitelisted icons: settings, file-text, map-pin, wrench, shield-check, check-circle, badge-dollar-sign, clock, phone
+- Block-level toggle: when OFF → fallback content displays
+- Per-item toggle + sort order control
+- **`QuoteCommitmentSeeder`** — Seeds 1 block with 5 professional HVAC commitment items
+
+### Fixed — Double HTML Escape (`&amp;` Bug)
+- **`{{ e($var) }}`** in Blade caused double-encoding — Blade `{{ }}` already calls `htmlspecialchars()`, wrapping with `e()` encodes `&` → `&amp;amp;`
+- Removed redundant `e()` calls in `benefit-bar.blade.php` (3 locations) and `commitment-block.blade.php` (3 locations)
+
+### Changed — Homepage Architecture
+- Replaced 42-line hardcoded Trust Badges section with `<x-home.benefit-bar />` component
+- Replaced 33-line hardcoded Hero section with `<x-home.hero-slider />` component
+- Homepage `home.blade.php` reduced from 198 to 126 lines
+
+### Changed — Quote Page
+- Replaced 11-line hardcoded "Cam kết của chúng tôi" block with `<x-quote.commitment-block />` component
+
+### Routes Added (2)
+- `GET /api/search/suggest` → `search.suggest` (throttle: 30/min)
+- `GET /tim-kiem` → `search.index` (throttle: 60/min)
+
+### Migrations (4)
+- `2026_05_10_110000_create_search_logs_table`
+- `2026_05_10_114600_create_hero_slides_table`
+- `2026_05_10_123300_create_home_benefit_items_table`
+- `2026_05_10_125000_create_quote_commitment_tables` (2 tables)
+
+### Files Changed (45 total: 37 new + 8 modified)
+
+**New Files (37)**
+- `app/Http/Controllers/SearchController.php`
+- `app/Services/Search/ProductSearchService.php`
+- `app/Models/HeroSlide.php`, `HomeBenefitItem.php`, `QuoteCommitmentBlock.php`, `QuoteCommitmentItem.php`
+- `app/Filament/Resources/HeroSlides/` (6 files)
+- `app/Filament/Resources/HomeBenefitItems/` (6 files)
+- `app/Filament/Resources/QuoteCommitments/` (6 files)
+- `database/migrations/` (4 files)
+- `database/seeders/` (3 files)
+- `resources/views/components/search-box.blade.php`
+- `resources/views/components/home/hero-slider.blade.php`, `benefit-bar.blade.php`
+- `resources/views/components/quote/commitment-block.blade.php`
+- `resources/views/pages/search.blade.php`
+- `public/build/assets/app-DdT-N7Am.css`
+
+**Modified Files (8)**
+- `routes/web.php` — +2 search routes
+- `resources/views/pages/home.blade.php` — Hero + Benefit Bar → components
+- `resources/views/pages/quote.blade.php` — Commitment block → component
+- `resources/views/products/index.blade.php` — +inline search
+- `resources/views/products/category.blade.php` — +inline search
+- `resources/views/components/layouts/app.blade.php` — SearchAction URL fix
+- `public/build/manifest.json` — Updated asset hashes
+- `VERSION` — 1.6.1 → 1.7.0
+
+---
+
 ## [1.6.1] - 2026-05-10
 
 ### Fixed — PDF Export Permission Denied on Production

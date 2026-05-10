@@ -8,5 +8,10 @@
         ['label' => 'Điều hòa tủ đứng'],
     ]" />
 
+    {{-- Inline Search --}}
+    <div class="container-main pt-4 pb-2">
+        <x-search-box variant="inline" />
+    </div>
+
     @include('products._product-grid', ['currentCategory' => null])
 </x-layouts.app>
