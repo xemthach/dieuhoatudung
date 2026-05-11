@@ -179,9 +179,18 @@ class ProductController extends Controller
             'show_button' => setting('product_detail.show_read_more_button', true),
         ];
 
+        // Related Blog Posts (product → blog internal linking)
+        $relatedPosts = $product->posts()
+            ->where('status', \App\Enums\PostStatus::Published)
+            ->whereNotNull('published_at')
+            ->orderByDesc('published_at')
+            ->take(3)
+            ->get();
+
         return view('products.show', compact(
             'product',
             'relatedProducts',
+            'relatedPosts',
             'reviews',
             'ratingStats',
             'questions',

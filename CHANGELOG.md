@@ -2,6 +2,64 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.12.0] - 2026-05-11
+
+### Added — SEO Schema Infrastructure (7 new schema types)
+- **`SchemaService::collectionPage()`** — Generates `CollectionPage` JSON-LD for category pages with embedded `BreadcrumbList` and `ItemList` of products. Includes category image, description, and product count
+- **`SchemaService::brandPage()`** — Generates `Brand` JSON-LD for brand detail pages with description and logo
+- **`SchemaService::itemListPage()`** — Generates `ItemList` JSON-LD for product listing pages (products index, brand pages). Supports both paginated and non-paginated collections via `method_exists($products, 'total')` check
+- **Brand page schema** — `brands/show.blade.php` now emits 3 schema blocks: `Brand`, `BreadcrumbList`, `ItemList`
+- **Products index schema** — `products/index.blade.php` now emits `ItemList` schema
+- **Contact page schema** — `pages/contact.blade.php` now renders `LocalBusiness` + `BreadcrumbList` schema (the `localBusiness()` method existed in SchemaService since v1.0.0 but was never rendered on any page)
+- **Blog index schema** — `blog/index.blade.php` now emits `BreadcrumbList` JSON-LD via SchemaService
+
+### Added — Category Content Rendering
+- **Category intro section** — `products/category.blade.php` now renders `$category->intro` text and `$category->image` in a hero-style header section with responsive layout. Previously the category page only showed a product grid with zero text content (thin content SEO issue)
+- **Category rich content section** — Renders `$category->content` (longText from DB) as rich HTML below the product grid, styled with Tailwind prose classes
+- **Category internal links** — Added `<x-internal-links>` component for category pages (`source-type="ProductCategory"`)
+- **Category schema** — Added `CollectionPage` JSON-LD schema via SchemaService
+
+### Added — Product → Blog Internal Linking
+- **Related blog posts section** on product detail page — Loads up to 3 published posts linked to the product via `product_post` pivot table. Renders as `<x-post-card>` grid below related products section
+- **`ProductController::show()`** — Added `$relatedPosts` query via `$product->posts()` with status/date filters, passed to view
+- **Product internal links** — Added `<x-internal-links>` component on product detail pages (`source-type="Product"`)
+
+### Added — Sitemap: Case Studies Sub-sitemap
+- **`SitemapService::buildCaseStudies()`** — New method generating XML sitemap for published case studies, ordered by `published_at`, with `monthly` changefreq and `0.6` priority
+- **`SitemapController::caseStudies()`** — New controller method serving the case studies sitemap
+- **Route** `GET /sitemap-case-studies.xml` → `sitemap.case-studies`
+- **Static sitemap expanded** — Added `case-studies.index` and `compare.index` pages to `buildStatic()` URLs
+
+### Fixed — Duplicate FAQ Schema on Product Pages
+- **Root cause**: Product detail page emitted **two separate `FAQPage` schemas** — one from the `<x-faq-section>` component (product FAQs) and another inline block (answered Q&A questions). Google treats multiple `FAQPage` schemas as ambiguous
+- **Fix**: Added `skipSchema` prop to `<x-faq-section>` component. Product show passes `:skip-schema="true"` and instead generates a **single consolidated `FAQPage` schema** that merges both FAQ entries and answered Q&A questions into one `mainEntity` array
+- **Bonus**: Fixed `@@type` / `@@context` double-@ encoding in the product page FAQ schema — now uses correct `@type` / `@context`
+
+### Fixed — FAQ Component Schema Stack
+- **`faq-section.blade.php`** pushed FAQ schema to `@push('scripts')` stack — this renders JSON-LD in the `<body>`. Changed to `@push('schema')` which renders in the `<head>` where JSON-LD belongs per Google guidelines
+
+### Fixed — Sitemap Hardcoded URLs
+- **BTU Calculator** — `url('/cong-cu/tinh-cong-suat-btu')` → `route('btu-calculator.index')` (old URL didn't match actual route `/cong-cu/chon-cong-suat-dieu-hoa-tu-dung`)
+- **FAQ page** — `url('/faq/dieu-hoa-tu-dung')` → `route('faq.dieu-hoa')`
+- **Price list** — `url('/bang-gia/dieu-hoa-tu-dung')` → `route('price-list')`
+
+### Files Changed (12 files)
+- `app/Services/Schema/SchemaService.php` — +3 methods: `collectionPage()`, `brandPage()`, `itemListPage()` (+100 lines)
+- `app/Services/Sitemap/SitemapService.php` — +`buildCaseStudies()`, +2 static pages, fix 3 URLs (+48 lines)
+- `app/Http/Controllers/ProductController.php` — Load `$relatedPosts` (+9 lines)
+- `app/Http/Controllers/SitemapController.php` — +`caseStudies()` method (+7 lines)
+- `resources/views/products/category.blade.php` — Full upgrade: intro/content/schema/internal-links (+48 lines)
+- `resources/views/products/show.blade.php` — +related posts, +internal links, consolidated FAQ schema (+65/-19 lines)
+- `resources/views/products/index.blade.php` — +ItemList schema (+12 lines)
+- `resources/views/brands/show.blade.php` — +Brand/Breadcrumb/ItemList schema (+18 lines)
+- `resources/views/blog/index.blade.php` — +BreadcrumbList schema (+11 lines)
+- `resources/views/pages/contact.blade.php` — +LocalBusiness/Breadcrumb schema (+12 lines)
+- `resources/views/components/faq-section.blade.php` — Fix schema stack + skipSchema prop (+5/-1 lines)
+- `routes/web.php` — +case-studies sitemap route (+1 line)
+- `VERSION` — 1.11.0 → 1.12.0
+
+---
+
 ## [1.11.0] - 2026-05-11
 
 ### Added — Product Data Audit Commands (Daikin / LG / Panasonic)

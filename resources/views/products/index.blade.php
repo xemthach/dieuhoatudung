@@ -14,4 +14,16 @@
     </div>
 
     @include('products._product-grid', ['currentCategory' => null])
+
+    {{-- ItemList Schema --}}
+    @push('schema')
+    @php
+        $schemaService = app(\App\Services\Schema\SchemaService::class);
+    @endphp
+    {!! \App\Services\Schema\SchemaService::toScript($schemaService->itemListPage(
+        'Điều hòa tủ đứng - Danh sách sản phẩm',
+        route('products.index'),
+        $products
+    )) !!}
+    @endpush
 </x-layouts.app>

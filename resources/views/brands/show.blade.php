@@ -116,4 +116,22 @@
         </div>
     </section>
     @endif
+
+    {{-- Brand + Breadcrumb Schema --}}
+    @push('schema')
+    @php
+        $schemaService = app(\App\Services\Schema\SchemaService::class);
+    @endphp
+    {!! \App\Services\Schema\SchemaService::toScript($schemaService->brandPage($brand, $products)) !!}
+    {!! \App\Services\Schema\SchemaService::toScript($schemaService->breadcrumbs([
+        ['label' => 'Trang chủ', 'url' => route('home')],
+        ['label' => 'Thương hiệu', 'url' => route('brands.index')],
+        ['label' => $brand->name],
+    ])) !!}
+    {!! \App\Services\Schema\SchemaService::toScript($schemaService->itemListPage(
+        'Điều hòa ' . $brand->name . ' chính hãng',
+        route('brands.show', $brand->slug),
+        $products
+    )) !!}
+    @endpush
 </x-layouts.app>

@@ -112,6 +112,7 @@ Route::get('/sitemap-products.xml', [SitemapController::class, 'products'])->nam
 Route::get('/sitemap-categories.xml', [SitemapController::class, 'categories'])->name('sitemap.categories');
 Route::get('/sitemap-posts.xml', [SitemapController::class, 'posts'])->name('sitemap.posts');
 Route::get('/sitemap-brands.xml', [SitemapController::class, 'brands'])->name('sitemap.brands');
+Route::get('/sitemap-case-studies.xml', [SitemapController::class, 'caseStudies'])->name('sitemap.case-studies');
 Route::get('/sitemap-static.xml', [SitemapController::class, 'staticPages'])->name('sitemap.static');
 
 // Robots.txt

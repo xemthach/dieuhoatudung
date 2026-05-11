@@ -382,7 +382,7 @@
 
     <x-testimonial-section :testimonials="$product->activeTestimonials" :product="$product" />
 
-    <x-faq-section :faqs="$product->activeFaqs" title="Câu Hỏi Về Sản Phẩm" />
+    <x-faq-section :faqs="$product->activeFaqs" title="Câu Hỏi Về Sản Phẩm" :skip-schema="true" />
 
     {{-- Reviews Section (setting-controlled) --}}
     <x-product.review-section :product="$product" :reviews="$reviews" :rating-stats="$ratingStats" :settings="$reviewSettings" />
@@ -404,6 +404,26 @@
     </section>
     @endif
 
+    {{-- Related Blog Posts (product → blog internal linking) --}}
+    @if(isset($relatedPosts) && $relatedPosts->isNotEmpty())
+    <section class="border-t border-surface-200 bg-surface-50 py-8 lg:py-12">
+        <div class="container-main">
+            <x-section-heading title="Bài Viết Liên Quan" subtitle="Kiến thức hữu ích về sản phẩm này" />
+            <div class="mt-6 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                @foreach($relatedPosts as $post)
+                    <x-post-card :post="$post" />
+                @endforeach
+            </div>
+        </div>
+    </section>
+    @endif
+
+    {{-- Internal Link Suggestions --}}
+    <x-internal-links
+        :source-type="\App\Models\Product::class"
+        :source-id="$product->id"
+    />
+
     {{-- Product Schema.org JSON-LD (via SchemaService — fixes @@type + price=0) --}}
     @push('schema')
     @php
@@ -418,34 +438,49 @@
     ])) !!}
     @endpush
 
-    {{-- FAQ Schema from Q&A --}}
-    @if($questions->count() > 0)
+    {{-- Combined FAQ Schema (product FAQs + answered Q&A) — single FAQPage to avoid duplicates --}}
     @php
-        $answeredQuestions = $questions->filter(fn($q) => !empty($q->answer));
+        $allFaqEntities = [];
+        // FAQs from the faq-section component
+        foreach ($product->activeFaqs as $faq) {
+            if (!empty($faq->question) && !empty($faq->answer)) {
+                $allFaqEntities[] = [
+                    'question' => $faq->question,
+                    'answer'   => strip_tags($faq->answer),
+                ];
+            }
+        }
+        // Answered Q&A questions
+        foreach ($questions as $q) {
+            if (!empty($q->answer)) {
+                $allFaqEntities[] = [
+                    'question' => $q->question,
+                    'answer'   => $q->answer,
+                ];
+            }
+        }
     @endphp
-    @if($answeredQuestions->count() > 0)
+    @if(count($allFaqEntities) > 0)
     @push('schema')
     <script type="application/ld+json">
     {
-        "@@context": "https://schema.org",
-        "@@type": "FAQPage",
+        "@context": "https://schema.org",
+        "@type": "FAQPage",
         "mainEntity": [
-            @foreach($answeredQuestions as $q)
+            @foreach($allFaqEntities as $i => $faqItem)
             {
-                "@@type": "Question",
-                "name": "{{ e($q->question) }}",
+                "@type": "Question",
+                "name": "{{ e($faqItem['question']) }}",
                 "acceptedAnswer": {
-                    "@@type": "Answer",
-                    "text": "{{ e($q->answer) }}"
+                    "@type": "Answer",
+                    "text": "{{ e($faqItem['answer']) }}"
                 }
-            }@if(!$loop->last),@endif
+            }@if($i < count($allFaqEntities) - 1),@endif
             @endforeach
         ]
     }
     </script>
     @endpush
     @endif
-    @endif
 
 </x-layouts.app>
-

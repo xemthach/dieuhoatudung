@@ -3,6 +3,8 @@
 namespace App\Services\Sitemap;
 
 use App\Enums\PostStatus;
+use App\Enums\CaseStudyStatus;
+use App\Models\CaseStudy;
 use App\Models\Post;
 use App\Models\Brand;
 use App\Models\Product;
@@ -148,6 +150,26 @@ class SitemapService
     }
 
     /**
+     * Sitemap cho dự án (case studies).
+     */
+    public function buildCaseStudies(): string
+    {
+        $caseStudies = CaseStudy::where('status', CaseStudyStatus::Published)
+            ->whereNotNull('published_at')
+            ->orderByDesc('published_at')
+            ->get(['slug', 'updated_at']);
+
+        $urls = $caseStudies->map(fn ($cs) => [
+            'loc'        => route('case-studies.show', $cs->slug),
+            'lastmod'    => $cs->updated_at->toAtomString(),
+            'changefreq' => 'monthly',
+            'priority'   => '0.6',
+        ]);
+
+        return view('seo.sitemap-urlset', compact('urls'))->render();
+    }
+
+    /**
      * Sitemap cho các trang tĩnh.
      */
     public function buildStatic(): string
@@ -216,7 +238,7 @@ class SitemapService
         // FAQ page
         try {
             $urls->push([
-                'loc'        => url('/faq/dieu-hoa-tu-dung'),
+                'loc'        => route('faq.dieu-hoa'),
                 'lastmod'    => Carbon::now()->toAtomString(),
                 'changefreq' => 'monthly',
                 'priority'   => '0.5',
@@ -226,7 +248,7 @@ class SitemapService
         // BTU Calculator
         try {
             $urls->push([
-                'loc'        => url('/cong-cu/tinh-cong-suat-btu'),
+                'loc'        => route('btu-calculator.index'),
                 'lastmod'    => Carbon::now()->toAtomString(),
                 'changefreq' => 'monthly',
                 'priority'   => '0.5',
@@ -236,10 +258,30 @@ class SitemapService
         // Price List
         try {
             $urls->push([
-                'loc'        => url('/bang-gia/dieu-hoa-tu-dung'),
+                'loc'        => route('price-list'),
                 'lastmod'    => Carbon::now()->toAtomString(),
                 'changefreq' => 'weekly',
                 'priority'   => '0.6',
+            ]);
+        } catch (\Exception $e) {}
+
+        // Case Studies Index
+        try {
+            $urls->push([
+                'loc'        => route('case-studies.index'),
+                'lastmod'    => Carbon::now()->toAtomString(),
+                'changefreq' => 'monthly',
+                'priority'   => '0.5',
+            ]);
+        } catch (\Exception $e) {}
+
+        // Compare Page
+        try {
+            $urls->push([
+                'loc'        => route('compare.index'),
+                'lastmod'    => Carbon::now()->toAtomString(),
+                'changefreq' => 'monthly',
+                'priority'   => '0.4',
             ]);
         } catch (\Exception $e) {}
 

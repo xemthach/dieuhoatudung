@@ -245,6 +245,106 @@ class SchemaService
     }
 
     /**
+     * CollectionPage schema for category/listing pages.
+     */
+    public function collectionPage(object $category, $products = null): array
+    {
+        $siteUrl = setting('seo.canonical_base_url', config('app.url'));
+
+        $schema = [
+            '@context' => 'https://schema.org',
+            '@type' => 'CollectionPage',
+            'name' => $category->name,
+            'description' => $category->seo_description ?? $category->intro ?? '',
+            'url' => route('category.show', $category->slug),
+            'isPartOf' => ['@id' => $siteUrl . '/#website'],
+        ];
+
+        if (!empty($category->image)) {
+            $schema['image'] = media_url($category->image);
+        }
+
+        // Include breadcrumb
+        $schema['breadcrumb'] = $this->breadcrumbs([
+            ['label' => 'Trang chủ', 'url' => route('home')],
+            ['label' => 'Sản phẩm', 'url' => route('products.index')],
+            ['label' => $category->name],
+        ]);
+
+        // Include ItemList of products
+        if ($products && $products->count() > 0) {
+            $listItems = [];
+            foreach ($products as $i => $product) {
+                $listItems[] = [
+                    '@type' => 'ListItem',
+                    'position' => $i + 1,
+                    'url' => route('product.show', $product->slug),
+                    'name' => $product->name,
+                ];
+            }
+            $schema['mainEntity'] = [
+                '@type' => 'ItemList',
+                'numberOfItems' => $products->total(),
+                'itemListElement' => $listItems,
+            ];
+        }
+
+        return $schema;
+    }
+
+    /**
+     * Brand page schema — Organization + BreadcrumbList.
+     */
+    public function brandPage(object $brand, $products = null): array
+    {
+        $siteUrl = setting('seo.canonical_base_url', config('app.url'));
+
+        $schema = [
+            '@context' => 'https://schema.org',
+            '@type' => 'Brand',
+            'name' => $brand->name,
+            'url' => route('brands.show', $brand->slug),
+        ];
+
+        if (!empty($brand->description)) {
+            $schema['description'] = $brand->description;
+        }
+
+        if (!empty($brand->logo)) {
+            $schema['logo'] = media_url($brand->logo);
+        }
+
+        return $schema;
+    }
+
+    /**
+     * ItemList schema for product listing pages (index, search, etc).
+     */
+    public function itemListPage(string $name, string $url, $products): array
+    {
+        $siteUrl = setting('seo.canonical_base_url', config('app.url'));
+
+        $listItems = [];
+        foreach ($products as $i => $product) {
+            $listItems[] = [
+                '@type' => 'ListItem',
+                'position' => $i + 1,
+                'url' => route('product.show', $product->slug),
+                'name' => $product->name,
+            ];
+        }
+
+        return [
+            '@context' => 'https://schema.org',
+            '@type' => 'ItemList',
+            'name' => $name,
+            'url' => $url,
+            'numberOfItems' => method_exists($products, 'total') ? $products->total() : count($products),
+            'itemListElement' => $listItems,
+        ];
+    }
+
+    /**
      * Render a schema array as JSON-LD script tag.
      */
     public static function toScript(array $schema): string

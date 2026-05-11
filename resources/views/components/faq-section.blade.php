@@ -2,6 +2,7 @@
     'faqs',
     'title' => 'Câu Hỏi Thường Gặp',
     'entity' => null, // Used for schema, optional
+    'skipSchema' => false, // Skip schema generation when parent handles it
 ])
 
 @if($faqs->isNotEmpty())
@@ -16,7 +17,8 @@
         </div>
     </section>
 
-    @push('scripts')
+    @unless($skipSchema)
+    @push('schema')
         <script type="application/ld+json">
         {
             "@@context": "https://schema.org",
@@ -36,4 +38,5 @@
         }
         </script>
     @endpush
+    @endunless
 @endif

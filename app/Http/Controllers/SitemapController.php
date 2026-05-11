@@ -50,4 +50,11 @@ class SitemapController extends Controller
             ->header('Content-Type', 'application/xml; charset=utf-8')
             ->header('Cache-Control', 'public, max-age=3600');
     }
+
+    public function caseStudies(): Response
+    {
+        return response($this->sitemap->buildCaseStudies(), 200)
+            ->header('Content-Type', 'application/xml; charset=utf-8')
+            ->header('Cache-Control', 'public, max-age=3600');
+    }
 }

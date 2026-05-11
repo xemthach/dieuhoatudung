@@ -40,4 +40,16 @@
             </div>
         </div>
     </section>
+
+    {{-- LocalBusiness + Breadcrumb Schema --}}
+    @push('schema')
+    @php
+        $schemaService = app(\App\Services\Schema\SchemaService::class);
+    @endphp
+    {!! \App\Services\Schema\SchemaService::toScript($schemaService->localBusiness()) !!}
+    {!! \App\Services\Schema\SchemaService::toScript($schemaService->breadcrumbs([
+        ['label' => 'Trang chủ', 'url' => route('home')],
+        ['label' => 'Liên hệ'],
+    ])) !!}
+    @endpush
 </x-layouts.app>
