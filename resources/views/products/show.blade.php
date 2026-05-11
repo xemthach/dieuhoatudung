@@ -464,15 +464,15 @@
     @push('schema')
     <script type="application/ld+json">
     {
-        "@context": "https://schema.org",
-        "@type": "FAQPage",
+        "@@context": "https://schema.org",
+        "@@type": "FAQPage",
         "mainEntity": [
             @foreach($allFaqEntities as $i => $faqItem)
             {
-                "@type": "Question",
+                "@@type": "Question",
                 "name": "{{ e($faqItem['question']) }}",
                 "acceptedAnswer": {
-                    "@type": "Answer",
+                    "@@type": "Answer",
                     "text": "{{ e($faqItem['answer']) }}"
                 }
             }@if($i < count($allFaqEntities) - 1),@endif
