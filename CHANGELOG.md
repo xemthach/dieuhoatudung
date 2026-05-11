@@ -2,6 +2,39 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.11.0] - 2026-05-11
+
+### Added — Product Data Audit Commands (Daikin / LG / Panasonic)
+- **`products:audit-daikin-specs`** command — Audits 129 Daikin products: cleans `specs_json` (flat→repeater format), enriches `indoor_dimensions` (10%→99%), `outdoor_dimensions` (10%→98%), `weight` (10%→99%) from embedded Sky Air catalogue constants. Creates JSON backup before fix. Generates audit report + missing fields CSV
+- **`products:audit-lg-specs`** command — Audits 73 LG products: converts `specs_json` flat→repeater format. All standard fields already at 100% coverage. 14 unique spec keys preserved (eer, compressor, pipe details, noise_detail, airflow_detail)
+- **`products:audit-panasonic-specs`** command — Audits 71 Panasonic products: converts `specs_json` flat→repeater format. Tracks 32 indoor models (S-xxxx) + 40 outdoor models (U-xxxx) = 71 combinations. All standard fields at 100%
+
+### Fixed — Admin UI Empty Spec Rows
+- **Root cause: `specs_json` stored as flat `{key: value}` instead of Filament Repeater format `[{key, value}]`** — Filament Repeater widget created phantom empty rows when rendering flat JSON objects. All 273 products across 3 brands converted to proper repeater format. Total empty items eliminated: ~880 (Daikin) + 0 (LG) + 0 (Panasonic) = ~880→0
+
+### Changed — ProductSpecLabel Vietnamese Labels
+- Added 27 new Vietnamese labels for brand-specific spec keys:
+  - **Daikin** (8): seer, scop, cspf, heating_kw, compressor, power_consumption_kw, noise_indoor, esp, fan_type, indoor_weight, outdoor_weight, height_diff
+  - **LG** (5): noise_detail, airflow_detail, pipe_length, cooling_heating, sub_type
+  - **Panasonic** (3): series, nanoe_x, temp_range
+- Updated GROUPS for organized frontend display: efficiency group (+seer/scop/cspf), power group (+heating_kw), indoor group (+airflow_detail/noise_detail/esp), outdoor group (+noise_outdoor/outdoor_weight), pipe group (+pipe_length/height_diff), operation group (+compressor/fan_type/series/nanoe_x/temp_range)
+- Removed 3 duplicate MAP entries in Panasonic section (noise_outdoor, pipe_max_length, power_consumption_kw already defined in Daikin section)
+
+### Files Changed (4 files)
+- `app/Console/Commands/AuditDaikinSpecs.php` — **NEW** (290 lines) — Daikin audit with embedded INDOOR_SPECS/OUTDOOR_SPECS catalogue constants
+- `app/Console/Commands/AuditLgSpecs.php` — **NEW** (215 lines) — LG audit command
+- `app/Console/Commands/AuditPanasonicSpecs.php` — **NEW** (195 lines) — Panasonic audit with S/U model pair tracking
+- `app/Support/ProductSpecLabel.php` — +27 labels, +9 GROUPS entries, -3 duplicate entries
+
+### Audit Output Files
+- `storage/app/audit/daikin-backup-*.json` — Pre-fix backup
+- `storage/app/audit/daikin-product-specs-audit.json` — Full Daikin audit report
+- `storage/app/audit/daikin-product-specs-missing.csv` — 129 products, missing: power/airflow/noise (116 Sky Air)
+- `storage/app/audit/lg-backup-*.json` / `lg-products-clean.json` / `lg-products-missing.csv`
+- `storage/app/audit/panasonic-backup-*.json` / `panasonic-products-clean.json` / `panasonic-products-missing.csv`
+
+---
+
 ## [1.10.1] - 2026-05-11
 
 ### Fixed — Product Filter Returns 0 Results

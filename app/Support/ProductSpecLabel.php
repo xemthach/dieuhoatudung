@@ -114,6 +114,36 @@ class ProductSpecLabel
         'source_page'                   => 'Trang catalogue',
         'source_table'                  => 'Bảng catalogue',
 
+        // ── Daikin efficiency specs ──
+        'seer'                          => 'SEER (Hiệu suất mùa lạnh)',
+        'scop'                          => 'SCOP (Hiệu suất mùa sưởi)',
+        'cspf'                          => 'CSPF (Hệ số hiệu suất mùa)',
+        'heating_kw'                    => 'Công suất sưởi (kW)',
+        'compressor'                    => 'Loại máy nén',
+
+        // ── Daikin Packaged specs ──
+        'power_consumption_kw'          => 'Công suất điện tiêu thụ (kW)',
+        'noise_indoor'                  => 'Độ ồn dàn lạnh (dB)',
+        'noise_outdoor'                 => 'Độ ồn dàn nóng (dB)',
+        'indoor_weight'                 => 'Trọng lượng dàn lạnh',
+        'outdoor_weight'                => 'Trọng lượng dàn nóng',
+        'height_diff'                   => 'Chênh lệch độ cao tối đa',
+        'fan_type'                      => 'Kiểu quạt',
+        'esp'                           => 'Cột áp tĩnh (ESP)',
+
+        // ── LG catalogue specs ──
+        'noise_detail'                  => 'Độ ồn chi tiết (SH/H/M/L)',
+        'airflow_detail'                => 'Lưu lượng gió chi tiết',
+        'pipe_length'                   => 'Chiều dài ống (tiêu chuẩn/tối đa)',
+        'cooling_heating'               => 'Công suất sưởi',
+        'sub_type'                      => 'Kiểu phụ',
+
+        // ── Panasonic catalogue specs ──
+        'series'                        => 'Dòng sản phẩm',
+        'nanoe_x'                       => 'nanoe™ X',
+        'temp_range'                    => 'Phạm vi nhiệt độ hoạt động',
+        // noise_outdoor, pipe_max_length, power_consumption_kw → already defined above
+
         // ── Fallback OCR keys (Vietnamese without diacritics from PDF extraction) ──
         'model_dn_lnh'                  => 'Model dàn lạnh',
         'lu_lng_gi'                     => 'Lưu lượng gió',
@@ -145,11 +175,11 @@ class ProductSpecLabel
      */
     public const GROUPS = [
         'Hiệu suất năng lượng' => [
-            'eer', 'cop', 'eer_cop', 'power_factor',
+            'eer', 'cop', 'eer_cop', 'power_factor', 'seer', 'scop', 'cspf',
             'cooling35_1_eer_buthw', 'cooling46_2_eer_buthw', 'heating_3_cop_ww',
         ],
         'Công suất & Điện năng' => [
-            'rated_current_a',
+            'rated_current_a', 'heating_kw', 'power_consumption_kw',
             'cooling_capacity_kw', 'cooling_power_input_kw', 'cooling_current_input_a',
             'heating_capacity_kw', 'heating_power_input_kw', 'heating_current_input_a',
             'cooling35_1_capacity_kw', 'cooling35_1_buth', 'cooling35_1_power_input_kw', 'cooling35_1_current_input_a',
@@ -157,21 +187,23 @@ class ProductSpecLabel
             'heating_3_capacity_kw', 'heating_3_buth', 'heating_3_power_input_kw', 'heating_3_current_input_a',
         ],
         'Dàn lạnh' => [
-            'indoor_model', 'indoor_airflow_cfm', 'noise_db', 'indoor_esp_nominal_pa', 'esp_pa',
-            'indoor_package_dim_mm', 'indoor_package_weight_kg',
+            'indoor_model', 'indoor_airflow_cfm', 'airflow_detail',
+            'noise_db', 'noise_indoor', 'noise_detail',
+            'indoor_esp_nominal_pa', 'esp_pa', 'esp',
+            'indoor_package_dim_mm', 'indoor_package_weight_kg', 'indoor_weight',
         ],
         'Mặt nạ' => [
             'panel_dimensions_mm', 'panel_package_dim_mm',
             'panel_weight_kg', 'panel_package_weight_kg',
         ],
         'Dàn nóng' => [
-            'outdoor_model', 'outdoor_noise_db',
-            'outdoor_package_dim_mm', 'outdoor_weight_kg', 'outdoor_package_weight_kg',
+            'outdoor_model', 'outdoor_noise_db', 'noise_outdoor',
+            'outdoor_package_dim_mm', 'outdoor_weight_kg', 'outdoor_package_weight_kg', 'outdoor_weight',
         ],
         'Đường ống lắp đặt' => [
             'pipe_liquid', 'pipe_gas',
             'pipe_connections_liquid_pipe_mm', 'pipe_connections_gas_pipe_mm',
-            'pipe_max_height', 'pipe_max_length',
+            'pipe_max_height', 'pipe_max_length', 'pipe_length', 'height_diff',
         ],
         'Gas lạnh' => [
             'refrigerant_charge_kg', 'refrigerant_type', 'refrigerant_factory_charge_kg',
@@ -182,6 +214,7 @@ class ProductSpecLabel
             'loading_qty',
         ],
         'Vận hành' => [
+            'compressor', 'fan_type', 'series', 'nanoe_x', 'temp_range',
             'moisture_protection', 'max_connected_indoor', 'capacity_range_hp',
             'ambient_temp_operation_range_cooling', 'ambient_temp_operation_range_heating',
         ],
