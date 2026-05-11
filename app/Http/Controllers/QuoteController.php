@@ -129,29 +129,39 @@ class QuoteController extends Controller
             'user_agent'                 => $request->userAgent(),
         ]);
 
-        // Build mail vars — only include fields that have real data
-        // Product quote email should NOT contain HVAC technical fields
-        $mailVars = array_filter([
+        // ── Build mail vars with proper fallbacks ──────────────────────
+        $mailVars = [
             'quote_id'             => $quote->id,
             'lead_type'            => 'Product Quote',
             'intent_score'         => 100,
             'customer_name'        => $quote->full_name,
             'customer_phone'       => $quote->phone,
-            'product_name'         => $quote->product_name,
-            'product_sku'          => $quote->product_sku,
-            'product_brand'        => $quote->product_brand,
-            'product_category'     => $quote->product_category,
-            'product_capacity_btu' => $quote->product_capacity_btu ? number_format($quote->product_capacity_btu) . ' BTU' : null,
-            'product_url'          => $quote->product_url,
-            'message'              => $quote->message,
-            'customer_note'        => $quote->message,
-            'customer_email'       => $quote->email,
-            'province_city'        => $quote->province_city,
-            'source'               => $quote->source_page,
-            'utm_source'           => $quote->utm_source,
-            'utm_campaign'         => $quote->utm_campaign,
-        ], fn ($v) => $v !== null && $v !== '' && $v !== 0);
+            'customer_email'       => $quote->email ?: 'Chưa cung cấp',
+            'province_city'        => $quote->province_city ?: 'Chưa cung cấp',
+            'address'              => 'Chưa cung cấp',
+            'product_name'         => $quote->product_name ?: 'Chưa chọn sản phẩm',
+            'product_sku'          => $quote->product_sku ?: '—',
+            'product_brand'        => $quote->product_brand ?: '—',
+            'product_category'     => $quote->product_category ?: '—',
+            'product_capacity_btu' => $quote->product_capacity_btu ? number_format($quote->product_capacity_btu) . ' BTU' : 'Chưa xác định',
+            'product_url'          => $quote->product_url ?: '',
+            'project_type'         => 'Chưa cung cấp',
+            'area_m2'              => 'Chưa cung cấp',
+            'btu'                  => $quote->product_capacity_btu ? number_format($quote->product_capacity_btu) . ' BTU' : 'Chưa xác định',
+            'budget_range'         => 'Chưa cung cấp',
+            'message'              => $quote->message ?: 'Không có ghi chú',
+            'customer_note'        => $quote->message ?: 'Không có ghi chú',
+            'source'               => $quote->source_page ?: url()->current(),
+            'utm_source'           => $quote->utm_source ?: '',
+            'utm_campaign'         => $quote->utm_campaign ?: '',
+        ];
 
+        // Debug log — mail payload
+        Log::info('QuickQuote mail payload', [
+            'quote_id' => $quote->id,
+            'vars'     => $mailVars,
+            'nulls'    => array_keys(array_filter($mailVars, fn ($v) => empty($v))),
+        ]);
 
         // Admin mail
         try {
@@ -163,7 +173,7 @@ class QuoteController extends Controller
                 relatedId:   $quote->id
             );
         } catch (\Throwable $e) {
-            Log::error('QuickQuote admin mail: ' . $e->getMessage());
+            Log::error('QuickQuote admin mail failed', ['quote_id' => $quote->id, 'error' => $e->getMessage()]);
         }
 
         // Create Lead
@@ -185,21 +195,25 @@ class QuoteController extends Controller
                 $this->mailService->sendCustomerEvent(
                     event:         'quote_customer',
                     customerEmail: $quote->email,
-                    vars:          array_filter([
+                    vars:          [
+                        'quote_id'             => $quote->id,
                         'customer_name'        => $quote->full_name,
                         'customer_phone'       => $quote->phone,
                         'customer_email'       => $quote->email,
-                        'province_city'        => $quote->province_city,
-                        'product_name'         => $quote->product_name,
-                        'product_sku'          => $quote->product_sku,
-                        'product_capacity_btu' => $quote->product_capacity_btu ? number_format($quote->product_capacity_btu) . ' BTU' : null,
-                        'product_url'          => $quote->product_url,
-                    ], fn ($v) => $v !== null && $v !== ''),
+                        'province_city'        => $quote->province_city ?: 'Chưa cung cấp',
+                        'product_name'         => $quote->product_name ?: 'Chưa chọn sản phẩm',
+                        'product_sku'          => $quote->product_sku ?: '—',
+                        'product_capacity_btu' => $quote->product_capacity_btu ? number_format($quote->product_capacity_btu) . ' BTU' : 'Chưa xác định',
+                        'product_url'          => $quote->product_url ?: '',
+                        'project_type'         => 'Chưa cung cấp',
+                        'btu'                  => $quote->product_capacity_btu ? number_format($quote->product_capacity_btu) . ' BTU' : 'Chưa xác định',
+                        'message'              => $quote->message ?: '',
+                    ],
                     relatedType:   'QuoteRequest',
                     relatedId:     $quote->id
                 );
             } catch (\Throwable $e) {
-                Log::error('QuickQuote customer mail: ' . $e->getMessage());
+                Log::error('QuickQuote customer mail failed', ['quote_id' => $quote->id, 'error' => $e->getMessage()]);
             }
         }
 
@@ -461,70 +475,81 @@ class QuoteController extends Controller
             Log::error('QuoteRequest Lead creation failed', ['quote_id' => $quote->id, 'error' => $e->getMessage()]);
         }
 
-        // ── Mail vars — only include fields with real data ──────────
+        // ── Build mail vars with fallbacks (never leave blanks) ─────
         $brandsArr = is_array($quote->preferred_brands) ? $quote->preferred_brands : [];
-        $rawMailVars = [
+        $mailVars = [
             'quote_id'                 => $quote->id,
             'lead_type'                => $quote->lead_type === 'product' ? 'Product Quote' : 'General Quote',
             'intent_score'             => $quote->intent_score ?? 0,
             // Customer
             'customer_name'            => $quote->full_name,
             'customer_phone'           => $quote->phone,
-            'customer_email'           => $quote->email,
-            'province_city'            => $quote->province_city,
-            'address'                  => $quote->address,
-            'preferred_contact_method' => !empty($quote->preferred_contact_method) ? (QuoteRequest::contactMethodLabels()[$quote->preferred_contact_method] ?? $quote->preferred_contact_method) : null,
-            'preferred_contact_time'   => !empty($quote->preferred_contact_time) ? (QuoteRequest::contactTimeLabels()[$quote->preferred_contact_time] ?? $quote->preferred_contact_time) : null,
-            // Product (only if product lead)
-            'product_name'             => $quote->product_name ?? $productModel?->name,
-            'product_sku'              => $quote->product_sku ?? $productModel?->sku,
-            'product_model'            => $quote->product_model ?? $productModel?->model_code,
-            'product_brand'            => $quote->product_brand ?? $productModel?->brand?->name,
-            'product_category'         => $quote->product_category ?? $productModel?->category?->name,
-            'product_capacity_btu'     => $quote->product_capacity_btu ? number_format($quote->product_capacity_btu) . ' BTU' : null,
-            'product_url'              => $quote->product_url,
+            'customer_email'           => $quote->email ?: 'Chưa cung cấp',
+            'province_city'            => $quote->province_city ?: 'Chưa cung cấp',
+            'address'                  => $quote->address ?: 'Chưa cung cấp',
+            'preferred_contact_method' => !empty($quote->preferred_contact_method) ? (QuoteRequest::contactMethodLabels()[$quote->preferred_contact_method] ?? $quote->preferred_contact_method) : 'Chưa chọn',
+            'preferred_contact_time'   => !empty($quote->preferred_contact_time) ? (QuoteRequest::contactTimeLabels()[$quote->preferred_contact_time] ?? $quote->preferred_contact_time) : 'Chưa chọn',
+            // Product
+            'product_name'             => $quote->product_name ?? $productModel?->name ?? 'Chưa chọn sản phẩm',
+            'product_sku'              => $quote->product_sku ?? $productModel?->sku ?? '—',
+            'product_model'            => $quote->product_model ?? $productModel?->model_code ?? '—',
+            'product_brand'            => $quote->product_brand ?? $productModel?->brand?->name ?? '—',
+            'product_category'         => $quote->product_category ?? $productModel?->category?->name ?? '—',
+            'product_capacity_btu'     => $quote->product_capacity_btu ? number_format($quote->product_capacity_btu) . ' BTU' : 'Chưa xác định',
+            'product_url'              => $quote->product_url ?? '',
             // Space
-            'project_type'             => !empty($quote->project_type) ? (QuoteRequest::projectTypeLabels()[$quote->project_type] ?? $quote->project_type) : null,
-            'usage_description'        => $quote->usage_description,
-            'number_of_rooms'          => ($quote->number_of_rooms && $quote->number_of_rooms > 1) ? $quote->number_of_rooms : null,
-            'area_m2'                  => $quote->area_m2 ? $quote->area_m2 . ' m²' : null,
-            'ceiling_height_m'         => $quote->ceiling_height ? $quote->ceiling_height . ' m' : null,
-            'estimated_volume_m3'      => $quote->estimated_volume_m3 ? $quote->estimated_volume_m3 . ' m³' : null,
-            'number_of_people'         => $quote->number_of_people ?: null,
-            'sun_exposure'             => !empty($quote->sun_exposure) ? (QuoteRequest::sunExposureLabels()[$quote->sun_exposure] ?? $quote->sun_exposure) : null,
-            'glass_area'               => !empty($quote->glass_area) ? (QuoteRequest::glassAreaLabels()[$quote->glass_area] ?? $quote->glass_area) : null,
-            'insulation_quality'       => !empty($quote->insulation_quality) ? (QuoteRequest::insulationLabels()[$quote->insulation_quality] ?? $quote->insulation_quality) : null,
-            'current_aircon_status'    => !empty($quote->current_aircon_status) ? (QuoteRequest::airconStatusLabels()[$quote->current_aircon_status] ?? $quote->current_aircon_status) : null,
+            'project_type'             => !empty($quote->project_type) ? (QuoteRequest::projectTypeLabels()[$quote->project_type] ?? $quote->project_type) : 'Chưa cung cấp',
+            'usage_description'        => $quote->usage_description ?: '',
+            'number_of_rooms'          => ($quote->number_of_rooms && $quote->number_of_rooms > 1) ? $quote->number_of_rooms : '',
+            'area_m2'                  => $quote->area_m2 ? $quote->area_m2 . ' m²' : 'Chưa cung cấp',
+            'ceiling_height_m'         => $quote->ceiling_height ? $quote->ceiling_height . ' m' : '',
+            'estimated_volume_m3'      => $quote->estimated_volume_m3 ? $quote->estimated_volume_m3 . ' m³' : '',
+            'number_of_people'         => $quote->number_of_people ?: '',
+            'sun_exposure'             => !empty($quote->sun_exposure) ? (QuoteRequest::sunExposureLabels()[$quote->sun_exposure] ?? $quote->sun_exposure) : '',
+            'glass_area'               => !empty($quote->glass_area) ? (QuoteRequest::glassAreaLabels()[$quote->glass_area] ?? $quote->glass_area) : '',
+            'insulation_quality'       => !empty($quote->insulation_quality) ? (QuoteRequest::insulationLabels()[$quote->insulation_quality] ?? $quote->insulation_quality) : '',
+            'current_aircon_status'    => !empty($quote->current_aircon_status) ? (QuoteRequest::airconStatusLabels()[$quote->current_aircon_status] ?? $quote->current_aircon_status) : '',
             // Technical
-            'desired_capacity_btu'     => $quote->preferred_btu ? number_format($quote->preferred_btu) . ' BTU' : null,
-            'calculated_btu'           => $quote->calculated_btu ? number_format($quote->calculated_btu) . ' BTU' : null,
-            'btu'                      => $quote->calculated_btu ? number_format($quote->calculated_btu) . ' BTU' : null,
-            'suggested_capacity_range' => $quote->suggested_capacity_range,
-            'preferred_brands'         => implode(', ', $brandsArr) ?: null,
-            'require_inverter'         => $quote->need_inverter ? 'Co' : null,
-            'require_3_phase'          => $quote->need_three_phase ? 'Co' : null,
-            'power_supply'             => $quote->power_supply,
-            'installation_type'        => !empty($quote->installation_type) ? (QuoteRequest::installationTypeLabels()[$quote->installation_type] ?? $quote->installation_type) : null,
-            'outdoor_unit_location'    => !empty($quote->outdoor_unit_location) ? (QuoteRequest::outdoorLocationLabels()[$quote->outdoor_unit_location] ?? $quote->outdoor_unit_location) : null,
-            'pipe_distance_m'          => $quote->pipe_distance_m ? $quote->pipe_distance_m . ' m' : null,
-            'drainage_available'       => $quote->drainage_available,
+            'desired_capacity_btu'     => $quote->preferred_btu ? number_format($quote->preferred_btu) . ' BTU' : '',
+            'calculated_btu'           => $quote->calculated_btu ? number_format($quote->calculated_btu) . ' BTU' : '',
+            'btu'                      => $quote->calculated_btu ? number_format($quote->calculated_btu) . ' BTU' : 'Chưa xác định',
+            'suggested_capacity_range' => $quote->suggested_capacity_range ?: '',
+            'preferred_brands'         => implode(', ', $brandsArr) ?: '',
+            'require_inverter'         => $quote->need_inverter ? 'Có' : '',
+            'require_3_phase'          => $quote->need_three_phase ? 'Có' : '',
+            'power_supply'             => $quote->power_supply ?: '',
+            'installation_type'        => !empty($quote->installation_type) ? (QuoteRequest::installationTypeLabels()[$quote->installation_type] ?? $quote->installation_type) : '',
+            'outdoor_unit_location'    => !empty($quote->outdoor_unit_location) ? (QuoteRequest::outdoorLocationLabels()[$quote->outdoor_unit_location] ?? $quote->outdoor_unit_location) : '',
+            'pipe_distance_m'          => $quote->pipe_distance_m ? $quote->pipe_distance_m . ' m' : '',
+            'drainage_available'       => $quote->drainage_available ?: '',
             // Budget
-            'budget_range'             => !empty($quote->budget_range) ? (QuoteRequest::budgetRangeLabels()[$quote->budget_range] ?? $quote->budget_range) : null,
-            'timeline'                 => !empty($quote->installation_time) ? (QuoteRequest::installationTimeLabels()[$quote->installation_time] ?? $quote->installation_time) : null,
-            'need_installation_service'=> !empty($quote->need_installation_service) ? (QuoteRequest::needInstallLabels()[$quote->need_installation_service] ?? $quote->need_installation_service) : null,
-            'need_invoice'             => $quote->need_invoice ? 'Co' : null,
-            'need_site_survey'         => $quote->need_site_survey ? 'Co' : null,
+            'budget_range'             => !empty($quote->budget_range) ? (QuoteRequest::budgetRangeLabels()[$quote->budget_range] ?? $quote->budget_range) : 'Chưa cung cấp',
+            'timeline'                 => !empty($quote->installation_time) ? (QuoteRequest::installationTimeLabels()[$quote->installation_time] ?? $quote->installation_time) : '',
+            'need_installation_service'=> !empty($quote->need_installation_service) ? (QuoteRequest::needInstallLabels()[$quote->need_installation_service] ?? $quote->need_installation_service) : '',
+            'need_invoice'             => $quote->need_invoice ? 'Có' : '',
+            'need_site_survey'         => $quote->need_site_survey ? 'Có' : '',
             // Tracking
-            'source'                   => $quote->source_page,
-            'utm_source'               => $quote->utm_source,
-            'utm_campaign'             => $quote->utm_campaign,
+            'source'                   => $quote->source_page ?: url()->current(),
+            'utm_source'               => $quote->utm_source ?: '',
+            'utm_campaign'             => $quote->utm_campaign ?: '',
             // Misc
-            'customer_note'            => $quote->message,
-            'message'                  => $quote->message,
+            'customer_note'            => $quote->message ?: 'Không có ghi chú',
+            'message'                  => $quote->message ?: 'Không có ghi chú',
         ];
-        // Filter out null/empty values so email only shows fields with data
-        $mailVars = array_filter($rawMailVars, fn ($v) => $v !== null && $v !== '');
 
+        // Debug log — full mail payload + null detection
+        $criticalFields = ['quote_id', 'customer_name', 'customer_phone'];
+        $missingCritical = array_filter($criticalFields, fn ($k) => empty($mailVars[$k]));
+        if ($missingCritical) {
+            Log::warning('QuoteRequest mail: missing critical fields', [
+                'quote_id' => $quote->id,
+                'missing'  => $missingCritical,
+            ]);
+        }
+        Log::info('QuoteRequest mail payload', [
+            'quote_id' => $quote->id,
+            'vars'     => $mailVars,
+        ]);
 
         // ── Admin mail ────────────────────────────────────────────────
         try {
@@ -536,7 +561,7 @@ class QuoteController extends Controller
                 relatedId:   $quote->id
             );
         } catch (\Throwable $e) {
-            Log::error('QuoteRequest admin mail failed: ' . $e->getMessage());
+            Log::error('QuoteRequest admin mail failed', ['quote_id' => $quote->id, 'error' => $e->getMessage()]);
         }
 
         // ── Customer mail ───────────────────────────────────────────
@@ -545,12 +570,12 @@ class QuoteController extends Controller
                 $this->mailService->sendCustomerEvent(
                     event:         'quote_customer',
                     customerEmail: $quote->email,
-                    vars:          array_merge($mailVars, ['hotline' => setting('contact.hotline', '')]),
+                    vars:          $mailVars,
                     relatedType:   'QuoteRequest',
                     relatedId:     $quote->id
                 );
             } catch (\Throwable $e) {
-                Log::error('QuoteRequest customer mail failed: ' . $e->getMessage());
+                Log::error('QuoteRequest customer mail failed', ['quote_id' => $quote->id, 'error' => $e->getMessage()]);
             }
         }
 
