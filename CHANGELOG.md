@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.10.1] - 2026-05-11
+
+### Fixed — Product Filter Returns 0 Results
+- **Root cause: `inverter=""` treated as `inverter=false`** — When user selected "Tất cả" (All) in the inverter radio filter, the frontend sent `inverter=` (empty string). `filter_var('', FILTER_VALIDATE_BOOLEAN)` converted this to `false`, adding `WHERE inverter = 0` to the query. Since most products (328/354) are inverter models, this incorrectly excluded them. Example: `/san-pham?brand[]=daikin&inverter=` returned 0 results despite 129 active Daikin products (all inverter). Fix: empty/null boolean values are now skipped in `sanitize()`, meaning "no filter" instead of "filter to false"
+- **Inverter radio "Tất cả" unchecked after selection** — `request('inverter')` returns `""` (empty string) not `null` when `inverter=` is in URL. The Blade condition `=== null` always evaluated false, leaving the "Tất cả" radio unchecked. Fix: condition now checks both `!request()->has('inverter')` and `request('inverter') === ''`
+- **`hasActiveFilters()` returned true for unfiltered pages** — Empty inverter param created a key in sanitized filters, causing `hasActiveFilters()` to return true. This incorrectly set `robots=noindex,follow` on effectively unfiltered pages, penalizing SEO. Auto-fixed by the boolean sanitization fix above
+
+### Fixed — Sidebar Product Counts Include Inactive Products
+- **Brand `products_count` counted all products** — `withCount('products')` included `is_active=false` and soft-deleted products. Sidebar displayed inflated counts. Fix: constrained to `->withCount(['products' => fn($q) => $q->where('is_active', true)])` in both `index()` and `category()` methods
+- **Category `products_count` same issue** — Identical fix applied to ProductCategory counts in both controller methods (4 total locations fixed)
+
+### Files Changed (3 files)
+- `app/Services/Product/ProductFilterService.php` — Boolean sanitization: skip empty/null values (+4 lines)
+- `resources/views/components/product-filter-sidebar.blade.php` — Inverter radio checked state fix (1 line)
+- `app/Http/Controllers/ProductController.php` — Brand + Category `withCount` constrained to active products (4 locations, +12 lines)
+
+---
+
 ## [1.10.0] - 2026-05-11
 
 ### Added — Daikin & Panasonic Catalogue Import

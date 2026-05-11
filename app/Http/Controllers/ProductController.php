@@ -25,12 +25,16 @@ class ProductController extends Controller
         $products = $query->paginate($perPage)->withQueryString();
 
         $categories = ProductCategory::where('is_active', true)
-            ->withCount('products')
+            ->withCount(['products' => function ($q) {
+                $q->where('is_active', true);
+            }])
             ->orderBy('sort_order')
             ->get();
 
         $brands = Brand::where('is_active', true)
-            ->withCount('products')
+            ->withCount(['products' => function ($q) {
+                $q->where('is_active', true);
+            }])
             ->orderBy('name')
             ->get();
 
@@ -60,12 +64,16 @@ class ProductController extends Controller
         $products = $query->paginate($perPage)->withQueryString();
 
         $categories = ProductCategory::where('is_active', true)
-            ->withCount('products')
+            ->withCount(['products' => function ($q) {
+                $q->where('is_active', true);
+            }])
             ->orderBy('sort_order')
             ->get();
 
         $brands = Brand::where('is_active', true)
-            ->withCount('products')
+            ->withCount(['products' => function ($q) {
+                $q->where('is_active', true);
+            }])
             ->orderBy('name')
             ->get();
 

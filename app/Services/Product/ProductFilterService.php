@@ -167,6 +167,10 @@ class ProductFilterService
                     }
                     break;
                 case 'boolean':
+                    // Skip empty/null values — they mean "no filter" (e.g., inverter="" = show all)
+                    if ($value === '' || $value === null) {
+                        break;
+                    }
                     $sanitized[$key] = filter_var($value, FILTER_VALIDATE_BOOLEAN);
                     break;
                 case 'numeric':

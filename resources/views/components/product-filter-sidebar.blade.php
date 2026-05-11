@@ -78,7 +78,7 @@
         <div class="space-y-2">
             <label class="flex items-center gap-3 cursor-pointer">
                 <input type="radio" name="inverter" value="" class="h-4 w-4 border-surface-300 text-primary-600 focus:ring-primary-600"
-                    {{ request('inverter') === null ? 'checked' : '' }} onchange="document.getElementById('productFilterForm').submit()">
+                    {{ !request()->has('inverter') || request('inverter') === '' ? 'checked' : '' }} onchange="document.getElementById('productFilterForm').submit()">
                 <span class="text-sm text-surface-600">Tất cả</span>
             </label>
             <label class="flex items-center gap-3 cursor-pointer">
