@@ -11,12 +11,27 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphToMany;
+use Illuminate\Support\Str;
 
 class Product extends Model
 {
     use HasFactory, SoftDeletes;
 
     protected $guarded = [];
+
+    protected static function booted(): void
+    {
+        static::saving(function (Product $product): void {
+            if (blank($product->slug)) {
+                $product->slug = static::generateUniqueSlug($product->name, $product->getKey());
+                return;
+            }
+
+            if ($product->isDirty('slug')) {
+                $product->slug = static::generateUniqueSlug($product->slug, $product->getKey());
+            }
+        });
+    }
 
     protected function casts(): array
     {
@@ -40,6 +55,30 @@ class Product extends Model
             'promotion_start_at' => 'datetime',
             'promotion_end_at' => 'datetime',
         ];
+    }
+
+    public static function generateUniqueSlug(?string $source, ?int $ignoreId = null): string
+    {
+        $base = Str::slug($source ?: 'product');
+
+        if ($base === '') {
+            $base = 'product';
+        }
+
+        $base = Str::limit($base, 200, '');
+        $slug = $base;
+        $counter = 1;
+
+        while (static::withTrashed()
+            ->where('slug', $slug)
+            ->when($ignoreId, fn ($query) => $query->whereKeyNot($ignoreId))
+            ->exists()
+        ) {
+            $suffix = '-' . $counter++;
+            $slug = Str::limit($base, 200 - strlen($suffix), '') . $suffix;
+        }
+
+        return $slug;
     }
 
     public function brand(): BelongsTo

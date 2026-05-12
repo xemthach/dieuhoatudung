@@ -57,7 +57,6 @@ class EncodingAuditCommand extends Command
         'Æ°', // ư
         'Æ', // ơ
         'â€', // smart quotes
-        'â', // dashes
         'Ã¬', // ì
         'Ã­', // í
         'Ã®', // î
@@ -102,11 +101,11 @@ class EncodingAuditCommand extends Command
                 $wheres = [];
                 $bindings = [];
                 foreach ($this->patterns as $p) {
-                    $wheres[] = "`{$col}` LIKE ?";
+                    $wheres[] = "BINARY `{$col}` LIKE ?";
                     $bindings[] = '%' . $p . '%';
                 }
 
-                $sql = "SELECT id, `{$col}` FROM `{$table}` WHERE " . implode('OR ', $wheres) . " LIMIT 50";
+                $sql = "SELECT id, `{$col}` FROM `{$table}` WHERE " . implode(' OR ', $wheres) . " LIMIT 50";
                 $results = DB::select($sql, $bindings);
 
                 foreach ($results as $r) {

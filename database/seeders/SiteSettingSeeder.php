@@ -72,6 +72,18 @@ class SiteSettingSeeder extends Seeder
             ['group' => 'r2_storage', 'key' => 'r2_public_url',       'value' => '', 'type' => 'text'],
             ['group' => 'r2_storage', 'key' => 'r2_default_folder',   'value' => 'uploads', 'type' => 'text'],
 
+            // === UPLOAD LIMITS ===
+            ['group' => 'upload', 'key' => 'image_max_size_kb',         'value' => '5120', 'type' => 'text'],
+            ['group' => 'upload', 'key' => 'avatar_max_size_kb',        'value' => '2048', 'type' => 'text'],
+            ['group' => 'upload', 'key' => 'product_image_max_size_kb', 'value' => '5120', 'type' => 'text'],
+            ['group' => 'upload', 'key' => 'review_image_max_size_kb',  'value' => '3072', 'type' => 'text'],
+            ['group' => 'upload', 'key' => 'brand_logo_max_size_kb',    'value' => '2048', 'type' => 'text'],
+            ['group' => 'upload', 'key' => 'document_max_size_kb',      'value' => '51200', 'type' => 'text'],
+            ['group' => 'upload', 'key' => 'file_max_size_kb',          'value' => '51200', 'type' => 'text'],
+            ['group' => 'upload', 'key' => 'max_images_per_upload',     'value' => '10', 'type' => 'text'],
+            ['group' => 'upload', 'key' => 'allowed_image_types',       'value' => 'image/jpeg,image/png,image/webp,image/gif', 'type' => 'text'],
+            ['group' => 'upload', 'key' => 'allowed_file_types',        'value' => 'application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'type' => 'text'],
+
             // === MAIL SERVER ===
             ['group' => 'mail', 'key' => 'mail_enabled',            'value' => '0', 'type' => 'boolean'],
             ['group' => 'mail', 'key' => 'mail_provider',           'value' => 'smtp', 'type' => 'text'],

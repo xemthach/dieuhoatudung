@@ -2,6 +2,31 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.13.0] - 2026-05-12
+
+### Added
+- Added missing data import permissions for leads and quote requests so data-transfer modules have both import and export permissions registered.
+- Added `btu_calculation` import/export permission group for BTU calculation history.
+- Added upload default settings to `SiteSettingSeeder`, including 50 MB document/file limits and default MIME allowlists.
+- Added regression tests for data-transfer permissions, encoding command SQL generation, quote mail logging, product slug generation, and upload setting fallbacks.
+
+### Fixed
+- Fixed product creation from Filament relation managers by auto-generating unique product slugs when only a product name is submitted.
+- Fixed Livewire temporary uploads being capped at 12 MB by applying the application upload limit to `livewire.temporary_file_upload.rules`.
+- Fixed blank upload settings returning unusable values by falling back to safe defaults for size limits, MIME lists, and image count limits.
+- Fixed encoding audit/repair SQL generation by adding spaces between `OR` clauses and using binary `LIKE` checks for corrupted UTF-8 patterns.
+- Fixed upload settings helper text to match the new 50 MB default document/file limits.
+
+### Changed
+- Reduced encoding audit false positives by removing the overly broad mojibake dash marker from the audit pattern list.
+- Changed quote mail diagnostics from info-level full payload logging to debug-level key-only logging.
+
+### Removed
+- None.
+
+### Security
+- Stopped logging full quote mail payload values, reducing exposure of customer contact data in application logs.
+
 ## [1.12.0] - 2026-05-11
 
 ### Added — SEO Schema Infrastructure (7 new schema types)

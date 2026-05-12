@@ -79,11 +79,11 @@ class EncodingRepairCommand extends Command
                 $wheres = [];
                 $bindings = [];
                 foreach ($this->patterns as $p) {
-                    $wheres[] = "`{$col}` LIKE ?";
+                    $wheres[] = "BINARY `{$col}` LIKE ?";
                     $bindings[] = '%' . $p . '%';
                 }
 
-                $sql = "SELECT id, `{$col}` FROM `{$table}` WHERE " . implode('OR ', $wheres);
+                $sql = "SELECT id, `{$col}` FROM `{$table}` WHERE " . implode(' OR ', $wheres);
                 $results = DB::select($sql, $bindings);
 
                 foreach ($results as $r) {

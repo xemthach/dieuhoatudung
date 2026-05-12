@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use App\Models\User;
 use App\Services\Settings\SettingService;
+use App\Services\Settings\UploadSettingService;
 use Illuminate\Auth\Events\Login;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Event;
@@ -49,6 +50,11 @@ class AppServiceProvider extends ServiceProvider
         try {
             // Force Livewire to use local disk for temp uploads to prevent CORS/R2 issues
             Config::set('livewire.temporary_file_upload.disk', 'local');
+            Config::set('livewire.temporary_file_upload.rules', [
+                'required',
+                'file',
+                'max:' . app(UploadSettingService::class)->temporaryFileUploadMaxSizeKb(),
+            ]);
 
             if (Schema::hasTable('site_settings')) {
                 if (setting('r2_storage.r2_enabled', false)) {

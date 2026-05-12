@@ -156,11 +156,11 @@ class QuoteController extends Controller
             'utm_campaign'         => $quote->utm_campaign ?: '',
         ];
 
-        // Debug log — mail payload
-        Log::info('QuickQuote mail payload', [
-            'quote_id' => $quote->id,
-            'vars'     => $mailVars,
-            'nulls'    => array_keys(array_filter($mailVars, fn ($v) => empty($v))),
+        // Keep quote mail diagnostics free of customer PII.
+        Log::debug('QuickQuote mail payload prepared', [
+            'quote_id'   => $quote->id,
+            'var_keys'   => array_keys($mailVars),
+            'empty_keys' => array_keys(array_filter($mailVars, fn ($v) => empty($v))),
         ]);
 
         // Admin mail
@@ -546,9 +546,9 @@ class QuoteController extends Controller
                 'missing'  => $missingCritical,
             ]);
         }
-        Log::info('QuoteRequest mail payload', [
+        Log::debug('QuoteRequest mail payload prepared', [
             'quote_id' => $quote->id,
-            'vars'     => $mailVars,
+            'var_keys' => array_keys($mailVars),
         ]);
 
         // ── Admin mail ────────────────────────────────────────────────

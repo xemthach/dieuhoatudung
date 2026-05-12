@@ -479,14 +479,14 @@ class ManageSiteSettings extends Page
                                         ->label('Tài liệu (KB)')
                                         ->numeric()
                                         ->suffix('KB')
-                                        ->helperText('Mặc định: 10240 (10 MB)'),
+                                        ->helperText('Mặc định: 51200 (50 MB)'),
                                 ]),
                                 \Filament\Schemas\Components\Grid::make(['default' => 1, 'md' => 3])->schema([
                                     TextInput::make('upload__file_max_size_kb')
                                         ->label('File chung (KB)')
                                         ->numeric()
                                         ->suffix('KB')
-                                        ->helperText('Mặc định: 10240 (10 MB)'),
+                                        ->helperText('Mặc định: 51200 (50 MB)'),
                                     TextInput::make('upload__max_images_per_upload')
                                         ->label('Số ảnh tối đa / lần upload')
                                         ->numeric()

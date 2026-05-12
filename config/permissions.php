@@ -269,6 +269,7 @@ return [
             'create' => 'Tạo lead',
             'edit'   => 'Sửa lead / đổi trạng thái',
             'delete' => 'Xóa lead',
+            'import' => 'Import leads',
             'export' => 'Export leads',
         ],
     ],
@@ -281,7 +282,17 @@ return [
             'view'   => 'Xem yêu cầu báo giá',
             'edit'   => 'Xử lý / phản hồi báo giá',
             'delete' => 'Xóa yêu cầu báo giá',
+            'import' => 'Import báo giá',
             'export' => 'Export báo giá',
+        ],
+    ],
+
+    'btu_calculation' => [
+        'label' => 'Import / Export BTU',
+        'icon'  => 'heroicon-o-arrow-up-tray',
+        'permissions' => [
+            'import' => 'Import lịch sử BTU',
+            'export' => 'Export lịch sử BTU',
         ],
     ],
 
