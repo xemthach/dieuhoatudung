@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Services\SEO;
+namespace App\Services\Seo;
 
 use App\Models\CaseStudy;
 use App\Models\InternalLinkSuggestion;

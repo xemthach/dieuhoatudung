@@ -2,6 +2,26 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.13.1] - 2026-05-12
+
+### Added
+- Added regression tests for product related-products inverse relationships and tag slug generation, including tag creation through a product relation.
+
+### Fixed
+- Fixed Filament related-products attach actions on product edit pages by adding an explicit inverse relationship for the self-referential `product_related` pivot.
+- Fixed internal-link suggestion actions on post and product edit pages by correcting the `InternalLinkSuggestionService` namespace to match the PSR-4 path.
+- Fixed quick tag creation from relation managers by auto-generating unique tag slugs when only a tag name is submitted.
+- Fixed product document uploads failing when Filament passes a stored file path string to the upload state callback.
+
+### Changed
+- None.
+
+### Removed
+- None.
+
+### Security
+- None.
+
 ## [1.13.0] - 2026-05-12
 
 ### Added

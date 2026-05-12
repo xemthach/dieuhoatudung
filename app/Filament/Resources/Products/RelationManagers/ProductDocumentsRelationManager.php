@@ -42,8 +42,8 @@ class ProductDocumentsRelationManager extends RelationManager
                     ->preserveFilenames()
                     ->downloadable()
                     ->storeFileNamesIn('file_name')
-                    ->afterStateUpdated(function ($set, ?TemporaryUploadedFile $state) {
-                        if ($state) {
+                    ->afterStateUpdated(function ($set, mixed $state): void {
+                        if ($state instanceof TemporaryUploadedFile) {
                             $set('file_size', $state->getSize());
                             $set('mime_type', $state->getMimeType());
                         }

@@ -3,7 +3,7 @@
 namespace App\Filament\Resources\Products\Pages;
 
 use App\Filament\Resources\Products\ProductResource;
-use App\Services\SEO\InternalLinkSuggestionService;
+use App\Services\Seo\InternalLinkSuggestionService;
 use Filament\Actions\Action;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\ForceDeleteAction;

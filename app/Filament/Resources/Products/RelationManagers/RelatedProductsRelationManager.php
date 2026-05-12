@@ -27,6 +27,8 @@ class RelatedProductsRelationManager extends RelationManager
 {
     protected static string $relationship = 'relatedProducts';
 
+    protected static ?string $inverseRelationship = 'relatedToProducts';
+
     public function form(Schema $schema): Schema
     {
         return $schema
