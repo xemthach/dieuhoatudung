@@ -6,9 +6,9 @@ use App\Models\AiGenerationSession;
 use App\Models\AiProvider;
 use App\Models\AiRequestLog;
 use App\Services\AI\Adapters\AIAdapterInterface;
+use App\Services\AI\Adapters\ClaudeAdapter;
 use App\Services\AI\Adapters\GeminiAdapter;
 use App\Services\AI\Adapters\OpenAIAdapter;
-use Illuminate\Support\Facades\Log;
 
 class AIManager
 {
@@ -51,10 +51,10 @@ class AIManager
             $attempts++;
 
             // 2. Select Provider
-            if (!$provider || $provider->status !== 'active') {
+            if (! $provider || $provider->status !== 'active') {
                 $provider = $this->pool->selectProvider($taskType, $options);
-                
-                if (!$provider) {
+
+                if (! $provider) {
                     throw new \RuntimeException('No AI providers available.');
                 }
 
@@ -69,10 +69,10 @@ class AIManager
 
             // 3. Adapter Execution
             $adapter = $this->getAdapter($provider);
-            
+
             try {
                 $result = $adapter->generate($provider, $payload, $options);
-                
+
                 // 4. Success
                 $this->pool->markSuccess($provider, [
                     'total_tokens' => $result['tokens_used'] ?? 0,
@@ -97,7 +97,7 @@ class AIManager
 
                 // Try parse error
                 $errorData = json_decode($lastError, true);
-                if (is_array($errorData) && !empty($errorData['is_rate_limit'])) {
+                if (is_array($errorData) && ! empty($errorData['is_rate_limit'])) {
                     $isRateLimit = true;
                 } elseif (stripos($lastError, '429') !== false) {
                     $isRateLimit = true;
@@ -111,7 +111,7 @@ class AIManager
                     $this->logRequest($provider, 'failed', $taskType, $contextId, [], $lastError);
                 }
 
-                if (!$allowFallback) {
+                if (! $allowFallback) {
                     break;
                 }
 
@@ -121,14 +121,15 @@ class AIManager
             }
         }
 
-        throw new \RuntimeException("AI Generation failed after {$attempts} attempts. Last error: " . $lastError);
+        throw new \RuntimeException("AI Generation failed after {$attempts} attempts. Last error: ".$lastError);
     }
 
     private function getAdapter(AiProvider $provider): AIAdapterInterface
     {
         return match ($provider->provider) {
-            'gemini' => new GeminiAdapter(),
-            'openai', 'groq', 'ollama', 'custom' => new OpenAIAdapter(),
+            'gemini' => new GeminiAdapter,
+            'claude' => new ClaudeAdapter,
+            'openai', 'groq', 'ollama', 'custom' => new OpenAIAdapter,
             default => throw new \InvalidArgumentException("Unsupported provider: {$provider->provider}")
         };
     }

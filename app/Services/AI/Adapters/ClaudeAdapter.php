@@ -5,7 +5,7 @@ namespace App\Services\AI\Adapters;
 use App\Models\AiProvider;
 use Illuminate\Support\Facades\Http;
 
-class OpenAIAdapter implements AIAdapterInterface
+class ClaudeAdapter implements AIAdapterInterface
 {
     public function testConnection(AiProvider $provider): array
     {
@@ -14,10 +14,10 @@ class OpenAIAdapter implements AIAdapterInterface
                 ->timeout(10)
                 ->post($this->endpoint($provider), [
                     'model' => $provider->model,
+                    'max_tokens' => 10,
                     'messages' => [
                         ['role' => 'user', 'content' => 'Hello. Reply with only the word "OK"'],
                     ],
-                    'max_tokens' => 10,
                 ]);
 
             if ($response->successful()) {
@@ -36,11 +36,6 @@ class OpenAIAdapter implements AIAdapterInterface
 
     public function generate(AiProvider $provider, array $payload, array $options = []): array
     {
-        $messages = [];
-        if (! empty($payload['system'])) {
-            $messages[] = ['role' => 'system', 'content' => $payload['system']];
-        }
-
         $userPrompt = '';
         if (! empty($payload['prompt'])) {
             $userPrompt .= $payload['prompt']."\n\n";
@@ -49,23 +44,17 @@ class OpenAIAdapter implements AIAdapterInterface
             $userPrompt .= "Input:\n".$payload['input'];
         }
 
-        if (! empty($userPrompt)) {
-            $messages[] = ['role' => 'user', 'content' => trim($userPrompt)];
-        }
-
         $body = [
             'model' => $provider->model,
-            'messages' => $messages,
+            'max_tokens' => $payload['max_tokens'] ?? $options['max_tokens'] ?? 4096,
+            'messages' => [
+                ['role' => 'user', 'content' => trim($userPrompt)],
+            ],
             'temperature' => $payload['temperature'] ?? 0.7,
         ];
 
-        $maxTokens = $payload['max_tokens'] ?? $options['max_tokens'] ?? null;
-        if ($maxTokens) {
-            $body['max_tokens'] = (int) $maxTokens;
-        }
-
-        if (! empty($options['require_json']) && $provider->supports_json_mode) {
-            $body['response_format'] = ['type' => 'json_object'];
+        if (! empty($payload['system'])) {
+            $body['system'] = $payload['system'];
         }
 
         $start = microtime(true);
@@ -76,7 +65,7 @@ class OpenAIAdapter implements AIAdapterInterface
 
         if ($response->failed()) {
             throw new \Exception(json_encode([
-                'message' => 'OpenAI API Error: '.$response->body(),
+                'message' => 'Claude API Error: '.$response->body(),
                 'status' => $response->status(),
                 'is_rate_limit' => $response->status() === 429,
                 'is_auth_error' => in_array($response->status(), [401, 403]),
@@ -84,41 +73,59 @@ class OpenAIAdapter implements AIAdapterInterface
         }
 
         $data = $response->json();
-        $text = $data['choices'][0]['message']['content'] ?? '';
+        $text = $this->extractText($data);
+        $tokens = ($data['usage']['input_tokens'] ?? 0) + ($data['usage']['output_tokens'] ?? 0);
 
         return [
             'content' => $text,
             'json' => $this->parseJson($text, ! empty($options['require_json'])),
-            'tokens_used' => $data['usage']['total_tokens'] ?? 0,
+            'tokens_used' => $tokens,
             'latency_ms' => $latency,
         ];
     }
 
     private function endpoint(AiProvider $provider): string
     {
-        $endpoint = trim((string) ($provider->endpoint ?: 'https://api.openai.com/v1/chat/completions'));
+        $endpoint = trim((string) ($provider->endpoint ?: 'https://api.anthropic.com/v1/messages'));
         $endpoint = rtrim($endpoint, '/');
 
-        if (str_ends_with($endpoint, '/chat/completions')) {
+        if (str_ends_with($endpoint, '/messages')) {
             return $endpoint;
         }
 
         if (str_ends_with($endpoint, '/v1')) {
-            return $endpoint.'/chat/completions';
+            return $endpoint.'/messages';
         }
 
-        return $endpoint.'/v1/chat/completions';
+        return $endpoint.'/v1/messages';
     }
 
     private function headers(AiProvider $provider): array
     {
-        $headers = ['Accept' => 'application/json'];
+        $headers = [
+            'Accept' => 'application/json',
+            'anthropic-version' => '2023-06-01',
+        ];
 
         if (! empty($provider->api_key)) {
             $headers['Authorization'] = 'Bearer '.$provider->api_key;
+            $headers['x-api-key'] = $provider->api_key;
         }
 
         return $headers;
+    }
+
+    private function extractText(array $data): string
+    {
+        $chunks = [];
+
+        foreach ($data['content'] ?? [] as $part) {
+            if (($part['type'] ?? null) === 'text' && isset($part['text'])) {
+                $chunks[] = $part['text'];
+            }
+        }
+
+        return trim(implode("\n", $chunks));
     }
 
     private function parseJson(string $text, bool $required): array

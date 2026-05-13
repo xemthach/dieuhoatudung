@@ -13,28 +13,36 @@ class AIProviderPool
      */
     public function getAvailableProviders(string $priority = 'primary'): Collection
     {
+        $this->resetUsageWindows();
+
         return AiProvider::where('status', 'active')
             ->where('priority', $priority)
             ->where(function ($q) {
                 $q->whereNull('rate_limited_until')
-                  ->orWhere('rate_limited_until', '<=', now());
+                    ->orWhere('rate_limited_until', '<=', now());
             })
             ->where(function ($q) {
                 $q->whereNull('daily_limit')
-                  ->orWhereColumn('daily_used', '<', 'daily_limit');
+                    ->orWhereColumn('daily_used', '<', 'daily_limit');
             })
             ->where(function ($q) {
                 $q->whereNull('minute_limit')
-                  ->orWhereColumn('minute_used', '<', 'minute_limit');
+                    ->orWhereColumn('minute_used', '<', 'minute_limit');
             })
             ->orderBy('id', 'asc')
             ->get();
     }
 
+    public function hasAvailableProviders(): bool
+    {
+        return $this->getAvailableProviders('primary')->isNotEmpty()
+            || $this->getAvailableProviders('fallback')->isNotEmpty();
+    }
+
     /**
      * Select a provider using Weighted Round-Robin strategy.
      */
-    public function selectProvider(string $taskType = null, array $context = []): ?AiProvider
+    public function selectProvider(?string $taskType = null, array $context = []): ?AiProvider
     {
         // 1. Try Primary
         $primaryProviders = $this->getAvailableProviders('primary');
@@ -69,7 +77,7 @@ class AIProviderPool
         // Get and increment current index
         $indexKey = "ai_provider_rotation_index_{$groupKey}";
         $currentIndex = Cache::increment($indexKey);
-        
+
         // Find position in the weight map
         $position = $currentIndex % $totalWeight;
 
@@ -102,7 +110,8 @@ class AIProviderPool
     public function markFailure(AiProvider $provider, \Throwable|string $error): void
     {
         $message = is_string($error) ? $error : $error->getMessage();
-        
+        $errorCount = $provider->error_count + 1;
+
         $provider->increment('error_count');
         $provider->increment('request_count');
 
@@ -114,7 +123,7 @@ class AIProviderPool
             'minute_used' => $provider->minute_used + 1,
         ];
 
-        if ($provider->error_count >= 3) {
+        if ($errorCount >= 3) {
             // Put to failed if continuous errors
             $updates['status'] = 'failed';
         }
@@ -126,7 +135,7 @@ class AIProviderPool
     {
         $provider->increment('error_count');
         $provider->increment('request_count');
-        
+
         $provider->update([
             'status' => 'rate_limited',
             'rate_limited_until' => $until ?? now()->addSeconds(60),
@@ -146,5 +155,30 @@ class AIProviderPool
             'rate_limited_until' => null,
             'last_error_message' => null,
         ]);
+    }
+
+    private function resetUsageWindows(): void
+    {
+        AiProvider::where('status', 'rate_limited')
+            ->whereNotNull('rate_limited_until')
+            ->where('rate_limited_until', '<=', now())
+            ->update([
+                'status' => 'active',
+                'rate_limited_until' => null,
+            ]);
+
+        AiProvider::where('minute_used', '>', 0)
+            ->where(function ($query) {
+                $query->whereNull('last_used_at')
+                    ->orWhere('last_used_at', '<=', now()->subMinute());
+            })
+            ->update(['minute_used' => 0]);
+
+        AiProvider::where('daily_used', '>', 0)
+            ->where(function ($query) {
+                $query->whereNull('last_used_at')
+                    ->orWhereDate('last_used_at', '<', today());
+            })
+            ->update(['daily_used' => 0]);
     }
 }

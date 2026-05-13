@@ -2,6 +2,40 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.14.0] - 2026-05-13
+
+### Added
+- Added `HVACSeoContentEngine` to generate structured HVAC SEO blog JSON with title, slug, excerpt, HTML content, SEO/OG metadata, tags, FAQ, and internal link suggestions.
+- Added strict HVAC content quality validation for generated blog drafts, including minimum 1000-word content, required H2/H3 sections, BTU or m2 data, practical sections, and at least 3 FAQ items.
+- Added AI retry prompting for weak HVAC drafts so short or incomplete generations are rewritten before a job can complete.
+- Added Claude adapter support for `/v1/messages` providers, including ShopAIKey-compatible base URL normalization and JSON extraction.
+- Added bulk HVAC blog generation options to `ai:generate-blog`, including content category, audience, product, brand, and bulk count inputs.
+- Added AI content job form inputs for HVAC category, audience, related product, and related brand.
+- Added regression tests for ShopAIKey OpenAI/Gemini/Claude gateway routing, provider pool usage reset, processing job handling, and HVAC prompt generation.
+
+### Fixed
+- Fixed AI blog jobs being blocked by a missing `GEMINI_API_KEY` even when active AI Providers are configured in the database.
+- Fixed `GenerateBlogDraftJob` skipping jobs that were already marked `processing`.
+- Fixed AI Provider pool availability checks so stale minute/daily usage windows reset and expired rate-limited providers become active again.
+- Fixed provider failure threshold logic so the third consecutive failure can mark a provider as failed.
+- Fixed OpenAI-compatible adapter endpoints for providers configured with base URLs such as `https://api.shopaikey.com` or `/v1`.
+- Fixed Gemini adapter support for ShopAIKey by using Bearer auth for non-Google endpoints and normalizing `/v1beta/models/{model}:generateContent` URLs.
+- Fixed OpenAI and Gemini generation requests so long-form token limits are actually sent to providers.
+- Fixed AI provider test action so Claude providers use the Claude adapter.
+- Fixed AI publish flow to generate unique post slugs, copy AI SEO/OG metadata, attach generated FAQ entries, sync tags, and attach the related product.
+
+### Changed
+- Changed AI blog generation from inline Gemini-only prompt parsing to provider-pool-backed HVAC SEO content generation.
+- Changed AI content job creation to allow blank topic, keyword, and intent so the engine can infer them from category and context.
+- Changed generated AI job output storage to preserve structured metadata, FAQ, tags, and internal links separately from the HTML draft.
+- Documented the live-server update flow for the v1.14.0 AI content release.
+
+### Removed
+- None.
+
+### Security
+- None.
+
 ## [1.13.1] - 2026-05-12
 
 ### Added

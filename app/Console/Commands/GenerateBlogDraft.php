@@ -6,81 +6,92 @@ use App\Enums\AIContentJobStatus;
 use App\Jobs\GenerateBlogDraftJob;
 use App\Models\AiContentJob;
 use App\Models\PostCategory;
+use App\Services\AI\AIProviderPool;
 use Illuminate\Console\Command;
 
 class GenerateBlogDraft extends Command
 {
     protected $signature = 'ai:generate-blog
-                            {topic? : Chủ đề bài viết}
-                            {--keyword= : Từ khóa chính (mặc định = topic)}
-                            {--intent=informational : Search intent (informational/commercial/transactional)}
-                            {--category= : ID danh mục bài viết}
+                            {topic? : Chủ đề bài viết, để trống để AI tự tạo}
+                            {--keyword= : Từ khóa chính}
+                            {--intent= : informational hoặc commercial}
+                            {--content-category=Kiến thức HVAC : Kiến thức HVAC / So sánh / Giải pháp / Lỗi / sửa chữa}
+                            {--audience= : nhà xưởng / văn phòng / showroom / dân dụng}
+                            {--product= : Product ID liên quan}
+                            {--brand= : Brand ID liên quan}
+                            {--category= : ID danh mục blog}
+                            {--bulk=1 : Số bài cần tạo trong cùng category}
                             {--sync : Chạy đồng bộ thay vì queue}';
 
-    protected $description = 'Tạo bài viết blog bằng Gemini AI';
+    protected $description = 'Tạo bài viết blog HVAC SEO bằng AI Provider đã cấu hình';
 
     public function handle(): int
     {
-        // Kiểm tra API key
-        if (empty(config('gemini.api_key'))) {
-            $this->error('GEMINI_API_KEY chưa được cấu hình trong .env');
+        if (! app(AIProviderPool::class)->hasAvailableProviders()) {
+            $this->error('Chưa có AI Provider nào khả dụng. Vui lòng cấu hình AI Providers.');
+
             return self::FAILURE;
         }
 
-        // Lấy topic
-        $topic = $this->argument('topic')
-            ?? $this->ask('Nhập chủ đề bài viết (vd: "Điều hòa tủ đứng Daikin 36000 BTU")');
+        $bulk = max(1, min((int) $this->option('bulk'), 50));
+        $postCategoryId = $this->resolvePostCategoryId();
+        $jobs = [];
 
-        if (empty($topic)) {
-            $this->error('Topic không được trống.');
-            return self::FAILURE;
-        }
+        for ($index = 1; $index <= $bulk; $index++) {
+            $topic = $this->argument('topic') ?: 'AI tự tạo topic - '.$this->option('content-category').' #'.$index;
 
-        $keyword = $this->option('keyword') ?? $topic;
-        $intent = $this->option('intent');
-        $category = $this->option('category');
+            $job = AiContentJob::create([
+                'topic' => $topic,
+                'primary_keyword' => $this->option('keyword'),
+                'intent' => $this->option('intent'),
+                'post_category_id' => $postCategoryId,
+                'status' => AIContentJobStatus::Pending,
+                'input_payload' => [
+                    'category' => $this->option('content-category') ?: 'Kiến thức HVAC',
+                    'topic' => $this->argument('topic'),
+                    'keyword' => $this->option('keyword'),
+                    'intent' => $this->option('intent'),
+                    'audience' => $this->option('audience'),
+                    'product_id' => $this->option('product') ? (int) $this->option('product') : null,
+                    'brand_id' => $this->option('brand') ? (int) $this->option('brand') : null,
+                    'bulk_index' => $index,
+                    'bulk_total' => $bulk,
+                ],
+            ]);
 
-        // Xác nhận category nếu có
-        $categoryId = null;
-        if ($category) {
-            $cat = PostCategory::find($category);
-            if (!$cat) {
-                $this->warn("Không tìm thấy category ID={$category}, bỏ qua.");
+            $jobs[] = $job;
+            $this->info("Đã tạo AiContentJob #{$job->id}: \"{$job->topic}\"");
+
+            if ($this->option('sync')) {
+                GenerateBlogDraftJob::dispatchSync($job->id);
             } else {
-                $categoryId = $cat->id;
+                GenerateBlogDraftJob::dispatch($job->id);
             }
         }
 
-        // Tạo AiContentJob record
-        $job = AiContentJob::create([
-            'topic' => $topic,
-            'primary_keyword' => $keyword,
-            'intent' => $intent,
-            'post_category_id' => $categoryId,
-            'status' => AIContentJobStatus::Pending,
-            'input_payload' => [
-                'topic' => $topic,
-                'keyword' => $keyword,
-                'intent' => $intent,
-            ],
-        ]);
-
-        $this->info(" Đã tạo AiContentJob #{$job->id}: \"{$topic}\"");
-
-        if ($this->option('sync')) {
-            $this->info('Chạy đồng bộ (sync)...');
-            GenerateBlogDraftJob::dispatchSync($job->id);
-            $job->refresh();
-            $this->line('');
-            $this->info(" Hoàn thành! Status: {$job->status->label()}");
-            $this->line(" Xem trong Admin → AI Content Jobs → #{$job->id}");
-        } else {
-            GenerateBlogDraftJob::dispatch($job->id);
-            $this->info(" Job đã được đưa vào queue.");
-            $this->line(" Chạy worker: php artisan queue:work --queue=default");
-            $this->line(" Xem trong Admin → AI Content Jobs → #{$job->id}");
+        if (! $this->option('sync')) {
+            $this->line('Chạy worker: php artisan queue:work --queue=default');
         }
 
+        $this->info('Hoàn tất tạo '.count($jobs).' job AI content.');
+
         return self::SUCCESS;
+    }
+
+    private function resolvePostCategoryId(): ?int
+    {
+        $category = $this->option('category');
+        if (! $category) {
+            return null;
+        }
+
+        $postCategory = PostCategory::find($category);
+        if (! $postCategory) {
+            $this->warn("Không tìm thấy category ID={$category}, bỏ qua.");
+
+            return null;
+        }
+
+        return $postCategory->id;
     }
 }

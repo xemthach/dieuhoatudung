@@ -3,13 +3,16 @@
 namespace App\Filament\Resources\AiProviders\Tables;
 
 use App\Models\AiProvider;
+use App\Services\AI\Adapters\ClaudeAdapter;
+use App\Services\AI\Adapters\GeminiAdapter;
+use App\Services\AI\Adapters\OpenAIAdapter;
+use Filament\Actions\Action;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
+use Filament\Actions\EditAction;
 use Filament\Actions\ForceDeleteBulkAction;
 use Filament\Actions\RestoreBulkAction;
-use Filament\Actions\Action;
-use Filament\Actions\EditAction;
-use Filament\Tables\Columns\IconColumn;
+use Filament\Notifications\Notification;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\TrashedFilter;
 use Filament\Tables\Table;
@@ -36,7 +39,7 @@ class AiProvidersTable
                 TextColumn::make('model')
                     ->label('Model')
                     ->searchable()
-                    ->description(fn (AiProvider $record) => $record->api_key ? 'sk-...' . substr($record->api_key, -4) : 'No key'),
+                    ->description(fn (AiProvider $record) => $record->api_key ? 'sk-...'.substr($record->api_key, -4) : 'No key'),
                 TextColumn::make('priority')
                     ->label('Priority')
                     ->badge()
@@ -97,39 +100,40 @@ class AiProvidersTable
                     ->action(function (AiProvider $record) {
                         try {
                             $adapter = match ($record->provider) {
-                                'gemini' => new \App\Services\AI\Adapters\GeminiAdapter(),
-                                default => new \App\Services\AI\Adapters\OpenAIAdapter(),
+                                'gemini' => new GeminiAdapter,
+                                'claude' => new ClaudeAdapter,
+                                default => new OpenAIAdapter,
                             };
 
                             $result = $adapter->testConnection($record);
 
-                            if (!empty($result['success'])) {
+                            if (! empty($result['success'])) {
                                 $record->update([
                                     'status' => 'active',
                                     'error_count' => 0,
                                     'last_success_at' => now(),
                                     'rate_limited_until' => null,
                                 ]);
-                                \Filament\Notifications\Notification::make()
+                                Notification::make()
                                     ->title('Kết nối thành công')
                                     ->success()
                                     ->send();
                             } else {
-                                $isRateLimited = !empty($result['rate_limited']);
+                                $isRateLimited = ! empty($result['rate_limited']);
                                 $record->update([
                                     'status' => $isRateLimited ? 'rate_limited' : 'failed',
                                     'last_error_at' => now(),
                                     'last_error_message' => $result['message'],
                                     'error_count' => $record->error_count + 1,
                                 ]);
-                                \Filament\Notifications\Notification::make()
+                                Notification::make()
                                     ->title('Kết nối thất bại')
                                     ->body($result['message'])
                                     ->danger()
                                     ->send();
                             }
                         } catch (\Throwable $e) {
-                            \Filament\Notifications\Notification::make()
+                            Notification::make()
                                 ->title('Lỗi hệ thống')
                                 ->body($e->getMessage())
                                 ->danger()

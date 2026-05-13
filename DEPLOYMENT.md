@@ -151,6 +151,50 @@ php artisan optimize:clear
 cd /var/www/dieuhoa-tudung && git pull origin main && php artisan migrate --force && php artisan optimize:clear
 ```
 
+### Update for v1.14.0 AI content release
+
+Use this flow when updating a live server from v1.13.1 or earlier to v1.14.0:
+
+```bash
+cd /var/www/dieuhoa-tudung
+
+# 1. Optional: enter maintenance mode during the code swap
+php artisan down --secret="deploy-preview"
+
+# 2. Fetch and deploy the tagged release
+git fetch origin --tags
+git checkout main
+git pull origin main
+git checkout v1.14.0
+
+# 3. Install backend and frontend dependencies
+composer install --no-dev --optimize-autoloader
+npm ci
+npm run build
+
+# 4. Run database updates and refresh caches
+php artisan migrate --force
+php artisan optimize:clear
+php artisan config:cache
+php artisan route:cache
+php artisan view:cache
+
+# 5. Restart queue workers so AI content jobs use the new engine
+php artisan queue:restart
+
+# 6. Bring the site back online
+php artisan up
+```
+
+After deployment, verify these admin workflows:
+
+- AI Providers: test the active ShopAIKey/OpenAI-compatible provider.
+- AI Content Job: create one test job and confirm it moves from pending to completed or failed with a clear validation message.
+- Lead and quote forms: submit one test lead and one quote request.
+- Import/Export: open the import/export admin screen and confirm it loads.
+- R2/CDN Sync: open the R2/CDN Sync admin screen and confirm existing sync records load.
+- Mail: send or queue one test email and confirm it appears in Mail Logs.
+
 ---
 
 ## C. Rollback
@@ -333,4 +377,3 @@ php artisan db:seed --class=AdminUserSeeder --force
 > After every deploy, run `php artisan optimize:clear`.
 
 > After every deploy with CSS/JS changes, **purge Cloudflare cache**.
-

@@ -3,12 +3,15 @@
 namespace App\Filament\Resources\AiContentJobs\Schemas;
 
 use App\Enums\AIContentJobStatus;
+use App\Models\Brand;
+use App\Models\Product;
+use App\Services\AI\HVACSeoContentEngine;
 use Filament\Forms\Components\RichEditor;
 use Filament\Forms\Components\Select;
-use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Textarea;
-use Filament\Schemas\Components\Section;
+use Filament\Forms\Components\TextInput;
 use Filament\Schemas\Components\Grid;
+use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 
 class AiContentJobForm
@@ -19,28 +22,43 @@ class AiContentJobForm
             ->columns(1)
             ->components([
                 Section::make('Thông tin yêu cầu')
-                    ->description('Điền chủ đề và từ khóa để Gemini AI tạo bài viết.')
+                    ->description('AI có thể tự tạo topic, keyword và intent khi bạn để trống.')
                     ->schema([
                         Grid::make(['default' => 1, 'md' => 2])->schema([
+                            Select::make('input_payload.category')
+                                ->label('Category nội dung')
+                                ->options(array_combine(HVACSeoContentEngine::CATEGORIES, HVACSeoContentEngine::CATEGORIES))
+                                ->default('Kiến thức HVAC')
+                                ->required(),
+                            Select::make('intent')
+                                ->label('Search intent')
+                                ->options([
+                                    'informational' => 'Informational',
+                                    'commercial' => 'Commercial',
+                                ])
+                                ->placeholder('AI tự suy luận nếu để trống'),
                             TextInput::make('topic')
                                 ->label('Chủ đề bài viết')
-                                ->placeholder('vd: Điều hòa tủ đứng Daikin 36000 BTU có tốt không?')
-                                ->required()
+                                ->placeholder('Để trống để AI tự tạo topic theo category')
                                 ->maxLength(255)
                                 ->columnSpanFull(),
                             TextInput::make('primary_keyword')
                                 ->label('Từ khóa chính')
-                                ->placeholder('vd: điều hòa tủ đứng Daikin')
-                                ->helperText('Từ khóa SEO chính cần tối ưu.'),
-                            Select::make('intent')
-                                ->label('Search Intent')
-                                ->options([
-                                    'informational'  => 'Informational (thông tin, kiến thức)',
-                                    'commercial'     => 'Commercial (so sánh, đánh giá)',
-                                    'transactional'  => 'Transactional (mua hàng, giá cả)',
-                                ])
-                                ->default('informational')
-                                ->required(),
+                                ->placeholder('Để trống để AI tự tạo keyword SEO hợp lý'),
+                            Select::make('input_payload.audience')
+                                ->label('Đối tượng')
+                                ->options(array_combine(HVACSeoContentEngine::AUDIENCES, HVACSeoContentEngine::AUDIENCES))
+                                ->placeholder('AI tự suy luận nếu để trống'),
+                            Select::make('input_payload.product_id')
+                                ->label('Product liên quan')
+                                ->options(fn () => Product::query()->orderBy('name')->limit(200)->pluck('name', 'id'))
+                                ->searchable()
+                                ->preload(),
+                            Select::make('input_payload.brand_id')
+                                ->label('Brand liên quan')
+                                ->options(fn () => Brand::query()->orderBy('name')->pluck('name', 'id'))
+                                ->searchable()
+                                ->preload(),
                             Select::make('post_category_id')
                                 ->label('Danh mục blog')
                                 ->relationship('postCategory', 'name')
@@ -55,27 +73,25 @@ class AiContentJobForm
                         ]),
                     ]),
 
-                Section::make('Kết quả AI (chỉ đọc)')
-                    ->description('Nội dung được Gemini AI tạo ra. Xem và duyệt trước khi publish.')
+                Section::make('Kết quả AI')
+                    ->description('Kết quả JSON được tách ra thành draft, meta, FAQ, tags và internal links.')
                     ->collapsed()
                     ->schema([
                         Textarea::make('output_outline')
-                            ->label('Outline bài viết')
-                            ->rows(12)
+                            ->label('Title / slug / excerpt')
+                            ->rows(6)
                             ->columnSpanFull()
                             ->disabled(),
                         RichEditor::make('output_draft')
-                            ->label('Draft bài viết (HTML)')
+                            ->label('Nội dung chi tiết HTML')
                             ->columnSpanFull()
                             ->disabled(),
                         Textarea::make('error_message')
-                            ->label('Lỗi (nếu có)')
+                            ->label('Lỗi nếu có')
                             ->columnSpanFull()
                             ->disabled()
-                            ->visible(fn ($record) => !empty($record?->error_message)),
+                            ->visible(fn ($record) => ! empty($record?->error_message)),
                     ]),
             ]);
     }
 }
-
-
