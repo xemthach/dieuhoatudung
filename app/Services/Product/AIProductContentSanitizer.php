@@ -2,6 +2,7 @@
 
 namespace App\Services\Product;
 
+use Illuminate\Support\Str;
 use RuntimeException;
 
 class AIProductContentSanitizer
@@ -48,7 +49,7 @@ class AIProductContentSanitizer
         $payload['og_description'] = $this->cleanText((string) ($payload['og_description'] ?? ''));
         $payload['merchant_title'] = $this->cleanText((string) ($payload['merchant_title'] ?? ''));
         $payload['merchant_description'] = $this->cleanText((string) ($payload['merchant_description'] ?? ''));
-        $payload['tags'] = $this->sanitizeStringList($payload['tags'] ?? []);
+        $payload['tags'] = $this->sanitizeTags($payload['tags'] ?? []);
         $payload['internal_links'] = $this->sanitizeLinks($payload['internal_links'] ?? []);
         $payload['warnings'] = $this->sanitizeStringList($payload['warnings'] ?? []);
         $payload['faq'] = $this->sanitizeFaq($payload['faq'] ?? []);
@@ -86,7 +87,7 @@ class AIProductContentSanitizer
 
     public function assertNoInternalLanguage(array $payload): void
     {
-        $text = json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?: '';
+        $text = $this->displayText($payload);
 
         if (preg_match('/\b[A-Z]{2,}[A-Za-z]*(?:Service|Controller|Model)\b|\b[A-Z][a-z]+(?:[A-Z][A-Za-z0-9]+)+(?:Service|Controller|Model|Repository|Provider|Gateway|Adapter)?\b|\b[a-zA-Z_][a-zA-Z0-9_]*\s*\(\s*\)|\b(?:product|post|blog|config|request|response|job|payload|input|output)\.[a-zA-Z_][a-zA-Z0-9_.]*\b/u', $text)) {
             throw new RuntimeException('AI output chua ngon ngu noi bo hoac cu phap giong code.');
@@ -176,12 +177,60 @@ class AIProductContentSanitizer
     private function sanitizeStringList(mixed $items): array
     {
         return collect(is_array($items) ? $items : [])
-            ->map(fn ($item) => $this->cleanText(is_array($item) ? (string) ($item['name'] ?? '') : (string) $item))
+            ->map(fn ($item) => $this->cleanText($this->stringFromMixed($item)))
             ->map(fn ($item) => preg_match(self::VIETNAMESE_DIACRITIC_PATTERN, $item) ? $item : mb_strtolower($item, 'UTF-8'))
             ->filter()
             ->unique(fn ($item) => mb_strtolower($item))
             ->values()
             ->all();
+    }
+
+    private function sanitizeTags(mixed $items): array
+    {
+        return collect(is_array($items) ? $items : [])
+            ->map(fn ($item) => $this->cleanText($this->stringFromMixed($item)))
+            ->map(function (string $tag): string {
+                if ($tag === '') {
+                    return '';
+                }
+
+                if (preg_match(self::VIETNAMESE_DIACRITIC_PATTERN, $tag)) {
+                    $tag = mb_strtolower($tag, 'UTF-8');
+
+                    return trim(preg_replace('/[^\p{L}\p{N}\s-]+/u', '', $tag) ?? '');
+                }
+
+                $ascii = Str::ascii($tag);
+                $ascii = mb_strtolower($ascii, 'UTF-8');
+                $ascii = preg_replace('/(\d)[.,](\d{3})/u', '$1$2', $ascii) ?? $ascii;
+                $ascii = preg_replace('/(\d)\s+(btu|hp|kw|db|pa|mm|kg|w|a)\b/u', '$1$2', $ascii) ?? $ascii;
+                $ascii = preg_replace('/[^a-z0-9]+/u', '-', $ascii) ?? '';
+
+                return trim($ascii, '-');
+            })
+            ->filter()
+            ->unique(fn ($item) => mb_strtolower($item))
+            ->values()
+            ->all();
+    }
+
+    private function stringFromMixed(mixed $item): string
+    {
+        if (is_scalar($item)) {
+            return (string) $item;
+        }
+
+        if (is_array($item)) {
+            foreach (['name', 'code', 'warning', 'claim', 'message', 'value', 'label'] as $key) {
+                if (isset($item[$key]) && is_scalar($item[$key])) {
+                    return (string) $item[$key];
+                }
+            }
+
+            return json_encode($item, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?: '';
+        }
+
+        return '';
     }
 
     private function sanitizeFaq(mixed $faq): array

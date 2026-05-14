@@ -197,6 +197,19 @@ class AIProductContentSystemTest extends TestCase
         $this->assertContains('42000btu', $payload['tags']);
     }
 
+    public function test_product_payload_normalizes_technical_tags_without_rejecting_them(): void
+    {
+        $payload = $this->validPayload();
+        $payload['tags'] = ['GREE', 'R410A', 'GCC42S6I/GMC42S6I', '42.000 BTU', 'Äiá»u hÃ²a Ã¢m tráº§n'];
+
+        $payload = app(AIProductContentSanitizer::class)->sanitizePayload($payload);
+
+        $this->assertContains('gree', $payload['tags']);
+        $this->assertContains('r410a', $payload['tags']);
+        $this->assertContains('gcc42s6i-gmc42s6i', $payload['tags']);
+        $this->assertContains('42000btu', $payload['tags']);
+    }
+
     public function test_unaccented_vietnamese_product_content_is_rejected(): void
     {
         $this->expectException(\RuntimeException::class);

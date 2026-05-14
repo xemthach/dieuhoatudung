@@ -99,6 +99,34 @@ class AIContentGovernanceTest extends TestCase
         $this->assertContains('unverified_numeric_claim:30.000 BTU', $result['blocked_claims']);
     }
 
+    public function test_refrigerant_code_is_not_treated_as_ampere_claim(): void
+    {
+        $product = Product::factory()->create(['refrigerant_gas' => 'R410A']);
+        $governance = app(AIContentGovernance::class);
+
+        $result = $governance->validateText(
+            '<p>San pham su dung moi chat lanh R410A.</p>',
+            $governance->buildProductContext($product)
+        );
+
+        $this->assertSame('verified', $result['status']);
+        $this->assertNotContains('unverified_numeric_claim:410A', $result['blocked_claims']);
+    }
+
+    public function test_recommended_area_range_allows_area_inside_verified_range(): void
+    {
+        $product = Product::factory()->create(['recommended_area' => '50-70 m2']);
+        $governance = app(AIContentGovernance::class);
+
+        $result = $governance->validateText(
+            '<p>San pham phu hop khu vuc 60m2 khi dieu kien lap dat dap ung yeu cau.</p>',
+            $governance->buildProductContext($product)
+        );
+
+        $this->assertSame('verified', $result['status']);
+        $this->assertSame([], $result['blocked_claims']);
+    }
+
     public function test_warranty_claim_without_policy_is_blocked(): void
     {
         $product = Product::factory()->create(['warranty_info' => null]);

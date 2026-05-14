@@ -38,15 +38,15 @@ class ItemsRelationManager extends RelationManager
                     ->placeholder('-'),
                 TextColumn::make('generated_payload_json.governance_context.missing_facts')
                     ->label('Missing data')
-                    ->formatStateUsing(fn ($state) => is_array($state) ? implode(', ', $state) : '')
+                    ->formatStateUsing(fn ($state) => self::formatList($state))
                     ->limit(50)
-                    ->tooltip(fn ($record) => implode(', ', $record->generated_payload_json['governance_context']['missing_facts'] ?? []))
+                    ->tooltip(fn ($record) => self::formatList($record->generated_payload_json['governance_context']['missing_facts'] ?? []))
                     ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('generated_payload_json.used_facts')
                     ->label('Used facts')
-                    ->formatStateUsing(fn ($state) => is_array($state) ? implode(', ', $state) : '')
+                    ->formatStateUsing(fn ($state) => self::formatList($state))
                     ->limit(50)
-                    ->tooltip(fn ($record) => implode(', ', $record->generated_payload_json['used_facts'] ?? []))
+                    ->tooltip(fn ($record) => self::formatList($record->generated_payload_json['used_facts'] ?? []))
                     ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('generated_payload_json.fact_check.calculation_source')
                     ->label('Calc source')
@@ -55,9 +55,9 @@ class ItemsRelationManager extends RelationManager
                     ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('warnings_json')
                     ->label('Warnings')
-                    ->formatStateUsing(fn ($state) => is_array($state) ? implode(', ', $state) : '')
+                    ->formatStateUsing(fn ($state) => self::formatList($state))
                     ->limit(60)
-                    ->tooltip(fn ($record) => implode(', ', $record->warnings_json ?? [])),
+                    ->tooltip(fn ($record) => self::formatList($record->warnings_json ?? [])),
                 TextColumn::make('error_message')->label('Lỗi')->limit(60)->color('danger'),
                 TextColumn::make('provider')->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('model')->toggleable(isToggledHiddenByDefault: true),
@@ -74,5 +74,33 @@ class ItemsRelationManager extends RelationManager
                         'failed' => 'Thất bại',
                     ]),
             ]);
+    }
+
+    private static function formatList(mixed $state): string
+    {
+        if (! is_array($state)) {
+            return is_scalar($state) ? (string) $state : '';
+        }
+
+        return collect($state)
+            ->map(function ($item): string {
+                if (is_scalar($item)) {
+                    return (string) $item;
+                }
+
+                if (is_array($item)) {
+                    foreach (['code', 'warning', 'claim', 'message', 'value', 'name', 'label'] as $key) {
+                        if (isset($item[$key]) && is_scalar($item[$key])) {
+                            return (string) $item[$key];
+                        }
+                    }
+
+                    return json_encode($item, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?: '';
+                }
+
+                return '';
+            })
+            ->filter()
+            ->implode(', ');
     }
 }

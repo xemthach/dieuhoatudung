@@ -141,14 +141,14 @@ class AIProductContentSystem
             'merchant_title',
             'merchant_description',
         ]);
-        $warnings = array_values(array_unique(array_merge(
+        $warnings = $this->normalizeIssueList(
             $payload['warnings'],
             $factCheck['warnings'],
             $this->detectDuplicateWarnings($product, $payload['content_html']),
             $this->scorer->auditWarnings($product)
-        )));
+        );
         $payload['warnings'] = $warnings;
-        $payload['blocked_claims'] = array_values(array_unique(array_merge($payload['blocked_claims'] ?? [], $factCheck['blocked_claims'])));
+        $payload['blocked_claims'] = $this->normalizeIssueList($payload['blocked_claims'] ?? [], $factCheck['blocked_claims']);
         $payload['used_facts'] = $factCheck['used_facts'];
         $payload['fact_check'] = $factCheck;
         $payload['governance_context'] = $this->governance->publicContext($guardContext);
@@ -397,6 +397,56 @@ class AIProductContentSystem
         return ['score_before' => $score, 'score_after' => $score, 'status' => 'completed_with_warnings', 'payload' => []];
     }
 
+    private function normalizeIssueList(mixed ...$lists): array
+    {
+        $items = [];
+
+        foreach ($lists as $list) {
+            foreach ($this->flattenIssueList($list) as $item) {
+                $item = trim($item);
+                if ($item !== '') {
+                    $items[] = $item;
+                }
+            }
+        }
+
+        return array_values(array_unique($items));
+    }
+
+    private function flattenIssueList(mixed $value): array
+    {
+        if (is_scalar($value)) {
+            return [(string) $value];
+        }
+
+        if (! is_array($value)) {
+            return [];
+        }
+
+        $items = [];
+        foreach ($value as $item) {
+            if (is_scalar($item)) {
+                $items[] = (string) $item;
+
+                continue;
+            }
+
+            if (is_array($item)) {
+                foreach (['code', 'warning', 'claim', 'message', 'value', 'name', 'label'] as $key) {
+                    if (isset($item[$key]) && is_scalar($item[$key])) {
+                        $items[] = (string) $item[$key];
+
+                        continue 2;
+                    }
+                }
+
+                $items[] = json_encode($item, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?: '';
+            }
+        }
+
+        return $items;
+    }
+
     private function buildInput(Product $product): array
     {
         return [
@@ -456,9 +506,9 @@ class AIProductContentSystem
         $payload['tags'] = is_array($payload['tags'] ?? null) ? $payload['tags'] : [];
         $payload['faq'] = is_array($payload['faq'] ?? null) ? $payload['faq'] : [];
         $payload['internal_links'] = is_array($payload['internal_links'] ?? null) ? $payload['internal_links'] : [];
-        $payload['warnings'] = is_array($payload['warnings'] ?? null) ? $payload['warnings'] : [];
+        $payload['warnings'] = $this->normalizeIssueList($payload['warnings'] ?? []);
         $payload['used_facts'] = is_array($payload['used_facts'] ?? null) ? $payload['used_facts'] : [];
-        $payload['blocked_claims'] = is_array($payload['blocked_claims'] ?? null) ? $payload['blocked_claims'] : [];
+        $payload['blocked_claims'] = $this->normalizeIssueList($payload['blocked_claims'] ?? []);
 
         $payload = $this->sanitizer->sanitizePayload($payload);
         $this->validatePayload($payload, $product, $config);
@@ -466,7 +516,7 @@ class AIProductContentSystem
         return $payload;
     }
 
-    private function validatePayload(array $payload, Product $product, array $config): void
+    private function validatePayload(array &$payload, Product $product, array $config): void
     {
         if ((int) ($payload['product_id'] ?? 0) !== (int) $product->id) {
             throw new RuntimeException('AI output không khớp sản phẩm đang xử lý.');
@@ -479,7 +529,9 @@ class AIProductContentSystem
         if (($config['outputs']['content'] ?? false) && ! in_array('missing_technical_data', $payload['warnings'], true)) {
             $minimumWords = $this->isCommercialProduct($product) ? 1200 : 800;
             $words = $this->scorer->wordCount($payload['content_html']);
-            if ($words < $minimumWords) {
+            if ($words < $minimumWords && $words >= (int) floor($minimumWords * 0.75)) {
+                $payload['warnings'] = $this->normalizeIssueList($payload['warnings'], ["content_too_short:{$words}/{$minimumWords}"]);
+            } elseif ($words < $minimumWords) {
                 throw new RuntimeException("AI output content quá ngắn ({$words}/{$minimumWords} từ).");
             }
         }

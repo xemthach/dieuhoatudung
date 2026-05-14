@@ -240,6 +240,7 @@ class AIContentGovernance
         $plain = $this->plainText($html);
         $ascii = Str::ascii(Str::lower($plain));
         $allowedNumbers = $this->allowedNumbers($context);
+        $allowedRanges = $this->allowedNumberRanges($context);
 
         $warnings = [];
         $blockedClaims = [];
@@ -247,11 +248,15 @@ class AIContentGovernance
 
         if (preg_match_all('/(\d{1,3}(?:[.,]\d{3})*(?:[.,]\d+)?|\d+)\s*(BTU|kW|HP|m2|m²|dB|Pa|mm|kg|W|A)\b/iu', $plain, $matches, PREG_SET_ORDER)) {
             foreach ($matches as $match) {
+                if (preg_match('/[A-Za-z]'.preg_quote(trim($match[0]), '/').'\b/u', $plain)) {
+                    continue;
+                }
+
                 $unit = Str::lower($match[2]);
                 $normalizedUnit = $unit === 'm²' ? 'm2' : $unit;
                 $number = $this->normalizeNumber($match[1]);
 
-                if (! $this->numberAllowed($number, $normalizedUnit, $allowedNumbers)) {
+                if (! $this->numberAllowed($number, $normalizedUnit, $allowedNumbers, $allowedRanges)) {
                     $claim = trim($match[0]);
                     $warnings[] = 'unverified_numeric_claim:'.$claim;
                     $blockedClaims[] = 'unverified_numeric_claim:'.$claim;
@@ -262,7 +267,7 @@ class AIContentGovernance
         if (preg_match_all('/(\d{1,3}(?:[.,]\d{3})*(?:[.,]\d+)?|\d+)\s*(VND|VNĐ|đ|dong)\b/iu', $plain, $matches, PREG_SET_ORDER)) {
             foreach ($matches as $match) {
                 $number = $this->normalizeNumber($match[1]);
-                if (! $this->numberAllowed($number, 'vnd', $allowedNumbers)) {
+                if (! $this->numberAllowed($number, 'vnd', $allowedNumbers, $allowedRanges)) {
                     $claim = trim($match[0]);
                     $warnings[] = 'unverified_price_claim:'.$claim;
                     $blockedClaims[] = 'unverified_price_claim:'.$claim;
@@ -413,6 +418,7 @@ class AIContentGovernance
 
             if (! in_array($fact, $allowedKeys, true)) {
                 $warnings[] = 'unverified_used_fact:'.$fact;
+
                 continue;
             }
 
@@ -454,6 +460,45 @@ class AIContentGovernance
         return array_map(fn ($values) => array_values(array_unique($values)), $numbers);
     }
 
+    private function allowedNumberRanges(array $context): array
+    {
+        $ranges = [];
+
+        foreach ($context['allowed_facts'] ?? [] as $key => $fact) {
+            $value = $fact['value'] ?? null;
+            if ($value === null || $value === '') {
+                continue;
+            }
+
+            $haystack = $key.' '.$this->plainText(is_scalar($value) ? (string) $value : json_encode($value));
+            if (! preg_match_all('/(\d{1,3}(?:[.,]\d{3})*(?:[.,]\d+)?|\d+)\s*(?:-|–|đến|to)\s*(\d{1,3}(?:[.,]\d{3})*(?:[.,]\d+)?|\d+)\s*(BTU|kW|HP|m2|mÂ²|dB|Pa|mm|kg|W|A)?\b/iu', $haystack, $matches, PREG_SET_ORDER)) {
+                continue;
+            }
+
+            foreach ($matches as $match) {
+                $unit = Str::lower((string) ($match[3] ?? ''));
+                $unit = $unit === 'mÂ²' ? 'm2' : $unit;
+
+                if ($unit === '') {
+                    $unit = $this->inferUnitFromFactKey($key);
+                }
+
+                if ($unit === '') {
+                    continue;
+                }
+
+                $from = $this->normalizeNumber($match[1]);
+                $to = $this->normalizeNumber($match[2]);
+                $ranges[$unit][] = [
+                    'min' => min($from, $to),
+                    'max' => max($from, $to),
+                ];
+            }
+        }
+
+        return $ranges;
+    }
+
     private function inferUnitFromFactKey(string $key): string
     {
         return match (true) {
@@ -469,7 +514,7 @@ class AIContentGovernance
         };
     }
 
-    private function numberAllowed(float $number, string $unit, array $allowedNumbers): bool
+    private function numberAllowed(float $number, string $unit, array $allowedNumbers, array $allowedRanges = []): bool
     {
         $unit = Str::lower($unit);
         if (! in_array($unit, self::NUMERIC_UNITS, true)) {
@@ -479,6 +524,15 @@ class AIContentGovernance
         foreach ($allowedNumbers[$unit] ?? [] as $allowed) {
             $tolerance = max(0.01, abs($allowed) * 0.01);
             if (abs($number - $allowed) <= $tolerance) {
+                return true;
+            }
+        }
+
+        foreach ($allowedRanges[$unit] ?? [] as $range) {
+            $min = (float) ($range['min'] ?? 0);
+            $max = (float) ($range['max'] ?? 0);
+            $tolerance = max(0.01, max(abs($min), abs($max)) * 0.01);
+            if ($number >= ($min - $tolerance) && $number <= ($max + $tolerance)) {
                 return true;
             }
         }

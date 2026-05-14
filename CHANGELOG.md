@@ -2,6 +2,28 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.15.1] - 2026-05-14
+
+### Added
+- Added regression coverage for AI product tag normalization, refrigerant codes such as R410A, and verified recommended-area ranges.
+
+### Fixed
+- Fixed AI product job item pages crashing with array-to-string conversion when warnings, missing facts, or used facts contain structured values.
+- Fixed AI product output validation rejecting valid technical tags such as brand names, refrigerant codes, model-code pairs, and BTU tags.
+- Fixed fact-check false positives where refrigerant codes could be read as electrical current claims.
+- Fixed verified recommended-area ranges so values inside a stored range are accepted instead of being blocked as unverified m2 claims.
+- Fixed near-complete AI product drafts being failed only for modest word-count shortfall by saving them with review warnings instead of discarding the draft.
+
+### Changed
+- Changed internal-language validation to scan only user-visible AI copy and FAQ content, avoiding false positives from governance metadata.
+- Changed AI warning and blocked-claim handling to flatten structured values before saving, displaying, or logging.
+
+### Removed
+- None.
+
+### Security
+- Kept AI fact-check blocking for unverified technical numbers and internal implementation wording while reducing false positives for legitimate HVAC product data.
+
 ## [1.15.0] - 2026-05-14
 
 ### Added
