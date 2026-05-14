@@ -2,6 +2,48 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.15.0] - 2026-05-14
+
+### Added
+- Added AI Product Content System under Product admin workflows, including single-product draft generation, bulk generation from selected products, and generation for all products matching the current filter.
+- Added AI Product Job admin pages with item-level status, warnings, SEO scores, generated payload preview, and product-level job history.
+- Added product AI database support: product AI status/score/timestamps/error fields, AI product jobs, job items, and version backups for rollback.
+- Added queued product AI processing with batch and single-product jobs so long AI requests do not block admin web requests.
+- Added AI product content services for prompt generation, payload sanitizing, SEO scoring, duplicate-risk warnings, draft apply, and rollback.
+- Added HVAC AI governance and technical fact validation for product and blog content, including allowed facts, missing facts, blocked claims, warning tracking, and verified calculation handling.
+- Added HVAC configuration for calculation factors and centralized BTU calculation rules.
+- Added AI product tests, AI governance tests, permission governance tests, and expanded provider gateway coverage.
+- Added live-server documentation for AI queue/Supervisor setup and v1.15.0 deployment.
+
+### Fixed
+- Fixed AI blog/product content validation so short output, missing FAQ, unsafe HTML, internal implementation wording, invalid JSON, unverified numbers, or unsupported technical claims are blocked or marked for review.
+- Fixed product AI bulk actions failing when AI product job tables were missing by adding the required migrations.
+- Fixed live AI jobs staying pending on servers without a queue worker by documenting Supervisor setup and queue restart checks.
+- Fixed public HVAC copy that displayed Vietnamese without accents on the floor-standing AC landing page, advisory BTU card, quote form steps, and BTU calculation messages.
+- Fixed placeholder quote commitment content such as dynamic block/item labels by adding a cleanup migration for existing database content.
+- Fixed product detail wording that implied VAT or best price without verified configuration by using neutral quote-focused copy.
+- Fixed dashboard widgets and data-transfer actions to respect permissions before querying or running import/export logic.
+- Fixed mail template rendering edge cases and product import handling for AI/technical data validation.
+
+### Changed
+- Changed AI content job statuses to distinguish verified completion, warning completion, review-needed, and blocked states.
+- Changed HVAC blog prompting to use verified data context, avoid unverified BTU formulas, and return warnings/blocked claims alongside content.
+- Changed product list/admin UI to show AI status, SEO score, last AI run, warning count, AI filters, and AI bulk actions.
+- Changed public marketing copy to remove unsupported claims around “best”, “free”, “official”, VAT, warranty, and energy-saving percentages unless data exists.
+- Changed generated product content validation to require UTF-8 Vietnamese with accents and to reject mojibake, unaccented Vietnamese, placeholders, or code-like text before saving.
+- Changed import/export and dashboard visibility behavior to be permission-aware.
+- Rebuilt Vite assets and replaced the old generated CSS asset.
+
+### Removed
+- Removed the previous generated CSS asset `public/build/assets/app-DhHpGVpR.css`.
+- Removed unsupported public claims and fallback copy that could imply unverified warranty, VAT, free installation, or fixed energy savings.
+
+### Security
+- Added backend permission enforcement for product AI generation, data import/export, dashboard widgets, and protected admin actions instead of relying only on hidden UI.
+- Added AI output sanitization for unsafe HTML, script/style/event attributes, raw variables, placeholders, internal implementation wording, and unverified technical/price claims.
+- Added fact-check blocking for unverified BTU, kW, HP, m2, dB, Pa, mm, kg, W, A, price, VAT, warranty, CO/CQ, and absolute marketing claims.
+- Added safer logging for AI product generation metadata without exposing provider secrets.
+
 ## [1.14.0] - 2026-05-13
 
 ### Added

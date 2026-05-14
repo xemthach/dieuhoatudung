@@ -162,11 +162,11 @@
     <div class="container-main relative py-16 lg:py-24">
         <div class="mx-auto max-w-3xl text-center">
             <h1 class="text-2xl font-extrabold tracking-tight text-white sm:text-3xl lg:text-5xl">
-                {{ setting('general.site_name', '') }} <span class="text-accent-400">Chính Hãng</span>
+                {{ setting('general.site_name', '') }} <span class="text-accent-400">Điều Hòa Tủ Đứng</span>
             </h1>
             <p class="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-primary-100">
                 Giải pháp làm mát chuyên nghiệp cho không gian lớn. Đa dạng thương hiệu, công suất phù hợp mọi nhu cầu.
-                Miễn phí lắp đặt, bảo hành chính hãng toàn quốc.
+                Phương án lắp đặt và chính sách bảo hành cần đối chiếu theo từng sản phẩm hoặc báo giá cụ thể.
             </p>
 
 
@@ -174,7 +174,7 @@
             <div class="mt-8 flex flex-col items-center justify-center gap-4 sm:flex-row">
                 <a href="{{ route('quote.index') }}" class="btn-accent w-full px-8 py-4 text-base sm:w-auto">
                     <svg class="mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-                    Nhận báo giá miễn phí
+                    Nhận báo giá
                 </a>
                 <a href="{{ route('products.index') }}" class="btn-outline w-full border-white/30 px-8 py-4 text-base text-white hover:bg-white/10 sm:w-auto">
                     Xem sản phẩm

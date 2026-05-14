@@ -66,7 +66,9 @@ trait HasDataTransferActions
                     })
                     ->columns(3),
             ])
-            ->action(function (array $data) use ($module) {
+            ->action(function (array $data) use ($module, $exportPerm) {
+                abort_unless(auth()->user()?->isSuperAdmin() || auth()->user()?->can($exportPerm), 403);
+
                 $service = app(DataExportService::class);
 
                 try {
@@ -159,7 +161,9 @@ trait HasDataTransferActions
                     ->directory('temp-imports')
                     ->visibility('private'),
             ])
-            ->action(function (array $data) use ($module) {
+            ->action(function (array $data) use ($module, $importPerm) {
+                abort_unless(auth()->user()?->isSuperAdmin() || auth()->user()?->can($importPerm), 403);
+
                 $service = app(DataImportService::class);
 
                 try {

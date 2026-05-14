@@ -106,7 +106,6 @@ class ProductImportMapper
         'seo_title', 'meta_description', 'seo_description',
         // Import metadata
         'import_action', 'extraction_confidence',
-        'source_catalogue', 'source_page', 'source_table',
         // Misc
         'type', 'stock_status', 'regular_price', 'sale_price',
     ];

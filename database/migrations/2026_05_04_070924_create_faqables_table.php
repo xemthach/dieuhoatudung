@@ -9,9 +9,12 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('faqables', function (Blueprint $table) {
+            $table->id();
             $table->foreignId('faq_id')->constrained()->cascadeOnDelete();
             $table->morphs('faqable');
-            $table->primary(['faq_id', 'faqable_id', 'faqable_type']);
+            $table->integer('sort_order')->default(0);
+            $table->timestamps();
+            $table->unique(['faq_id', 'faqable_id', 'faqable_type'], 'faqables_unique_pivot');
         });
     }
 

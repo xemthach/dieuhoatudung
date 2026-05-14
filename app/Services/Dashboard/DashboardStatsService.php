@@ -29,6 +29,10 @@ class DashboardStatsService
     // ─── LEADS ─────────────────────────────────────────────
     public function getLeadStats(): array
     {
+        if (! $this->can('lead.view')) {
+            return ['today' => 0, 'this_week' => 0, 'pending' => 0, 'latest' => collect()];
+        }
+
         return [
             'today'     => Lead::whereDate('created_at', today())->count(),
             'this_week' => Lead::whereBetween('created_at', [now()->startOfWeek(), now()->endOfWeek()])->count(),
@@ -40,6 +44,10 @@ class DashboardStatsService
     // ─── PRODUCTS ──────────────────────────────────────────
     public function getProductStats(): array
     {
+        if (! $this->can('product.view')) {
+            return ['total' => 0, 'missing_seo' => 0, 'missing_image' => 0, 'on_sale' => 0];
+        }
+
         return [
             'total'         => Product::count(),
             'missing_seo'   => Product::whereNull('seo_title')->orWhereNull('seo_description')->count(),
@@ -51,6 +59,10 @@ class DashboardStatsService
     // ─── POSTS ─────────────────────────────────────────────
     public function getPostStats(): array
     {
+        if (! $this->can('post.view')) {
+            return ['total' => 0, 'missing_seo' => 0, 'draft' => 0];
+        }
+
         return [
             'total'       => Post::count(),
             'missing_seo' => Post::whereNull('seo_title')->orWhereNull('seo_description')->count(),
@@ -61,6 +73,10 @@ class DashboardStatsService
     // ─── SEO ───────────────────────────────────────────────
     public function getSeoStats(): array
     {
+        if (! $this->can('seo_audit.view')) {
+            return ['total' => 0, 'critical' => 0, 'warning' => 0, 'notice' => 0, 'score' => 100];
+        }
+
         try {
             $seoAuditService = app(SeoAuditService::class);
             $seoIssues = $seoAuditService->run(false);
@@ -89,6 +105,17 @@ class DashboardStatsService
     // ─── MAIL STATUS ───────────────────────────────────────
     public function getMailStatus(): array
     {
+        if (! $this->can('mail_log.view') && ! $this->can('settings.view')) {
+            return [
+                'enabled' => false,
+                'provider' => null,
+                'configured' => false,
+                'status' => 'hidden',
+                'label' => 'Hidden',
+                'stats_7d' => ['total' => 0, 'sent' => 0, 'failed' => 0, 'skipped' => 0],
+            ];
+        }
+
         $enabled      = (bool) $this->settingService->get('mail.mail_enabled', false);
         $providerName = $this->settingService->get('mail.mail_provider', 'smtp');
 
@@ -158,6 +185,18 @@ class DashboardStatsService
     // ─── R2/CDN STATUS ─────────────────────────────────────
     public function getR2Status(): array
     {
+        if (! $this->can('r2.view')) {
+            return [
+                'enabled' => false,
+                'configured' => false,
+                'status' => 'hidden',
+                'label' => 'Hidden',
+                'mode' => null,
+                'last_sync' => null,
+                'failed_jobs' => 0,
+            ];
+        }
+
         $enabled = $this->r2ConnectionService->isEnabled();
 
         if (!$enabled) {
@@ -210,6 +249,17 @@ class DashboardStatsService
     // ─── AI STATUS ─────────────────────────────────────────
     public function getAIStatus(): array
     {
+        if (! $this->can('ai_content_job.view') && ! $this->can('ai_provider.view') && ! $this->can('product.ai_generate')) {
+            return [
+                'enabled' => false,
+                'active_providers' => 0,
+                'status' => 'hidden',
+                'label' => 'Hidden',
+                'pending_jobs' => 0,
+                'failed_jobs' => 0,
+            ];
+        }
+
         $activeProviders = AiProvider::where('status', 'active')
             ->whereNull('deleted_at')
             ->get();
@@ -339,37 +389,39 @@ class DashboardStatsService
     // ─── QUICK ACTIONS ─────────────────────────────────────
     public function getQuickActions(): array
     {
-        return [
-            [
-                'label' => 'Tạo SP',
-                'icon'  => 'plus',
-                'url'   => route('filament.admin.resources.products.create'),
-            ],
-            [
-                'label' => 'Tạo Bài',
-                'icon'  => 'plus',
-                'url'   => route('filament.admin.resources.posts.create'),
-            ],
-            [
-                'label' => 'Tạo Lead',
-                'icon'  => 'plus',
-                'url'   => route('filament.admin.resources.leads.create'),
-            ],
-            [
-                'label' => 'SEO Audit',
-                'icon'  => 'search',
-                'url'   => route('filament.admin.pages.seo-audit'),
-            ],
-            [
-                'label' => 'R2 Sync',
-                'icon'  => 'sync',
-                'url'   => route('filament.admin.pages.r2-sync-manager'),
-            ],
-            [
-                'label' => 'Cài đặt',
-                'icon'  => 'cog',
-                'url'   => route('filament.admin.pages.manage-settings'),
-            ],
-        ];
+        $actions = [];
+
+        if ($this->can('product.create')) {
+            $actions[] = ['label' => 'Tao SP', 'icon' => 'plus', 'url' => route('filament.admin.resources.products.create')];
+        }
+
+        if ($this->can('post.create')) {
+            $actions[] = ['label' => 'Tao Bai', 'icon' => 'plus', 'url' => route('filament.admin.resources.posts.create')];
+        }
+
+        if ($this->can('lead.create')) {
+            $actions[] = ['label' => 'Tao Lead', 'icon' => 'plus', 'url' => route('filament.admin.resources.leads.create')];
+        }
+
+        if ($this->can('seo_audit.view')) {
+            $actions[] = ['label' => 'SEO Audit', 'icon' => 'search', 'url' => route('filament.admin.pages.seo-audit')];
+        }
+
+        if ($this->can('r2.view')) {
+            $actions[] = ['label' => 'R2 Sync', 'icon' => 'sync', 'url' => route('filament.admin.pages.r2-sync-manager')];
+        }
+
+        if ($this->can('settings.view')) {
+            $actions[] = ['label' => 'Cai dat', 'icon' => 'cog', 'url' => route('filament.admin.pages.manage-settings')];
+        }
+
+        return $actions;
+    }
+
+    private function can(string $permission): bool
+    {
+        $user = auth()->user();
+
+        return (bool) ($user?->isSuperAdmin() || $user?->can($permission));
     }
 }

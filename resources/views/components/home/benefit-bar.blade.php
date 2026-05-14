@@ -44,8 +44,8 @@
                     <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
                 </div>
                 <div>
-                    <p class="text-sm font-semibold text-surface-900">Chính hãng 100%</p>
-                    <p class="text-xs text-surface-500">Nhập khẩu trực tiếp</p>
+                    <p class="text-sm font-semibold text-surface-900">Dữ liệu sản phẩm rõ ràng</p>
+                    <p class="text-xs text-surface-500">Đối chiếu theo model</p>
                 </div>
             </div>
             <div class="flex items-center gap-3 rounded-lg p-3">
@@ -53,8 +53,8 @@
                     <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
                 </div>
                 <div>
-                    <p class="text-sm font-semibold text-surface-900">Lắp đặt miễn phí</p>
-                    <p class="text-xs text-surface-500">Kỹ thuật chuyên nghiệp</p>
+                    <p class="text-sm font-semibold text-surface-900">Tư vấn lắp đặt</p>
+                    <p class="text-xs text-surface-500">Theo điều kiện công trình</p>
                 </div>
             </div>
             <div class="flex items-center gap-3 rounded-lg p-3">
@@ -62,7 +62,7 @@
                     <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                 </div>
                 <div>
-                    <p class="text-sm font-semibold text-surface-900">Bảo hành 3-5 năm</p>
+                    <p class="text-sm font-semibold text-surface-900">Chính sách theo sản phẩm</p>
                     <p class="text-xs text-surface-500">Theo chính sách hãng</p>
                 </div>
             </div>

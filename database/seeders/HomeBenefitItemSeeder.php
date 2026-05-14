@@ -16,7 +16,7 @@ class HomeBenefitItemSeeder extends Seeder
 
         $items = [
             [
-                'title'      => 'Chính hãng 100%',
+                'title'      => 'Dữ liệu sản phẩm rõ ràng',
                 'subtitle'   => 'Nhập khẩu trực tiếp',
                 'icon_type'  => 'heroicon',
                 'icon_name'  => 'shield-check',

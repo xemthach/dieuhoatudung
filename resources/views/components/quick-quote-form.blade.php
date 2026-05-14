@@ -115,7 +115,7 @@
             </div>
 
             <p class="mt-3 text-center text-xs text-surface-400">
-                Phản hồi trong vòng 30 phút &mdash; Miễn phí tư vấn
+                Phản hồi theo lịch tư vấn &mdash; Báo giá theo nhu cầu
             </p>
         </form>
 

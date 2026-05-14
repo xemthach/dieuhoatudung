@@ -31,12 +31,12 @@ class HeroSlideForm
                             TextInput::make('title')
                                 ->label('Tiêu đề chính')
                                 ->maxLength(255)
-                                ->placeholder('Điều Hòa Tủ Đứng Chính Hãng'),
+                                ->placeholder('Điều Hòa Tủ Đứng'),
 
                             TextInput::make('highlight_text')
                                 ->label('Text highlight (màu nhấn)')
                                 ->maxLength(255)
-                                ->placeholder('Chính Hãng')
+                                ->placeholder('Tư vấn theo công trình')
                                 ->helperText('Phần text được tô màu nhấn trong tiêu đề.'),
 
                             TextInput::make('subtitle')
@@ -163,7 +163,7 @@ class HeroSlideForm
                                     TextInput::make('cta_primary_text')
                                         ->label('Text')
                                         ->maxLength(100)
-                                        ->placeholder('Nhận báo giá miễn phí'),
+                                        ->placeholder('Nhận báo giá'),
                                     TextInput::make('cta_primary_url')
                                         ->label('URL')
                                         ->maxLength(500)

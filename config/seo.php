@@ -11,7 +11,7 @@ return [
     'defaults' => [
         'title_suffix'    => ' | ' . (function_exists('setting') ? setting('general.site_name', 'Điều Hòa Tủ Đứng') : 'Điều Hòa Tủ Đứng'),
         'title_separator' => ' - ',
-        'meta_description'=> 'Chuyên cung cấp điều hòa tủ đứng chính hãng Daikin, LG, Panasonic, Gree. Giá tốt nhất, lắp đặt miễn phí, bảo hành toàn quốc.',
+        'meta_description'=> 'Danh sách điều hòa tủ đứng Daikin, LG, Panasonic, Gree. Xem sản phẩm, thông số kỹ thuật và gửi yêu cầu tư vấn theo công trình.',
         'robots'          => 'index,follow',
         // Không hardcode dev domain — lấy APP_URL từ .env (sẽ fail rõ ràng nếu chưa set).
         'canonical_base'  => env('APP_URL'),

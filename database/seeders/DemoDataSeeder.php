@@ -34,7 +34,7 @@ class DemoDataSeeder extends Seeder
         ];
 
         // ── Product Categories ────────────────────────────────────────
-        $mainCat = ProductCategory::factory()->create(['name' => 'Dieu hoa tu dung', 'slug' => 'dieu-hoa-tu-dung']);
+        $mainCat = ProductCategory::factory()->create(['name' => 'Điều hòa tủ đứng', 'slug' => 'dieu-hoa-tu-dung']);
         $subCats = [
             ProductCategory::factory()->create(['name' => 'Inverter', 'slug' => 'dieu-hoa-tu-dung-inverter', 'parent_id' => $mainCat->id]),
             ProductCategory::factory()->create(['name' => 'Non-Inverter', 'slug' => 'dieu-hoa-tu-dung-non-inverter', 'parent_id' => $mainCat->id]),

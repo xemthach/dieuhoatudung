@@ -18,7 +18,7 @@
                     <div class="flex-1 min-w-0">
                         <h3 class="text-lg font-bold text-success-800 dark:text-success-300">Import hoan tat</h3>
                         <p class="mt-1 text-sm text-success-700 dark:text-success-400">
-                            Da import thanh cong {{ number_format($job->success_rows) }} dong du lieu.
+                            Đã import thành công {{ number_format($job->success_rows) }} dòng dữ liệu.
                         </p>
                     </div>
                 @else

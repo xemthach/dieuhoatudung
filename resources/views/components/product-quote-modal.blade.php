@@ -280,7 +280,7 @@
                 </button>
 
                 <p class="pqm-note">
-                    Miễn phí tư vấn &mdash; Phản hồi trong 30 phút
+                    Báo giá theo nhu cầu &mdash; Phản hồi theo lịch tư vấn
                 </p>
             </form>
 

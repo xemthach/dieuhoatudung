@@ -11,7 +11,7 @@
             <table class="w-full min-w-[700px] text-sm">
                 <thead>
                     <tr class="border-b-2 border-primary-200 bg-primary-50">
-                        <th class="px-4 py-3 text-left font-semibold text-primary-800">Model</th>
+                        <th class="px-4 py-3 text-left font-semibold text-primary-800">Mã máy</th>
                         <th class="px-4 py-3 text-left font-semibold text-primary-800">Thương hiệu</th>
                         <th class="px-4 py-3 text-center font-semibold text-primary-800">BTU</th>
                         <th class="px-4 py-3 text-center font-semibold text-primary-800">Inverter</th>

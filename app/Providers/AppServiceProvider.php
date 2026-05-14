@@ -9,6 +9,7 @@ use Illuminate\Auth\Events\Login;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\ServiceProvider;
 
@@ -34,6 +35,20 @@ class AppServiceProvider extends ServiceProvider
         Gate::before(function (User $user, string $ability) {
             if ($user->hasRole('super_admin')) {
                 return true;
+            }
+        });
+
+        Gate::after(function (User $user, string $ability, ?bool $result) {
+            if ($result === false && request()?->is('admin*')) {
+                Log::warning('permission_denied', [
+                    'user_id' => $user->id,
+                    'route' => request()->route()?->getName(),
+                    'path' => request()->path(),
+                    'permission_required' => $ability,
+                    'method' => request()->method(),
+                    'ip' => request()->ip(),
+                    'timestamp' => now()->toIso8601String(),
+                ]);
             }
         });
 

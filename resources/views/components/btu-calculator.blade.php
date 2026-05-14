@@ -180,7 +180,7 @@
                     <span class="text-5xl font-extrabold">{{ number_format($result['recommended_btu']) }}</span>
                     <div class="text-left">
                         <div class="text-xl font-bold">BTU</div>
-                        <div class="text-xs text-primary-200">≈ {{ $result['recommended_hp'] ?? number_format($result['recommended_btu'] / 9000, 1) }} HP</div>
+                        <div class="text-xs text-primary-200">{{ isset($result['recommended_hp']) ? '≈ ' . $result['recommended_hp'] . ' HP' : 'HP chưa xác định' }}</div>
                     </div>
                 </div>
             </div>

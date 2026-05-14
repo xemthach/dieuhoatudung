@@ -170,7 +170,7 @@
                 <input type="hidden" name="need_inverter" value="0">
                 <input type="checkbox" name="need_inverter" value="1" x-model="formData.need_inverter"
                     class="h-4 w-4 rounded accent-primary-600">
-                <span class="text-sm">Cần Inverter (tiết kiệm điện)</span>
+                <span class="text-sm">Cần Inverter (điều chỉnh tải)</span>
             </label>
             <label class="flex cursor-pointer items-center gap-2.5">
                 <input type="hidden" name="need_three_phase" value="0">

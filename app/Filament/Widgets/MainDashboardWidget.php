@@ -13,6 +13,11 @@ class MainDashboardWidget extends Widget
     
     protected static ?int $sort = -1;
 
+    public static function canView(): bool
+    {
+        return auth()->user()?->can('dashboard.view') ?? false;
+    }
+
     protected function getViewData(): array
     {
         $stats = app(DashboardStatsService::class);

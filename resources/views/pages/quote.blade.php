@@ -142,7 +142,7 @@
                 <h1 class="text-2xl font-extrabold text-surface-900 sm:text-3xl">
                     {{ setting('cta.quote_cta_text', 'Nhận báo giá') }} Điều Hòa Tủ Đứng
                 </h1>
-                <p class="mt-2 text-surface-600">Điền thông tin để nhận báo giá chính xác và tư vấn miễn phí.</p>
+                <p class="mt-2 text-surface-600">Điền thông tin để nhận báo giá và tư vấn theo điều kiện công trình.</p>
             </div>
 
             <div class="overflow-hidden rounded-2xl border border-surface-200 bg-white shadow-lg">
@@ -175,7 +175,7 @@
             {{-- BTU tool link --}}
             <div class="rounded-2xl border border-surface-200 bg-white p-5">
                 <h3 class="mb-2 font-bold text-surface-800">Chưa biết cần bao nhiêu BTU?</h3>
-                <p class="mb-3 text-sm text-surface-600">Dùng công cụ tính công suất miễn phí của chúng tôi.</p>
+                <p class="mb-3 text-sm text-surface-600">Dùng công cụ tính công suất theo dữ liệu khảo sát của hệ thống.</p>
                 <a href="{{ route('btu-calculator.index') }}" class="btn-primary inline-block text-sm">
                     Tính BTU ngay →
                 </a>

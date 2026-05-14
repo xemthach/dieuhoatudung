@@ -1,6 +1,6 @@
 <x-layouts.app
-    :seo-title="'Điều Hòa Tủ Đứng Chính Hãng 2026 - Giá Tốt, Miễn Phí Lắp Đặt'"
-    :seo-description="'Mua điều hòa tủ đứng chính hãng Daikin, LG, Panasonic, Gree. Công suất 24.000 - 100.000 BTU. Miễn phí lắp đặt, bảo hành toàn quốc, giá tốt nhất thị trường.'"
+    :seo-title="'Điều Hòa Tủ Đứng 2026 - Tư Vấn Theo Công Trình'"
+    :seo-description="'Danh sách điều hòa tủ đứng Daikin, LG, Panasonic, Gree. Xem sản phẩm và gửi yêu cầu để được tư vấn theo nhu cầu công trình.'"
     :canonical="route('landing')"
     og-type="website"
 >
@@ -19,8 +19,8 @@
     {
         "@@context": "https://schema.org",
         "@@type": "WebPage",
-        "name": "Điều Hòa Tủ Đứng Chính Hãng",
-        "description": "Chuyên cung cấp điều hòa tủ đứng chính hãng Daikin, LG, Panasonic, Gree. Giá tốt nhất, miễn phí lắp đặt.",
+        "name": "Điều Hòa Tủ Đứng",
+        "description": "Danh sách điều hòa tủ đứng Daikin, LG, Panasonic, Gree. Tư vấn theo nhu cầu công trình và dữ liệu sản phẩm đã công bố.",
         "url": "{{ route('landing') }}",
         "isPartOf": {
             "@@type": "WebSite",

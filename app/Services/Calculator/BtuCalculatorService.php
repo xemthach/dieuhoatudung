@@ -20,6 +20,8 @@ use App\Models\Product;
  */
 class BtuCalculatorService
 {
+    public const WARNING_MISSING_INPUTS = 'missing_btu_inputs';
+
     // ──────────────────────────────────────────────────────────
     // W/m² Cooling Load Table (source: Excel BANG TINH TAI KINH NGHIEM)
     // ──────────────────────────────────────────────────────────
@@ -76,6 +78,11 @@ class BtuCalculatorService
         9000, 12000, 18000, 24000, 28000, 30000, 36000, 42000, 45000, 48000, 50000, 60000, 100000,
     ];
 
+    public function __construct()
+    {
+        $this->btuTiers = config('hvac.btu.standard_tiers', $this->btuTiers);
+    }
+
     /**
      * Calculate HVAC cooling load using W/m² method.
      *
@@ -100,6 +107,26 @@ class BtuCalculatorService
         bool   $sunlight    = false,
         bool   $heatEquip   = false,
     ): array {
+        $warnings = $this->validateInputs($areaMq, $ceilingH, $spaceType);
+
+        if ($warnings !== []) {
+            return [
+                'calculated_btu'        => null,
+                'recommended_btu'       => null,
+                'recommended_hp'        => null,
+                'cooling_w_per_m2'      => null,
+                'base_load_w'           => null,
+                'area_range'            => null,
+                'explanation'           => 'Không đủ dữ liệu đầu vào để tính BTU.',
+                'adjustment_breakdown'  => [],
+                'steps'                 => [],
+                'note'                  => null,
+                'warnings'              => $warnings,
+                'calculation_source'    => self::class,
+                'raw_btu'               => null,
+            ];
+        }
+
         $steps      = [];
         $adjustments = [];
 
@@ -109,10 +136,10 @@ class BtuCalculatorService
         $spaceLabel  = $spaceData['label_vi'];
 
         $baseLoadW   = $areaMq * $wPerM2;
-        $baseBtu     = round($baseLoadW * self::W_TO_BTU);
+        $baseBtu     = round($baseLoadW * $this->wToBtu());
 
         $steps[] = "Diện tích {$areaMq}m² × {$wPerM2} W/m² ({$spaceLabel}) = " . number_format($baseLoadW) . " W";
-        $steps[] = number_format($baseLoadW) . " W × 3.412 = " . number_format($baseBtu) . " BTU";
+        $steps[] = number_format($baseLoadW) . " W × " . $this->wToBtu() . " = " . number_format($baseBtu) . " BTU";
 
         $btu = $baseBtu;
 
@@ -154,7 +181,7 @@ class BtuCalculatorService
 
         $calculatedBtu  = (int) round($btu);
         $recommendedBtu = $this->roundUpToTier($calculatedBtu);
-        $recommendedHp  = round($recommendedBtu / self::BTU_PER_HP, 1);
+        $recommendedHp  = round($recommendedBtu / $this->btuPerHp(), 1);
 
         // ── Area range & note ────────────────────────────────
         $areaRange = $this->btuToAreaRange($recommendedBtu);
@@ -186,6 +213,8 @@ class BtuCalculatorService
             'adjustment_breakdown'  => $adjustments,
             'steps'                 => $steps,
             'note'                  => $note,
+            'warnings'              => [],
+            'calculation_source'    => self::class,
             // BC compat with old keys
             'raw_btu'               => $calculatedBtu,
         ];
@@ -322,24 +351,44 @@ class BtuCalculatorService
         return end($this->btuTiers);
     }
 
+    /**
+     * @return list<string>
+     */
+    public function validateInputs(?float $areaMq, ?float $ceilingH, ?string $spaceType): array
+    {
+        $missing = [];
+
+        if ($areaMq === null || $areaMq <= 0) {
+            $missing[] = 'area_m2';
+        }
+
+        if ($ceilingH === null || $ceilingH <= 0) {
+            $missing[] = 'ceiling_height';
+        }
+
+        if ($spaceType === null || $spaceType === '' || ! isset($this->coolingLoadTable[$spaceType])) {
+            $missing[] = 'space_type';
+        }
+
+        return $missing === []
+            ? []
+            : [self::WARNING_MISSING_INPUTS . ':' . implode(',', $missing)];
+    }
+
     protected function btuToAreaRange(int $btu): string
     {
-        // Based on 170 W/m² (general office) baseline: area ≈ BTU / (170 × 3.412)
-        $map = [
-            9000   => '10 – 15 m²',
-            12000  => '15 – 20 m²',
-            18000  => '20 – 30 m²',
-            24000  => '25 – 40 m²',
-            28000  => '35 – 48 m²',
-            30000  => '38 – 52 m²',
-            36000  => '45 – 62 m²',
-            42000  => '55 – 72 m²',
-            45000  => '58 – 78 m²',
-            48000  => '60 – 83 m²',
-            50000  => '65 – 86 m²',
-            60000  => '80 – 103 m²',
-            100000 => '100 m² trở lên',
-        ];
-        return $map[$btu] ?? (round($btu / (170 * self::W_TO_BTU)) . ' m² trở lên');
+        $map = config('hvac.btu.area_ranges', []);
+
+        return $map[$btu] ?? 'Cần khảo sát tải lạnh thực tế';
+    }
+
+    private function wToBtu(): float
+    {
+        return (float) config('hvac.btu.w_to_btu', self::W_TO_BTU);
+    }
+
+    private function btuPerHp(): int
+    {
+        return (int) config('hvac.btu.btu_per_hp', self::BTU_PER_HP);
     }
 }

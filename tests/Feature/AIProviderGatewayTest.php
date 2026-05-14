@@ -173,7 +173,10 @@ class AIProviderGatewayTest extends TestCase
         (new GenerateBlogDraftJob($contentJob->id))->handle($aiManager, app(HVACSeoContentEngine::class));
 
         $contentJob->refresh();
-        $this->assertSame(AIContentJobStatus::Completed, $contentJob->status);
+        $this->assertContains($contentJob->status, [
+            AIContentJobStatus::CompletedVerified,
+            AIContentJobStatus::CompletedWithWarnings,
+        ]);
         $this->assertSame($this->validHvacOutput()['content'], $contentJob->output_draft);
         $this->assertSame('huong-dan-chon-dieu-hoa-tu-dung-cho-nha-xuong', $contentJob->output_meta['slug']);
         $this->assertNotEmpty($contentJob->output_faq);
@@ -230,7 +233,7 @@ class AIProviderGatewayTest extends TestCase
             ],
             'faq' => [
                 ['question' => 'Nhà xưởng có nên dùng điều hòa tủ đứng?', 'answer' => 'Có, nếu diện tích và tải nhiệt phù hợp sau khảo sát.'],
-                ['question' => 'Xưởng 100m2 cần bao nhiêu BTU?', 'answer' => 'Cần tính theo tải nhiệt, nhưng có thể lấy 60.000 BTU là mốc tham khảo sơ bộ trước khi khảo sát.'],
+                ['question' => 'Xưởng cần chọn công suất thế nào?', 'answer' => 'Cần tính theo tải nhiệt, diện tích, chiều cao trần và điều kiện vận hành thực tế.'],
                 ['question' => 'Có nên chọn inverter cho nhà xưởng?', 'answer' => 'Nên cân nhắc nếu vận hành nhiều giờ và cần giữ nhiệt ổn định.'],
             ],
             'internal_links' => [
@@ -241,10 +244,10 @@ class AIProviderGatewayTest extends TestCase
 
     private function validHvacContent(): string
     {
-        $paragraph = '<p>Với một khu vực sản xuất khoảng 100m2, tải nhiệt không chỉ đến từ diện tích sàn mà còn đến từ mái tôn, số người làm việc, motor máy móc, cửa xuất nhập hàng và thời gian mở cửa trong ngày. Mốc 600 BTU/m2 chỉ nên xem là ước tính sơ bộ cho không gian thông thường; công trình thực tế cần cộng thêm hệ số cho mái nóng, hướng nắng và lưu lượng gió tươi. Vì vậy, một phương án 60.000 BTU có thể đủ cho khu vực ít máy móc, nhưng chưa chắc đủ cho xưởng có máy ép, máy nén khí hoặc cửa cuốn mở liên tục.</p>';
+        $paragraph = '<p>Với một khu vực sản xuất có tải nhiệt phức tạp, tải lạnh không chỉ đến từ diện tích sàn mà còn đến từ mái tôn, số người làm việc, motor máy móc, cửa xuất nhập hàng và thời gian mở cửa trong ngày. Không nên dùng một hệ số chung để chọn máy khi chưa có dữ liệu khảo sát; công trình thực tế cần đánh giá mái nóng, hướng nắng và lưu lượng gió tươi. Vì vậy, phương án công suất chỉ nên chốt sau khi đã có đủ input tải nhiệt và điều kiện vận hành.</p>';
 
         return '<h2>Tổng quan công trình</h2>'
-            .'<p>Khi nhà xưởng bắt đầu nóng cục bộ ở khu vực công nhân đứng máy, lựa chọn điều hòa tủ đứng phải đi từ mặt bằng, tải nhiệt và cách phân phối gió thay vì chỉ nhìn vào công suất ghi trên catalogue. Bài viết này dùng ví dụ xưởng 80-120m2, trần cao vừa phải và nhu cầu làm mát theo ca để phân tích.</p>'
+            .'<p>Khi nhà xưởng bắt đầu nóng cục bộ ở khu vực công nhân đứng máy, lựa chọn điều hòa tủ đứng phải đi từ mặt bằng, tải nhiệt và cách phân phối gió thay vì chỉ nhìn vào công suất ghi trên catalogue. Bài viết này dùng bối cảnh xưởng có trần cao vừa phải và nhu cầu làm mát theo ca để phân tích.</p>'
             .str_repeat($paragraph, 4)
             .'<h2>Khi nào nên dùng</h2><h3>Điều kiện mặt bằng phù hợp</h3><ul><li>Xưởng cần làm mát nhanh theo vùng.</li><li>Không muốn can thiệp trần thạch cao như cassette.</li><li>Cần bảo trì dễ tiếp cận.</li></ul>'
             .str_repeat($paragraph, 3)
@@ -252,7 +255,7 @@ class AIProviderGatewayTest extends TestCase
             .str_repeat($paragraph, 3)
             .'<h2>Sai lầm thường gặp</h2><h3>Chọn máy chỉ theo diện tích</h3><ul><li>Bỏ qua tải nhiệt từ mái và máy móc.</li><li>Không tính thất thoát do cửa mở.</li><li>Đặt dàn lạnh ở vị trí gió bị cản.</li></ul>'
             .str_repeat($paragraph, 3)
-            .'<h2>Gợi ý giải pháp thực tế</h2><p>Với xưởng khoảng 70m2 đến 90m2, có thể khảo sát nhóm máy 42.000 BTU đến 50.000 BTU tùy tải nhiệt. Với xưởng lớn hơn, nên chia nhiều điểm thổi hoặc cân nhắc VRF/duct để nhiệt độ đồng đều hơn. Nếu cần một phương án dễ lắp, dễ bảo trì, điều hòa tủ đứng Gree inverter là nhóm sản phẩm đáng đưa vào danh sách so sánh.</p>'
+            .'<h2>Gợi ý giải pháp thực tế</h2><p>Với xưởng có tải nhiệt vừa, nên khảo sát nhóm máy phù hợp theo kết quả tính tải lạnh trong hệ thống thay vì chọn theo cảm tính. Với xưởng lớn hơn, nên chia nhiều điểm thổi hoặc cân nhắc VRF/duct để nhiệt độ đồng đều hơn. Nếu cần một phương án dễ lắp, dễ bảo trì, điều hòa tủ đứng Gree inverter là nhóm sản phẩm đáng đưa vào danh sách so sánh.</p>'
             .str_repeat($paragraph, 2)
             .'<p>Đội kỹ thuật nên đo kích thước, hướng nắng, số người và thiết bị sinh nhiệt trước khi chốt model. Khi đã có mặt bằng, việc chọn công suất sẽ chính xác hơn và tránh tình trạng máy chạy liên tục nhưng khu vực làm việc vẫn nóng.</p>';
     }

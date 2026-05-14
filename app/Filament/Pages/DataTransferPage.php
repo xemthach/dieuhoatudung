@@ -106,6 +106,8 @@ class DataTransferPage extends Page
                     ->columns(3),
             ])
             ->action(function (array $data) {
+                $this->authorizeTransfer($data['module'] ?? '', 'export');
+
                 $service = app(DataExportService::class);
 
                 try {
@@ -197,6 +199,8 @@ class DataTransferPage extends Page
                     ->visibility('private'),
             ])
             ->action(function (array $data) {
+                $this->authorizeTransfer($data['module'] ?? '', 'import');
+
                 $service = app(DataImportService::class);
 
                 try {
@@ -284,5 +288,15 @@ class DataTransferPage extends Page
             'json' => 'application/json',
             default => 'application/octet-stream',
         };
+    }
+
+    protected function authorizeTransfer(string $module, string $action): void
+    {
+        $permission = "{$module}.{$action}";
+
+        abort_unless(
+            auth()->user()?->isSuperAdmin() || auth()->user()?->can($permission),
+            403
+        );
     }
 }

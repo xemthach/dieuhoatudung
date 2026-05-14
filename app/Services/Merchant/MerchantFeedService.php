@@ -20,12 +20,12 @@ class MerchantFeedService
         $siteName = setting('general.site_name', config('app.name', ''));
         $siteUrl = setting('seo.canonical_base_url', config('app.url'));
 
-        $xml = '<?xml version="1.0" encoding="UTF-8"?>' . "\n";
-        $xml .= '<rss version="2.0" xmlns:g="http://base.google.com/ns/1.0">' . "\n";
+        $xml = '<?xml version="1.0" encoding="UTF-8"?>'."\n";
+        $xml .= '<rss version="2.0" xmlns:g="http://base.google.com/ns/1.0">'."\n";
         $xml .= "<channel>\n";
-        $xml .= "  <title>" . $this->escape($siteName) . "</title>\n";
+        $xml .= '  <title>'.$this->escape($siteName)."</title>\n";
         $xml .= "  <link>{$siteUrl}</link>\n";
-        $xml .= "  <description>" . $this->escape($siteName . ' - Product Feed') . "</description>\n";
+        $xml .= '  <description>'.$this->escape($siteName.' - Product Feed')."</description>\n";
 
         foreach ($products as $product) {
             $xml .= $this->buildItem($product, $siteUrl);
@@ -46,9 +46,9 @@ class MerchantFeedService
             ->where('is_active', true)
             ->where(function ($q) {
                 $q->whereNotNull('regular_price')->where('regular_price', '>', 0)
-                  ->orWhere(function ($q2) {
-                      $q2->whereNotNull('sale_price')->where('sale_price', '>', 0);
-                  });
+                    ->orWhere(function ($q2) {
+                        $q2->whereNotNull('sale_price')->where('sale_price', '>', 0);
+                    });
             })
             ->whereNotNull('main_image')
             ->where('main_image', '!=', '')
@@ -68,8 +68,8 @@ class MerchantFeedService
 
         $xml = "  <item>\n";
         $xml .= "    <g:id>{$product->id}</g:id>\n";
-        $xml .= "    <g:title>" . $this->escape($product->name) . "</g:title>\n";
-        $xml .= "    <g:description>" . $this->escape($product->short_description ?? $product->seo_description ?? $product->name) . "</g:description>\n";
+        $xml .= '    <g:title>'.$this->escape($product->merchant_title ?? $product->name)."</g:title>\n";
+        $xml .= '    <g:description>'.$this->escape($product->merchant_description ?? $product->short_description ?? $product->seo_description ?? $product->name)."</g:description>\n";
         $xml .= "    <g:link>{$productUrl}</g:link>\n";
         $xml .= "    <g:image_link>{$imageUrl}</g:image_link>\n";
 
@@ -77,67 +77,68 @@ class MerchantFeedService
         $gallery = $product->gallery_json ?? [];
         if (is_array($gallery)) {
             foreach (array_slice($gallery, 0, 10) as $img) {
-                $xml .= "    <g:additional_image_link>" . media_url($img) . "</g:additional_image_link>\n";
+                $xml .= '    <g:additional_image_link>'.media_url($img)."</g:additional_image_link>\n";
             }
         }
 
         $xml .= "    <g:condition>{$condition}</g:condition>\n";
         $xml .= "    <g:availability>{$availability}</g:availability>\n";
-        $xml .= "    <g:price>" . number_format($price, 0, '.', '') . " VND</g:price>\n";
+        $xml .= '    <g:price>'.number_format($price, 0, '.', '')." VND</g:price>\n";
 
         // Sale price
         if ($product->sale_price && $product->regular_price && $product->sale_price < $product->regular_price) {
-            $xml .= "    <g:sale_price>" . number_format($product->sale_price, 0, '.', '') . " VND</g:sale_price>\n";
+            $xml .= '    <g:sale_price>'.number_format($product->sale_price, 0, '.', '')." VND</g:sale_price>\n";
         }
 
         // Brand
         if ($product->brand) {
-            $xml .= "    <g:brand>" . $this->escape($product->brand->name) . "</g:brand>\n";
+            $xml .= '    <g:brand>'.$this->escape($product->brand->name)."</g:brand>\n";
         }
 
         // MPN (from model_code)
-        if (!empty($product->model_code)) {
-            $xml .= "    <g:mpn>" . $this->escape($product->model_code) . "</g:mpn>\n";
+        if (! empty($product->model_code)) {
+            $xml .= '    <g:mpn>'.$this->escape($product->model_code)."</g:mpn>\n";
         }
 
         // GTIN
-        if (!empty($product->gtin)) {
-            $xml .= "    <g:gtin>" . $this->escape($product->gtin) . "</g:gtin>\n";
+        if (! empty($product->gtin)) {
+            $xml .= '    <g:gtin>'.$this->escape($product->gtin)."</g:gtin>\n";
         }
 
         // Identifier exists
-        $identifierExists = $product->identifier_exists || !empty($product->gtin);
-        $xml .= "    <g:identifier_exists>" . ($identifierExists ? 'true' : 'false') . "</g:identifier_exists>\n";
+        $identifierExists = $product->identifier_exists || ! empty($product->gtin);
+        $xml .= '    <g:identifier_exists>'.($identifierExists ? 'true' : 'false')."</g:identifier_exists>\n";
 
         // Google Product Category
-        if (!empty($product->google_product_category)) {
-            $xml .= "    <g:google_product_category>" . $this->escape($product->google_product_category) . "</g:google_product_category>\n";
+        if (! empty($product->google_product_category)) {
+            $xml .= '    <g:google_product_category>'.$this->escape($product->google_product_category)."</g:google_product_category>\n";
         } else {
             // Default: Home & Garden > Heating, Ventilation & Air Conditioning
             $xml .= "    <g:google_product_category>604</g:google_product_category>\n";
         }
 
         // Product type
-        if (!empty($product->product_type)) {
-            $xml .= "    <g:product_type>" . $this->escape($product->product_type) . "</g:product_type>\n";
+        if (! empty($product->product_type)) {
+            $xml .= '    <g:product_type>'.$this->escape($product->product_type)."</g:product_type>\n";
         } elseif ($product->category) {
-            $xml .= "    <g:product_type>Điều Hòa Tủ Đứng > " . $this->escape($product->category->name) . "</g:product_type>\n";
+            $xml .= '    <g:product_type>Điều Hòa Tủ Đứng > '.$this->escape($product->category->name)."</g:product_type>\n";
         }
 
         // Shipping weight
-        if (!empty($product->shipping_weight)) {
-            $xml .= "    <g:shipping_weight>" . $this->escape($product->shipping_weight) . "</g:shipping_weight>\n";
+        if (! empty($product->shipping_weight)) {
+            $xml .= '    <g:shipping_weight>'.$this->escape($product->shipping_weight)."</g:shipping_weight>\n";
         }
 
         // Custom labels
         for ($i = 0; $i <= 4; $i++) {
             $field = "custom_label_{$i}";
-            if (!empty($product->$field)) {
-                $xml .= "    <g:custom_label_{$i}>" . $this->escape($product->$field) . "</g:custom_label_{$i}>\n";
+            if (! empty($product->$field)) {
+                $xml .= "    <g:custom_label_{$i}>".$this->escape($product->$field)."</g:custom_label_{$i}>\n";
             }
         }
 
         $xml .= "  </item>\n";
+
         return $xml;
     }
 

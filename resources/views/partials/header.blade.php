@@ -9,7 +9,7 @@
                     <span>Hotline: <strong class="text-accent-400">{{ setting('contact.hotline', 'Đang cập nhật') }}</strong></span>
                 </a>
                 <span class="text-surface-600">|</span>
-                <span>{{ setting('general.working_hours', 'Miễn phí giao hàng & lắp đặt nội thành') }}</span>
+                <span>{{ setting('general.working_hours', 'Tư vấn báo giá theo nhu cầu công trình') }}</span>
             </div>
             <div class="flex items-center gap-4">
                 <x-policy-links display-location="header_top" variant="inline" />
@@ -71,4 +71,3 @@
         </div>
     </div>
 </header>
-

@@ -1,6 +1,6 @@
 <x-layouts.app
-    :seo-title="setting('seo.default_seo_title', setting('general.site_name', '') . ' - Chính Hãng, Giá Tốt')"
-    :seo-description="setting('seo.default_meta_description', 'Chuyên cung cấp điều hòa tủ đứng chính hãng. Giá tốt nhất, lắp đặt miễn phí, bảo hành toàn quốc.')"
+    :seo-title="setting('seo.default_seo_title', setting('general.site_name', '') . ' - Điều Hòa Tủ Đứng')"
+    :seo-description="setting('seo.default_meta_description', 'Danh sách điều hòa tủ đứng, thông số kỹ thuật và tư vấn lựa chọn theo nhu cầu công trình.')"
     :canonical="config('app.url')"
 >
     {{-- Homepage Search Section (above hero, below header) --}}
@@ -40,7 +40,7 @@
     <section class="border-y border-surface-200 bg-surface-50 py-12 lg:py-16">
         <div class="container-main">
             <x-section-heading
-                title="Thương Hiệu Chính Hãng"
+                title="Thương Hiệu Sản Phẩm"
                 subtitle="Đại lý ủy quyền các thương hiệu điều hòa hàng đầu thế giới"
             />
             <div class="mt-8 grid grid-cols-2 gap-4 sm:grid-cols-4 lg:grid-cols-{{ min($brands->count(), 6) }}">

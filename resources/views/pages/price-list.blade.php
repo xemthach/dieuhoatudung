@@ -55,7 +55,7 @@
              Bảng Giá Điều Hòa Tủ Đứng {{ date('Y') }}
         </h1>
         <p class="mt-3 max-w-3xl text-base text-surface-600 leading-relaxed">
-            Cập nhật bảng giá điều hòa tủ đứng chính hãng mới nhất từ các thương hiệu GREE, Daikin, Panasonic, Mitsubishi, LG.
+            Cập nhật bảng giá điều hòa tủ đứng từ các thương hiệu GREE, Daikin, Panasonic, Mitsubishi, LG theo dữ liệu sản phẩm đang công bố.
             So sánh công suất BTU, giá niêm yết, giá khuyến mãi và tình trạng hàng tồn kho.
         </p>
         <div class="mt-3 inline-flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs text-amber-700">
@@ -416,7 +416,7 @@
     <div class="mt-8 grid grid-cols-2 gap-4 sm:grid-cols-4">
         @foreach([
             [route('landing'), '', 'Điều hòa tủ đứng', 'Danh sách sản phẩm'],
-            [route('btu-calculator.index'), '', 'Tính BTU miễn phí', 'Chọn đúng công suất'],
+            [route('btu-calculator.index'), '', 'Tính BTU', 'Chọn công suất theo dữ liệu khảo sát'],
             [route('quote.index'), '', 'Nhận báo giá', 'Báo giá theo nhu cầu'],
             [route('faq.dieu-hoa'), '', 'FAQ điều hòa', 'Giải đáp thắc mắc'],
         ] as [$url, $icon, $title, $sub])

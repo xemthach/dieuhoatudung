@@ -3,7 +3,9 @@
 namespace App\Services\Product;
 
 use App\Models\AiContentJob;
+use App\Models\Product;
 use App\Services\AI\AIManager;
+use App\Services\HVAC\HVACTechnicalFactValidator;
 use Exception;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
@@ -11,17 +13,19 @@ use Illuminate\Support\Str;
 class ProductAIContentService
 {
     private AIManager $aiManager;
+    private AIProductContentSanitizer $sanitizer;
 
-    public function __construct(AIManager $aiManager)
+    public function __construct(AIManager $aiManager, ?AIProductContentSanitizer $sanitizer = null)
     {
         $this->aiManager = $aiManager;
+        $this->sanitizer = $sanitizer ?? app(AIProductContentSanitizer::class);
     }
 
     public function checkAIEnabled(): void
     {
         $activeCount = \App\Models\AiProvider::where('status', 'active')->count();
         if ($activeCount === 0) {
-            throw new Exception('Khong co AI Provider nao dang hoat dong. Vui long cau hinh tai AI Providers.');
+            throw new Exception('Không có nhà cung cấp AI nào đang hoạt động. Vui lòng cấu hình trong khu vực AI.');
         }
     }
 
@@ -49,8 +53,8 @@ class ProductAIContentService
         if ($options['generate_long_description'] ?? false) {
             $prompt .= '  "long_description": "Bài viết giới thiệu chi tiết (HTML sạch: h2, h3, p, ul/li, KHÔNG dùng inline style/emoji/script)",' . "\n";
         }
-        if ($options['generate_warranty_info'] ?? false) {
-            $prompt .= '  "warranty_info": "Thông tin bảo hành chi tiết của hãng này (HTML sạch)",' . "\n";
+        if (($options['generate_warranty_info'] ?? false) && ! empty($productData['warranty_info'])) {
+            $prompt .= '  "warranty_info": "Chỉ được viết lại từ thông tin bảo hành đã cung cấp, không tự tạo thời hạn bảo hành (HTML sạch)",' . "\n";
         }
         if ($options['generate_installation_note'] ?? false) {
             $prompt .= '  "installation_note": "Lưu ý lắp đặt quan trọng cho loại điều hòa này (HTML sạch)",' . "\n";
@@ -62,7 +66,11 @@ class ProductAIContentService
             $prompt .= '  "tag_suggestions": ["tag1", "tag2"]' . "\n";
         }
 
-        $prompt .= "}\n\nQuy tắc:\n1. Viết bằng tiếng Việt chuyên nghiệp, ngôn ngữ kỹ thuật chính xác.\n2. Không bịa ra thông số không có thật.\n3. Nếu thiếu thông tin quan trọng, viết nội dung tập trung vào công dụng, trải nghiệm.\n4. Trả về đúng JSON để máy có thể parse.";
+        $prompt .= "}\n\nQuy tắc kiểm soát nội dung:\n";
+        $prompt .= "- Chỉ được dùng thông số có trong input. Không tự tạo BTU, kW, HP, diện tích, độ ồn, lưu lượng gió, gas, giá, bảo hành, VAT, CO/CQ.\n";
+        $prompt .= "- Nếu thiếu dữ liệu, bỏ qua trường đó hoặc thêm warning missing_technical_data. Không viết claim tuyệt đối như chính hãng 100%, tốt nhất, rẻ nhất, miễn phí.\n";
+        $prompt .= "- Output nên có warnings gồm encoding_checked và vietnamese_verified sau khi tự kiểm tra UTF-8, cùng blocked_claims nếu phát hiện thiếu nguồn.\n\n";
+        $prompt .= "Quy tắc:\n1. Viết bằng tiếng Việt có dấu, UTF-8 sạch, ngôn ngữ kỹ thuật chính xác.\n2. Không trả về tiếng Việt không dấu, ký tự lỗi hoặc text bị vỡ dấu.\n3. Không đưa tên service, class, function, API, biến nội bộ, CamelCase hoặc cú pháp code vào nội dung.\n4. Không bịa ra thông số không có thật.\n5. Nếu thiếu thông tin quan trọng, viết trung lập và cần khảo sát thực tế.\n6. Trả về đúng JSON để hệ thống có thể đọc.";
 
         $contextId = $contextId ?? (string) Str::uuid();
 
@@ -77,7 +85,7 @@ class ProductAIContentService
                 'preserve_context' => true,
             ]);
 
-            $parsed = $result['json'];
+            $parsed = $this->factCheckParsedOutput($productData, $result['json']);
             
             $this->logJob($productData, $parsed, 'Generate Product Content', $userId, $result['provider_id']);
 
@@ -86,6 +94,64 @@ class ProductAIContentService
             Log::error('AI generateContent failed: ' . $e->getMessage());
             throw new Exception('Lỗi AI khi tạo nội dung: ' . $e->getMessage());
         }
+    }
+
+    private function factCheckParsedOutput(array $productData, array $parsed): array
+    {
+        $product = ! empty($productData['id'])
+            ? Product::find($productData['id'])
+            : null;
+
+        if (! $product) {
+            $parsed['warnings'] = array_values(array_unique(array_merge(
+                $parsed['warnings'] ?? [],
+                ['missing_product_record_for_fact_check', 'encoding_checked', 'vietnamese_verified']
+            )));
+
+            $this->validateLegacyOutputLanguage($parsed);
+
+            return $parsed;
+        }
+
+        $result = app(HVACTechnicalFactValidator::class)->validateProductContent($product, $parsed);
+
+        if (($result['status'] ?? null) === 'blocked') {
+            throw new Exception('AI output blocked by HVAC fact validation: ' . implode(', ', $result['blocked_claims'] ?? []));
+        }
+
+        $parsed['warnings'] = array_values(array_unique(array_merge($parsed['warnings'] ?? [], $result['warnings'] ?? [])));
+        $parsed['warnings'] = array_values(array_unique(array_merge($parsed['warnings'], ['encoding_checked', 'vietnamese_verified'])));
+        $parsed['blocked_claims'] = $result['blocked_claims'] ?? [];
+        $parsed['used_facts'] = $result['used_facts'] ?? [];
+        $this->validateLegacyOutputLanguage($parsed);
+
+        return $parsed;
+    }
+
+    private function validateLegacyOutputLanguage(array $parsed): void
+    {
+        $text = implode("\n", array_filter([
+            (string) ($parsed['short_description'] ?? ''),
+            (string) ($parsed['long_description'] ?? ''),
+            (string) ($parsed['warranty_info'] ?? ''),
+            (string) ($parsed['installation_note'] ?? ''),
+            (string) ($parsed['seo_title'] ?? ''),
+            (string) ($parsed['seo_description'] ?? ''),
+            (string) ($parsed['og_title'] ?? ''),
+            (string) ($parsed['og_description'] ?? ''),
+        ]));
+
+        foreach ((array) ($parsed['faq_suggestions'] ?? []) as $faq) {
+            if (is_array($faq)) {
+                $text .= "\n".($faq['question'] ?? '').' '.($faq['answer'] ?? '');
+            }
+        }
+
+        $this->sanitizer->assertUtf8Array($parsed);
+        $this->sanitizer->assertNoUnsafePlaceholders($parsed);
+        $this->sanitizer->assertNoInternalLanguage($parsed);
+        $this->sanitizer->assertCleanEncodingText($text);
+        $this->sanitizer->assertVietnameseTextString(strip_tags($text));
     }
 
     public function generateSeo(array $productData, ?int $userId = null, ?string $contextId = null): array
@@ -120,7 +186,7 @@ class ProductAIContentService
                 'preserve_context' => true,
             ]);
 
-            $parsed = $result['json'];
+            $parsed = $this->factCheckParsedOutput($productData, $result['json']);
 
             $this->logJob($productData, $parsed, 'Generate Product SEO', $userId, $result['provider_id']);
 

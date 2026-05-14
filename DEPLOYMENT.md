@@ -151,6 +151,60 @@ php artisan optimize:clear
 cd /var/www/dieuhoa-tudung && git pull origin main && php artisan migrate --force && php artisan optimize:clear
 ```
 
+### Update for v1.15.0 AI Product Content release
+
+Use this flow when updating a live server from v1.14.0 or earlier to v1.15.0:
+
+```bash
+cd /var/www/dieuhoa-tudung
+
+# 1. Optional: enter maintenance mode during the code swap
+php artisan down --secret="deploy-preview"
+
+# 2. Fetch and deploy the tagged release
+git fetch origin --tags
+git checkout main
+git pull --ff-only origin main
+git checkout v1.15.0
+
+# 3. Install backend and frontend dependencies
+composer install --no-dev --optimize-autoloader
+npm ci
+npm run build
+
+# 4. Run database updates and permissions
+php artisan migrate --force
+php artisan db:seed --class=RolePermissionSeeder --force
+
+# 5. Refresh caches
+php artisan optimize:clear
+php artisan filament:clear-cached-components || true
+php artisan config:cache
+php artisan route:cache
+php artisan view:cache
+
+# 6. Restart queue workers so AI product and blog jobs use the new code
+php artisan queue:restart
+sudo supervisorctl restart dieuhoa-worker:* || true
+
+# 7. Bring the site back online
+php artisan up
+```
+
+After deployment, verify:
+
+- Product list shows AI Status, SEO Score, Last AI Run, and Warning Count.
+- AI Product Jobs page loads and job items render.
+- A single-product AI draft creates a queued job instead of blocking the browser.
+- AI Content Job statuses render as completed, completed with warnings, needs review, or blocked.
+- Lead and quote forms submit successfully.
+- Import/Export permissions still block unauthorized users.
+- R2/CDN Sync page loads.
+- Mail Logs page loads and a test mail can be sent or queued.
+- `/dieu-hoa-tu-dung` and `/bao-gia` display Vietnamese with accents and no placeholder copy.
+
+For full details, see `docs/UPDATE_LIVE_SERVER.md` and `docs/AI_MODULE_QUEUE_SUPERVISOR.md`.
+
 ### Update for v1.14.0 AI content release
 
 Use this flow when updating a live server from v1.13.1 or earlier to v1.14.0:

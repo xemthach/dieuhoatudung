@@ -41,7 +41,7 @@
             'Báo giá chi tiết, minh bạch theo từng hạng mục',
             'Khảo sát & đề xuất giải pháp tối ưu vận hành dài hạn',
             'Thi công đúng tiêu chuẩn kỹ thuật HVAC',
-            'Bảo hành chính hãng, hỗ trợ kỹ thuật sau lắp đặt',
+            'Chính sách bảo hành được đối chiếu theo từng sản phẩm hoặc báo giá',
         ] as $fallback)
         <li class="flex items-start gap-2">
             <svg class="mt-0.5 h-4 w-4 flex-shrink-0 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">

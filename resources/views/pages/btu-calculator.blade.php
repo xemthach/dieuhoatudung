@@ -71,7 +71,7 @@
                 ],
                 [
                     'q' => 'Nên chọn inverter hay on/off cho điều hòa tủ đứng?',
-                    'a' => 'Inverter tiết kiệm điện hơn 30-50%, vận hành êm ái hơn, phù hợp không gian chạy liên tục như văn phòng, nhà hàng. On/off có giá thành thấp hơn nhưng tiêu hao điện nhiều hơn. Với tần suất sử dụng cao trên 8 giờ/ngày, nên chọn inverter.',
+                    'a' => 'Inverter hỗ trợ máy nén điều chỉnh tải theo nhu cầu vận hành. Mức hiệu quả điện năng và độ ồn phải đối chiếu theo thông số từng model, điều kiện lắp đặt và thời gian sử dụng thực tế.',
                 ],
             ] as $faq)
             <details class="group rounded-xl border border-surface-200 bg-white">

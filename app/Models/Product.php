@@ -6,11 +6,11 @@ use App\Enums\StockStatus;
 use App\Services\Product\ProductBadgeService;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphToMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
 
 class Product extends Model
@@ -24,6 +24,7 @@ class Product extends Model
         static::saving(function (Product $product): void {
             if (blank($product->slug)) {
                 $product->slug = static::generateUniqueSlug($product->name, $product->getKey());
+
                 return;
             }
 
@@ -49,6 +50,10 @@ class Product extends Model
             'is_new' => 'boolean',
             'is_active' => 'boolean',
             'schema_enabled' => 'boolean',
+            'ai_score' => 'integer',
+            'ai_warning_count' => 'integer',
+            'ai_last_run_at' => 'datetime',
+            'ai_generated_at' => 'datetime',
             'identifier_exists' => 'boolean',
             'regular_price' => 'decimal:2',
             'sale_price' => 'decimal:2',
@@ -74,8 +79,8 @@ class Product extends Model
             ->when($ignoreId, fn ($query) => $query->whereKeyNot($ignoreId))
             ->exists()
         ) {
-            $suffix = '-' . $counter++;
-            $slug = Str::limit($base, 200 - strlen($suffix), '') . $suffix;
+            $suffix = '-'.$counter++;
+            $slug = Str::limit($base, 200 - strlen($suffix), '').$suffix;
         }
 
         return $slug;
@@ -109,22 +114,22 @@ class Product extends Model
         return $this->faqs()->where('faqs.is_active', true);
     }
 
-    public function documents(): \Illuminate\Database\Eloquent\Relations\HasMany
+    public function documents(): HasMany
     {
         return $this->hasMany(ProductDocument::class)->orderBy('sort_order');
     }
 
-    public function publicDocuments(): \Illuminate\Database\Eloquent\Relations\HasMany
+    public function publicDocuments(): HasMany
     {
         return $this->documents()->where('is_public', true);
     }
 
-    public function testimonials(): \Illuminate\Database\Eloquent\Relations\HasMany
+    public function testimonials(): HasMany
     {
         return $this->hasMany(Testimonial::class);
     }
 
-    public function activeTestimonials(): \Illuminate\Database\Eloquent\Relations\HasMany
+    public function activeTestimonials(): HasMany
     {
         return $this->testimonials()->where('is_active', true)->orderBy('sort_order');
     }
@@ -159,6 +164,16 @@ class Product extends Model
         return $this->hasMany(ProductQuestion::class);
     }
 
+    public function aiProductJobItems(): HasMany
+    {
+        return $this->hasMany(AiProductJobItem::class);
+    }
+
+    public function aiContentVersions(): HasMany
+    {
+        return $this->hasMany(AiProductContentVersion::class);
+    }
+
     public function publicQuestions(): HasMany
     {
         return $this->questions()
@@ -170,6 +185,7 @@ class Product extends Model
     public function getAverageRatingAttribute(): ?float
     {
         $avg = $this->approvedReviews()->avg('rating');
+
         return $avg ? round($avg, 1) : null;
     }
 
@@ -190,9 +206,10 @@ class Product extends Model
     private function productImageFallback(): string
     {
         $settingPath = setting('product_detail.default_product_image');
-        if (!empty($settingPath)) {
+        if (! empty($settingPath)) {
             return media_url($settingPath);
         }
+
         return asset('images/placeholders/product-default.jpg');
     }
 
@@ -201,14 +218,17 @@ class Product extends Model
      */
     public function getMainImageUrlAttribute(): string
     {
-        if (!empty($this->main_image)) {
+        if (! empty($this->main_image)) {
             return media_url($this->main_image);
         }
         if (is_array($this->gallery_json)) {
             foreach ($this->gallery_json as $img) {
-                if (!empty($img)) return media_url($img);
+                if (! empty($img)) {
+                    return media_url($img);
+                }
             }
         }
+
         return $this->productImageFallback();
     }
 
@@ -224,21 +244,21 @@ class Product extends Model
     {
         $images = [];
 
-        if (!empty($this->main_image)) {
+        if (! empty($this->main_image)) {
             $images[] = [
                 'url' => media_url($this->main_image),
                 'path' => $this->main_image,
-                'alt' => $this->name
+                'alt' => $this->name,
             ];
         }
 
         if (is_array($this->gallery_json)) {
             foreach ($this->gallery_json as $img) {
-                if (!empty($img)) {
+                if (! empty($img)) {
                     $images[] = [
                         'url' => media_url($img),
                         'path' => $img,
-                        'alt' => $this->name
+                        'alt' => $this->name,
                     ];
                 }
             }

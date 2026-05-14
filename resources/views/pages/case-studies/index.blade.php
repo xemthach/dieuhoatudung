@@ -104,7 +104,7 @@
         <div class="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8 lg:py-16 lg:flex lg:items-center lg:justify-between">
             <h2 class="text-2xl font-extrabold tracking-tight text-white sm:text-3xl">
                 <span class="block">Bạn đang có dự án cần tư vấn?</span>
-                <span class="block text-primary-200 text-xl font-normal mt-2">Chúng tôi sẽ khảo sát và lên dự toán hoàn toàn miễn phí.</span>
+                <span class="block text-primary-200 text-xl font-normal mt-2">Chúng tôi sẽ khảo sát và lên dự toán theo điều kiện công trình.</span>
             </h2>
             <div class="mt-8 flex lg:mt-0 lg:flex-shrink-0 gap-4">
                 @if(setting('contact.zalo_link'))

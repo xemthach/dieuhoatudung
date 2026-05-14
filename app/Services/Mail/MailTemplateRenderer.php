@@ -113,7 +113,7 @@ class MailTemplateRenderer
 
         'qa' => [
             'question'     => ['name' => 'question',     'description' => 'Câu hỏi',                     'example' => 'Có giao hàng Trà Vinh không?'],
-            'answer'       => ['name' => 'answer',       'description' => 'Câu trả lời',                  'example' => 'Có, chúng tôi giao toàn quốc miễn phí.'],
+            'answer'       => ['name' => 'answer',       'description' => 'Câu trả lời',                  'example' => 'Chúng tôi sẽ phản hồi theo chính sách giao hàng hiện hành.'],
             'question_url' => ['name' => 'question_url', 'description' => 'Link quản trị câu hỏi/đáp',   'example' => 'https://dieuhoa.vn/admin/questions/1'],
         ],
     ];

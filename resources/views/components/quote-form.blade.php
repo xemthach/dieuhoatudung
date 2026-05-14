@@ -4,10 +4,10 @@
 
 {{--
     FULL QUOTE FORM — 4 steps, used on /bao-gia page
-    Step 1: Loai cong trinh
-    Step 2: Dien tich & dieu kien
-    Step 3: Ngan sach & timeline
-    Step 4: Thong tin lien he
+    Step 1: Loại công trình
+    Step 2: Diện tích & điều kiện
+    Step 3: Ngân sách & timeline
+    Step 4: Thông tin liên hệ
 --}}
 <div
     x-data="{
@@ -42,15 +42,15 @@
     {{-- Progress --}}
     <div class="mb-5">
         <div class="mb-1.5 flex items-center justify-between text-xs text-surface-500">
-            <span>Buoc <span x-text="step"></span> / <span x-text="totalSteps"></span></span>
-            <span x-text="progress() + '% hoan thanh'"></span>
+            <span>Bước <span x-text="step"></span> / <span x-text="totalSteps"></span></span>
+            <span x-text="progress() + '% hoàn thành'"></span>
         </div>
         <div class="h-1.5 w-full overflow-hidden rounded-full bg-surface-100">
             <div class="h-1.5 rounded-full bg-gradient-to-r from-primary-500 to-primary-600 transition-all duration-500"
                 :style="'width:' + progress() + '%'"></div>
         </div>
         <div class="mt-1.5 flex justify-between text-[10px] text-surface-400">
-            @foreach(['Cong trinh', 'Dien tich', 'Ngan sach', 'Lien he'] as $i => $lbl)
+            @foreach(['Công trình', 'Diện tích', 'Ngân sách', 'Liên hệ'] as $i => $lbl)
             <span :class="step >= {{ $i + 1 }} ? 'text-primary-600 font-semibold' : ''">{{ $lbl }}</span>
             @endforeach
         </div>
@@ -79,10 +79,10 @@
             <input type="text" name="website_url" autocomplete="off" tabindex="-1">
         </div>
 
-        {{-- ═══ STEP 1: Loai cong trinh ═══ --}}
+        {{-- ═══ STEP 1: Loại công trình ═══ --}}
         <div x-show="step === 1" x-transition.opacity.duration.200ms>
-            <h3 class="fqf-step-title">Loai cong trinh can lap dieu hoa?</h3>
-            <p class="fqf-step-sub">Chon loai khong gian chinh xac de chung toi tu van dung may.</p>
+            <h3 class="fqf-step-title">Loại công trình cần lắp điều hòa?</h3>
+            <p class="fqf-step-sub">Chọn loại không gian chính xác để chúng tôi tư vấn đúng máy.</p>
 
             @if($product)
             <div class="mb-4 flex items-start gap-3 rounded-xl border border-primary-200 bg-primary-50 p-3">
@@ -90,7 +90,7 @@
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
                 </svg>
                 <div>
-                    <p class="text-sm font-semibold text-primary-800">San pham da chon:</p>
+                    <p class="text-sm font-semibold text-primary-800">Sản phẩm đã chọn:</p>
                     <p class="text-sm text-primary-700">{{ $product->name }}</p>
                 </div>
             </div>
@@ -122,7 +122,7 @@
             </div>
         </div>
 
-        {{-- ═══ STEP 2: Dien tich & dieu kien co ban ═══ --}}
+        {{-- ═══ STEP 2: Diện tích & điều kiện cơ bản ═══ --}}
         <div x-show="step === 2" x-transition.opacity.duration.200ms>
             <h3 class="fqf-step-title">Diện tích & điều kiện không gian</h3>
             <p class="fqf-step-sub">Giúp chúng tôi tính công suất BTU chính xác cho bạn.</p>
@@ -182,7 +182,7 @@
             </div>
         </div>
 
-        {{-- ═══ STEP 3: Ngan sach & thoi gian ═══ --}}
+        {{-- ═══ STEP 3: Ngân sách & thời gian ═══ --}}
         <div x-show="step === 3" x-transition.opacity.duration.200ms>
             <h3 class="fqf-step-title">Ngân sách & thời gian</h3>
             <p class="fqf-step-sub">Giúp chúng tôi đề xuất giải pháp phù hợp nhất.</p>
@@ -233,7 +233,7 @@
             </div>
         </div>
 
-        {{-- ═══ STEP 4: Thong tin lien he + summary ═══ --}}
+        {{-- ═══ STEP 4: Thông tin liên hệ + summary ═══ --}}
         <div x-show="step === 4" x-transition.opacity.duration.200ms>
             <h3 class="fqf-step-title">Thông tin liên hệ</h3>
             <p class="fqf-step-sub">Điền để chúng tôi gửi báo giá chính xác.</p>

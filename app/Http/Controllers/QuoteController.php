@@ -37,7 +37,7 @@ class QuoteController extends Controller
             'product'          => $product,
             'thanks'           => $thanks,
             'seoTitle'         => setting('cta.quote_cta_text', 'Báo Giá') . ' Điều Hòa Tủ Đứng',
-            'seoDescription'   => 'Điền form nhận báo giá điều hòa tủ đứng chính hãng. Tư vấn chọn công suất BTU phù hợp, lắp đặt trọn gói.',
+            'seoDescription'   => 'Điền form nhận báo giá điều hòa tủ đứng. Tư vấn chọn công suất BTU theo dữ liệu khảo sát và điều kiện công trình.',
             'canonical'        => route('quote.index'),
         ]);
     }

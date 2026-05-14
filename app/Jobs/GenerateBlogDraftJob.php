@@ -31,7 +31,12 @@ class GenerateBlogDraftJob implements ShouldQueue
     {
         $job = AiContentJob::findOrFail($this->aiContentJobId);
 
-        if (in_array($job->status, [AIContentJobStatus::Completed, AIContentJobStatus::Reviewed])) {
+        if (in_array($job->status, [
+            AIContentJobStatus::Completed,
+            AIContentJobStatus::CompletedVerified,
+            AIContentJobStatus::CompletedWithWarnings,
+            AIContentJobStatus::Reviewed,
+        ], true)) {
             return;
         }
 
@@ -74,10 +79,21 @@ class GenerateBlogDraftJob implements ShouldQueue
                     'meta_description' => $output['meta_description'],
                     'og_title' => $output['og_title'],
                     'og_description' => $output['og_description'],
+                    'ai_governance' => [
+                        'prompt_version' => $output['governance_context']['prompt_version'] ?? null,
+                        'status' => empty($output['warnings'] ?? []) ? 'completed_verified' : 'completed_with_warnings',
+                        'data_completeness' => $output['governance_context']['data_completeness'] ?? null,
+                        'missing_facts' => $output['governance_context']['missing_facts'] ?? [],
+                        'calculation_rules' => $output['governance_context']['calculation_rules'] ?? [],
+                        'used_facts' => $output['used_facts'] ?? [],
+                        'warnings' => $output['warnings'] ?? [],
+                        'blocked_claims' => $output['blocked_claims'] ?? [],
+                        'fact_check' => $output['fact_check'] ?? null,
+                    ],
                 ],
                 'output_faq' => $output['faq'],
                 'output_internal_links' => $output['internal_links'],
-                'status' => AIContentJobStatus::Completed,
+                'status' => empty($output['warnings'] ?? []) ? AIContentJobStatus::CompletedVerified : AIContentJobStatus::CompletedWithWarnings,
                 'error_message' => null,
             ]);
 
@@ -88,8 +104,10 @@ class GenerateBlogDraftJob implements ShouldQueue
                 'error' => $e->getMessage(),
             ]);
 
+            $isBlocked = str_contains($e->getMessage(), 'fact-check');
+
             $job->update([
-                'status' => AIContentJobStatus::Failed,
+                'status' => $isBlocked ? AIContentJobStatus::Blocked : AIContentJobStatus::Failed,
                 'error_message' => $e->getMessage(),
             ]);
 

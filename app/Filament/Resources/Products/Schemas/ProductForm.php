@@ -4,26 +4,30 @@ namespace App\Filament\Resources\Products\Schemas;
 
 use App\Enums\StockStatus;
 use App\Filament\Traits\HasSEOFields;
+use App\Models\Brand;
+use App\Services\Media\MediaDiskService;
+use App\Services\Product\ProductAIContentService;
+use App\Services\Settings\UploadSettingService;
+use App\Support\ProductSpecLabel;
+use Filament\Actions\Action;
 use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\FileUpload;
-use Filament\Forms\Components\Select;
-use Filament\Forms\Components\TextInput;
-use Filament\Forms\Components\Textarea;
-use Filament\Forms\Components\Toggle;
-use Filament\Forms\Components\RichEditor;
-use Filament\Schemas\Components\Tabs;
 use Filament\Forms\Components\Repeater;
-use Filament\Schemas\Components\Section;
-use Filament\Schemas\Components\Grid;
-use Filament\Schemas\Components\Actions;
-use Filament\Actions\Action;
-use App\Services\Product\ProductAIContentService;
-use App\Support\ProductSpecLabel;
+use Filament\Forms\Components\RichEditor;
+use Filament\Forms\Components\Select;
+use Filament\Forms\Components\Textarea;
+use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\Toggle;
 use Filament\Notifications\Notification;
+use Filament\Schemas\Components\Actions;
+use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Group;
+use Filament\Schemas\Components\Section;
+use Filament\Schemas\Components\Tabs;
+use Filament\Schemas\Components\Utilities\Get;
+use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
 use Illuminate\Support\Str;
-use App\Services\Media\MediaDiskService;
 
 class ProductForm
 {
@@ -134,7 +138,7 @@ class ProductForm
                                                 TextInput::make('weight')
                                                     ->label('Trọng lượng'),
                                             ]),
-                                        
+
                                         Repeater::make('specs_json')
                                             ->label('Thông số kỹ thuật mở rộng')
                                             ->helperText('Chỉ thêm thông số KHÔNG có field chuẩn ở trên.')
@@ -148,7 +152,7 @@ class ProductForm
                                                 TextInput::make('value')->label('Giá trị')->required(),
                                             ])
                                             ->columns(2)
-                                            ->itemLabel(fn (array $state): ?string => isset($state['key']) ? ProductSpecLabel::label($state['key']) . ': ' . ($state['value'] ?? '') : null)
+                                            ->itemLabel(fn (array $state): ?string => isset($state['key']) ? ProductSpecLabel::label($state['key']).': '.($state['value'] ?? '') : null)
                                             ->collapsed()
                                             ->defaultItems(0),
                                     ]),
@@ -169,42 +173,42 @@ class ProductForm
                                                     Toggle::make('generate_tags')->label('Tag Suggestions')->default(true),
                                                     Toggle::make('overwrite')->label('Ghi đè nội dung đã có')->default(false)->onColor('danger'),
                                                 ])
-                                                ->action(function (array $data, \Filament\Schemas\Components\Utilities\Set $set, \Filament\Schemas\Components\Utilities\Get $get) {
+                                                ->action(function (array $data, Set $set, Get $get) {
                                                     try {
                                                         $service = app(ProductAIContentService::class);
-                                                        
+
                                                         // Collect current product state
                                                         $productData = [
                                                             'name' => $get('name'),
                                                             'model_code' => $get('model_code'),
-                                                            'brand' => ['name' => \App\Models\Brand::find($get('brand_id'))?->name],
+                                                            'brand' => ['name' => Brand::find($get('brand_id'))?->name],
                                                             'btu' => $get('btu'),
                                                             'inverter' => $get('inverter'),
                                                             'cooling_type' => $get('cooling_type'),
                                                             'refrigerant_gas' => $get('refrigerant_gas'),
                                                             'voltage' => $get('voltage'),
                                                         ];
-                                                        
+
                                                         $result = $service->generateContent($productData, $data, auth()->id());
-                                                        
-                                                        if (!empty($result['short_description']) && ($data['overwrite'] || empty($get('short_description')))) {
+
+                                                        if (! empty($result['short_description']) && ($data['overwrite'] || empty($get('short_description')))) {
                                                             $set('short_description', $result['short_description']);
                                                         }
-                                                        if (!empty($result['long_description']) && ($data['overwrite'] || empty($get('long_description')))) {
+                                                        if (! empty($result['long_description']) && ($data['overwrite'] || empty($get('long_description')))) {
                                                             $set('long_description', $result['long_description']);
                                                         }
-                                                        if (!empty($result['warranty_info']) && ($data['overwrite'] || empty($get('warranty_info')))) {
+                                                        if (! empty($result['warranty_info']) && ($data['overwrite'] || empty($get('warranty_info')))) {
                                                             $set('warranty_info', $result['warranty_info']);
                                                         }
-                                                        if (!empty($result['installation_note']) && ($data['overwrite'] || empty($get('installation_note')))) {
+                                                        if (! empty($result['installation_note']) && ($data['overwrite'] || empty($get('installation_note')))) {
                                                             $set('installation_note', $result['installation_note']);
                                                         }
-                                                        
+
                                                         Notification::make()->title('Đã tạo nội dung AI thành công!')->success()->send();
                                                     } catch (\Exception $e) {
-                                                        Notification::make()->title('Lỗi: ' . $e->getMessage())->danger()->send();
+                                                        Notification::make()->title('Lỗi: '.$e->getMessage())->danger()->send();
                                                     }
-                                                })
+                                                }),
                                         ]),
                                         Textarea::make('short_description')
                                             ->label('Mô tả ngắn')
@@ -227,8 +231,8 @@ class ProductForm
                                             ->disk(fn () => app(MediaDiskService::class)->getUploadDisk())
                                             ->directory(config('media.folders.products'))
                                             ->imageEditor()
-                                            ->maxSize(fn () => app(\App\Services\Settings\UploadSettingService::class)->productImageMaxSizeKb())
-                                            ->acceptedFileTypes(fn () => app(\App\Services\Settings\UploadSettingService::class)->allowedImageTypes()),
+                                            ->maxSize(fn () => app(UploadSettingService::class)->productImageMaxSizeKb())
+                                            ->acceptedFileTypes(fn () => app(UploadSettingService::class)->allowedImageTypes()),
                                         FileUpload::make('gallery_json')
                                             ->label('Thư viện hình ảnh')
                                             ->image()
@@ -237,9 +241,9 @@ class ProductForm
                                             ->directory(config('media.folders.products_gallery'))
                                             ->imageEditor()
                                             ->reorderable()
-                                            ->maxSize(fn () => app(\App\Services\Settings\UploadSettingService::class)->productImageMaxSizeKb())
-                                            ->maxFiles(fn () => app(\App\Services\Settings\UploadSettingService::class)->maxImagesPerUpload())
-                                            ->acceptedFileTypes(fn () => app(\App\Services\Settings\UploadSettingService::class)->allowedImageTypes()),
+                                            ->maxSize(fn () => app(UploadSettingService::class)->productImageMaxSizeKb())
+                                            ->maxFiles(fn () => app(UploadSettingService::class)->maxImagesPerUpload())
+                                            ->acceptedFileTypes(fn () => app(UploadSettingService::class)->allowedImageTypes()),
                                         TextInput::make('video_url')
                                             ->label('Video YouTube URL')
                                             ->url(),
@@ -261,37 +265,37 @@ class ProductForm
                                                 ->form([
                                                     Toggle::make('overwrite')->label('Ghi đè SEO hiện tại')->default(false)->onColor('danger'),
                                                 ])
-                                                ->action(function (array $data, \Filament\Schemas\Components\Utilities\Set $set, \Filament\Schemas\Components\Utilities\Get $get) {
+                                                ->action(function (array $data, Set $set, Get $get) {
                                                     try {
                                                         $service = app(ProductAIContentService::class);
-                                                        
+
                                                         $productData = [
                                                             'name' => $get('name'),
                                                             'model_code' => $get('model_code'),
-                                                            'brand' => ['name' => \App\Models\Brand::find($get('brand_id'))?->name],
+                                                            'brand' => ['name' => Brand::find($get('brand_id'))?->name],
                                                             'short_description' => $get('short_description'),
                                                         ];
-                                                        
+
                                                         $result = $service->generateSeo($productData, auth()->id());
-                                                        
-                                                        if (!empty($result['seo_title']) && ($data['overwrite'] || empty($get('seo_title')))) {
+
+                                                        if (! empty($result['seo_title']) && ($data['overwrite'] || empty($get('seo_title')))) {
                                                             $set('seo_title', $result['seo_title']);
                                                         }
-                                                        if (!empty($result['seo_description']) && ($data['overwrite'] || empty($get('seo_description')))) {
+                                                        if (! empty($result['seo_description']) && ($data['overwrite'] || empty($get('seo_description')))) {
                                                             $set('seo_description', $result['seo_description']);
                                                         }
-                                                        if (!empty($result['og_title']) && ($data['overwrite'] || empty($get('og_title')))) {
+                                                        if (! empty($result['og_title']) && ($data['overwrite'] || empty($get('og_title')))) {
                                                             $set('og_title', $result['og_title']);
                                                         }
-                                                        if (!empty($result['og_description']) && ($data['overwrite'] || empty($get('og_description')))) {
+                                                        if (! empty($result['og_description']) && ($data['overwrite'] || empty($get('og_description')))) {
                                                             $set('og_description', $result['og_description']);
                                                         }
-                                                        
+
                                                         Notification::make()->title('Đã tạo SEO AI thành công!')->success()->send();
                                                     } catch (\Exception $e) {
-                                                        Notification::make()->title('Lỗi: ' . $e->getMessage())->danger()->send();
+                                                        Notification::make()->title('Lỗi: '.$e->getMessage())->danger()->send();
                                                     }
-                                                })
+                                                }),
                                         ]),
                                         HasSEOFields::getSEOFields(),
                                         Section::make('Open Graph Settings')
@@ -334,11 +338,18 @@ class ProductForm
                                                             ->helperText('Mã vạch sản phẩm (nếu có)'),
                                                         Toggle::make('identifier_exists')
                                                             ->label('Có mã định danh (GTIN/MPN)')
-                                                            ->helperText('Bật nếu SP có GTIN hoặc MPN chính hãng')
+                                                            ->helperText('Bật nếu SP có GTIN hoặc MPN đã xác minh')
                                                             ->default(false),
                                                     ]),
                                                 Grid::make(['default' => 1, 'md' => 2])
                                                     ->schema([
+                                                        TextInput::make('merchant_title')
+                                                            ->label('Merchant Title')
+                                                            ->helperText('Tiêu đề riêng cho Google Merchant nếu khác tên sản phẩm.'),
+                                                        Textarea::make('merchant_description')
+                                                            ->label('Merchant Description')
+                                                            ->rows(3)
+                                                            ->helperText('Mô tả feed Google Merchant, không chứa HTML.'),
                                                         TextInput::make('google_product_category')
                                                             ->label('Google Product Category')
                                                             ->placeholder('604')
@@ -375,7 +386,7 @@ class ProductForm
                                             ])->collapsible()->collapsed(),
                                     ]),
                             ])
-                            ->columnSpanFull()
+                            ->columnSpanFull(),
                     ])->columnSpan(['default' => 1, 'md' => 2]),
 
                     Group::make()->schema([
@@ -418,6 +429,3 @@ class ProductForm
             ]);
     }
 }
-
-
-

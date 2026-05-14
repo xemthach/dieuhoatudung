@@ -135,7 +135,7 @@ class LandingController extends Controller
     private function getDefaultSections()
     {
         return collect([
-            new LandingSection(['section_type' => LandingSectionType::Hero, 'title' => 'Điều Hòa Tủ Đứng Chính Hãng', 'subtitle' => 'Giải pháp làm mát chuyên nghiệp cho không gian lớn', 'sort_order' => 1, 'is_active' => true]),
+            new LandingSection(['section_type' => LandingSectionType::Hero, 'title' => 'Điều Hòa Tủ Đứng', 'subtitle' => 'Giải pháp làm mát chuyên nghiệp cho không gian lớn', 'sort_order' => 1, 'is_active' => true]),
             new LandingSection(['section_type' => LandingSectionType::QuickCategories, 'title' => 'Danh Mục Điều Hòa Tủ Đứng', 'subtitle' => 'Chọn loại điều hòa phù hợp nhu cầu của bạn', 'sort_order' => 2, 'is_active' => true]),
             new LandingSection(['section_type' => LandingSectionType::FeaturedProducts, 'title' => 'Sản Phẩm Bán Chạy', 'subtitle' => 'Được khách hàng tin tưởng lựa chọn', 'sort_order' => 3, 'is_active' => true]),
             new LandingSection(['section_type' => LandingSectionType::Comparison, 'title' => 'Bảng Giá Điều Hòa Tủ Đứng', 'subtitle' => 'So sánh giá & thông số kỹ thuật các model phổ biến', 'sort_order' => 4, 'is_active' => true]),
@@ -151,18 +151,18 @@ class LandingController extends Controller
     private function defaultAdvisoryContent(): string
     {
         return '<h3>Điều hòa tủ đứng là gì?</h3>
-<p>Điều hòa tủ đứng (hay còn gọi là máy lạnh tủ đứng) là loại điều hòa có thiết kế dạng tủ đứng, công suất lớn từ 24.000 BTU đến 100.000 BTU trở lên. Đây là giải pháp làm mát lý tưởng cho các không gian rộng như: nhà hàng, hội trường, văn phòng, showroom, nhà xưởng.</p>
+<p>Điều hòa tủ đứng là nhóm điều hòa lắp sàn, thường được dùng cho không gian rộng như nhà hàng, hội trường, văn phòng, showroom hoặc nhà xưởng. Công suất, điện áp, gas lạnh và các thông số kỹ thuật cần được đối chiếu theo dữ liệu sản phẩm đã lưu trong hệ thống.</p>
 
 <h3>Khi nào nên chọn điều hòa tủ đứng?</h3>
 <ul>
-<li>Diện tích phòng từ 40m² trở lên</li>
+<li>Không gian cần lắp đặt nhanh và không phù hợp giấu trần</li>
 <li>Trần nhà cao, không gian mở</li>
 <li>Cần công suất lạnh lớn, phân phối gió đều</li>
 <li>Không muốn khoan tường hoặc lắp đặt phức tạp</li>
 </ul>
 
 <h3>Cách tính công suất BTU phù hợp</h3>
-<p>Công thức cơ bản: <strong>Diện tích (m²) × 600 BTU = Công suất cần thiết</strong>. Ví dụ: phòng 50m² cần máy 30.000 BTU. Tuy nhiên, cần cộng thêm hệ số khi phòng có nhiều người, nhiều thiết bị tỏa nhiệt, hoặc tiếp xúc nắng trực tiếp.</p>';
+<p>Công suất điều hòa cần được tính toán dựa trên diện tích, chiều cao trần, loại công trình, số người, nắng trực tiếp và thiết bị tỏa nhiệt. Nếu thiếu dữ liệu khảo sát, không nên đưa ra kết quả BTU cụ thể.</p>';
     }
 
     /**

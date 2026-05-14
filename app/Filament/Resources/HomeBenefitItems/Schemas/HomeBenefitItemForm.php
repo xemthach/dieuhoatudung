@@ -32,7 +32,7 @@ class HomeBenefitItemForm
                                 ->label('Tiêu đề')
                                 ->required()
                                 ->maxLength(100)
-                                ->placeholder('Chính hãng 100%'),
+                                ->placeholder('Dữ liệu sản phẩm rõ ràng'),
 
                             TextInput::make('subtitle')
                                 ->label('Phụ đề')

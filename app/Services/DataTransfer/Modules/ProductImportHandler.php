@@ -6,6 +6,7 @@ use App\Models\Product;
 use App\Models\Brand;
 use App\Models\ProductCategory;
 use App\Services\DataTransfer\Contracts\ImportHandlerInterface;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 
 class ProductImportHandler implements ImportHandlerInterface
@@ -235,6 +236,11 @@ class ProductImportHandler implements ImportHandlerInterface
             }
         }
 
+        if (Schema::hasColumn('products', 'ai_status') && $this->missingVerifiedSource($data['specs_json'] ?? null)) {
+            $data['ai_status'] = 'needs_review';
+            $data['ai_error_message'] = 'missing_catalogue_source';
+        }
+
         // Parse boolean fields
         foreach (['inverter', 'is_featured', 'is_bestseller', 'is_new', 'is_active', 'schema_enabled', 'identifier_exists'] as $boolField) {
             if (isset($data[$boolField])) {
@@ -243,5 +249,16 @@ class ProductImportHandler implements ImportHandlerInterface
         }
 
         return $data;
+    }
+
+    private function missingVerifiedSource(mixed $specs): bool
+    {
+        if (! is_array($specs) || $specs === []) {
+            return true;
+        }
+
+        return empty($specs['source_catalogue'])
+            && empty($specs['source_page'])
+            && empty($specs['source_table']);
     }
 }

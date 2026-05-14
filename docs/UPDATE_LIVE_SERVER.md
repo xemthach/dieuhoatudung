@@ -1,15 +1,37 @@
 # Live Server Update Guide
 
-Use this guide after a release tag has been pushed and the GitHub release has been created.
+Use this guide after the release commit, tag, and GitHub release are published.
+
+Current release: `v1.15.0`
+
+Affected areas:
+
+- Product AI content generation and audit jobs
+- Blog AI content governance and fact checking
+- Product, quote, lead, import/export, R2, and mail admin flows
+- Public Vietnamese/UTF-8 copy cleanup
+- Queue worker configuration for long AI jobs
+
+---
 
 ## 1. Backup
 
 ```bash
 cd /path/to/dieuhoa-tudung
-php artisan down
+php artisan down --secret="deploy-preview"
 php artisan backup:run || true
 mysqldump -u DB_USER -p DB_NAME > backup-$(date +%F-%H%M).sql
 ```
+
+Keep the SQL backup until these checks pass:
+
+- Admin dashboard loads.
+- Product list loads with AI columns.
+- AI Product Job page loads.
+- Lead and quote forms submit.
+- Import/export, R2/CDN Sync, and mail logs still load.
+
+---
 
 ## 2. Pull Release
 
@@ -17,10 +39,18 @@ mysqldump -u DB_USER -p DB_NAME > backup-$(date +%F-%H%M).sql
 git fetch origin --tags
 git checkout main
 git pull --ff-only origin main
-git checkout v1.13.0
+git checkout v1.15.0
 ```
 
-## 3. Install Dependencies
+If the server should track `main` instead of a tag, stop after:
+
+```bash
+git pull --ff-only origin main
+```
+
+---
+
+## 3. Install Dependencies and Assets
 
 ```bash
 composer install --no-dev --optimize-autoloader
@@ -28,47 +58,149 @@ npm ci
 npm run build
 ```
 
-## 4. Update Application
+This release includes a rebuilt Vite asset manifest. Do not skip `npm run build` on a server that builds assets locally.
+
+---
+
+## 4. Run Database Updates
 
 ```bash
 php artisan migrate --force
-php artisan config:clear
-php artisan route:clear
-php artisan view:clear
-php artisan cache:clear
-php artisan filament:clear-cached-components || true
-php artisan optimize
+php artisan db:seed --class=RolePermissionSeeder --force
 ```
 
-## 5. Apply Upload Settings
+The migrations add:
 
-If the live admin upload settings are blank or still capped at 12 MB, set them in Site Settings or run:
+- Product AI status, score, warning count, timestamps, and error fields
+- AI product job tables
+- AI product content version backups
+- Cleanup for old public content that had unaccented Vietnamese or placeholder quote commitment text
+
+If a previous deploy showed `ai_product_jobs` missing, this step is mandatory.
+
+---
+
+## 5. Clear and Warm Caches
 
 ```bash
-php artisan tinker --execute="app(\App\Services\Settings\SettingService::class)->set('document_max_size_kb','51200','upload'); app(\App\Services\Settings\SettingService::class)->set('file_max_size_kb','51200','upload'); app(\App\Services\Settings\SettingService::class)->set('allowed_file_types','application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document','upload'); app(\App\Services\Settings\SettingService::class)->clearAllCache();"
+php artisan optimize:clear
+php artisan filament:clear-cached-components || true
+php artisan config:cache
+php artisan route:cache
+php artisan view:cache
 ```
 
-## 6. Smoke Test
+If any route/cache command fails because of environment-specific settings, run:
 
-Check these flows before enabling traffic:
+```bash
+php artisan optimize:clear
+```
 
-- Admin login and dashboard load without 500 errors.
-- Product creation from a post relation manager creates a slug automatically.
-- Product document upload accepts files up to the configured 50 MB limit.
-- Lead and quote request import/export permissions are visible for the expected roles.
-- Quote request mail still sends and no full customer payload is written to logs.
-- R2 media URLs and upload disk behavior still work.
+and keep the site uncached until the issue is corrected.
 
-## 7. Enable Traffic
+---
+
+## 6. Queue Worker for AI Modules
+
+AI content jobs must be processed by a real queue worker. Confirm:
+
+```bash
+php artisan tinker --execute="dump([
+  'queue' => config('queue.default'),
+  'queued_jobs' => DB::table('jobs')->count(),
+  'failed_jobs' => DB::table('failed_jobs')->count(),
+]);"
+```
+
+Expected queue connection for this project:
+
+```env
+QUEUE_CONNECTION=database
+```
+
+Restart workers after deploy:
+
+```bash
+php artisan queue:restart
+sudo supervisorctl reread
+sudo supervisorctl update
+sudo supervisorctl restart dieuhoa-worker:* || true
+sudo supervisorctl status
+```
+
+If Supervisor is not installed or the worker is not running, follow:
+
+- `docs/AI_MODULE_QUEUE_SUPERVISOR.md`
+
+Do not rely on cron as the primary AI queue worker.
+
+---
+
+## 7. Smoke Test Before Enabling Traffic
+
+Run these checks while maintenance mode is still enabled, using the secret URL if needed:
+
+```bash
+php artisan test --testsuite=Feature
+```
+
+Manual admin checks:
+
+- Login to `/admin`.
+- Open Products and confirm AI Status, SEO Score, Last AI Run, and Warning Count columns render.
+- Trigger a single-product AI draft in preview mode and confirm it creates a queued job, not a long web request.
+- Open AI Product Jobs and confirm job item rows render.
+- Open AI Content Job and confirm statuses render without enum errors.
+- Submit one quote request and one lead form.
+- Open Import/Export and confirm unauthorized roles cannot run restricted actions.
+- Open R2/CDN Sync and confirm the page loads.
+- Send or queue one test email and confirm Mail Logs still work.
+- Visit `/dieu-hoa-tu-dung` and `/bao-gia`; public copy must be Vietnamese with accents and must not show placeholder text.
+
+Queue checks:
+
+```bash
+php artisan tinker --execute="dump(DB::table('jobs')->select('id','queue','attempts','reserved_at','available_at','created_at')->orderByDesc('id')->limit(10)->get()->toArray());"
+tail -n 150 storage/logs/laravel.log
+tail -n 150 storage/logs/queue-worker.log || true
+```
+
+---
+
+## 8. Enable Traffic
 
 ```bash
 php artisan up
 ```
 
-## 8. GitHub Release Manual Steps
+Then hard-refresh public pages and admin pages in the browser.
+
+---
+
+## 9. Rollback
+
+Prefer restoring the SQL backup for this release because new tables and product AI metadata are introduced.
+
+Code rollback:
+
+```bash
+git fetch origin --tags
+git checkout v1.14.0
+composer install --no-dev --optimize-autoloader
+npm ci
+npm run build
+php artisan optimize:clear
+php artisan queue:restart
+```
+
+Database rollback is not recommended unless you have confirmed no AI product content jobs have been created after deploy. Restore the SQL backup if you need a full rollback.
+
+---
+
+## 10. GitHub Release Manual Steps
 
 1. Open the repository releases page.
-2. Draft a new release from tag `v1.13.0`.
-3. Use title `v1.13.0`.
-4. Copy the `CHANGELOG.md` section for `1.13.0` into the release notes.
+2. Draft a new release from tag `v1.15.0`.
+3. Use title `v1.15.0`.
+4. Copy the `CHANGELOG.md` section for `1.15.0` into the release notes.
 5. Publish the release.

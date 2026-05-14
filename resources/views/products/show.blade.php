@@ -94,13 +94,13 @@
 
                     <h1 class="text-2xl font-bold text-surface-900 sm:text-3xl">{{ $product->name }}</h1>
 
-                    {{-- SKU & Model --}}
+                    {{-- SKU & model code --}}
                     <div class="mt-2 flex flex-wrap gap-3 text-sm text-surface-500">
                         @if($product->sku)
                             <span>SKU: <strong>{{ $product->sku }}</strong></span>
                         @endif
                         @if($product->model_code)
-                            <span>Model: <strong>{{ $product->model_code }}</strong></span>
+                            <span>Mã máy: <strong>{{ $product->model_code }}</strong></span>
                         @endif
                     </div>
 
@@ -113,12 +113,12 @@
                             @elseif($product->regular_price)
                                 <span class="text-3xl font-bold text-surface-900">{{ number_format($product->regular_price) }}₫</span>
                             @else
-                                <span class="text-xl font-bold text-primary-600">Liên hệ để nhận giá tốt nhất</span>
+                                <span class="text-xl font-bold text-primary-600">Liên hệ để nhận báo giá</span>
                             @endif
                         </div>
                         <p class="mt-1.5 inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-medium text-emerald-600">
                             <svg class="h-3 w-3" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
-                            Đã bao gồm VAT
+                            Giá tham khảo
                         </p>
                     </div>
 

@@ -1,6 +1,6 @@
 <x-layouts.app
-    :seo-title="'Thương Hiệu ' . setting('general.site_name', '') . ' Chính Hãng' . config('seo.defaults.title_suffix', '')"
-    :seo-description="'Khám phá các thương hiệu điều hòa tủ đứng hàng đầu: Daikin, Gree, LG, Panasonic, Midea. Sản phẩm chính hãng, bảo hành đầy đủ.'"
+    :seo-title="'Thương Hiệu ' . setting('general.site_name', '') . config('seo.defaults.title_suffix', '')"
+    :seo-description="'Khám phá các thương hiệu điều hòa tủ đứng: Daikin, Gree, LG, Panasonic, Midea. Xem sản phẩm và thông số đã được lưu trong hệ thống.'"
     :canonical="route('brands.index')"
 >
     <x-breadcrumb :items="[
@@ -11,7 +11,7 @@
         <div class="container-main">
             <div class="mb-8 text-center">
                 <h1 class="text-2xl font-extrabold text-surface-900 sm:text-3xl">Thương Hiệu {{ setting('general.site_name', '') }}</h1>
-                <p class="mx-auto mt-3 max-w-2xl text-surface-600">Chúng tôi phân phối chính hãng các thương hiệu điều hòa tủ đứng hàng đầu thế giới, cam kết chất lượng và bảo hành toàn diện.</p>
+                <p class="mx-auto mt-3 max-w-2xl text-surface-600">Tham khảo các thương hiệu điều hòa tủ đứng và đối chiếu thông số theo dữ liệu sản phẩm đã công bố.</p>
             </div>
 
             @if($brands->isNotEmpty())

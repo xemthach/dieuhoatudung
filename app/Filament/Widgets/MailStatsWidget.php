@@ -10,6 +10,11 @@ class MailStatsWidget extends BaseWidget
 {
     protected static ?int $sort = 15;
 
+    public static function canView(): bool
+    {
+        return auth()->user()?->can('mail_log.view') ?? false;
+    }
+
     protected function getStats(): array
     {
         $stats7  = MailLog::stats(7);

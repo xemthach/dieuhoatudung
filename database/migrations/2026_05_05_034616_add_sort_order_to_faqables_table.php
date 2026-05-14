@@ -1,13 +1,18 @@
 <?php
 
 use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
     public function up(): void
     {
-        // This migration uses raw MySQL DDL — skip on other drivers (e.g. SQLite tests)
+        if (Schema::hasColumn('faqables', 'sort_order')) {
+            return;
+        }
+
         if (DB::connection()->getDriverName() !== 'mysql') {
             return;
         }
@@ -33,6 +38,11 @@ return new class extends Migration
     public function down(): void
     {
         if (DB::connection()->getDriverName() !== 'mysql') {
+            Schema::table('faqables', function (Blueprint $table) {
+                $table->dropUnique('faqables_unique_pivot');
+                $table->dropColumn(['id', 'sort_order', 'created_at', 'updated_at']);
+            });
+
             return;
         }
 

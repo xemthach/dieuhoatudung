@@ -245,6 +245,7 @@ return [
             'delete' => 'Xóa sản phẩm',
             'import' => 'Import sản phẩm',
             'export' => 'Export sản phẩm',
+            'ai_generate' => 'Generate AI Product content',
         ],
     ],
 
