@@ -234,6 +234,10 @@ php artisan up
 
 ## E. Queue Worker (if using database queue)
 
+For AI modules, queue worker setup is required. See the detailed guide:
+
+- [AI Module Queue + Supervisor Setup](docs/AI_MODULE_QUEUE_SUPERVISOR.md)
+
 ```bash
 # Start queue worker
 php artisan queue:work --queue=default --sleep=3 --tries=3 --max-time=3600
