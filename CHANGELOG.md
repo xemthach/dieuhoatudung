@@ -2,6 +2,38 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.16.0] - 2026-05-15
+
+### Added
+- Added AI queue observability tables for worker heartbeat and AI technical logs.
+- Added technical debug fields to AI blog jobs, AI product jobs, and AI product job items, including queue, attempts, retry count, failed reason, exception details, stack trace, raw response summary, and validation errors.
+- Added `ai:queue-health`, `ai:jobs-recover-stuck`, `ai:jobs-cancel-current`, and `ai:technical-logs-cleanup` Artisan commands.
+- Added scheduled recovery, queue health heartbeat recording, and AI technical log cleanup.
+- Added `SEO & AI > AI Queue Health` admin page with 10-second polling and worker-not-running warning.
+- Added admin actions to reload status, retry failed/stuck jobs, cancel jobs, and view technical logs for AI blog and AI product jobs.
+- Added authenticated status JSON endpoints for AI blog and AI product job progress.
+- Added `npm run dev:full` to run Vite, queue worker, and scheduler together on local.
+- Added regression tests for stuck recovery, cancel-current behavior, product item redispatch, and queue health output.
+
+### Fixed
+- Fixed AI blog and product jobs using only the `default` queue by routing AI work to `ai,default` worker setup.
+- Fixed AI jobs failing without useful admin diagnostics by saving structured failed reasons and technical error context.
+- Fixed rate-limited product AI jobs so retry metadata is saved before delayed retry.
+- Fixed AI product batch and item jobs so started/finished time, attempts, queue name, provider/model, and duration are recorded.
+- Fixed AI content dispatch so records move to `queued` before background processing starts.
+
+### Changed
+- Changed live-server Supervisor documentation to use `--queue=ai,default`, queue health commands, stuck recovery, cancel-current commands, and local `dev:full` workflow.
+- Changed AI gateway logging to write provider request/response/retry/failure events to `storage/logs/ai-jobs.log` without logging secrets.
+- Changed admin AI job tables to auto-poll every 10 seconds while showing queue, attempts, and failed reason columns.
+
+### Removed
+- Removed the old generated CSS asset `public/build/assets/app-DyzMpbTj.css`.
+
+### Security
+- Added authenticated admin status endpoints and permission checks for AI job status visibility.
+- Added AI log context sanitization to avoid storing API keys, passwords, secret tokens, or authorization headers.
+
 ## [1.15.1] - 2026-05-14
 
 ### Added

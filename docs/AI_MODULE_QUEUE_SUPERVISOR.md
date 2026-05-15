@@ -10,6 +10,26 @@ Affected modules:
 
 The AI modules do not run long AI requests directly inside the web request. They dispatch jobs into Laravel queue. If the server has no queue worker daemon, records will stay in `pending` / `Đang chờ`.
 
+Newer releases use the dedicated `ai` queue first, then `default` as fallback:
+
+```bash
+php artisan queue:work --queue=ai,default --tries=3 --timeout=300
+```
+
+To stop current AI work immediately:
+
+```bash
+php artisan ai:jobs-cancel-current --flush-queue
+php artisan queue:restart
+sudo supervisorctl stop dieuhoa-worker:*
+```
+
+Start it again:
+
+```bash
+sudo supervisorctl start dieuhoa-worker:*
+```
+
 ---
 
 ## 1. Required `.env`
@@ -121,7 +141,7 @@ Use this config:
 ```ini
 [program:dieuhoa-worker]
 process_name=%(program_name)s_%(process_num)02d
-command=php /root/atg-part2/public_html/artisan queue:work database --queue=default --sleep=3 --tries=1 --timeout=600 --max-time=3600
+command=php /root/atg-part2/public_html/artisan queue:work database --queue=ai,default --sleep=3 --tries=3 --timeout=300 --memory=256 --max-time=3600
 directory=/root/atg-part2/public_html
 autostart=true
 autorestart=true
@@ -139,8 +159,8 @@ Notes:
 - Replace `/root/atg-part2/public_html` with the real project path on other servers.
 - Replace `user=root` with the real Linux user if the site runs under another account.
 - Do not leave `user=USER`; Supervisor will fail with `Invalid user name USER`.
-- `timeout=600` is intentional because AI jobs can take several minutes.
-- `tries=1` avoids the same AI job being retried many times at once. Rate-limit retry is handled in job logic where applicable.
+- `timeout=300` matches the application retry policy. Product AI items can still use their own longer timeout when needed.
+- `tries=3` allows provider rate-limit or timeout retries with backoff.
 
 ---
 
@@ -172,6 +192,21 @@ php artisan queue:restart
 sudo supervisorctl restart dieuhoa-worker:*
 ```
 
+Run queue health checks:
+
+```bash
+php artisan ai:queue-health
+php artisan ai:jobs-recover-stuck
+```
+
+In admin, open:
+
+```text
+SEO & AI > AI Queue Health
+```
+
+This page warns when the worker heartbeat is stale, shows pending/failed queue counts, processing AI jobs, stuck jobs, and latest processed AI job.
+
 ---
 
 ## 6. Test AI Queue Processing
@@ -197,7 +232,7 @@ tail -f storage/logs/queue-worker.log
 Manual one-job test:
 
 ```bash
-php artisan queue:work --queue=default --once --tries=1 --timeout=600 -vvv
+php artisan queue:work --queue=ai,default --once --tries=1 --timeout=600 -vvv
 ```
 
 If the manual command processes jobs but the site still leaves jobs pending, Supervisor is not running or is reading the wrong config path.
@@ -281,6 +316,27 @@ crontab -e
 ```
 
 Do not use cron as the primary queue worker for AI jobs. AI jobs can run for 1-5 minutes, so `queue:work --once` every minute can overlap or lag behind.
+
+The scheduler runs:
+
+- `ai:jobs-recover-stuck` every 5 minutes.
+- `ai:queue-health --record` every 5 minutes to record scheduler heartbeat.
+- `ai:technical-logs-cleanup --days=30` daily.
+
+Local development:
+
+```bash
+npm run dev:full
+```
+
+That starts Vite, queue worker, and scheduler together.
+
+Windows Task Scheduler alternative:
+
+```powershell
+php artisan queue:work --queue=ai,default --tries=3 --timeout=300
+php artisan schedule:work
+```
 
 ---
 

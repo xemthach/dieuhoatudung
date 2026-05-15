@@ -570,12 +570,14 @@ class ProductsTable
                     'type' => $action,
                     'scope' => $data['scope'] ?? 'selected',
                     'status' => 'queued',
+                    'module' => 'ai_product_bulk',
+                    'queue_name' => 'ai',
                     'total' => count($productIds),
                     'config_json' => $config,
                     'created_by' => auth()->id(),
                 ]);
 
-                AiProductContentBatchJob::dispatch($job->id, $productIds)->onQueue('default');
+                AiProductContentBatchJob::dispatch($job->id, $productIds)->onQueue('ai');
 
                 Notification::make()
                     ->title('Đã đưa AI Product Job vào queue')

@@ -6,7 +6,6 @@ use App\Enums\AIContentJobStatus;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
-use Filament\Tables\Columns\BadgeColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
@@ -16,6 +15,7 @@ class AiContentJobsTable
     public static function configure(Table $table): Table
     {
         return $table
+            ->poll('10s')
             ->columns([
                 TextColumn::make('topic')
                     ->label('Chủ đề')
@@ -34,18 +34,37 @@ class AiContentJobsTable
                     ->label('Trạng thái')
                     ->badge()
                     ->color(fn ($state) => match ($state) {
-                        AIContentJobStatus::Pending    => 'gray',
+                        AIContentJobStatus::Draft => 'gray',
+                        AIContentJobStatus::Pending => 'gray',
+                        AIContentJobStatus::Queued => 'gray',
                         AIContentJobStatus::Processing => 'info',
-                        AIContentJobStatus::Completed  => 'success',
+                        AIContentJobStatus::Completed => 'success',
                         AIContentJobStatus::CompletedVerified => 'success',
                         AIContentJobStatus::CompletedWithWarnings => 'warning',
                         AIContentJobStatus::NeedsReview => 'warning',
                         AIContentJobStatus::Blocked => 'danger',
-                        AIContentJobStatus::Failed     => 'danger',
-                        AIContentJobStatus::Reviewed   => 'primary',
-                        default                        => 'gray',
+                        AIContentJobStatus::Failed => 'danger',
+                        AIContentJobStatus::Cancelled => 'gray',
+                        AIContentJobStatus::Stuck => 'danger',
+                        AIContentJobStatus::Reviewed => 'primary',
+                        default => 'gray',
                     })
                     ->formatStateUsing(fn ($state) => $state instanceof AIContentJobStatus ? $state->label() : $state),
+                TextColumn::make('failed_reason')
+                    ->label('Failed reason')
+                    ->badge()
+                    ->color('danger')
+                    ->placeholder('-')
+                    ->toggleable(),
+                TextColumn::make('attempts')
+                    ->label('Attempts')
+                    ->numeric()
+                    ->sortable()
+                    ->toggleable(),
+                TextColumn::make('queue_name')
+                    ->label('Queue')
+                    ->placeholder('-')
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('creator.name')
                     ->label('Tạo bởi')
                     ->placeholder('—'),

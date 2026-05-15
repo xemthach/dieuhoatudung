@@ -64,17 +64,38 @@ class AiProductJobResource extends Resource
                         ->disabled()
                         ->columnSpanFull(),
                 ]),
+            Section::make('Technical debug')
+                ->collapsed()
+                ->schema([
+                    Grid::make(3)->schema([
+                        TextInput::make('module')->disabled(),
+                        TextInput::make('provider')->disabled(),
+                        TextInput::make('model')->disabled(),
+                        TextInput::make('queue_name')->disabled(),
+                        TextInput::make('attempts')->disabled(),
+                        TextInput::make('retry_count')->disabled(),
+                        TextInput::make('failed_reason')->disabled(),
+                        TextInput::make('last_error_code')->disabled(),
+                        TextInput::make('duration_ms')->disabled(),
+                    ]),
+                    Textarea::make('last_error_message')->rows(4)->disabled()->columnSpanFull(),
+                    Textarea::make('stack_trace')->rows(8)->disabled()->columnSpanFull(),
+                ]),
         ]);
     }
 
     public static function table(Table $table): Table
     {
         return $table
+            ->poll('10s')
             ->columns([
                 TextColumn::make('id')->sortable(),
                 TextColumn::make('type')->badge()->searchable(),
                 TextColumn::make('scope')->badge(),
                 TextColumn::make('status')->badge()->sortable(),
+                TextColumn::make('failed_reason')->badge()->color('danger')->placeholder('-')->toggleable(),
+                TextColumn::make('queue_name')->label('Queue')->placeholder('-')->toggleable(isToggledHiddenByDefault: true),
+                TextColumn::make('attempts')->numeric()->sortable()->toggleable(),
                 TextColumn::make('total')->numeric()->sortable(),
                 TextColumn::make('processed')->numeric()->sortable(),
                 TextColumn::make('success')->numeric()->sortable()->color('success'),
@@ -92,6 +113,8 @@ class AiProductJobResource extends Resource
                         'completed' => 'Hoàn thành',
                         'completed_with_errors' => 'Hoàn thành có lỗi',
                         'failed' => 'Thất bại',
+                        'cancelled' => 'Đã hủy',
+                        'stuck' => 'Bị kẹt',
                     ]),
             ])
             ->recordActions([

@@ -29,6 +29,8 @@ class CreateAiContentJob extends CreateRecord
         $payload['category'] = $category;
         $data['input_payload'] = $payload;
         $data['status'] = AIContentJobStatus::Pending->value;
+        $data['module'] = 'ai_blog';
+        $data['queue_name'] = 'ai';
         $data['created_by'] = auth()->id();
 
         return $data;
@@ -37,7 +39,8 @@ class CreateAiContentJob extends CreateRecord
     protected function afterCreate(): void
     {
         if (app(AIProviderPool::class)->hasAvailableProviders()) {
-            GenerateBlogDraftJob::dispatch($this->record->id);
+            $this->record->update(['status' => AIContentJobStatus::Queued]);
+            GenerateBlogDraftJob::dispatch($this->record->id)->onQueue('ai');
 
             Notification::make()
                 ->title('AI đang xử lý')

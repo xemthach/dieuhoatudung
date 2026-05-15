@@ -61,6 +61,13 @@ class ItemsRelationManager extends RelationManager
                 TextColumn::make('error_message')->label('Lỗi')->limit(60)->color('danger'),
                 TextColumn::make('provider')->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('model')->toggleable(isToggledHiddenByDefault: true),
+                TextColumn::make('queue_name')->label('Queue')->toggleable(isToggledHiddenByDefault: true),
+                TextColumn::make('attempts')->numeric()->toggleable(isToggledHiddenByDefault: true),
+                TextColumn::make('retry_count')->numeric()->toggleable(isToggledHiddenByDefault: true),
+                TextColumn::make('failed_reason')->badge()->color('danger')->toggleable(),
+                TextColumn::make('exception_class')->limit(30)->toggleable(isToggledHiddenByDefault: true),
+                TextColumn::make('exception_line')->numeric()->toggleable(isToggledHiddenByDefault: true),
+                TextColumn::make('duration_ms')->numeric()->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('tokens_used')->numeric()->toggleable(),
                 TextColumn::make('finished_at')->dateTime('d/m/Y H:i')->placeholder('-'),
             ])

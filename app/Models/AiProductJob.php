@@ -14,6 +14,7 @@ class AiProductJob extends Model
     {
         return [
             'config_json' => 'array',
+            'validation_errors' => 'array',
             'started_at' => 'datetime',
             'finished_at' => 'datetime',
         ];
@@ -27,5 +28,11 @@ class AiProductJob extends Model
     public function items(): HasMany
     {
         return $this->hasMany(AiProductJobItem::class);
+    }
+
+    public function technicalLogs(): HasMany
+    {
+        return $this->hasMany(AiTechnicalLog::class, 'ai_job_id')
+            ->where('ai_job_type', class_basename($this));
     }
 }

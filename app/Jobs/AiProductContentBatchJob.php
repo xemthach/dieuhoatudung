@@ -4,6 +4,7 @@ namespace App\Jobs;
 
 use App\Models\AiProductJob;
 use App\Models\Product;
+use App\Services\AI\AITechnicalLogger;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -23,8 +24,9 @@ class AiProductContentBatchJob implements ShouldQueue
         public array $productIds,
     ) {}
 
-    public function handle(): void
+    public function handle(?AITechnicalLogger $technicalLogger = null): void
     {
+        $technicalLogger ??= app(AITechnicalLogger::class);
         $job = AiProductJob::findOrFail($this->aiProductJobId);
         $config = is_array($job->config_json) ? $job->config_json : [];
         $batchSize = max(1, min((int) ($config['batch_size'] ?? 10), 50));
@@ -32,9 +34,20 @@ class AiProductContentBatchJob implements ShouldQueue
 
         $job->update([
             'status' => 'processing',
+            'module' => 'ai_product_bulk',
+            'queue_name' => $this->queue ?: 'ai',
+            'attempts' => $this->attempts(),
             'total' => count($productIds),
             'started_at' => $job->started_at ?? now(),
+            'failed_reason' => null,
+            'last_error_code' => null,
+            'last_error_message' => null,
         ]);
+        $technicalLogger->event('ai_product_bulk', 'job_started', 'AI product batch job started.', [
+            'queue' => $this->queue ?: 'ai',
+            'total' => count($productIds),
+            'batch_size' => $batchSize,
+        ], $job);
 
         Product::whereKey($productIds)->update([
             'ai_status' => 'queued',
@@ -50,7 +63,7 @@ class AiProductContentBatchJob implements ShouldQueue
                 );
 
                 AiProductContentSingleJob::dispatch($productId, $job->id, $item->id)
-                    ->onQueue('default')
+                    ->onQueue('ai')
                     ->delay(now()->addSeconds($chunkIndex * 5));
             }
         }
@@ -58,5 +71,10 @@ class AiProductContentBatchJob implements ShouldQueue
         if ($productIds === []) {
             $job->update(['status' => 'completed', 'finished_at' => now()]);
         }
+
+        $technicalLogger->event('ai_product_bulk', 'job_dispatched', 'AI product item jobs dispatched.', [
+            'total' => count($productIds),
+            'queue' => 'ai',
+        ], $job);
     }
 }

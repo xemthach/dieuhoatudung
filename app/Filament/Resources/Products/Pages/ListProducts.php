@@ -51,12 +51,14 @@ class ListProducts extends ListRecords
                         'type' => 'generate_ai_content',
                         'scope' => 'all_filtered',
                         'status' => 'queued',
+                        'module' => 'ai_product_bulk',
+                        'queue_name' => 'ai',
                         'total' => count($productIds),
                         'config_json' => $config,
                         'created_by' => auth()->id(),
                     ]);
 
-                    AiProductContentBatchJob::dispatch($job->id, $productIds)->onQueue('default');
+                    AiProductContentBatchJob::dispatch($job->id, $productIds)->onQueue('ai');
 
                     Notification::make()
                         ->title('Đã tạo AI Product Job theo filter')

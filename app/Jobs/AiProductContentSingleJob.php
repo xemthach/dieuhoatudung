@@ -5,6 +5,7 @@ namespace App\Jobs;
 use App\Models\AiProductJob;
 use App\Models\AiProductJobItem;
 use App\Models\Product;
+use App\Services\AI\AITechnicalLogger;
 use App\Services\Product\AIProductContentSystem;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -32,34 +33,66 @@ class AiProductContentSingleJob implements ShouldQueue
         return [60, 180, 300];
     }
 
-    public function handle(AIProductContentSystem $system): void
+    public function handle(AIProductContentSystem $system, ?AITechnicalLogger $technicalLogger = null): void
     {
+        $technicalLogger ??= app(AITechnicalLogger::class);
         $product = Product::with(['brand', 'category', 'tags', 'faqs', 'relatedProducts', 'posts'])->findOrFail($this->productId);
         $job = $this->aiProductJobId ? AiProductJob::find($this->aiProductJobId) : null;
         $item = $this->resolveItem($job, $product);
 
         $item?->update([
             'status' => 'processing',
+            'module' => 'ai_product_content',
+            'queue_name' => $this->queue ?: 'ai',
+            'attempts' => $this->attempts(),
             'started_at' => $item->started_at ?? now(),
+            'finished_at' => null,
             'error_message' => null,
+            'failed_reason' => null,
+            'last_error_code' => null,
+            'last_error_message' => null,
         ]);
+        $technicalLogger->event('ai_product_content', 'job_started', 'AI product item job started.', [
+            'queue' => $this->queue ?: 'ai',
+            'attempts' => $this->attempts(),
+            'product_id' => $product->id,
+        ], $item);
 
         try {
             $system->generate($product, $job?->config_json ?? [], $job, $item, $job?->created_by);
         } catch (\Throwable $e) {
             if ($this->isRateLimit($e) && $this->attempts() < $this->tries) {
-                $item?->update(['status' => 'queued', 'error_message' => 'Rate limited, retrying later.']);
+                $item?->update([
+                    'status' => 'queued',
+                    'retry_count' => (int) ($item->retry_count ?? 0) + 1,
+                    'failed_reason' => 'provider_rate_limit',
+                    'last_error_code' => 'provider_rate_limit',
+                    'last_error_message' => 'Rate limited, retrying later.',
+                    'error_message' => 'Rate limited, retrying later.',
+                ]);
                 $product->update(['ai_status' => 'queued', 'ai_error_message' => 'Rate limited, retrying later.']);
+                $technicalLogger->event('ai_product_content', 'job_retried', 'Provider rate limit; job released for retry.', [
+                    'failed_reason' => 'provider_rate_limit',
+                    'attempts' => $this->attempts(),
+                    'product_id' => $product->id,
+                ], $item, 'warning');
                 $this->release(60 * $this->attempts());
 
                 return;
             }
 
+            $technical = $technicalLogger->exception('ai_product_content', $e, $item, [
+                'queue' => $this->queue ?: 'ai',
+                'attempts' => $this->attempts(),
+                'product_id' => $product->id,
+            ]);
             $message = $e->getMessage();
             $item?->update([
                 'status' => 'failed',
                 'error_message' => $message,
                 'finished_at' => now(),
+                'duration_ms' => (int) $item?->started_at?->diffInMilliseconds(now()),
+                ...$technical,
             ]);
             $product->update([
                 'ai_status' => 'failed',
@@ -76,6 +109,27 @@ class AiProductContentSingleJob implements ShouldQueue
                 $this->refreshJobStats($job->refresh());
             }
         }
+    }
+
+    public function failed(\Throwable $exception): void
+    {
+        $item = $this->aiProductJobItemId ? AiProductJobItem::find($this->aiProductJobItemId) : null;
+        $technical = app(AITechnicalLogger::class)->exception('ai_product_content', $exception, $item, [
+            'product_id' => $this->productId,
+        ]);
+
+        $item?->update([
+            'status' => 'failed',
+            'error_message' => $exception->getMessage(),
+            'finished_at' => now(),
+            ...$technical,
+        ]);
+
+        Product::whereKey($this->productId)->update([
+            'ai_status' => 'failed',
+            'ai_error_message' => $exception->getMessage(),
+            'ai_last_run_at' => now(),
+        ]);
     }
 
     private function resolveItem(?AiProductJob $job, Product $product): ?AiProductJobItem

@@ -133,4 +133,37 @@ Route::get('/feeds/google-merchant.xml', function () {
 Route::middleware(['auth'])->prefix('admin')->group(function () {
     Route::get('/export/{dataExportJob}/download', [App\Http\Controllers\Admin\DataExportController::class, 'download'])
         ->name('admin.export.download');
+
+    Route::get('/ai-content-jobs/{aiContentJob}/status', function (\App\Models\AiContentJob $aiContentJob) {
+        abort_unless(auth()->user()?->can('ai_content_job.view'), 403);
+
+        return response()->json([
+            'status' => $aiContentJob->status?->value ?? (string) $aiContentJob->status,
+            'progress_percent' => in_array($aiContentJob->status?->value, ['completed', 'completed_verified', 'completed_with_warnings', 'needs_review', 'failed', 'blocked', 'cancelled'], true) ? 100 : 0,
+            'processed' => in_array($aiContentJob->status?->value, ['completed', 'completed_verified', 'completed_with_warnings', 'needs_review', 'failed', 'blocked', 'cancelled'], true) ? 1 : 0,
+            'total' => 1,
+            'success' => in_array($aiContentJob->status?->value, ['completed', 'completed_verified', 'completed_with_warnings'], true) ? 1 : 0,
+            'failed' => in_array($aiContentJob->status?->value, ['failed', 'blocked'], true) ? 1 : 0,
+            'last_error' => $aiContentJob->last_error_message ?: $aiContentJob->error_message,
+            'failed_reason' => $aiContentJob->failed_reason,
+            'updated_at' => $aiContentJob->updated_at?->toIso8601String(),
+        ]);
+    })->name('admin.ai-content-jobs.status');
+
+    Route::get('/ai-product-jobs/{aiProductJob}/status', function (\App\Models\AiProductJob $aiProductJob) {
+        abort_unless(auth()->user()?->can('product.ai_generate'), 403);
+        $total = max(1, (int) $aiProductJob->total);
+
+        return response()->json([
+            'status' => $aiProductJob->status,
+            'progress_percent' => (int) round(((int) $aiProductJob->processed / $total) * 100),
+            'processed' => (int) $aiProductJob->processed,
+            'total' => (int) $aiProductJob->total,
+            'success' => (int) $aiProductJob->success,
+            'failed' => (int) $aiProductJob->failed,
+            'last_error' => $aiProductJob->last_error_message ?: $aiProductJob->items()->whereNotNull('error_message')->latest('id')->value('error_message'),
+            'failed_reason' => $aiProductJob->failed_reason ?: $aiProductJob->items()->whereNotNull('failed_reason')->latest('id')->value('failed_reason'),
+            'updated_at' => $aiProductJob->updated_at?->toIso8601String(),
+        ]);
+    })->name('admin.ai-product-jobs.status');
 });

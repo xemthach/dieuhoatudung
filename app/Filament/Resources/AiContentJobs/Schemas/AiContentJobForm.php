@@ -92,6 +92,42 @@ class AiContentJobForm
                             ->disabled()
                             ->visible(fn ($record) => ! empty($record?->error_message)),
                     ]),
+
+                Section::make('Technical debug')
+                    ->collapsed()
+                    ->schema([
+                        Grid::make(['default' => 1, 'md' => 3])->schema([
+                            TextInput::make('module')->disabled(),
+                            TextInput::make('provider')->disabled(),
+                            TextInput::make('model')->disabled(),
+                            TextInput::make('queue_name')->disabled(),
+                            TextInput::make('attempts')->disabled(),
+                            TextInput::make('retry_count')->disabled(),
+                            TextInput::make('failed_reason')->disabled(),
+                            TextInput::make('last_error_code')->disabled(),
+                            TextInput::make('duration_ms')->disabled(),
+                            TextInput::make('exception_class')->disabled(),
+                            TextInput::make('exception_file')->disabled()->columnSpan(2),
+                            TextInput::make('exception_line')->disabled(),
+                        ]),
+                        Textarea::make('last_error_message')
+                            ->rows(4)
+                            ->disabled()
+                            ->columnSpanFull(),
+                        Textarea::make('stack_trace')
+                            ->rows(8)
+                            ->disabled()
+                            ->columnSpanFull(),
+                        Textarea::make('raw_response_summary')
+                            ->rows(6)
+                            ->disabled()
+                            ->columnSpanFull(),
+                        Textarea::make('validation_errors')
+                            ->formatStateUsing(fn ($state) => is_array($state) ? json_encode($state, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) : $state)
+                            ->rows(6)
+                            ->disabled()
+                            ->columnSpanFull(),
+                    ]),
             ]);
     }
 }

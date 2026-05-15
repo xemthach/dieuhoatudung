@@ -19,7 +19,16 @@ class AiContentJob extends Model
             'output_meta' => 'array',
             'output_internal_links' => 'array',
             'status' => AIContentJobStatus::class,
+            'validation_errors' => 'array',
+            'started_at' => 'datetime',
+            'finished_at' => 'datetime',
         ];
+    }
+
+    public function technicalLogs()
+    {
+        return $this->hasMany(AiTechnicalLog::class, 'ai_job_id')
+            ->where('ai_job_type', class_basename($this));
     }
 
     public function postCategory(): BelongsTo

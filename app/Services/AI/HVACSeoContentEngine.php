@@ -73,6 +73,10 @@ class HVACSeoContentEngine
                 $output['used_facts'] = $factCheck['used_facts'];
                 $output['fact_check'] = $factCheck;
                 $output['governance_context'] = $this->governance->publicContext($guardContext);
+                $output['provider'] = $result['provider'] ?? null;
+                $output['model'] = $result['model'] ?? null;
+                $output['tokens_used'] = $result['tokens_used'] ?? 0;
+                $output['latency_ms'] = $result['latency_ms'] ?? 0;
 
                 if ($output['blocked_claims'] !== []) {
                     throw new RuntimeException('AI output bi chan fact-check: '.implode(', ', $output['blocked_claims']));

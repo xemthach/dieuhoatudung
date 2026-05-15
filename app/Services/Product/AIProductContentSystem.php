@@ -10,6 +10,7 @@ use App\Models\Product;
 use App\Models\Tag;
 use App\Services\AI\AIContentGovernance;
 use App\Services\AI\AIManager;
+use App\Services\AI\AITechnicalLogger;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -28,17 +29,23 @@ class AIProductContentSystem
         'failed' => 'Thất bại',
         'needs_review' => 'Cần duyệt',
         'blocked' => 'Bị chặn',
+        'cancelled' => 'Đã hủy',
+        'stuck' => 'Bị kẹt',
     ];
 
     private AIContentGovernance $governance;
+
+    private AITechnicalLogger $technicalLogger;
 
     public function __construct(
         private readonly AIManager $aiManager,
         private readonly AIProductSeoScorer $scorer,
         private readonly AIProductContentSanitizer $sanitizer,
         ?AIContentGovernance $governance = null,
+        ?AITechnicalLogger $technicalLogger = null,
     ) {
         $this->governance = $governance ?? app(AIContentGovernance::class);
+        $this->technicalLogger = $technicalLogger ?? app(AITechnicalLogger::class);
     }
 
     public function normalizeConfig(array $config): array
@@ -167,6 +174,9 @@ class AIProductContentSystem
 
             $item?->update([
                 'status' => $status,
+                'failed_reason' => 'fact_check_failed',
+                'last_error_code' => 'fact_check_failed',
+                'last_error_message' => $message,
                 'seo_score_before' => $before['score'],
                 'seo_score_after' => $before['score'],
                 'warnings_json' => $warnings,
@@ -177,7 +187,14 @@ class AIProductContentSystem
                 'provider' => $result['provider'] ?? null,
                 'model' => $result['model'] ?? null,
                 'finished_at' => now(),
+                'duration_ms' => (int) $item?->started_at?->diffInMilliseconds(now()),
             ]);
+            $this->technicalLogger->event('ai_product_content', 'fact_check_failed', $message, [
+                'warnings' => $warnings,
+                'blocked_claims' => $payload['blocked_claims'],
+                'provider' => $result['provider'] ?? null,
+                'model' => $result['model'] ?? null,
+            ], $item, 'warning');
 
             Log::warning('AI product content blocked by governance', [
                 'ai_product_job_id' => $job?->id,
@@ -232,7 +249,15 @@ class AIProductContentSystem
             'provider' => $result['provider'] ?? null,
             'model' => $result['model'] ?? null,
             'finished_at' => now(),
+            'duration_ms' => (int) $item?->started_at?->diffInMilliseconds(now()),
         ]);
+        $this->technicalLogger->event('ai_product_content', 'job_completed', 'AI product content generated.', [
+            'status' => $status,
+            'warnings' => $warnings,
+            'provider' => $result['provider'] ?? null,
+            'model' => $result['model'] ?? null,
+            'tokens_used' => $result['tokens_used'] ?? null,
+        ], $item);
 
         Log::info('AI product content generated', [
             'ai_product_job_id' => $job?->id,

@@ -14,6 +14,7 @@ class AiProductJobItem extends Model
         return [
             'warnings_json' => 'array',
             'generated_payload_json' => 'array',
+            'validation_errors' => 'array',
             'started_at' => 'datetime',
             'finished_at' => 'datetime',
         ];
@@ -27,5 +28,11 @@ class AiProductJobItem extends Model
     public function product(): BelongsTo
     {
         return $this->belongsTo(Product::class);
+    }
+
+    public function technicalLogs()
+    {
+        return $this->hasMany(AiTechnicalLog::class, 'ai_job_id')
+            ->where('ai_job_type', class_basename($this));
     }
 }

@@ -71,6 +71,14 @@ class AIManager
             $adapter = $this->getAdapter($provider);
 
             try {
+                app(AITechnicalLogger::class)->event('ai_gateway', 'provider_request_sent', 'AI provider request sent.', [
+                    'provider' => $provider->provider,
+                    'provider_id' => $provider->id,
+                    'model' => $provider->model,
+                    'task_type' => $taskType,
+                    'context_id' => $contextId,
+                    'attempt' => $attempts,
+                ]);
                 $result = $adapter->generate($provider, $payload, $options);
 
                 // 4. Success
@@ -79,6 +87,17 @@ class AIManager
                 ]);
 
                 $this->logRequest($provider, 'success', $taskType, $contextId, $result, null);
+                app(AITechnicalLogger::class)->event('ai_gateway', 'provider_response_received', 'AI provider response received.', [
+                    'provider' => $provider->provider,
+                    'provider_id' => $provider->id,
+                    'model' => $provider->model,
+                    'task_type' => $taskType,
+                    'context_id' => $contextId,
+                    'attempt' => $attempts,
+                    'tokens_used' => $result['tokens_used'] ?? 0,
+                    'latency_ms' => $result['latency_ms'] ?? 0,
+                    'json_keys' => array_keys($result['json'] ?? []),
+                ]);
 
                 return [
                     'success' => true,
@@ -106,9 +125,27 @@ class AIManager
                 if ($isRateLimit) {
                     $this->pool->markRateLimited($provider);
                     $this->logRequest($provider, 'rate_limited', $taskType, $contextId, [], $lastError);
+                    app(AITechnicalLogger::class)->event('ai_gateway', 'job_retried', 'AI provider rate limited; fallback/retry triggered.', [
+                        'provider' => $provider->provider,
+                        'model' => $provider->model,
+                        'task_type' => $taskType,
+                        'context_id' => $contextId,
+                        'attempt' => $attempts,
+                        'failed_reason' => 'provider_rate_limit',
+                        'error' => $lastError,
+                    ], null, 'warning');
                 } else {
                     $this->pool->markFailure($provider, $lastError);
                     $this->logRequest($provider, 'failed', $taskType, $contextId, [], $lastError);
+                    app(AITechnicalLogger::class)->event('ai_gateway', 'job_failed', 'AI provider request failed.', [
+                        'provider' => $provider->provider,
+                        'model' => $provider->model,
+                        'task_type' => $taskType,
+                        'context_id' => $contextId,
+                        'attempt' => $attempts,
+                        'failed_reason' => app(AITechnicalLogger::class)->classifyFailure($e),
+                        'error' => $lastError,
+                    ], null, 'error');
                 }
 
                 if (! $allowFallback) {

@@ -6,6 +6,7 @@ use App\Enums\AIContentJobStatus;
 use App\Models\AiContentJob;
 use App\Models\AiProvider;
 use App\Services\AI\AIManager;
+use App\Services\AI\AITechnicalLogger;
 use App\Services\AI\HVACSeoContentEngine;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -27,8 +28,9 @@ class GenerateBlogDraftJob implements ShouldQueue
         public readonly int $aiContentJobId
     ) {}
 
-    public function handle(AIManager $aiManager, HVACSeoContentEngine $contentEngine): void
+    public function handle(AIManager $aiManager, HVACSeoContentEngine $contentEngine, ?AITechnicalLogger $technicalLogger = null): void
     {
+        $technicalLogger ??= app(AITechnicalLogger::class);
         $job = AiContentJob::findOrFail($this->aiContentJobId);
 
         if (in_array($job->status, [
@@ -44,12 +46,34 @@ class GenerateBlogDraftJob implements ShouldQueue
             $job->update([
                 'status' => AIContentJobStatus::Failed,
                 'error_message' => 'Không có AI Provider nào đang hoạt động.',
+                'failed_reason' => 'missing_api_key',
+                'last_error_code' => 'missing_api_key',
+                'last_error_message' => 'No active AI provider.',
+                'queue_name' => $this->queue ?: 'ai',
+                'attempts' => $this->attempts(),
             ]);
+            $technicalLogger->event('ai_blog', 'job_failed', 'No active AI provider.', ['failed_reason' => 'missing_api_key'], $job, 'error');
 
             return;
         }
 
-        $job->update(['status' => AIContentJobStatus::Processing]);
+        $startedAt = now();
+        $job->update([
+            'status' => AIContentJobStatus::Processing,
+            'module' => 'ai_blog',
+            'queue_name' => $this->queue ?: 'ai',
+            'attempts' => $this->attempts(),
+            'started_at' => $job->started_at ?? $startedAt,
+            'finished_at' => null,
+            'failed_reason' => null,
+            'last_error_code' => null,
+            'last_error_message' => null,
+        ]);
+        $technicalLogger->event('ai_blog', 'job_started', 'AI blog job started.', [
+            'queue' => $this->queue ?: 'ai',
+            'attempts' => $this->attempts(),
+            'topic' => $job->topic,
+        ], $job);
 
         $contextId = 'hvac_blog_'.$job->id.'_'.Str::random(8);
 
@@ -60,6 +84,7 @@ class GenerateBlogDraftJob implements ShouldQueue
             ]);
 
             $output = $contentEngine->generate($aiManager, $job, $contextId);
+            $finishedAt = now();
 
             $job->update([
                 'topic' => $output['title'],
@@ -95,10 +120,27 @@ class GenerateBlogDraftJob implements ShouldQueue
                 'output_internal_links' => $output['internal_links'],
                 'status' => empty($output['warnings'] ?? []) ? AIContentJobStatus::CompletedVerified : AIContentJobStatus::CompletedWithWarnings,
                 'error_message' => null,
+                'provider' => $output['provider'] ?? null,
+                'model' => $output['model'] ?? null,
+                'finished_at' => $finishedAt,
+                'duration_ms' => (int) $job->started_at?->diffInMilliseconds($finishedAt),
+                'failed_reason' => null,
+                'last_error_code' => null,
+                'last_error_message' => null,
             ]);
 
             Log::info('GenerateBlogDraftJob: Hoàn thành', ['job_id' => $job->id]);
+            $technicalLogger->event('ai_blog', 'job_completed', 'AI blog job completed.', [
+                'status' => empty($output['warnings'] ?? []) ? 'completed_verified' : 'completed_with_warnings',
+                'warnings' => $output['warnings'] ?? [],
+                'provider' => $output['provider'] ?? null,
+                'model' => $output['model'] ?? null,
+            ], $job);
         } catch (\Throwable $e) {
+            $technical = $technicalLogger->exception('ai_blog', $e, $job, [
+                'queue' => $this->queue ?: 'ai',
+                'attempts' => $this->attempts(),
+            ]);
             Log::error('GenerateBlogDraftJob: Thất bại', [
                 'job_id' => $job->id,
                 'error' => $e->getMessage(),
@@ -109,6 +151,9 @@ class GenerateBlogDraftJob implements ShouldQueue
             $job->update([
                 'status' => $isBlocked ? AIContentJobStatus::Blocked : AIContentJobStatus::Failed,
                 'error_message' => $e->getMessage(),
+                'finished_at' => now(),
+                'duration_ms' => (int) $job->started_at?->diffInMilliseconds(now()),
+                ...$technical,
             ]);
 
             throw $e;
@@ -117,11 +162,15 @@ class GenerateBlogDraftJob implements ShouldQueue
 
     public function failed(\Throwable $exception): void
     {
+        $technical = app(AITechnicalLogger::class)->exception('ai_blog', $exception, AiContentJob::find($this->aiContentJobId));
+
         AiContentJob::where('id', $this->aiContentJobId)
             ->where('status', AIContentJobStatus::Processing)
             ->update([
                 'status' => AIContentJobStatus::Failed,
                 'error_message' => $exception->getMessage(),
+                'finished_at' => now(),
+                ...$technical,
             ]);
     }
 }

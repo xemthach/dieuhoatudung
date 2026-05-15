@@ -34,6 +34,8 @@ class EditProduct extends EditRecord
                         'type' => 'single_product_preview',
                         'scope' => 'selected',
                         'status' => 'queued',
+                        'module' => 'ai_product_content',
+                        'queue_name' => 'ai',
                         'total' => 1,
                         'config_json' => $config,
                         'created_by' => auth()->id(),
@@ -41,10 +43,12 @@ class EditProduct extends EditRecord
                     $item = $job->items()->create([
                         'product_id' => $this->record->id,
                         'status' => 'queued',
+                        'module' => 'ai_product_content',
+                        'queue_name' => 'ai',
                     ]);
 
                     $this->record->update(['ai_status' => 'queued', 'ai_error_message' => null]);
-                    AiProductContentSingleJob::dispatch($this->record->id, $job->id, $item->id)->onQueue('default');
+                    AiProductContentSingleJob::dispatch($this->record->id, $job->id, $item->id)->onQueue('ai');
 
                     Notification::make()
                         ->title('Đã tạo AI Product Job')

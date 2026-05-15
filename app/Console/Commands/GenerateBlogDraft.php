@@ -46,6 +46,8 @@ class GenerateBlogDraft extends Command
                 'intent' => $this->option('intent'),
                 'post_category_id' => $postCategoryId,
                 'status' => AIContentJobStatus::Pending,
+                'module' => 'ai_blog',
+                'queue_name' => $this->option('sync') ? 'sync' : 'ai',
                 'input_payload' => [
                     'category' => $this->option('content-category') ?: 'Kiến thức HVAC',
                     'topic' => $this->argument('topic'),
@@ -65,12 +67,13 @@ class GenerateBlogDraft extends Command
             if ($this->option('sync')) {
                 GenerateBlogDraftJob::dispatchSync($job->id);
             } else {
-                GenerateBlogDraftJob::dispatch($job->id);
+                $job->update(['status' => AIContentJobStatus::Queued]);
+                GenerateBlogDraftJob::dispatch($job->id)->onQueue('ai');
             }
         }
 
         if (! $this->option('sync')) {
-            $this->line('Chạy worker: php artisan queue:work --queue=default');
+            $this->line('Chạy worker: php artisan queue:work --queue=ai,default');
         }
 
         $this->info('Hoàn tất tạo '.count($jobs).' job AI content.');
