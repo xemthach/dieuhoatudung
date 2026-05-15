@@ -6,6 +6,7 @@ use App\Enums\AIContentJobStatus;
 use App\Filament\Resources\AiContentJobs\AiContentJobResource;
 use App\Jobs\GenerateBlogDraftJob;
 use App\Services\AI\AIProviderPool;
+use App\Support\SchemaColumns;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\CreateRecord;
 
@@ -29,8 +30,10 @@ class CreateAiContentJob extends CreateRecord
         $payload['category'] = $category;
         $data['input_payload'] = $payload;
         $data['status'] = AIContentJobStatus::Pending->value;
-        $data['module'] = 'ai_blog';
-        $data['queue_name'] = 'ai';
+        $data = array_merge($data, SchemaColumns::existing('ai_content_jobs', [
+            'module' => 'ai_blog',
+            'queue_name' => 'ai',
+        ]));
         $data['created_by'] = auth()->id();
 
         return $data;

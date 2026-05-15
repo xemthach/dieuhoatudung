@@ -7,6 +7,7 @@ use App\Jobs\GenerateBlogDraftJob;
 use App\Models\AiContentJob;
 use App\Models\PostCategory;
 use App\Services\AI\AIProviderPool;
+use App\Support\SchemaColumns;
 use Illuminate\Console\Command;
 
 class GenerateBlogDraft extends Command
@@ -40,14 +41,12 @@ class GenerateBlogDraft extends Command
         for ($index = 1; $index <= $bulk; $index++) {
             $topic = $this->argument('topic') ?: 'AI tự tạo topic - '.$this->option('content-category').' #'.$index;
 
-            $job = AiContentJob::create([
+            $job = AiContentJob::create(array_merge([
                 'topic' => $topic,
                 'primary_keyword' => $this->option('keyword'),
                 'intent' => $this->option('intent'),
                 'post_category_id' => $postCategoryId,
                 'status' => AIContentJobStatus::Pending,
-                'module' => 'ai_blog',
-                'queue_name' => $this->option('sync') ? 'sync' : 'ai',
                 'input_payload' => [
                     'category' => $this->option('content-category') ?: 'Kiến thức HVAC',
                     'topic' => $this->argument('topic'),
@@ -59,7 +58,10 @@ class GenerateBlogDraft extends Command
                     'bulk_index' => $index,
                     'bulk_total' => $bulk,
                 ],
-            ]);
+            ], SchemaColumns::existing('ai_content_jobs', [
+                'module' => 'ai_blog',
+                'queue_name' => $this->option('sync') ? 'sync' : 'ai',
+            ])));
 
             $jobs[] = $job;
             $this->info("Đã tạo AiContentJob #{$job->id}: \"{$job->topic}\"");

@@ -7,6 +7,7 @@ use App\Filament\Resources\Products\Tables\ProductsTable;
 use App\Filament\Traits\HasDataTransferActions;
 use App\Jobs\AiProductContentBatchJob;
 use App\Models\AiProductJob;
+use App\Support\SchemaColumns;
 use Filament\Actions\Action;
 use Filament\Actions\CreateAction;
 use Filament\Notifications\Notification;
@@ -47,16 +48,17 @@ class ListProducts extends ListRecords
 
                     $data['scope'] = 'all_filtered';
                     $config = ProductsTable::normalizeAiActionData($data, 'generate_ai_content');
-                    $job = AiProductJob::create([
+                    $job = AiProductJob::create(array_merge([
                         'type' => 'generate_ai_content',
                         'scope' => 'all_filtered',
                         'status' => 'queued',
-                        'module' => 'ai_product_bulk',
-                        'queue_name' => 'ai',
                         'total' => count($productIds),
                         'config_json' => $config,
                         'created_by' => auth()->id(),
-                    ]);
+                    ], SchemaColumns::existing('ai_product_jobs', [
+                        'module' => 'ai_product_bulk',
+                        'queue_name' => 'ai',
+                    ])));
 
                     AiProductContentBatchJob::dispatch($job->id, $productIds)->onQueue('ai');
 

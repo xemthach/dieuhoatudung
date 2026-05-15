@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.16.3] - 2026-05-15
+
+### Added
+- Added a schema-column helper for AI job writes during mixed code/database deployment windows.
+
+### Fixed
+- Fixed AI product filtered generation crashing before migrations have added new observability columns such as `module` and `queue_name`.
+- Fixed AI blog and single-product AI job creation to omit optional observability fields when the current database schema does not have them yet.
+
+### Changed
+- None.
+
+### Removed
+- None.
+
+### Security
+- None.
+
 ## [1.16.2] - 2026-05-15
 
 ### Added

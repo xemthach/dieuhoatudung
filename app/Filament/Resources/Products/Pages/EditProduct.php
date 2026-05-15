@@ -7,6 +7,7 @@ use App\Jobs\AiProductContentSingleJob;
 use App\Models\AiProductJob;
 use App\Services\Product\AIProductContentSystem;
 use App\Services\Seo\InternalLinkSuggestionService;
+use App\Support\SchemaColumns;
 use Filament\Actions\Action;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\ForceDeleteAction;
@@ -30,22 +31,24 @@ class EditProduct extends EditRecord
                 ->form($this->aiConfigForm())
                 ->action(function (array $data) {
                     $config = $this->normalizeAiConfig($data);
-                    $job = AiProductJob::create([
+                    $job = AiProductJob::create(array_merge([
                         'type' => 'single_product_preview',
                         'scope' => 'selected',
                         'status' => 'queued',
-                        'module' => 'ai_product_content',
-                        'queue_name' => 'ai',
                         'total' => 1,
                         'config_json' => $config,
                         'created_by' => auth()->id(),
-                    ]);
-                    $item = $job->items()->create([
-                        'product_id' => $this->record->id,
-                        'status' => 'queued',
+                    ], SchemaColumns::existing('ai_product_jobs', [
                         'module' => 'ai_product_content',
                         'queue_name' => 'ai',
-                    ]);
+                    ])));
+                    $item = $job->items()->create(array_merge([
+                        'product_id' => $this->record->id,
+                        'status' => 'queued',
+                    ], SchemaColumns::existing('ai_product_job_items', [
+                        'module' => 'ai_product_content',
+                        'queue_name' => 'ai',
+                    ])));
 
                     $this->record->update(['ai_status' => 'queued', 'ai_error_message' => null]);
                     AiProductContentSingleJob::dispatch($this->record->id, $job->id, $item->id)->onQueue('ai');

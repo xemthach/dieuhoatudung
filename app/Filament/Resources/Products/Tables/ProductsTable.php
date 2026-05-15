@@ -8,6 +8,7 @@ use App\Models\AiProductJob;
 use App\Models\Brand;
 use App\Models\ProductCategory;
 use App\Services\Product\AIProductContentSystem;
+use App\Support\SchemaColumns;
 use Filament\Actions\BulkAction;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
@@ -571,16 +572,17 @@ class ProductsTable
                 }
 
                 $config = self::normalizeAiActionData($data, $action);
-                $job = AiProductJob::create([
+                $job = AiProductJob::create(array_merge([
                     'type' => $action,
                     'scope' => $data['scope'] ?? 'selected',
                     'status' => 'queued',
-                    'module' => 'ai_product_bulk',
-                    'queue_name' => 'ai',
                     'total' => count($productIds),
                     'config_json' => $config,
                     'created_by' => auth()->id(),
-                ]);
+                ], SchemaColumns::existing('ai_product_jobs', [
+                    'module' => 'ai_product_bulk',
+                    'queue_name' => 'ai',
+                ])));
 
                 AiProductContentBatchJob::dispatch($job->id, $productIds)->onQueue('ai');
 
