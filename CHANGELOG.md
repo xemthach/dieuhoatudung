@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.16.1] - 2026-05-15
+
+### Added
+- None.
+
+### Fixed
+- Fixed AI Queue Health stuck recovery and cancel-current commands crashing when live database migrations have not yet added the new AI observability columns.
+
+### Changed
+- Changed AI stuck recovery and cancel-current updates to write only columns that exist in the current database schema.
+
+### Removed
+- None.
+
+### Security
+- None.
+
 ## [1.16.0] - 2026-05-15
 
 ### Added

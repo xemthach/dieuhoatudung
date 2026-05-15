@@ -31,36 +31,38 @@ class AIJobsCancelCurrent extends Command
                 AIContentJobStatus::Processing->value,
                 AIContentJobStatus::Stuck->value,
             ])->update([
-                'status' => AIContentJobStatus::Cancelled,
-                'failed_reason' => 'job_cancelled',
-                'last_error_code' => 'job_cancelled',
-                'last_error_message' => 'Cancelled by admin command.',
-                'error_message' => 'Cancelled by admin command.',
-                'finished_at' => now(),
+                ...$this->existingColumns('ai_content_jobs', [
+                    'status' => AIContentJobStatus::Cancelled,
+                    'failed_reason' => 'job_cancelled',
+                    'last_error_code' => 'job_cancelled',
+                    'last_error_message' => 'Cancelled by admin command.',
+                    'error_message' => 'Cancelled by admin command.',
+                    'finished_at' => now(),
+                ]),
             ]);
         }
 
         if (Schema::hasTable('ai_product_jobs')) {
             $productJobs = AiProductJob::whereIn('status', ['queued', 'processing', 'stuck'])
-                ->update([
+                ->update($this->existingColumns('ai_product_jobs', [
                     'status' => 'cancelled',
                     'failed_reason' => 'job_cancelled',
                     'last_error_code' => 'job_cancelled',
                     'last_error_message' => 'Cancelled by admin command.',
                     'finished_at' => now(),
-                ]);
+                ]));
         }
 
         if (Schema::hasTable('ai_product_job_items')) {
             $items = AiProductJobItem::whereIn('status', ['queued', 'processing', 'stuck'])
-                ->update([
+                ->update($this->existingColumns('ai_product_job_items', [
                     'status' => 'cancelled',
                     'failed_reason' => 'job_cancelled',
                     'last_error_code' => 'job_cancelled',
                     'last_error_message' => 'Cancelled by admin command.',
                     'error_message' => 'Cancelled by admin command.',
                     'finished_at' => now(),
-                ]);
+                ]));
         }
 
         Product::whereIn('ai_status', ['queued', 'processing', 'stuck'])->update([
@@ -81,5 +83,12 @@ class AIJobsCancelCurrent extends Command
         ]]);
 
         return self::SUCCESS;
+    }
+
+    private function existingColumns(string $table, array $attributes): array
+    {
+        return collect($attributes)
+            ->filter(fn ($value, string $column): bool => Schema::hasColumn($table, $column))
+            ->all();
     }
 }

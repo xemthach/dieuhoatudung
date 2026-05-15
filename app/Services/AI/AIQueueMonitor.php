@@ -90,22 +90,22 @@ class AIQueueMonitor
                         $retryCount = (int) ($job->retry_count ?? 0);
 
                         if ($retryCount < $maxRetry) {
-                            $job->update([
+                            $job->update($this->existingColumns('ai_content_jobs', [
                                 'status' => AIContentJobStatus::Queued,
                                 'retry_count' => $retryCount + 1,
                                 'failed_reason' => 'queue_job_stuck_timeout',
                                 'last_error_code' => 'queue_job_stuck_timeout',
                                 'last_error_message' => 'Processing too long; redispatched by recovery command.',
-                            ]);
+                            ]));
                             GenerateBlogDraftJob::dispatch($job->id)->onQueue('ai');
                             $result['redispatched']++;
                         } else {
-                            $job->update([
+                            $job->update($this->existingColumns('ai_content_jobs', [
                                 'status' => AIContentJobStatus::Failed,
                                 'failed_reason' => 'queue_job_stuck_timeout',
                                 'last_error_code' => 'queue_job_stuck_timeout',
                                 'last_error_message' => 'Processing too long and max retry exceeded.',
-                            ]);
+                            ]));
                             $result['failed']++;
                         }
                     }
@@ -122,23 +122,23 @@ class AIQueueMonitor
                         $retryCount = (int) ($item->retry_count ?? 0);
 
                         if ($retryCount < $maxRetry) {
-                            $item->update([
+                            $item->update($this->existingColumns('ai_product_job_items', [
                                 'status' => 'queued',
                                 'retry_count' => $retryCount + 1,
                                 'failed_reason' => 'queue_job_stuck_timeout',
                                 'last_error_code' => 'queue_job_stuck_timeout',
                                 'last_error_message' => 'Processing too long; redispatched by recovery command.',
-                            ]);
+                            ]));
                             AiProductContentSingleJob::dispatch($item->product_id, $item->ai_product_job_id, $item->id)->onQueue('ai');
                             $result['redispatched']++;
                         } else {
-                            $item->update([
+                            $item->update($this->existingColumns('ai_product_job_items', [
                                 'status' => 'failed',
                                 'failed_reason' => 'queue_job_stuck_timeout',
                                 'last_error_code' => 'queue_job_stuck_timeout',
                                 'last_error_message' => 'Processing too long and max retry exceeded.',
                                 'finished_at' => now(),
-                            ]);
+                            ]));
                             $result['failed']++;
                         }
                     }
@@ -166,5 +166,12 @@ class AIQueueMonitor
         }
 
         return $count;
+    }
+
+    private function existingColumns(string $table, array $attributes): array
+    {
+        return collect($attributes)
+            ->filter(fn ($value, string $column): bool => Schema::hasColumn($table, $column))
+            ->all();
     }
 }
