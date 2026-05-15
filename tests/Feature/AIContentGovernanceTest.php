@@ -181,6 +181,21 @@ class AIContentGovernanceTest extends TestCase
         $this->assertContains('internal_variable_path', $result['blocked_claims']);
     }
 
+    public function test_nested_used_facts_are_normalized_before_validation(): void
+    {
+        $product = Product::factory()->create(['btu' => 24000]);
+        $governance = app(AIContentGovernance::class);
+
+        $result = $governance->validateText(
+            '<p>San pham co cong suat 24.000 BTU.</p>',
+            $governance->buildProductContext($product),
+            [['name' => 'product.capacity_btu'], ['code' => 'unknown.fact']]
+        );
+
+        $this->assertContains('product.capacity_btu', $result['used_facts']);
+        $this->assertContains('unverified_used_fact:unknown.fact', $result['warnings']);
+    }
+
     public function test_public_governance_context_does_not_expose_internal_fact_keys(): void
     {
         $product = Product::factory()->create(['btu' => 24000]);

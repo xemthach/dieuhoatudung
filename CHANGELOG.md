@@ -2,6 +2,27 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.16.4] - 2026-05-15
+
+### Added
+- Added shared AI issue-list normalization so nested warning, used-fact, and blocked-claim payloads from providers are flattened safely before display, logging, or validation.
+- Added regression coverage for nested `used_facts`, internal-language rewriting, and draft-mode fact-check review behavior.
+
+### Fixed
+- Fixed `Array to string conversion` failures when AI returns warnings, used facts, or blocked claims as nested objects instead of plain strings.
+- Fixed product AI bulk draft runs being marked `blocked` for fact-check findings even when the configured apply mode is review-only; these now become `needs_review` unless the run is auto-applying content.
+- Fixed product AI sanitizer to rewrite leaked internal service, class, function, API, and variable-style text into user-facing Vietnamese before validation.
+- Fixed AI blog and legacy product AI fact-check merge paths to normalize warnings and blocked claims before building error messages.
+
+### Changed
+- Changed AI product governance logging so review-only fact-check findings are recorded as `fact_check_needs_review`, while auto-apply violations remain blocked.
+
+### Removed
+- None.
+
+### Security
+- None.
+
 ## [1.16.3] - 2026-05-15
 
 ### Added

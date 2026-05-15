@@ -149,11 +149,39 @@ class AIProductContentSanitizer
 
     private function humanizeInternalLanguage(string $text): string
     {
-        return str_replace(
+        $text = str_replace(
             ['BTUCalculatorService', 'BtuCalculatorService', 'calculateBTU()', 'product.capacity_btu'],
             ['dữ liệu khảo sát thực tế', 'dữ liệu khảo sát thực tế', 'tính công suất điều hòa', 'công suất điều hòa'],
             $text
         );
+
+        $text = preg_replace(
+            '/\b(?:product|post|blog|config|request|response|job|payload|input|output)\.[a-zA-Z_][a-zA-Z0-9_.]*\b/iu',
+            'dữ liệu đã lưu trong hệ thống',
+            $text
+        ) ?? $text;
+
+        $text = preg_replace(
+            '/\b[a-zA-Z_][a-zA-Z0-9_]*\s*\(\s*\)/u',
+            'quy trình xử lý',
+            $text
+        ) ?? $text;
+
+        $text = preg_replace(
+            '/\b[A-Za-z0-9_]*(?:Service|Controller|Model|Repository|Provider|Gateway|Adapter)\b/u',
+            'hệ thống xử lý nội dung',
+            $text
+        ) ?? $text;
+
+        $text = preg_replace('/\bAPI\b/u', 'kết nối hệ thống', $text) ?? $text;
+
+        $text = preg_replace_callback(
+            '/\b[A-Z][a-z]+(?:[A-Z][A-Za-z0-9]+)+\b/u',
+            fn (array $match): string => trim((string) preg_replace('/(?<!^)([A-Z])/', ' $1', $match[0])),
+            $text
+        ) ?? $text;
+
+        return $text;
     }
 
     private function displayText(array $payload): string

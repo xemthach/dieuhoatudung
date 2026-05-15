@@ -5,6 +5,7 @@ namespace App\Services\AI;
 use App\Models\AiContentJob;
 use App\Models\Brand;
 use App\Models\Product;
+use App\Support\IssueList;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
 use RuntimeException;
@@ -68,9 +69,9 @@ class HVACSeoContentEngine
                     'og_description',
                 ]);
 
-                $output['warnings'] = array_values(array_unique(array_merge($output['warnings'] ?? [], $factCheck['warnings'])));
-                $output['blocked_claims'] = array_values(array_unique(array_merge($output['blocked_claims'] ?? [], $factCheck['blocked_claims'])));
-                $output['used_facts'] = $factCheck['used_facts'];
+                $output['warnings'] = IssueList::normalize($output['warnings'] ?? [], $factCheck['warnings']);
+                $output['blocked_claims'] = IssueList::normalize($output['blocked_claims'] ?? [], $factCheck['blocked_claims']);
+                $output['used_facts'] = IssueList::normalize($factCheck['used_facts']);
                 $output['fact_check'] = $factCheck;
                 $output['governance_context'] = $this->governance->publicContext($guardContext);
                 $output['provider'] = $result['provider'] ?? null;
@@ -132,9 +133,9 @@ class HVACSeoContentEngine
     public function normalizeOutput(array $json, array $input): array
     {
         $guardFields = [
-            'used_facts' => is_array($json['used_facts'] ?? null) ? $json['used_facts'] : [],
-            'warnings' => is_array($json['warnings'] ?? null) ? $json['warnings'] : [],
-            'blocked_claims' => is_array($json['blocked_claims'] ?? null) ? $json['blocked_claims'] : [],
+            'used_facts' => IssueList::normalize($json['used_facts'] ?? []),
+            'warnings' => IssueList::normalize($json['warnings'] ?? []),
+            'blocked_claims' => IssueList::normalize($json['blocked_claims'] ?? []),
         ];
         if (is_array($json['content'] ?? null)) {
             $guardFields = [

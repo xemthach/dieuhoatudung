@@ -5,6 +5,7 @@ namespace App\Services\AI;
 use App\Models\AiContentJob;
 use App\Models\Product;
 use App\Services\Calculator\BtuCalculatorService;
+use App\Support\IssueList;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
 
@@ -303,9 +304,9 @@ class AIContentGovernance
 
         return [
             'status' => $blockedClaims === [] ? 'verified' : 'blocked',
-            'warnings' => array_values(array_unique($warnings)),
-            'blocked_claims' => array_values(array_unique($blockedClaims)),
-            'used_facts' => array_values(array_unique($used)),
+            'warnings' => IssueList::normalize($warnings),
+            'blocked_claims' => IssueList::normalize($blockedClaims),
+            'used_facts' => IssueList::normalize($used),
             'calculation_source' => Arr::get($context, 'calculation_rules.specific_btu_result_allowed')
                 ? 'verified_hvac_calculation'
                 : null,
@@ -410,8 +411,7 @@ class AIContentGovernance
         $allowedKeys = array_keys($context['allowed_facts'] ?? []);
         $used = [];
 
-        foreach ($usedFacts as $fact) {
-            $fact = trim((string) $fact);
+        foreach (IssueList::normalize($usedFacts) as $fact) {
             if ($fact === '') {
                 continue;
             }

@@ -161,8 +161,9 @@ class AIProductContentSystem
         $payload['governance_context'] = $this->governance->publicContext($guardContext);
 
         if ($payload['blocked_claims'] !== []) {
-            $status = 'blocked';
-            $message = 'AI output bi chan fact-check: '.implode(', ', $payload['blocked_claims']);
+            $status = $config['apply_mode'] === 'auto_apply' ? 'blocked' : 'needs_review';
+            $message = ($status === 'blocked' ? 'AI output bi chan fact-check: ' : 'AI output can duyet fact-check: ')
+                .implode(', ', $payload['blocked_claims']);
 
             $product->update([
                 'ai_status' => $status,
@@ -189,16 +190,17 @@ class AIProductContentSystem
                 'finished_at' => now(),
                 'duration_ms' => (int) $item?->started_at?->diffInMilliseconds(now()),
             ]);
-            $this->technicalLogger->event('ai_product_content', 'fact_check_failed', $message, [
+            $this->technicalLogger->event('ai_product_content', $status === 'blocked' ? 'fact_check_failed' : 'fact_check_needs_review', $message, [
                 'warnings' => $warnings,
                 'blocked_claims' => $payload['blocked_claims'],
                 'provider' => $result['provider'] ?? null,
                 'model' => $result['model'] ?? null,
             ], $item, 'warning');
 
-            Log::warning('AI product content blocked by governance', [
+            Log::warning('AI product content requires governance review', [
                 'ai_product_job_id' => $job?->id,
                 'product_id' => $product->id,
+                'status' => $status,
                 'prompt_version' => $guardContext['prompt_version'],
                 'allowed_facts' => $guardContext['allowed_facts'],
                 'missing_facts' => $guardContext['missing_facts'],

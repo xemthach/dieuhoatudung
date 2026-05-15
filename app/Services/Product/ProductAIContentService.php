@@ -6,6 +6,7 @@ use App\Models\AiContentJob;
 use App\Models\Product;
 use App\Services\AI\AIManager;
 use App\Services\HVAC\HVACTechnicalFactValidator;
+use App\Support\IssueList;
 use Exception;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
@@ -103,10 +104,10 @@ class ProductAIContentService
             : null;
 
         if (! $product) {
-            $parsed['warnings'] = array_values(array_unique(array_merge(
+            $parsed['warnings'] = IssueList::normalize(
                 $parsed['warnings'] ?? [],
                 ['missing_product_record_for_fact_check', 'encoding_checked', 'vietnamese_verified']
-            )));
+            );
 
             $this->validateLegacyOutputLanguage($parsed);
 
@@ -114,15 +115,15 @@ class ProductAIContentService
         }
 
         $result = app(HVACTechnicalFactValidator::class)->validateProductContent($product, $parsed);
+        $blockedClaims = IssueList::normalize($result['blocked_claims'] ?? []);
 
         if (($result['status'] ?? null) === 'blocked') {
-            throw new Exception('AI output blocked by HVAC fact validation: ' . implode(', ', $result['blocked_claims'] ?? []));
+            throw new Exception('AI output blocked by HVAC fact validation: ' . implode(', ', $blockedClaims));
         }
 
-        $parsed['warnings'] = array_values(array_unique(array_merge($parsed['warnings'] ?? [], $result['warnings'] ?? [])));
-        $parsed['warnings'] = array_values(array_unique(array_merge($parsed['warnings'], ['encoding_checked', 'vietnamese_verified'])));
-        $parsed['blocked_claims'] = $result['blocked_claims'] ?? [];
-        $parsed['used_facts'] = $result['used_facts'] ?? [];
+        $parsed['warnings'] = IssueList::normalize($parsed['warnings'] ?? [], $result['warnings'] ?? [], ['encoding_checked', 'vietnamese_verified']);
+        $parsed['blocked_claims'] = $blockedClaims;
+        $parsed['used_facts'] = IssueList::normalize($result['used_facts'] ?? []);
         $this->validateLegacyOutputLanguage($parsed);
 
         return $parsed;

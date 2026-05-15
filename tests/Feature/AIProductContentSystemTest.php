@@ -178,13 +178,15 @@ class AIProductContentSystemTest extends TestCase
         $this->assertStringNotContainsString('javascript:', $payload['content_html']);
     }
 
-    public function test_internal_code_language_is_not_allowed_in_ai_payload(): void
+    public function test_internal_code_language_is_rewritten_in_ai_payload(): void
     {
-        $this->expectException(\RuntimeException::class);
-
-        app(AIProductContentSanitizer::class)->sanitizePayload($this->validPayload(
-            content: '<h2>Cong suat</h2><p>Cong suat duoc tinh bang BadController.</p><h3>Ung dung</h3>'
+        $payload = app(AIProductContentSanitizer::class)->sanitizePayload($this->validPayload(
+            content: '<h2>Công suất</h2><p>Công suất được tính bằng BadController và product.capacity_btu.</p><h3>Ứng dụng</h3>'
         ));
+
+        $this->assertStringNotContainsString('BadController', $payload['content_html']);
+        $this->assertStringNotContainsString('product.capacity_btu', $payload['content_html']);
+        $this->assertStringContainsString('hệ thống xử lý nội dung', $payload['content_html']);
     }
 
     public function test_product_payload_gets_utf8_and_vietnamese_warnings(): void
@@ -245,6 +247,19 @@ class AIProductContentSystemTest extends TestCase
         $this->assertSame($product->id, $result['payload']['product_id']);
         $this->assertContains('encoding_checked', $result['payload']['warnings']);
         $this->assertContains('vietnamese_verified', $result['payload']['warnings']);
+    }
+
+    public function test_fact_check_failure_in_draft_mode_marks_product_needs_review(): void
+    {
+        $product = $this->product();
+        $payload = $this->validPayload(content: $this->content(850).'<p>Khu vực 60m2 cần được xác minh lại trước khi chọn máy.</p>');
+        $service = $this->serviceReturning($payload);
+
+        $result = $service->generate($product, $this->config(['apply_mode' => 'needs_review']));
+
+        $this->assertSame('needs_review', $result['status']);
+        $this->assertSame('needs_review', $product->refresh()->ai_status);
+        $this->assertStringContainsString('fact-check', $product->ai_error_message);
     }
 
     private function serviceReturning(array $payload): AIProductContentSystem
