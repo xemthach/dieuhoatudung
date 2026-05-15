@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.16.2] - 2026-05-15
+
+### Added
+- None.
+
+### Fixed
+- Fixed Product list AI status badges so `blocked`, `stuck`, and verified completion states use clearer colors.
+- Fixed Product list AI status visibility by showing the latest AI product error message as a tooltip.
+
+### Changed
+- None.
+
+### Removed
+- None.
+
+### Security
+- None.
+
 ## [1.16.1] - 2026-05-15
 
 ### Added

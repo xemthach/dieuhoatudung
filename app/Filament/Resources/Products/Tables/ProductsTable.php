@@ -43,13 +43,18 @@ class ProductsTable
                     ->label('AI Status')
                     ->badge()
                     ->color(fn (?string $state): string => match ($state) {
-                        'completed' => 'success',
+                        'completed', 'completed_verified', 'completed_with_warnings' => 'success',
                         'processing', 'queued' => 'info',
                         'needs_review' => 'warning',
-                        'failed' => 'danger',
+                        'failed', 'blocked', 'stuck' => 'danger',
                         default => 'gray',
                     })
                     ->formatStateUsing(fn (?string $state): string => AIProductContentSystem::AI_STATUSES[$state ?: 'not_generated'] ?? (string) $state)
+                    ->tooltip(fn ($record): ?string => $record->ai_error_message
+                        ?: $record->aiProductJobItems()
+                            ->whereNotNull('error_message')
+                            ->latest('id')
+                            ->value('error_message'))
                     ->sortable(),
                 TextColumn::make('ai_score')
                     ->label('SEO Score')
