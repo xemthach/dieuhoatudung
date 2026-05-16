@@ -48,6 +48,66 @@ class AIProviderGatewayTest extends TestCase
             && $request->hasHeader('Authorization', 'Bearer sk-test'));
     }
 
+    public function test_openai_adapter_strips_json_markdown_fence(): void
+    {
+        Http::fake([
+            'https://api.shopaikey.com/v1/chat/completions' => Http::response([
+                'choices' => [
+                    ['message' => ['content' => "```json\n{\"ok\":true,\"message\":\"Điều hòa\"}\n```"]],
+                ],
+                'usage' => ['total_tokens' => 9],
+            ]),
+        ]);
+
+        $provider = new AiProvider([
+            'provider' => 'custom',
+            'api_key' => 'sk-test',
+            'endpoint' => 'https://api.shopaikey.com',
+            'model' => 'gpt-test',
+            'supports_json_mode' => true,
+        ]);
+
+        $result = (new OpenAIAdapter)->generate($provider, ['prompt' => 'Ping'], ['require_json' => true]);
+
+        $this->assertSame(['ok' => true, 'message' => 'Điều hòa'], $result['json']);
+    }
+
+    public function test_ai_manager_retries_invalid_json_response(): void
+    {
+        Http::fakeSequence('https://api.shopaikey.com/v1/chat/completions')
+            ->push([
+                'choices' => [
+                    ['message' => ['content' => 'not json']],
+                ],
+                'usage' => ['total_tokens' => 1],
+            ])
+            ->push([
+                'choices' => [
+                    ['message' => ['content' => '{"ok":true}']],
+                ],
+                'usage' => ['total_tokens' => 2],
+            ]);
+
+        $provider = AiProvider::create([
+            'provider' => 'custom',
+            'name' => 'Retry JSON',
+            'api_key' => 'sk-test',
+            'endpoint' => 'https://api.shopaikey.com',
+            'model' => 'gpt-test',
+            'priority' => 'primary',
+            'status' => 'active',
+            'supports_json_mode' => true,
+        ]);
+
+        $result = app(AIManager::class)->generate(
+            ['prompt' => 'Ping'],
+            ['require_json' => true, 'max_attempts' => 2, 'task_type' => 'test_json_retry']
+        );
+
+        $this->assertSame(['ok' => true], $result['json']);
+        $this->assertSame(2, $provider->refresh()->request_count);
+    }
+
     public function test_gemini_adapter_uses_bearer_auth_for_shopaikey_base_url(): void
     {
         Http::fake([
@@ -181,6 +241,46 @@ class AIProviderGatewayTest extends TestCase
         $this->assertSame('huong-dan-chon-dieu-hoa-tu-dung-cho-nha-xuong', $contentJob->output_meta['slug']);
         $this->assertNotEmpty($contentJob->output_faq);
         $this->assertNotEmpty($contentJob->output_internal_links);
+    }
+
+    public function test_blog_ai_e2e_via_provider_generates_utf8_content(): void
+    {
+        Http::fake([
+            'https://api.shopaikey.com/v1/chat/completions' => Http::response([
+                'choices' => [
+                    ['message' => ['content' => json_encode($this->validHvacOutput(), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)]],
+                ],
+                'usage' => ['total_tokens' => 200],
+            ]),
+        ]);
+
+        AiProvider::create([
+            'provider' => 'custom',
+            'name' => 'Blog E2E',
+            'api_key' => 'sk-test',
+            'endpoint' => 'https://api.shopaikey.com',
+            'model' => 'gpt-test',
+            'priority' => 'primary',
+            'status' => 'active',
+            'supports_json_mode' => true,
+        ]);
+        $contentJob = AiContentJob::create([
+            'topic' => 'Hướng dẫn chọn điều hòa tủ đứng cho nhà xưởng',
+            'primary_keyword' => 'điều hòa tủ đứng nhà xưởng',
+            'intent' => 'informational',
+            'status' => AIContentJobStatus::Queued,
+        ]);
+
+        (new GenerateBlogDraftJob($contentJob->id))->handle(app(AIManager::class), app(HVACSeoContentEngine::class));
+
+        $contentJob->refresh();
+        $this->assertContains($contentJob->status, [
+            AIContentJobStatus::CompletedVerified,
+            AIContentJobStatus::CompletedWithWarnings,
+        ]);
+        $this->assertStringContainsString('điều hòa', mb_strtolower($contentJob->output_draft, 'UTF-8'));
+        $this->assertStringNotContainsString('BTUCalculatorService', $contentJob->output_draft);
+        $this->assertStringNotContainsString('product.capacity_btu', $contentJob->output_draft);
     }
 
     public function test_hvac_engine_generates_prompt_for_missing_topic_and_keyword(): void

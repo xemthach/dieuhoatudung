@@ -11,6 +11,7 @@ use App\Models\Tag;
 use App\Services\AI\AIContentGovernance;
 use App\Services\AI\AIManager;
 use App\Services\AI\AITechnicalLogger;
+use App\Support\SchemaColumns;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -19,6 +20,68 @@ use RuntimeException;
 
 class AIProductContentSystem
 {
+    private const CONTENT_LAYER_FIELDS = [
+        'excerpt',
+        'content_html',
+        'seo_title',
+        'meta_description',
+        'og_title',
+        'og_description',
+        'merchant_title',
+        'merchant_description',
+        'tags',
+        'faq',
+        'internal_links',
+        'media_metadata',
+        'warnings',
+        'blocked_claims',
+        'used_facts',
+        'used_verified_facts',
+        'product_id',
+    ];
+
+    private const BLOCKED_PRODUCT_DATA_FIELDS = [
+        'basic_info',
+        'technical_specs',
+        'technical_specs_json',
+        'name',
+        'slug',
+        'sku',
+        'model',
+        'model_code',
+        'brand',
+        'brand_id',
+        'category',
+        'product_category_id',
+        'series',
+        'capacity_btu',
+        'btu',
+        'capacity_kw',
+        'hp',
+        'cooling_type',
+        'inverter',
+        'phase',
+        'voltage',
+        'refrigerant',
+        'refrigerant_gas',
+        'power_consumption',
+        'airflow',
+        'noise_level',
+        'recommended_area',
+        'indoor_dimensions',
+        'outdoor_dimensions',
+        'weight',
+        'pipe_liquid',
+        'pipe_gas',
+        'pipe_max_length',
+        'pipe_max_height',
+        'regular_price',
+        'sale_price',
+        'discount_percent',
+        'stock_status',
+        'specs_json',
+    ];
+
     public const AI_STATUSES = [
         'not_generated' => 'Chưa tạo',
         'queued' => 'Đang chờ',
@@ -149,7 +212,7 @@ class AIProductContentSystem
             'merchant_description',
         ]);
         $warnings = $this->normalizeIssueList(
-            $payload['warnings'],
+            $this->filterAiDeclaredMissingWarnings($payload['warnings'], $guardContext),
             $factCheck['warnings'],
             $this->detectDuplicateWarnings($product, $payload['content_html']),
             $this->scorer->auditWarnings($product)
@@ -173,7 +236,7 @@ class AIProductContentSystem
                 'ai_last_run_at' => now(),
             ]);
 
-            $item?->update([
+            $this->updateItem($item, [
                 'status' => $status,
                 'failed_reason' => 'fact_check_failed',
                 'last_error_code' => 'fact_check_failed',
@@ -191,8 +254,13 @@ class AIProductContentSystem
                 'duration_ms' => (int) $item?->started_at?->diffInMilliseconds(now()),
             ]);
             $this->technicalLogger->event('ai_product_content', $status === 'blocked' ? 'fact_check_failed' : 'fact_check_needs_review', $message, [
+                'content_layer_only' => true,
                 'warnings' => $warnings,
                 'blocked_claims' => $payload['blocked_claims'],
+                'blocked_product_data_fields' => $payload['blocked_product_data_fields'] ?? [],
+                'verified_facts_used' => $payload['used_facts'] ?? [],
+                'unverified_claims_removed' => $this->warningsWithPrefix($warnings, 'unverified_claim_removed:'),
+                'fact_check_status' => $factCheck['status'] ?? null,
                 'provider' => $result['provider'] ?? null,
                 'model' => $result['model'] ?? null,
             ], $item, 'warning');
@@ -240,7 +308,7 @@ class AIProductContentSystem
             'ai_generated_at' => now(),
         ]);
 
-        $item?->update([
+        $this->updateItem($item, [
             'status' => $status,
             'seo_score_before' => $before['score'],
             'seo_score_after' => $after['score'],
@@ -254,8 +322,13 @@ class AIProductContentSystem
             'duration_ms' => (int) $item?->started_at?->diffInMilliseconds(now()),
         ]);
         $this->technicalLogger->event('ai_product_content', 'job_completed', 'AI product content generated.', [
+            'content_layer_only' => true,
             'status' => $status,
             'warnings' => $warnings,
+            'blocked_product_data_fields' => $payload['blocked_product_data_fields'] ?? [],
+            'verified_facts_used' => $payload['used_facts'] ?? [],
+            'unverified_claims_removed' => $this->warningsWithPrefix($warnings, 'unverified_claim_removed:'),
+            'fact_check_status' => $factCheck['status'] ?? null,
             'provider' => $result['provider'] ?? null,
             'model' => $result['model'] ?? null,
             'tokens_used' => $result['tokens_used'] ?? null,
@@ -300,6 +373,16 @@ class AIProductContentSystem
             $product->update([
                 'ai_status' => 'blocked',
                 'ai_error_message' => 'Không thể áp dụng bản nháp AI vì nội dung chưa vượt qua bước kiểm tra.',
+                'ai_last_run_at' => now(),
+            ]);
+
+            return null;
+        }
+
+        if (! in_array($item->status, ['needs_review', 'completed', 'completed_verified', 'completed_with_warnings'], true)) {
+            $product->update([
+                'ai_status' => $item->status ?: 'needs_review',
+                'ai_error_message' => 'Không thể áp dụng bản nháp AI vì job chưa hoàn tất hợp lệ.',
                 'ai_last_run_at' => now(),
             ]);
 
@@ -393,7 +476,7 @@ class AIProductContentSystem
             'ai_last_run_at' => now(),
             'ai_error_message' => null,
         ]);
-        $item?->update([
+        $this->updateItem($item, [
             'status' => $status,
             'seo_score_before' => $score['score'],
             'seo_score_after' => $score['score'],
@@ -413,7 +496,7 @@ class AIProductContentSystem
             'ai_warning_count' => count($warnings),
             'ai_last_run_at' => now(),
         ]);
-        $item?->update([
+        $this->updateItem($item, [
             'status' => 'completed_with_warnings',
             'seo_score_before' => $score['score'],
             'seo_score_after' => $score['score'],
@@ -438,6 +521,34 @@ class AIProductContentSystem
         }
 
         return array_values(array_unique($items));
+    }
+
+    private function warningsWithPrefix(array $warnings, string $prefix): array
+    {
+        return array_values(array_filter(
+            $warnings,
+            fn (string $warning): bool => str_starts_with($warning, $prefix)
+        ));
+    }
+
+    private function updateItem(?AiProductJobItem $item, array $attributes): void
+    {
+        $item?->update(SchemaColumns::existing('ai_product_job_items', $attributes));
+    }
+
+    private function filterAiDeclaredMissingWarnings(array $warnings, array $guardContext): array
+    {
+        $actualMissingFacts = array_flip((array) ($guardContext['missing_facts'] ?? []));
+
+        return array_values(array_filter($warnings, function (string $warning) use ($actualMissingFacts): bool {
+            $code = trim(explode(':', $warning, 2)[0]);
+
+            if (! str_starts_with($code, 'missing_') || $code === 'missing_technical_data') {
+                return true;
+            }
+
+            return isset($actualMissingFacts[$code]);
+        }));
     }
 
     private function flattenIssueList(mixed $value): array
@@ -478,19 +589,16 @@ class AIProductContentSystem
     {
         return [
             'product_id' => $product->id,
-            'name' => $product->name,
-            'slug' => $product->slug,
-            'brand' => $product->brand?->only(['id', 'name', 'slug']),
-            'category' => $product->category?->only(['id', 'name', 'slug']),
-            'model_code' => $product->model_code,
-            'sku' => $product->sku,
-            'capacity_btu' => $product->btu,
-            'capacity_kw' => $product->capacity_kw,
-            'cooling_type' => $product->cooling_type,
-            'inverter' => $product->inverter,
-            'phase' => $product->voltage,
-            'refrigerant' => $product->refrigerant_gas,
-            'technical_specs' => Arr::only($product->toArray(), [
+            'product_identity' => [
+                'name' => $product->name,
+                'slug' => $product->slug,
+                'brand' => $product->brand?->only(['id', 'name', 'slug']),
+                'category' => $product->category?->only(['id', 'name', 'slug']),
+                'model_code' => $product->model_code,
+                'sku' => $product->sku,
+            ],
+            'verified_technical_facts' => Arr::only($product->toArray(), [
+                'btu', 'capacity_kw', 'hp', 'cooling_type', 'inverter', 'voltage', 'refrigerant_gas',
                 'power_consumption', 'airflow', 'noise_level', 'indoor_dimensions',
                 'outdoor_dimensions', 'weight', 'recommended_area', 'hp',
             ]),
@@ -516,16 +624,31 @@ class AIProductContentSystem
 
     private function normalizePayload(array $payload, Product $product, array $config): array
     {
+        $blockedDataFields = $this->blockedProductDataFields($payload);
+
+        if (is_array($payload['content_layer'] ?? null)) {
+            $contentLayer = $payload['content_layer'];
+            $payload = array_merge($contentLayer, [
+                'product_id' => $payload['product_id'] ?? $contentLayer['product_id'] ?? $product->id,
+                'warnings' => $payload['warnings'] ?? $contentLayer['warnings'] ?? [],
+                'used_facts' => $payload['used_verified_facts'] ?? $payload['used_facts'] ?? $contentLayer['used_verified_facts'] ?? $contentLayer['used_facts'] ?? [],
+                'blocked_claims' => $payload['blocked_claims'] ?? $contentLayer['blocked_claims'] ?? [],
+                'internal_links' => $payload['internal_links'] ?? $contentLayer['internal_links'] ?? [],
+                'media_metadata' => $payload['media_metadata'] ?? $contentLayer['media_metadata'] ?? [],
+            ]);
+        }
+
         if (is_array($payload['content'] ?? null)) {
             $payload = array_merge($payload['content'], [
                 'product_id' => $payload['product_id'] ?? $payload['content']['product_id'] ?? null,
                 'warnings' => $payload['warnings'] ?? $payload['content']['warnings'] ?? [],
-                'used_facts' => $payload['used_facts'] ?? $payload['content']['used_facts'] ?? [],
+                'used_facts' => $payload['used_verified_facts'] ?? $payload['used_facts'] ?? $payload['content']['used_verified_facts'] ?? $payload['content']['used_facts'] ?? [],
                 'blocked_claims' => $payload['blocked_claims'] ?? $payload['content']['blocked_claims'] ?? [],
                 'internal_links' => $payload['internal_links'] ?? $payload['content']['internal_links'] ?? [],
             ]);
         }
 
+        $payload = Arr::only($payload, self::CONTENT_LAYER_FIELDS);
         $payload['product_id'] = (int) ($payload['product_id'] ?? $product->id);
         foreach (['excerpt', 'content_html', 'seo_title', 'meta_description', 'og_title', 'og_description', 'merchant_title', 'merchant_description'] as $key) {
             $payload[$key] = (string) ($payload[$key] ?? '');
@@ -533,12 +656,132 @@ class AIProductContentSystem
         $payload['tags'] = is_array($payload['tags'] ?? null) ? $payload['tags'] : [];
         $payload['faq'] = is_array($payload['faq'] ?? null) ? $payload['faq'] : [];
         $payload['internal_links'] = is_array($payload['internal_links'] ?? null) ? $payload['internal_links'] : [];
+        $payload['media_metadata'] = is_array($payload['media_metadata'] ?? null) ? $payload['media_metadata'] : [];
         $payload['warnings'] = $this->normalizeIssueList($payload['warnings'] ?? []);
         $payload['used_facts'] = is_array($payload['used_facts'] ?? null) ? $payload['used_facts'] : [];
         $payload['blocked_claims'] = $this->normalizeIssueList($payload['blocked_claims'] ?? []);
+        if ($blockedDataFields !== []) {
+            $payload['blocked_product_data_fields'] = $blockedDataFields;
+            $payload['warnings'] = $this->normalizeIssueList(
+                $payload['warnings'],
+                'ai_payload_contains_blocked_product_data_fields',
+                array_map(fn (string $field): string => 'blocked_product_data_field:'.$field, $blockedDataFields)
+            );
+        }
+
+        $payload = $this->neutralizeUnverifiedMarketingClaims($payload, $product);
 
         $payload = $this->sanitizer->sanitizePayload($payload);
         $this->validatePayload($payload, $product, $config);
+
+        return $payload;
+    }
+
+    private function blockedProductDataFields(array $payload): array
+    {
+        $blocked = [];
+        $this->collectBlockedProductDataFields($payload, $blocked);
+
+        return array_values(array_unique($blocked));
+    }
+
+    private function collectBlockedProductDataFields(mixed $value, array &$blocked, ?string $parentKey = null): void
+    {
+        if (! is_array($value)) {
+            return;
+        }
+
+        foreach ($value as $key => $child) {
+            $key = is_string($key) ? $key : '';
+            $normalized = Str::snake($key);
+
+            if ($normalized !== ''
+                && in_array($normalized, self::BLOCKED_PRODUCT_DATA_FIELDS, true)
+                && ! in_array($parentKey, ['product_identity', 'verified_technical_facts'], true)) {
+                $blocked[] = $normalized;
+            }
+
+            $this->collectBlockedProductDataFields($child, $blocked, $normalized);
+        }
+    }
+
+    private function neutralizeUnverifiedMarketingClaims(array $payload, Product $product): array
+    {
+        $rules = [];
+
+        $removed = [];
+        $textKeys = ['excerpt', 'content_html', 'seo_title', 'meta_description', 'og_title', 'og_description', 'merchant_title', 'merchant_description'];
+
+        foreach ($textKeys as $key) {
+            foreach ($rules as $code => $rule) {
+                if ($rule['allowed']) {
+                    continue;
+                }
+
+                foreach ($rule['patterns'] as $pattern => $replacement) {
+                    $newValue = preg_replace($pattern, $replacement, (string) ($payload[$key] ?? '')) ?? (string) ($payload[$key] ?? '');
+                    if ($newValue !== ($payload[$key] ?? '')) {
+                        $payload[$key] = $newValue;
+                        $removed[] = $code;
+                    }
+                }
+            }
+        }
+
+        foreach ((array) ($payload['faq'] ?? []) as $index => $faq) {
+            if (! is_array($faq)) {
+                continue;
+            }
+
+            foreach (['question', 'answer'] as $key) {
+                foreach ($rules as $code => $rule) {
+                    if ($rule['allowed']) {
+                        continue;
+                    }
+
+                    foreach ($rule['patterns'] as $pattern => $replacement) {
+                        $newValue = preg_replace($pattern, $replacement, (string) ($faq[$key] ?? '')) ?? (string) ($faq[$key] ?? '');
+                        if ($newValue !== ($payload['faq'][$index][$key] ?? '')) {
+                            $payload['faq'][$index][$key] = $newValue;
+                            $removed[] = $code;
+                        }
+                    }
+                }
+            }
+        }
+
+        foreach ($textKeys as $key) {
+            $value = (string) ($payload[$key] ?? '');
+            $ascii = Str::ascii(Str::lower($value));
+            $fallbackRules = [
+                'vat' => ['vat', '/VAT/iu', 'chinh sach gia'],
+                'vuot_troi' => ['vuot troi', '/v\S*\s+tr\S*i/iu', 'on dinh'],
+                'mien_phi' => ['mien phi', '/mi\S*n\s+ph\S*/iu', 'lien he de duoc tu van'],
+                'chinh_hang' => ['chinh hang', '/ch\S*nh\s+h\S*ng/iu', 'theo thong tin san pham da luu'],
+                'gia_tot_nhat' => ['gia tot nhat', '/gi\S*\s+t\S*t\s+nh\S*t/iu', 'muc gia can xac nhan'],
+            ];
+
+            foreach ($fallbackRules as $code => [$needle, $pattern, $replacement]) {
+                if (! str_contains($ascii, $needle)) {
+                    continue;
+                }
+
+                $newValue = preg_replace($pattern, $replacement, $value) ?? $value;
+                if ($newValue !== $value) {
+                    $payload[$key] = $newValue;
+                    $value = $newValue;
+                    $ascii = Str::ascii(Str::lower($value));
+                    $removed[] = $code;
+                }
+            }
+        }
+
+        if ($removed !== []) {
+            $payload['warnings'] = $this->normalizeIssueList(
+                $payload['warnings'],
+                array_map(fn (string $code): string => 'unverified_claim_removed:'.$code, array_values(array_unique($removed)))
+            );
+        }
 
         return $payload;
     }
@@ -613,10 +856,10 @@ class AIProductContentSystem
                 if ($this->shouldUpdate($product->merchant_description, $mode, $scoreBefore) && filled($payload['merchant_description'])) {
                     $updates['merchant_description'] = $payload['merchant_description'];
                 }
-                if ($this->shouldUpdate($product->google_product_category, $mode, $scoreBefore)) {
-                    $updates['google_product_category'] = $product->google_product_category ?: '604';
+                if ($this->shouldUpdate($product->google_product_category, $mode, $scoreBefore) && filled($product->google_product_category)) {
+                    $updates['google_product_category'] = $product->google_product_category;
                 }
-                if ($this->shouldUpdate($product->product_type, $mode, $scoreBefore)) {
+                if ($this->shouldUpdate($product->product_type, $mode, $scoreBefore) && filled($product->category?->name)) {
                     $updates['product_type'] = $product->product_type ?: $this->productType($product);
                 }
             }
@@ -755,7 +998,7 @@ PROMPT;
         $guardJson = json_encode($this->governance->publicContext($guardContext), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
         $inputJson = json_encode($input, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
         $outputJson = json_encode($config['outputs'], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-        $categoryLogic = $this->categoryLogic((string) data_get($input, 'category.name', ''));
+        $categoryLogic = $this->categoryLogic((string) data_get($input, 'product_identity.category.name', ''));
 
         return <<<PROMPT
 NGỮ CẢNH DỮ LIỆU ĐÃ XÁC MINH (bắt buộc tuân thủ):
@@ -774,8 +1017,7 @@ CONFIG:
 
 JSON output bắt buộc:
 {
-  "product_id": {$input['product_id']},
-  "content": {
+  "content_layer": {
     "excerpt": "",
     "content_html": "",
     "seo_title": "",
@@ -785,18 +1027,24 @@ JSON output bắt buộc:
     "merchant_title": "",
     "merchant_description": "",
     "tags": [],
-    "faq": [{"question": "", "answer": ""}]
+    "faq": [{"question": "", "answer": ""}],
+    "internal_links": [],
+    "media_metadata": []
   },
-  "used_facts": [],
+  "used_verified_facts": ["fact_id trong verified_technical_facts, ví dụ fact_1"],
   "warnings": ["encoding_checked", "vietnamese_verified"],
   "blocked_claims": []
 }
 
 AI governance rule:
+- Chỉ tạo AI Content Layer: excerpt, content_html, SEO, OG, Google Merchant text, tags, FAQ, internal links, media metadata.
+- Không trả về và không đề xuất cập nhật Product Data Layer: thông tin cơ bản, model, SKU, brand, category, slug, giá, trạng thái, thông số kỹ thuật, technical_specs_json.
+- verified_technical_facts chỉ dùng để tham chiếu trong nội dung; không được sửa dữ liệu gốc.
 - Chỉ được dùng giá trị trong dữ liệu đã xác minh để viết thông số kỹ thuật, BTU, kW, HP, diện tích, độ ồn, kích thước, trọng lượng, gas, bảo hành, giá, VAT, CO/CQ.
+- Khi dùng một dữ liệu trong verified_technical_facts, ghi đúng id công khai của dữ liệu đó vào used_verified_facts; không ghi giá trị rời như "GREE", "18000" hoặc tên biến nội bộ.
 - Không tự suy diễn công thức BTU, hệ số BTU/m2, diện tích phù hợp hoặc tải lạnh. Nếu chưa có kết quả tính toán đã xác minh thì không đưa số BTU cụ thể và thêm warning "missing_btu_inputs".
 - Nếu thiếu lưu lượng gió, độ ồn, bảo hành, nguồn catalogue, giá hoặc xuất xứ thì bỏ qua claim tương ứng hoặc thêm warning phù hợp.
-- Mọi dữ liệu đã dùng phải ghi bằng tên dễ hiểu cho người quản trị, không dùng tên biến nội bộ.
+- Chỉ thêm warning missing_* nếu mã đó xuất hiện trong missing_facts của ngữ cảnh; không tự khai thiếu thông số đã có trong allowed_facts.
 - Tuyệt đối không đưa tên service, class, function, API, biến nội bộ, CamelCase hoặc cú pháp code vào các trường nội dung hiển thị.
 - Nếu phát hiện nội dung có thể vượt nguồn dữ liệu, đưa mã vào blocked_claims thay vì viết thành khẳng định.
 

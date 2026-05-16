@@ -5,6 +5,20 @@
                 <div class="text-sm font-semibold text-danger-600">
                     AI queue worker is not running or no recent heartbeat was recorded.
                 </div>
+                <div class="mt-2 text-xs text-gray-600">
+                    {{ data_get($health, 'worker_command') }}
+                </div>
+            </x-filament::section>
+        @endif
+
+        @if(empty(data_get($health, 'scheduler_is_running')))
+            <x-filament::section>
+                <div class="text-sm font-semibold text-warning-600">
+                    Scheduler heartbeat is missing or stale. Stuck-job recovery may not run automatically.
+                </div>
+                <div class="mt-2 text-xs text-gray-600">
+                    {{ data_get($health, 'scheduler_command') }}
+                </div>
             </x-filament::section>
         @endif
 

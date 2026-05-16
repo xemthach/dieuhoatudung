@@ -6,6 +6,7 @@ use App\Jobs\AiProductContentBatchJob;
 use App\Jobs\AiProductContentSingleJob;
 use App\Models\AiProductContentVersion;
 use App\Models\AiProductJob;
+use App\Models\AiProvider;
 use App\Models\Brand;
 use App\Models\Faq;
 use App\Models\Product;
@@ -16,6 +17,7 @@ use App\Services\Product\AIProductContentSystem;
 use App\Services\Product\AIProductSeoScorer;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Bus;
+use Illuminate\Support\Facades\Http;
 use Mockery;
 use Tests\TestCase;
 
@@ -37,6 +39,69 @@ class AIProductContentSystemTest extends TestCase
         $this->assertSame('Merchant title Gree Cassette 42000BTU', $product->merchant_title);
         $this->assertSame(3, $product->faqs()->count());
         $this->assertSame(3, $product->tags()->count());
+    }
+
+    public function test_product_ai_e2e_via_provider_updates_content_layer_only(): void
+    {
+        Http::fake([
+            'https://api.shopaikey.com/v1/chat/completions' => Http::response([
+                'choices' => [
+                    ['message' => ['content' => json_encode($this->validPayload(), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)]],
+                ],
+                'usage' => ['total_tokens' => 100],
+            ]),
+        ]);
+
+        AiProvider::create([
+            'provider' => 'custom',
+            'name' => 'E2E provider',
+            'api_key' => 'sk-test',
+            'endpoint' => 'https://api.shopaikey.com',
+            'model' => 'gpt-test',
+            'priority' => 'primary',
+            'status' => 'active',
+            'supports_json_mode' => true,
+        ]);
+
+        $brand = Brand::factory()->create(['name' => 'GREE']);
+        $category = ProductCategory::factory()->create(['name' => 'Điều hòa âm trần Cassette']);
+        $product = $this->product([
+            'brand_id' => $brand->id,
+            'product_category_id' => $category->id,
+            'model_code' => 'GCC42S6I',
+            'sku' => 'GREE-GCC42S6I',
+            'btu' => 42000,
+            'specs_json' => [
+                ['key' => 'pipe_liquid', 'label' => 'Ống đồng lỏng', 'value' => '6.35 mm'],
+                ['key' => 'pipe_gas', 'label' => 'Ống đồng gas', 'value' => '15.9 mm'],
+                ['key' => 'outdoor_noise_db', 'label' => 'Độ ồn dàn nóng', 'value' => '54 dB'],
+            ],
+        ]);
+        $original = $product->only(['name', 'slug', 'sku', 'model_code', 'brand_id', 'product_category_id', 'btu', 'specs_json']);
+        $job = AiProductJob::create([
+            'type' => 'generate_ai_content',
+            'scope' => 'selected',
+            'status' => 'queued',
+            'total' => 1,
+            'config_json' => $this->config(['apply_mode' => 'auto_apply']),
+        ]);
+        $item = $job->items()->create(['product_id' => $product->id, 'status' => 'queued']);
+
+        (new AiProductContentSingleJob($product->id, $job->id, $item->id))->handle(app(AIProductContentSystem::class));
+
+        $product->refresh();
+        $this->assertSame($original['name'], $product->name);
+        $this->assertSame($original['slug'], $product->slug);
+        $this->assertSame($original['sku'], $product->sku);
+        $this->assertSame($original['model_code'], $product->model_code);
+        $this->assertSame($original['brand_id'], $product->brand_id);
+        $this->assertSame($original['product_category_id'], $product->product_category_id);
+        $this->assertSame($original['btu'], $product->btu);
+        $this->assertSame($original['specs_json'], $product->specs_json);
+        $this->assertNotEmpty($product->long_description);
+        $this->assertNotEmpty($product->seo_title);
+        $this->assertContains($item->refresh()->status, ['completed_verified', 'completed_with_warnings', 'needs_review']);
+        $this->assertSame([], $item->generated_payload_json['blocked_claims'] ?? []);
     }
 
     public function test_generate_one_product_missing_technical_specs_allows_shorter_content_with_warning(): void
@@ -249,6 +314,18 @@ class AIProductContentSystemTest extends TestCase
         $this->assertContains('vietnamese_verified', $result['payload']['warnings']);
     }
 
+    public function test_ai_declared_missing_warnings_are_reconciled_with_current_context(): void
+    {
+        $product = $this->product(['capacity_kw' => 12.3, 'regular_price' => null, 'sale_price' => null]);
+        $payload = $this->validPayload(warnings: ['missing_capacity_kw', 'missing_price']);
+        $service = $this->serviceReturning($payload);
+
+        $result = $service->generate($product, $this->config(['apply_mode' => 'needs_review']));
+
+        $this->assertNotContains('missing_capacity_kw', $result['payload']['warnings']);
+        $this->assertContains('missing_price', $result['payload']['warnings']);
+    }
+
     public function test_fact_check_failure_in_draft_mode_marks_product_needs_review(): void
     {
         $product = $this->product();
@@ -260,6 +337,168 @@ class AIProductContentSystemTest extends TestCase
         $this->assertSame('needs_review', $result['status']);
         $this->assertSame('needs_review', $product->refresh()->ai_status);
         $this->assertStringContainsString('fact-check', $product->ai_error_message);
+    }
+
+    public function test_ai_payload_with_capacity_btu_is_not_saved_and_is_logged_as_blocked_field(): void
+    {
+        $product = $this->product(['btu' => 42000]);
+        $job = AiProductJob::create(['type' => 'generate_ai_content', 'scope' => 'selected', 'status' => 'queued', 'total' => 1, 'config_json' => $this->config(['apply_mode' => 'auto_apply'])]);
+        $item = $job->items()->create(['product_id' => $product->id, 'status' => 'queued']);
+        $payload = $this->validPayload();
+        $payload['capacity_btu'] = 99999;
+
+        $this->serviceReturning($payload)->generate($product, $job->config_json, $job, $item);
+
+        $product->refresh();
+        $item->refresh();
+        $this->assertSame(42000, $product->btu);
+        $this->assertContains('ai_payload_contains_blocked_product_data_fields', $item->warnings_json);
+        $this->assertContains('capacity_btu', $item->generated_payload_json['blocked_product_data_fields']);
+    }
+
+    public function test_verified_noise_claim_from_specs_json_passes_fact_check(): void
+    {
+        $product = $this->product([
+            'noise_level' => null,
+            'specs_json' => [
+                ['key' => 'outdoor_noise_db', 'label' => 'Độ ồn dàn nóng', 'value' => '54'],
+            ],
+        ]);
+        $payload = $this->validPayload(content: $this->content(850).'<p>Độ ồn dàn nóng 54 dB cần được đối chiếu theo catalogue.</p>');
+
+        $result = $this->serviceReturning($payload)->generate($product, $this->config(['apply_mode' => 'needs_review']));
+
+        $this->assertNotContains('unverified_numeric_claim:54 dB', $result['payload']['blocked_claims']);
+    }
+
+    public function test_verified_pipe_size_claims_from_specs_json_pass_fact_check(): void
+    {
+        $product = $this->product([
+            'specs_json' => [
+                ['key' => 'pipe_liquid', 'label' => 'Ống đồng lỏng', 'value' => '6.35 mm'],
+                ['key' => 'pipe_gas', 'label' => 'Ống đồng gas', 'value' => '15.9 mm'],
+            ],
+        ]);
+        $payload = $this->validPayload(content: $this->content(850).'<p>Ống đồng lỏng 6.35 mm và ống đồng gas 15.9 mm cần đối chiếu theo catalogue.</p>');
+
+        $result = $this->serviceReturning($payload)->generate($product, $this->config(['apply_mode' => 'needs_review']));
+
+        $this->assertNotContains('unverified_numeric_claim:6.35 mm', $result['payload']['blocked_claims']);
+        $this->assertNotContains('unverified_numeric_claim:15.9 mm', $result['payload']['blocked_claims']);
+    }
+
+    public function test_unverified_noise_claim_is_blocked(): void
+    {
+        $product = $this->product(['noise_level' => null, 'specs_json' => null]);
+        $payload = $this->validPayload(content: $this->content(850).'<p>Độ ồn dàn nóng 54 dB cần được xác minh lại.</p>');
+
+        $result = $this->serviceReturning($payload)->generate($product, $this->config(['apply_mode' => 'needs_review']));
+
+        $this->assertContains('unverified_numeric_claim:54 dB', $result['payload']['blocked_claims']);
+    }
+
+    public function test_vat_claim_without_config_is_removed_before_fact_check(): void
+    {
+        $product = $this->product();
+        $payload = $this->validPayload(content: $this->content(850).'<p>Giá bán đã bao gồm VAT và cần xác nhận khi đặt hàng.</p>');
+
+        $result = $this->serviceReturning($payload)->generate($product, $this->config(['apply_mode' => 'needs_review']));
+
+        $this->assertNotContains('vat', $result['payload']['blocked_claims']);
+        $this->assertContains('unverified_claim_removed:vat', $result['payload']['warnings']);
+        $this->assertStringNotContainsString('VAT', $result['payload']['content_html']);
+    }
+
+    public function test_free_install_claim_without_policy_is_removed_before_fact_check(): void
+    {
+        $product = $this->product();
+        $payload = $this->validPayload(content: $this->content(850).'<p>Dịch vụ miễn phí lắp đặt cần được xác nhận theo chính sách bán hàng.</p>');
+
+        $result = $this->serviceReturning($payload)->generate($product, $this->config(['apply_mode' => 'needs_review']));
+
+        $this->assertNotContains('mien_phi', $result['payload']['blocked_claims']);
+        $this->assertContains('unverified_claim_removed:mien_phi', $result['payload']['warnings']);
+        $this->assertStringNotContainsString('miễn phí', $result['payload']['content_html']);
+    }
+
+    public function test_one_hundred_percent_official_claim_without_source_is_blocked(): void
+    {
+        $product = $this->product();
+        $payload = $this->validPayload(content: $this->content(850).'<p>Sản phẩm chính hãng 100% cần có giấy tờ xác minh trước khi công bố.</p>');
+
+        $result = $this->serviceReturning($payload)->generate($product, $this->config(['apply_mode' => 'needs_review']));
+
+        $this->assertContains('percent_100', $result['payload']['blocked_claims']);
+    }
+
+    public function test_valid_content_seo_and_merchant_payload_auto_applies_successfully(): void
+    {
+        $product = $this->product();
+
+        $this->serviceReturning($this->validPayload())->generate($product, $this->config(['apply_mode' => 'auto_apply']));
+
+        $product->refresh();
+        $this->assertNotEmpty($product->short_description);
+        $this->assertNotEmpty($product->long_description);
+        $this->assertNotEmpty($product->seo_title);
+        $this->assertNotEmpty($product->seo_description);
+        $this->assertNotEmpty($product->merchant_title);
+        $this->assertNotEmpty($product->merchant_description);
+    }
+
+    public function test_ai_never_changes_model_sku_specs_brand_or_category(): void
+    {
+        $brand = Brand::factory()->create(['name' => 'Original Brand']);
+        $category = ProductCategory::factory()->create(['name' => 'Original Category']);
+        $product = $this->product([
+            'brand_id' => $brand->id,
+            'product_category_id' => $category->id,
+            'model_code' => 'ORIGINAL-MODEL',
+            'sku' => 'ORIGINAL-SKU',
+            'specs_json' => [['key' => 'pipe_liquid', 'value' => '6.35']],
+        ]);
+        $payload = $this->validPayload();
+        $payload['model_code'] = 'AI-MODEL';
+        $payload['sku'] = 'AI-SKU';
+        $payload['brand_id'] = Brand::factory()->create()->id;
+        $payload['product_category_id'] = ProductCategory::factory()->create()->id;
+        $payload['technical_specs_json'] = [['key' => 'noise', 'value' => '10 dB']];
+        $payload['specs_json'] = [['key' => 'noise', 'value' => '10 dB']];
+
+        $this->serviceReturning($payload)->generate($product, $this->config(['apply_mode' => 'auto_apply']));
+
+        $product->refresh();
+        $this->assertSame('ORIGINAL-MODEL', $product->model_code);
+        $this->assertSame('ORIGINAL-SKU', $product->sku);
+        $this->assertSame($brand->id, $product->brand_id);
+        $this->assertSame($category->id, $product->product_category_id);
+        $this->assertSame([['key' => 'pipe_liquid', 'value' => '6.35']], $product->specs_json);
+    }
+
+    public function test_bulk_ai_product_updates_content_layer_only(): void
+    {
+        $products = Product::factory()->count(2)->create([
+            'model_code' => 'BULK-MODEL',
+            'sku' => null,
+            'btu' => 42000,
+            'specs_json' => [['key' => 'pipe_liquid', 'value' => '6.35']],
+        ]);
+        $payload = $this->validPayload();
+        $payload['model_code'] = 'AI-BULK-MODEL';
+        $payload['capacity_btu'] = 99999;
+        $service = $this->serviceReturning($payload);
+
+        foreach ($products as $product) {
+            $service->generate($product, $this->config(['apply_mode' => 'auto_apply']));
+        }
+
+        foreach ($products as $product) {
+            $product->refresh();
+            $this->assertSame('BULK-MODEL', $product->model_code);
+            $this->assertSame(42000, $product->btu);
+            $this->assertSame([['key' => 'pipe_liquid', 'value' => '6.35']], $product->specs_json);
+            $this->assertNotEmpty($product->long_description);
+        }
     }
 
     private function serviceReturning(array $payload): AIProductContentSystem

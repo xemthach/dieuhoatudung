@@ -10,6 +10,7 @@ use App\Services\Mail\Providers\BrevoMailProvider;
 use App\Services\Mail\Providers\TestmailProvider;
 use App\Services\Mail\Providers\MailgunMailProvider;
 use App\Services\Mail\Providers\SendGridMailProvider;
+use App\Support\EncodingGuard;
 use Illuminate\Support\Facades\Log;
 
 class MailProviderService
@@ -177,7 +178,7 @@ class MailProviderService
                 'subject'          => $subject,
                 'status'           => $status,
                 'status_code'      => $statusCode,
-                'response_excerpt' => is_array($responseExcerpt) ? json_encode($responseExcerpt) : $responseExcerpt,
+                'response_excerpt' => is_array($responseExcerpt) ? EncodingGuard::jsonEncode($responseExcerpt) : $responseExcerpt,
                 'error_message'    => $errorMessage,
                 'related_type'     => $relatedType,
                 'related_id'       => $relatedId,

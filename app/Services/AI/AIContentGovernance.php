@@ -11,7 +11,7 @@ use Illuminate\Support\Str;
 
 class AIContentGovernance
 {
-    public const PROMPT_VERSION = 'ai-content-governance-v1';
+    public const PROMPT_VERSION = 'ai-product-content-layer-v2';
 
     private const NUMERIC_UNITS = [
         'btu', 'kw', 'hp', 'm2', 'm²', 'db', 'pa', 'mm', 'kg', 'w', 'a', 'vnd',
@@ -21,6 +21,7 @@ class AIContentGovernance
         'btu' => 'missing_btu',
         'capacity_kw' => 'missing_capacity_kw',
         'hp' => 'missing_hp',
+        'power_consumption' => 'missing_power_consumption',
         'airflow' => 'missing_airflow',
         'noise_level' => 'missing_noise_level',
         'refrigerant_gas' => 'missing_refrigerant',
@@ -86,7 +87,16 @@ class AIContentGovernance
                 $allowedFacts,
                 'product.technical_specs_json.'.$index,
                 trim($spec['label'].' '.$spec['value']),
-                'products.specs_json'
+                'products.specs_json',
+                [
+                    'label' => $spec['label'],
+                    'unit' => $this->inferUnitFromSpec($spec),
+                    'aliases' => array_values(array_unique(array_filter([
+                        $spec['key'],
+                        $spec['label'],
+                        trim($spec['label'].' '.$spec['value']),
+                    ]))),
+                ]
             );
         }
 
@@ -107,6 +117,49 @@ class AIContentGovernance
             'forbidden_claims' => array_keys(self::FORBIDDEN_CLAIMS),
             'content_task' => $contentTask,
             'data_completeness' => $this->dataCompleteness($product),
+            'product_identity' => [
+                'name' => $product->name,
+                'model_code' => $product->model_code,
+                'sku' => $product->sku,
+                'brand' => $product->brand?->name,
+                'category' => $product->category?->name,
+            ],
+            'allowed_content_tasks' => array_keys(array_filter((array) ($contentTask['outputs'] ?? []))),
+            'forbidden_update_fields' => [
+                'basic_info',
+                'technical_specs',
+                'technical_specs_json',
+                'name',
+                'slug',
+                'sku',
+                'model_code',
+                'brand_id',
+                'product_category_id',
+                'series',
+                'btu',
+                'capacity_btu',
+                'capacity_kw',
+                'hp',
+                'cooling_type',
+                'inverter',
+                'voltage',
+                'phase',
+                'refrigerant',
+                'refrigerant_gas',
+                'power_consumption',
+                'airflow',
+                'noise_level',
+                'recommended_area',
+                'indoor_dimensions',
+                'outdoor_dimensions',
+                'weight',
+                'regular_price',
+                'sale_price',
+                'discount_percent',
+                'stock_status',
+                'specs_json',
+                'technical_specs_json',
+            ],
         ];
     }
 
@@ -215,17 +268,23 @@ class AIContentGovernance
     {
         $facts = [];
 
-        foreach ($context['allowed_facts'] ?? [] as $key => $fact) {
+        foreach (array_values($context['allowed_facts'] ?? []) as $index => $fact) {
             $facts[] = [
-                'name' => $this->humanFactName((string) $key),
+                'id' => $this->publicFactId($index),
+                'name' => $fact['label'] ?? $this->humanFactName((string) array_keys($context['allowed_facts'] ?? [])[$index]),
                 'value' => $fact['value'] ?? null,
                 'source' => 'dữ liệu đã xác minh',
             ];
         }
 
         return [
+            'product_identity' => $context['product_identity'] ?? [],
+            'verified_technical_facts' => $facts,
             'allowed_facts' => $facts,
+            'missing_technical_facts' => $context['missing_facts'] ?? [],
             'missing_facts' => $context['missing_facts'] ?? [],
+            'allowed_content_tasks' => $context['allowed_content_tasks'] ?? [],
+            'forbidden_update_fields' => $context['forbidden_update_fields'] ?? [],
             'calculation_notes' => [
                 'specific_btu_result_allowed' => (bool) Arr::get($context, 'calculation_rules.specific_btu_result_allowed', false),
                 'missing_inputs' => Arr::get($context, 'calculation_rules.missing_inputs', []),
@@ -325,16 +384,19 @@ class AIContentGovernance
         ];
     }
 
-    private function addFact(array &$facts, string $key, mixed $value, string $source): void
+    private function addFact(array &$facts, string $key, mixed $value, string $source, array $meta = []): void
     {
         if (blank($value) && $value !== 0 && $value !== false) {
             return;
         }
 
-        $facts[$key] = [
+        $facts[$key] = array_filter([
             'value' => $value,
             'source' => $source,
-        ];
+            'label' => $meta['label'] ?? null,
+            'unit' => $meta['unit'] ?? null,
+            'aliases' => $meta['aliases'] ?? null,
+        ], fn ($item) => $item !== null && $item !== []);
     }
 
     private function missingProductFacts(Product $product): array
@@ -380,8 +442,11 @@ class AIContentGovernance
         return collect($specs)
             ->filter(fn ($item) => is_array($item))
             ->map(function (array $item): array {
+                $key = (string) ($item['key'] ?? '');
+
                 return [
-                    'label' => (string) ($item['label'] ?? $item['key'] ?? $item['name'] ?? ''),
+                    'key' => $key,
+                    'label' => (string) ($item['label'] ?? $key ?: ($item['name'] ?? '')),
                     'value' => (string) ($item['value'] ?? $item['text'] ?? ''),
                 ];
             })
@@ -409,6 +474,7 @@ class AIContentGovernance
     private function validateUsedFacts(array $usedFacts, array $context, array &$warnings): array
     {
         $allowedKeys = array_keys($context['allowed_facts'] ?? []);
+        $lookup = $this->usedFactLookup($context);
         $used = [];
 
         foreach (IssueList::normalize($usedFacts) as $fact) {
@@ -417,7 +483,14 @@ class AIContentGovernance
             }
 
             if (! in_array($fact, $allowedKeys, true)) {
-                $warnings[] = 'unverified_used_fact:'.$fact;
+                $resolved = $lookup[$this->factLookupToken($fact)] ?? null;
+                if ($resolved === null) {
+                    $warnings[] = 'unverified_used_fact:'.$fact;
+
+                    continue;
+                }
+
+                $used[] = $resolved;
 
                 continue;
             }
@@ -425,7 +498,63 @@ class AIContentGovernance
             $used[] = $fact;
         }
 
-        return $used;
+        return array_values(array_unique($used));
+    }
+
+    private function usedFactLookup(array $context): array
+    {
+        $lookup = [];
+
+        foreach (array_values($context['allowed_facts'] ?? []) as $index => $fact) {
+            $key = array_keys($context['allowed_facts'] ?? [])[$index];
+            $tokens = [
+                $key,
+                $this->publicFactId($index),
+                $this->humanFactName((string) $key),
+                $fact['label'] ?? null,
+                $fact['value'] ?? null,
+            ];
+
+            foreach ((array) ($fact['aliases'] ?? []) as $alias) {
+                $tokens[] = $alias;
+            }
+
+            if (isset($fact['label'], $fact['value'])) {
+                $tokens[] = trim($fact['label'].' '.$fact['value']);
+                $tokens[] = trim($fact['label'].': '.$fact['value']);
+            }
+
+            foreach ($tokens as $token) {
+                if (! is_scalar($token)) {
+                    continue;
+                }
+
+                $normalized = $this->factLookupToken((string) $token);
+                if ($normalized !== '' && ! isset($lookup[$normalized])) {
+                    $lookup[$normalized] = $key;
+                }
+            }
+        }
+
+        return $lookup;
+    }
+
+    private function factLookupToken(string $value): string
+    {
+        $value = trim($value);
+        if ($value === '') {
+            return '';
+        }
+
+        $value = Str::ascii(Str::lower($value));
+        $value = preg_replace('/[^a-z0-9.\/-]+/u', ' ', $value) ?? $value;
+
+        return trim(preg_replace('/\s+/u', ' ', $value) ?? $value);
+    }
+
+    private function publicFactId(int $index): string
+    {
+        return 'fact_'.($index + 1);
     }
 
     private function allowedNumbers(array $context): array
@@ -437,7 +566,7 @@ class AIContentGovernance
                 continue;
             }
 
-            $haystack = $key.' '.$this->plainText(is_scalar($value) ? (string) $value : json_encode($value));
+            $haystack = $key.' '.$this->plainText(is_scalar($value) ? (string) $value : (json_encode($value, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?: ''));
             if (! preg_match_all('/(\d{1,3}(?:[.,]\d{3})*(?:[.,]\d+)?|\d+)\s*(BTU|kW|HP|m2|m²|dB|Pa|mm|kg|W|A)?\b/iu', $haystack, $matches, PREG_SET_ORDER)) {
                 continue;
             }
@@ -448,7 +577,7 @@ class AIContentGovernance
                 $number = $this->normalizeNumber($match[1]);
 
                 if ($unit === '') {
-                    $unit = $this->inferUnitFromFactKey($key);
+                    $unit = $this->inferUnitFromFact($key, $fact);
                 }
 
                 if ($unit !== '') {
@@ -470,17 +599,17 @@ class AIContentGovernance
                 continue;
             }
 
-            $haystack = $key.' '.$this->plainText(is_scalar($value) ? (string) $value : json_encode($value));
-            if (! preg_match_all('/(\d{1,3}(?:[.,]\d{3})*(?:[.,]\d+)?|\d+)\s*(?:-|–|đến|to)\s*(\d{1,3}(?:[.,]\d{3})*(?:[.,]\d+)?|\d+)\s*(BTU|kW|HP|m2|mÂ²|dB|Pa|mm|kg|W|A)?\b/iu', $haystack, $matches, PREG_SET_ORDER)) {
+            $haystack = $key.' '.$this->plainText(is_scalar($value) ? (string) $value : (json_encode($value, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?: ''));
+            if (! preg_match_all('/(\d{1,3}(?:[.,]\d{3})*(?:[.,]\d+)?|\d+)\s*(?:-|–|đến|to)\s*(\d{1,3}(?:[.,]\d{3})*(?:[.,]\d+)?|\d+)\s*(BTU|kW|HP|m2|m²|dB|Pa|mm|kg|W|A)?\b/iu', $haystack, $matches, PREG_SET_ORDER)) {
                 continue;
             }
 
             foreach ($matches as $match) {
                 $unit = Str::lower((string) ($match[3] ?? ''));
-                $unit = $unit === 'mÂ²' ? 'm2' : $unit;
+                $unit = $unit === 'm²' ? 'm2' : $unit;
 
                 if ($unit === '') {
-                    $unit = $this->inferUnitFromFactKey($key);
+                    $unit = $this->inferUnitFromFact($key, $fact);
                 }
 
                 if ($unit === '') {
@@ -505,13 +634,52 @@ class AIContentGovernance
             Str::contains($key, ['capacity_btu', 'calculated_btu', 'recommended_btu']) => 'btu',
             Str::contains($key, 'capacity_kw') => 'kw',
             Str::contains($key, 'hp') => 'hp',
+            Str::contains($key, ['power_consumption', 'cong suat tieu thu', 'consumption']) => 'kw',
             Str::contains($key, 'noise') => 'db',
             Str::contains($key, 'weight') => 'kg',
             Str::contains($key, 'dimensions') => 'mm',
+            Str::contains($key, ['pipe', 'ong dong', 'duong kinh']) => 'mm',
             Str::contains($key, 'area') => 'm2',
             Str::contains($key, ['regular_price', 'sale_price']) => 'vnd',
             default => '',
         };
+    }
+
+    private function inferUnitFromFact(string $key, array $fact): string
+    {
+        $unit = (string) ($fact['unit'] ?? '');
+        if ($unit !== '') {
+            return $unit;
+        }
+
+        $value = $fact['value'] ?? '';
+        $tokens = [
+            $key,
+            $fact['label'] ?? '',
+            is_scalar($value) ? (string) $value : (json_encode($value, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?: ''),
+        ];
+        foreach ((array) ($fact['aliases'] ?? []) as $alias) {
+            if (is_scalar($alias)) {
+                $tokens[] = (string) $alias;
+            }
+        }
+
+        return $this->inferUnitFromFactKey(Str::ascii(Str::lower(implode(' ', $tokens))));
+    }
+
+    private function inferUnitFromSpec(array $spec): string
+    {
+        $haystack = Str::ascii(Str::lower(trim(implode(' ', [
+            $spec['key'] ?? '',
+            $spec['label'] ?? '',
+            $spec['value'] ?? '',
+        ]))));
+
+        if (preg_match('/\b(btu|kw|hp|db|pa|mm|kg|w|a|m2)\b/u', $haystack, $match)) {
+            return $match[1];
+        }
+
+        return $this->inferUnitFromFactKey($haystack);
     }
 
     private function numberAllowed(float $number, string $unit, array $allowedNumbers, array $allowedRanges = []): bool

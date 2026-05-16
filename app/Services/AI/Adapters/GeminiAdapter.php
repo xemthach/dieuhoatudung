@@ -3,6 +3,8 @@
 namespace App\Services\AI\Adapters;
 
 use App\Models\AiProvider;
+use App\Services\AI\AIJsonResponseParser;
+use App\Support\EncodingGuard;
 use Illuminate\Support\Facades\Http;
 
 class GeminiAdapter implements AIAdapterInterface
@@ -80,7 +82,7 @@ class GeminiAdapter implements AIAdapterInterface
         $latency = (int) ((microtime(true) - $start) * 1000);
 
         if ($response->failed()) {
-            throw new \Exception(json_encode([
+            throw new \Exception(EncodingGuard::jsonEncode([
                 'message' => 'Gemini API Error: '.$response->body(),
                 'status' => $response->status(),
                 'is_rate_limit' => $response->status() === 429,
@@ -93,7 +95,7 @@ class GeminiAdapter implements AIAdapterInterface
 
         return [
             'content' => $text,
-            'json' => $this->parseJson($text, ! empty($options['require_json'])),
+            'json' => app(AIJsonResponseParser::class)->parse($text, ! empty($options['require_json'])),
             'tokens_used' => $data['usageMetadata']['totalTokenCount'] ?? 0,
             'latency_ms' => $latency,
         ];
@@ -148,23 +150,4 @@ class GeminiAdapter implements AIAdapterInterface
         return $endpoint === '' || str_contains($endpoint, 'generativelanguage.googleapis.com');
     }
 
-    private function parseJson(string $text, bool $required): array
-    {
-        if (! $required) {
-            return [];
-        }
-
-        $decoded = json_decode($text, true);
-        if (is_array($decoded)) {
-            return $decoded;
-        }
-
-        if (preg_match('/\[.*\]|\{.*\}/s', $text, $matches)) {
-            $decoded = json_decode($matches[0], true);
-
-            return is_array($decoded) ? $decoded : [];
-        }
-
-        return [];
-    }
 }

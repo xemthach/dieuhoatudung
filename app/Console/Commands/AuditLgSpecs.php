@@ -152,8 +152,8 @@ class AuditLgSpecs extends Command
             }
 
             // Check if specs changed
-            $oldJson = json_encode($product->specs_json);
-            $newJson = json_encode($repeaterSpecs);
+            $oldJson = json_encode($product->specs_json, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+            $newJson = json_encode($repeaterSpecs, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
             if ($oldJson !== $newJson) {
                 $product->specs_json = $repeaterSpecs;
                 $stats['specs_cleaned']++;

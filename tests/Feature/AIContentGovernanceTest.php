@@ -196,6 +196,35 @@ class AIContentGovernanceTest extends TestCase
         $this->assertContains('unverified_used_fact:unknown.fact', $result['warnings']);
     }
 
+    public function test_public_fact_ids_values_and_spec_keys_are_accepted_as_used_facts(): void
+    {
+        $product = Product::factory()->create([
+            'btu' => 24000,
+            'refrigerant_gas' => 'R32',
+            'specs_json' => [
+                ['key' => 'outdoor_noise_db', 'value' => '48'],
+            ],
+        ]);
+        $governance = app(AIContentGovernance::class);
+        $context = $governance->buildProductContext($product);
+        $publicFacts = $governance->publicContext($context)['allowed_facts'];
+        $btuFactId = collect($publicFacts)->firstWhere('value', 24000)['id'];
+
+        $result = $governance->validateText(
+            '<p>San pham co cong suat 24.000 BTU va gas R32.</p>',
+            $context,
+            [$btuFactId, 'R32', 'outdoor_noise_db']
+        );
+
+        $this->assertContains('product.capacity_btu', $result['used_facts']);
+        $this->assertContains('product.refrigerant', $result['used_facts']);
+        $this->assertContains('product.technical_specs_json.0', $result['used_facts']);
+        $this->assertSame([], array_values(array_filter(
+            $result['warnings'],
+            fn (string $warning): bool => str_starts_with($warning, 'unverified_used_fact:')
+        )));
+    }
+
     public function test_public_governance_context_does_not_expose_internal_fact_keys(): void
     {
         $product = Product::factory()->create(['btu' => 24000]);

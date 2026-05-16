@@ -8,6 +8,7 @@ use App\Jobs\GenerateBlogDraftJob;
 use App\Models\AiContentJob;
 use App\Models\AiProductJob;
 use App\Models\Product;
+use App\Services\AI\AIQueueMonitor;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\DB;
@@ -101,5 +102,9 @@ class AIQueueOperationsTest extends TestCase
         $this->artisan('ai:queue-health --json')
             ->expectsOutputToContain('queue_connection')
             ->assertSuccessful();
+
+        $health = app(AIQueueMonitor::class)->health();
+        $this->assertArrayHasKey('worker_command', $health);
+        $this->assertArrayHasKey('scheduler_is_running', $health);
     }
 }

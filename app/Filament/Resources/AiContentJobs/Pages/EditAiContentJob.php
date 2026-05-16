@@ -143,8 +143,11 @@ class EditAiContentJob extends EditRecord
                 ->modalHeading('Publish thành bài viết blog?')
                 ->modalDescription('Draft AI sẽ được tạo thành bài viết mới với trạng thái Draft. Bạn có thể chỉnh sửa trước khi đăng.')
                 ->modalSubmitActionLabel('Tạo bài viết')
-                ->visible(fn () => $this->record->status === AIContentJobStatus::Completed
-                    && ! empty($this->record->output_draft))
+                ->visible(fn () => in_array($this->record->status, [
+                    AIContentJobStatus::Completed,
+                    AIContentJobStatus::CompletedVerified,
+                    AIContentJobStatus::CompletedWithWarnings,
+                ], true) && ! empty($this->record->output_draft))
                 ->action(function () {
                     $record = $this->record;
                     $meta = is_array($record->output_meta) ? $record->output_meta : [];

@@ -7,6 +7,7 @@ use App\Models\AiProductJobItem;
 use App\Models\Product;
 use App\Services\AI\AITechnicalLogger;
 use App\Services\Product\AIProductContentSystem;
+use App\Support\SchemaColumns;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -40,7 +41,7 @@ class AiProductContentSingleJob implements ShouldQueue
         $job = $this->aiProductJobId ? AiProductJob::find($this->aiProductJobId) : null;
         $item = $this->resolveItem($job, $product);
 
-        $item?->update([
+        $this->updateItem($item, [
             'status' => 'processing',
             'module' => 'ai_product_content',
             'queue_name' => $this->queue ?: 'ai',
@@ -62,7 +63,7 @@ class AiProductContentSingleJob implements ShouldQueue
             $system->generate($product, $job?->config_json ?? [], $job, $item, $job?->created_by);
         } catch (\Throwable $e) {
             if ($this->isRateLimit($e) && $this->attempts() < $this->tries) {
-                $item?->update([
+                $this->updateItem($item, [
                     'status' => 'queued',
                     'retry_count' => (int) ($item->retry_count ?? 0) + 1,
                     'failed_reason' => 'provider_rate_limit',
@@ -87,7 +88,7 @@ class AiProductContentSingleJob implements ShouldQueue
                 'product_id' => $product->id,
             ]);
             $message = $e->getMessage();
-            $item?->update([
+            $this->updateItem($item, [
                 'status' => 'failed',
                 'error_message' => $message,
                 'finished_at' => now(),
@@ -118,7 +119,7 @@ class AiProductContentSingleJob implements ShouldQueue
             'product_id' => $this->productId,
         ]);
 
-        $item?->update([
+        $this->updateItem($item, [
             'status' => 'failed',
             'error_message' => $exception->getMessage(),
             'finished_at' => now(),
@@ -130,6 +131,10 @@ class AiProductContentSingleJob implements ShouldQueue
             'ai_error_message' => $exception->getMessage(),
             'ai_last_run_at' => now(),
         ]);
+
+        if ($this->aiProductJobId && ($job = AiProductJob::find($this->aiProductJobId))) {
+            $this->refreshJobStats($job);
+        }
     }
 
     private function resolveItem(?AiProductJob $job, Product $product): ?AiProductJobItem
@@ -142,6 +147,11 @@ class AiProductContentSingleJob implements ShouldQueue
             ['product_id' => $product->id],
             ['status' => 'queued']
         );
+    }
+
+    private function updateItem(?AiProductJobItem $item, array $attributes): void
+    {
+        $item?->update(SchemaColumns::existing('ai_product_job_items', $attributes));
     }
 
     private function refreshJobStats(AiProductJob $job): void

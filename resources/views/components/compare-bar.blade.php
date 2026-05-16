@@ -122,7 +122,7 @@ function compareBar() {
                     ];
                 })->toArray();
             @endphp
-            let serverItems = {!! json_encode($sessionItems) !!};
+            let serverItems = {!! json_encode($sessionItems, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) !!};
 
             this.items = serverItems;
             this.count = this.items.length;

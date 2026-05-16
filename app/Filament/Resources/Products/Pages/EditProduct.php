@@ -5,6 +5,7 @@ namespace App\Filament\Resources\Products\Pages;
 use App\Filament\Resources\Products\ProductResource;
 use App\Jobs\AiProductContentSingleJob;
 use App\Models\AiProductJob;
+use App\Models\AiProductJobItem;
 use App\Services\Product\AIProductContentSystem;
 use App\Services\Seo\InternalLinkSuggestionService;
 use App\Support\SchemaColumns;
@@ -13,6 +14,7 @@ use Filament\Actions\DeleteAction;
 use Filament\Actions\ForceDeleteAction;
 use Filament\Actions\RestoreAction;
 use Filament\Forms\Components\CheckboxList;
+use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Select;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\EditRecord;
@@ -25,9 +27,10 @@ class EditProduct extends EditRecord
     {
         return [
             Action::make('ai_product_generate')
-                ->label('Generate AI Product')
+                ->label('Generate AI Content')
                 ->icon('heroicon-o-sparkles')
                 ->color('primary')
+                ->modalDescription('AI chỉ tạo Nội dung, SEO, Google Merchant, Tags, FAQ và Internal links. AI không tạo hoặc sửa Thông tin cơ bản, giá, model/SKU, brand/category hay Thông số kỹ thuật.')
                 ->form($this->aiConfigForm())
                 ->action(function (array $data) {
                     $config = $this->normalizeAiConfig($data);
@@ -66,11 +69,37 @@ class EditProduct extends EditRecord
                 ->icon('heroicon-o-eye')
                 ->color('warning')
                 ->modalHeading('Preview AI Product Draft')
+                ->modalDescription('Chỉ các field thuộc Content Layer được apply. Thông tin cơ bản và Thông số kỹ thuật luôn bị bỏ qua nếu xuất hiện trong payload.')
                 ->modalContent(fn () => view('filament.product-ai-preview', [
-                    'item' => $this->record->aiProductJobItems()->whereNotNull('generated_payload_json')->latest('id')->first(),
+                    'item' => $this->latestAiDraftItem(),
                 ]))
                 ->modalSubmitActionLabel('Apply latest draft')
                 ->action(function () {
+                    $draft = $this->latestAiDraftItem();
+
+                    if (! $draft) {
+                        Notification::make()
+                            ->title('Chưa có AI draft để apply')
+                            ->warning()
+                            ->send();
+
+                        return;
+                    }
+
+                    $blockedClaims = $draft->generated_payload_json['blocked_claims'] ?? [];
+                    if ($draft->status === 'blocked' || $blockedClaims !== []) {
+                        Notification::make()
+                            ->title('AI draft bị fact-check chặn')
+                            ->body($blockedClaims === []
+                                ? 'Draft chưa vượt qua bước kiểm tra nên không thể apply.'
+                                : 'Cần xử lý trước: '.implode(', ', $blockedClaims))
+                            ->danger()
+                            ->persistent()
+                            ->send();
+
+                        return;
+                    }
+
                     $item = app(AIProductContentSystem::class)->applyLatestDraft($this->record, auth()->id());
                     $notification = Notification::make()
                         ->title($item ? 'Đã apply AI draft mới nhất' : 'Chưa có AI draft để apply');
@@ -122,6 +151,15 @@ class EditProduct extends EditRecord
         ];
     }
 
+    private function latestAiDraftItem(): ?AiProductJobItem
+    {
+        return $this->record
+            ->aiProductJobItems()
+            ->whereNotNull('generated_payload_json')
+            ->latest('id')
+            ->first();
+    }
+
     private function aiConfigForm(): array
     {
         return [
@@ -138,6 +176,9 @@ class EditProduct extends EditRecord
                 ])
                 ->default(['content', 'seo', 'merchant', 'tags', 'faq', 'internal_links', 'og'])
                 ->columns(2),
+            Placeholder::make('ai_content_layer_notice')
+                ->label('Phạm vi AI')
+                ->content('AI chỉ tạo Nội dung, SEO, Google Merchant, Tags, FAQ, Internal links. AI không tạo/sửa Thông tin cơ bản, model/SKU, giá, brand/category hoặc Thông số kỹ thuật.'),
             Select::make('mode')
                 ->label('Mode')
                 ->options([

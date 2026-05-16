@@ -34,7 +34,7 @@ class ManageSiteSettings extends Page
 
     public ?array $data = [];
 
-    /** Keys ÃâÃÂ°Ã¡Â»Â£c mÃÂ£ hÃÂ³a Ã¢â¬â nÃ¡ÂºÂ¿u trÃ¡Â»âng khi save thÃÂ¬ giÃ¡Â»Â¯ nguyÃÂªn giÃÂ¡ trÃ¡Â»â¹ cÃÂ© */
+    /** Encrypted keys: keep existing value when the form is saved with an empty value. */
     protected const ENCRYPTED_KEYS = [
         'r2_storage__r2_access_key_id',
         'r2_storage__r2_secret_access_key',

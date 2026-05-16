@@ -2,6 +2,7 @@
 
 namespace App\Services\Product;
 
+use App\Support\EncodingGuard;
 use Illuminate\Support\Str;
 use RuntimeException;
 
@@ -70,7 +71,7 @@ class AIProductContentSanitizer
     public function assertUtf8Array(array $payload): void
     {
         array_walk_recursive($payload, function ($value): void {
-            if (is_string($value) && ! mb_check_encoding($value, 'UTF-8')) {
+            if (is_string($value) && ! EncodingGuard::isValidUtf8($value)) {
                 throw new RuntimeException('AI output không phải UTF-8 hợp lệ.');
             }
         });
@@ -120,11 +121,11 @@ class AIProductContentSanitizer
 
     public function assertCleanEncodingText(string $text): void
     {
-        if (! mb_check_encoding($text, 'UTF-8')) {
+        if (! EncodingGuard::isValidUtf8($text)) {
             throw new RuntimeException('AI output không phải UTF-8 hợp lệ.');
         }
 
-        if (preg_match(self::MOJIBAKE_PATTERN, $text)) {
+        if (EncodingGuard::hasMojibake($text) || preg_match(self::MOJIBAKE_PATTERN, $text)) {
             throw new RuntimeException('AI output có dấu hiệu lỗi mã hóa tiếng Việt.');
         }
     }
@@ -142,6 +143,7 @@ class AIProductContentSanitizer
 
     private function cleanText(string $text): string
     {
+        $text = EncodingGuard::ensureUtf8($text, autoFixMojibake: false, rejectBroken: true, context: 'AI output text');
         $text = $this->humanizeInternalLanguage($text);
 
         return trim(preg_replace('/\s+/u', ' ', html_entity_decode(strip_tags($text), ENT_QUOTES | ENT_HTML5, 'UTF-8')) ?? '');

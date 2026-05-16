@@ -5,6 +5,7 @@ namespace App\Jobs;
 use App\Models\AiProductJob;
 use App\Models\Product;
 use App\Services\AI\AITechnicalLogger;
+use App\Support\SchemaColumns;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -32,7 +33,7 @@ class AiProductContentBatchJob implements ShouldQueue
         $batchSize = max(1, min((int) ($config['batch_size'] ?? 10), 50));
         $productIds = Product::query()->whereKey($this->productIds)->pluck('id')->all();
 
-        $job->update([
+        $job->update(SchemaColumns::existing('ai_product_jobs', [
             'status' => 'processing',
             'module' => 'ai_product_bulk',
             'queue_name' => $this->queue ?: 'ai',
@@ -42,7 +43,7 @@ class AiProductContentBatchJob implements ShouldQueue
             'failed_reason' => null,
             'last_error_code' => null,
             'last_error_message' => null,
-        ]);
+        ]));
         $technicalLogger->event('ai_product_bulk', 'job_started', 'AI product batch job started.', [
             'queue' => $this->queue ?: 'ai',
             'total' => count($productIds),

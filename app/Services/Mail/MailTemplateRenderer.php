@@ -3,6 +3,7 @@
 namespace App\Services\Mail;
 
 use App\Models\MailTemplate;
+use App\Support\EncodingGuard;
 use Illuminate\Support\Facades\Log;
 
 /**
@@ -187,7 +188,12 @@ class MailTemplateRenderer
      */
     public function renderSubject(MailTemplate $template, array $payload): string
     {
-        return $this->interpolate($template->subject ?? '', $payload, $template->key);
+        return EncodingGuard::ensureUtf8(
+            $this->interpolate($template->subject ?? '', $payload, $template->key),
+            autoFixMojibake: true,
+            rejectBroken: true,
+            context: 'mail subject'
+        );
     }
 
     /**
@@ -199,14 +205,19 @@ class MailTemplateRenderer
         if ($template->use_visual_editor && !empty($template->content_html)) {
             $content = $this->interpolate($template->content_html, $payload, $template->key);
 
-            return view('emails.layouts.base', array_merge($payload, [
+            return EncodingGuard::ensureUtf8(view('emails.layouts.base', array_merge($payload, [
                 'content'  => $content,
                 'subject'  => $this->renderSubject($template, $payload),
-            ]))->render();
+            ]))->render(), autoFixMojibake: true, rejectBroken: true, context: 'mail html');
         }
 
         // Raw HTML mode: use body_html directly
-        return $this->interpolate($template->body_html ?? '', $payload, $template->key);
+        return EncodingGuard::ensureUtf8(
+            $this->interpolate($template->body_html ?? '', $payload, $template->key),
+            autoFixMojibake: true,
+            rejectBroken: true,
+            context: 'mail html'
+        );
     }
 
     /**
@@ -217,7 +228,12 @@ class MailTemplateRenderer
         if (empty($template->body_text)) {
             return null;
         }
-        return $this->interpolate($template->body_text, $payload, $template->key);
+        return EncodingGuard::ensureUtf8(
+            $this->interpolate($template->body_text, $payload, $template->key),
+            autoFixMojibake: true,
+            rejectBroken: true,
+            context: 'mail text'
+        );
     }
 
     // ──────────────────────────────────────────────────────────────────────
@@ -369,7 +385,7 @@ class MailTemplateRenderer
 
         // Replace all {{var}} and {{ var }} patterns
         foreach ($payload as $key => $value) {
-            $value   = (string) ($value ?? '');
+            $value   = EncodingGuard::ensureUtf8((string) ($value ?? ''), autoFixMojibake: true, rejectBroken: true, context: "mail variable {$key}");
             $content = str_replace(
                 ['{{' . $key . '}}', '{{ ' . $key . ' }}', '{{ ' . $key . '}}', '{{' . $key . ' }}'],
                 $value,

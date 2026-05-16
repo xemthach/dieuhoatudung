@@ -4,10 +4,11 @@ namespace App\Jobs;
 
 use App\Enums\AIContentJobStatus;
 use App\Models\AiContentJob;
-use App\Models\AiProvider;
 use App\Services\AI\AIManager;
+use App\Services\AI\AIProviderPool;
 use App\Services\AI\AITechnicalLogger;
 use App\Services\AI\HVACSeoContentEngine;
+use App\Support\EncodingGuard;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -23,6 +24,11 @@ class GenerateBlogDraftJob implements ShouldQueue
     public int $tries = 2;
 
     public int $timeout = 300;
+
+    public function backoff(): array
+    {
+        return [60, 180];
+    }
 
     public function __construct(
         public readonly int $aiContentJobId
@@ -42,7 +48,7 @@ class GenerateBlogDraftJob implements ShouldQueue
             return;
         }
 
-        if (AiProvider::where('status', 'active')->count() === 0) {
+        if (! app(AIProviderPool::class)->hasAvailableProviders()) {
             $job->update([
                 'status' => AIContentJobStatus::Failed,
                 'error_message' => 'Không có AI Provider nào đang hoạt động.',
@@ -89,11 +95,11 @@ class GenerateBlogDraftJob implements ShouldQueue
             $job->update([
                 'topic' => $output['title'],
                 'primary_keyword' => $job->primary_keyword ?: ($output['tags'][0]['name'] ?? null),
-                'output_outline' => json_encode([
+                'output_outline' => EncodingGuard::jsonEncode([
                     'title' => $output['title'],
                     'slug' => $output['slug'],
                     'excerpt' => $output['excerpt'],
-                ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+                ]),
                 'output_draft' => $output['content'],
                 'output_tags' => $output['tags'],
                 'output_meta' => [
@@ -137,6 +143,25 @@ class GenerateBlogDraftJob implements ShouldQueue
                 'model' => $output['model'] ?? null,
             ], $job);
         } catch (\Throwable $e) {
+            if ($this->isRateLimit($e) && $this->attempts() < $this->tries) {
+                $job->update([
+                    'status' => AIContentJobStatus::Queued,
+                    'error_message' => 'Rate limited, retrying later.',
+                    'failed_reason' => 'provider_rate_limit',
+                    'last_error_code' => 'provider_rate_limit',
+                    'last_error_message' => 'Rate limited, retrying later.',
+                    'retry_count' => (int) ($job->retry_count ?? 0) + 1,
+                ]);
+                $technicalLogger->event('ai_blog', 'job_retried', 'Provider rate limit; job released for retry.', [
+                    'failed_reason' => 'provider_rate_limit',
+                    'attempts' => $this->attempts(),
+                    'queue' => $this->queue ?: 'ai',
+                ], $job, 'warning');
+                $this->release(60 * $this->attempts());
+
+                return;
+            }
+
             $technical = $technicalLogger->exception('ai_blog', $e, $job, [
                 'queue' => $this->queue ?: 'ai',
                 'attempts' => $this->attempts(),
@@ -172,5 +197,15 @@ class GenerateBlogDraftJob implements ShouldQueue
                 'finished_at' => now(),
                 ...$technical,
             ]);
+    }
+
+    private function isRateLimit(\Throwable $e): bool
+    {
+        $message = $e->getMessage();
+        $decoded = json_decode($message, true);
+
+        return (is_array($decoded) && ! empty($decoded['is_rate_limit']))
+            || str_contains($message, '429')
+            || stripos($message, 'rate limit') !== false;
     }
 }

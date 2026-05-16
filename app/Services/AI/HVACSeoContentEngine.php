@@ -5,6 +5,7 @@ namespace App\Services\AI;
 use App\Models\AiContentJob;
 use App\Models\Brand;
 use App\Models\Product;
+use App\Support\EncodingGuard;
 use App\Support\IssueList;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
@@ -172,7 +173,7 @@ class HVACSeoContentEngine
         $ogTitle = trim((string) Arr::get($json, 'og_title', '')) ?: $seoTitle;
         $ogDescription = trim((string) Arr::get($json, 'og_description', '')) ?: $metaDescription;
 
-        return [
+        $output = [
             'title' => $title,
             'slug' => $slug,
             'excerpt' => $excerpt,
@@ -188,6 +189,10 @@ class HVACSeoContentEngine
             'warnings' => $guardFields['warnings'],
             'blocked_claims' => $guardFields['blocked_claims'],
         ];
+
+        EncodingGuard::assertCleanUtf8Array($output, 'blog AI output');
+
+        return $output;
     }
 
     public function buildPrompt(array $input, array $guardContext = []): string

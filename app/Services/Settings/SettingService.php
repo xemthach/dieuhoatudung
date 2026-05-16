@@ -3,6 +3,7 @@
 namespace App\Services\Settings;
 
 use App\Models\SiteSetting;
+use App\Support\EncodingGuard;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Schema;
@@ -77,7 +78,7 @@ class SettingService
         }
 
         if (is_array($finalValue) || is_object($finalValue)) {
-            $finalValue = json_encode($finalValue);
+            $finalValue = EncodingGuard::jsonEncode($finalValue);
             $type = 'json';
         }
 

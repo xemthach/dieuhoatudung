@@ -23,7 +23,7 @@
                 {{-- Product Image Gallery --}}
                 @php
                     $images = $product->gallery_image_urls;
-                    $imagesJson = json_encode($images, JSON_UNESCAPED_SLASHES);
+                    $imagesJson = json_encode($images, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
                 @endphp
 
                 <div x-data="{

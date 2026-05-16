@@ -3,6 +3,7 @@
 namespace App\Services\DataTransfer;
 
 use App\Models\DataImportJob;
+use App\Support\EncodingGuard;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -292,7 +293,7 @@ class DataImportService
         // If it's a flat array of objects, use as-is
         if (isset($decoded[0]) && is_array($decoded[0])) {
             return collect($decoded)->map(fn ($row) =>
-                array_map(fn ($v) => is_array($v) ? json_encode($v, JSON_UNESCAPED_UNICODE) : $v, $row)
+                array_map(fn ($v) => is_array($v) ? EncodingGuard::jsonEncode($v) : $v, $row)
             );
         }
 
@@ -304,14 +305,12 @@ class DataImportService
      */
     protected function ensureUtf8(string $content): string
     {
-        // Detect encoding
-        $encoding = mb_detect_encoding($content, ['UTF-8', 'UTF-16LE', 'UTF-16BE', 'Windows-1252', 'ISO-8859-1'], true);
-
-        if ($encoding && $encoding !== 'UTF-8') {
-            $content = mb_convert_encoding($content, 'UTF-8', $encoding);
-        }
-
-        return $content;
+        return EncodingGuard::ensureUtf8(
+            $content,
+            autoFixMojibake: true,
+            rejectBroken: true,
+            context: 'import file'
+        );
     }
 
     /**

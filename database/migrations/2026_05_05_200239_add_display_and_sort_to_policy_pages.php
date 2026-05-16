@@ -14,7 +14,7 @@ return new class extends Migration
         });
 
         // Set default display_locations for existing pages
-        DB::table('policy_pages')->update(['display_locations' => json_encode(['footer'])]);
+        DB::table('policy_pages')->update(['display_locations' => json_encode(['footer'], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)]);
     }
 
     public function down(): void

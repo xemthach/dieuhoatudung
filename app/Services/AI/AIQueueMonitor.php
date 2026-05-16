@@ -41,6 +41,9 @@ class AIQueueMonitor
         $lastWorker = Schema::hasTable('queue_worker_heartbeats')
             ? QueueWorkerHeartbeat::query()->latest('last_seen_at')->first()
             : null;
+        $lastScheduler = Schema::hasTable('queue_worker_heartbeats')
+            ? QueueWorkerHeartbeat::where('worker_name', 'scheduler')->latest('last_seen_at')->first()
+            : null;
         $lastProcessed = Schema::hasTable('ai_technical_logs')
             ? DB::table('ai_technical_logs')->whereIn('event', ['job_completed', 'job_failed'])->latest('id')->first()
             : null;
@@ -51,6 +54,8 @@ class AIQueueMonitor
             'failed_jobs_table_exists' => $hasFailedJobs,
             'pending_jobs_count' => $hasJobs ? DB::table('jobs')->count() : null,
             'failed_jobs_count' => $hasFailedJobs ? DB::table('failed_jobs')->count() : null,
+            'worker_command' => 'php artisan queue:work --queue=ai,default --sleep=3 --tries=3 --timeout=900',
+            'scheduler_command' => 'php artisan schedule:run',
             'ai_content_processing_count' => Schema::hasTable('ai_content_jobs')
                 ? AiContentJob::where('status', AIContentJobStatus::Processing->value)->count()
                 : null,
@@ -69,9 +74,8 @@ class AIQueueMonitor
                 'last_seen_at' => optional($lastWorker->last_seen_at)->toDateTimeString(),
                 'is_running' => optional($lastWorker->last_seen_at)->gt(now()->subMinutes(5)),
             ] : null,
-            'scheduler_heartbeat' => Schema::hasTable('queue_worker_heartbeats')
-                ? optional(QueueWorkerHeartbeat::where('worker_name', 'scheduler')->latest('last_seen_at')->first()?->last_seen_at)->toDateTimeString()
-                : null,
+            'scheduler_heartbeat' => optional($lastScheduler?->last_seen_at)->toDateTimeString(),
+            'scheduler_is_running' => optional($lastScheduler?->last_seen_at)->gt(now()->subMinutes(10)) ?: false,
         ];
     }
 

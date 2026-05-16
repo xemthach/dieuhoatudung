@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Support\EncodingGuard;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -104,14 +105,14 @@ class EncodingRepairCommand extends Command
 
                     if ($apply) {
                         // Write backup log first
-                        $backupLine = json_encode([
+                        $backupLine = EncodingGuard::jsonEncode([
                             'table' => $table,
                             'id' => $r->id ?? null,
                             'column' => $col,
                             'old' => $original,
                             'new' => $fixed,
                             'time' => now()->toIso8601String(),
-                        ], JSON_UNESCAPED_UNICODE) . "\n";
+                        ]) . "\n";
                         file_put_contents($logFile, $backupLine, FILE_APPEND);
 
                         DB::table($table)
@@ -148,16 +149,15 @@ class EncodingRepairCommand extends Command
     {
         if (empty($value)) return null;
 
-        // Strategy 1: treat string bytes as ISO-8859-1 and convert to UTF-8
-        $fixed = mb_convert_encoding($value, 'UTF-8', 'ISO-8859-1');
+        $fixed = EncodingGuard::repairMojibake(
+            EncodingGuard::ensureUtf8($value, autoFixMojibake: false, rejectBroken: true, context: 'database value')
+        );
 
-        // Only accept if the result is valid UTF-8 and looks better
-        if (!mb_check_encoding($fixed, 'UTF-8')) return null;
+        if (! EncodingGuard::isValidUtf8($fixed)) return null;
         if ($fixed === $value) return null;
 
-        // Heuristic: fixed version should have fewer "Ã" sequences
-        $mojibakeCount = substr_count($value, 'Ã') + substr_count($value, 'á»') + substr_count($value, 'áº');
-        $fixedCount = substr_count($fixed, 'Ã') + substr_count($fixed, 'á»') + substr_count($fixed, 'áº');
+        $mojibakeCount = EncodingGuard::mojibakeScore($value);
+        $fixedCount = EncodingGuard::mojibakeScore($fixed);
 
         if ($fixedCount >= $mojibakeCount) return null; // not better
 

@@ -319,8 +319,8 @@ class AuditDaikinSpecs extends Command
             }
 
             // Check if specs actually changed
-            $oldSpecsJson = json_encode($product->specs_json);
-            $newSpecsJson = json_encode($repeaterSpecs);
+            $oldSpecsJson = json_encode($product->specs_json, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+            $newSpecsJson = json_encode($repeaterSpecs, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
             if ($oldSpecsJson !== $newSpecsJson) {
                 $product->specs_json = $repeaterSpecs;
                 $stats['specs_cleaned']++;

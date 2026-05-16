@@ -9,6 +9,7 @@ use App\Services\AI\Adapters\AIAdapterInterface;
 use App\Services\AI\Adapters\ClaudeAdapter;
 use App\Services\AI\Adapters\GeminiAdapter;
 use App\Services\AI\Adapters\OpenAIAdapter;
+use App\Support\EncodingGuard;
 
 class AIManager
 {
@@ -80,6 +81,14 @@ class AIManager
                     'attempt' => $attempts,
                 ]);
                 $result = $adapter->generate($provider, $payload, $options);
+                if (isset($result['content']) && is_string($result['content'])) {
+                    $result['content'] = EncodingGuard::ensureUtf8(
+                        $result['content'],
+                        autoFixMojibake: true,
+                        rejectBroken: true,
+                        context: 'AI provider response'
+                    );
+                }
 
                 // 4. Success
                 $this->pool->markSuccess($provider, [

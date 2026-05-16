@@ -3,6 +3,7 @@
 namespace App\Services\AI;
 
 use App\Models\AiTechnicalLog;
+use App\Support\EncodingGuard;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
@@ -76,13 +77,14 @@ class AITechnicalLogger
     public function classifyFailure(Throwable|string $error, array $context = []): string
     {
         $message = $error instanceof Throwable ? $error->getMessage() : $error;
-        $lower = Str::lower($message.' '.json_encode($context));
+        $lower = Str::lower($message.' '.EncodingGuard::jsonEncode($context));
 
         return match (true) {
             Str::contains($lower, ['no ai providers available', 'không có ai provider']) => 'missing_api_key',
             Str::contains($lower, ['401', '403', 'unauthorized', 'forbidden', 'invalid api key']) => 'invalid_api_key',
             Str::contains($lower, ['429', 'rate limit', 'rate_limited']) => 'provider_rate_limit',
             Str::contains($lower, ['timeout', 'timed out', 'cURL error 28']) => 'provider_timeout',
+            Str::contains($lower, ['internal_language_detected', 'btucalculatorservice', 'technical_specs_json', 'product.capacity_btu']) => 'internal_code_leak_detected',
             Str::contains($lower, ['invalid json', 'json', 'không hợp lệ']) => 'invalid_json_response',
             Str::contains($lower, ['schema', 'thiếu', 'chưa đạt chuẩn', 'validation']) => 'json_schema_validation_failed',
             Str::contains($lower, ['fact-check', 'unverified', 'blocked_claim']) => 'fact_check_failed',

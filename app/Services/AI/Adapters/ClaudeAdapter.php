@@ -3,6 +3,8 @@
 namespace App\Services\AI\Adapters;
 
 use App\Models\AiProvider;
+use App\Services\AI\AIJsonResponseParser;
+use App\Support\EncodingGuard;
 use Illuminate\Support\Facades\Http;
 
 class ClaudeAdapter implements AIAdapterInterface
@@ -64,7 +66,7 @@ class ClaudeAdapter implements AIAdapterInterface
         $latency = (int) ((microtime(true) - $start) * 1000);
 
         if ($response->failed()) {
-            throw new \Exception(json_encode([
+            throw new \Exception(EncodingGuard::jsonEncode([
                 'message' => 'Claude API Error: '.$response->body(),
                 'status' => $response->status(),
                 'is_rate_limit' => $response->status() === 429,
@@ -78,7 +80,7 @@ class ClaudeAdapter implements AIAdapterInterface
 
         return [
             'content' => $text,
-            'json' => $this->parseJson($text, ! empty($options['require_json'])),
+            'json' => app(AIJsonResponseParser::class)->parse($text, ! empty($options['require_json'])),
             'tokens_used' => $tokens,
             'latency_ms' => $latency,
         ];
@@ -128,23 +130,4 @@ class ClaudeAdapter implements AIAdapterInterface
         return trim(implode("\n", $chunks));
     }
 
-    private function parseJson(string $text, bool $required): array
-    {
-        if (! $required) {
-            return [];
-        }
-
-        $decoded = json_decode($text, true);
-        if (is_array($decoded)) {
-            return $decoded;
-        }
-
-        if (preg_match('/\[.*\]|\{.*\}/s', $text, $matches)) {
-            $decoded = json_decode($matches[0], true);
-
-            return is_array($decoded) ? $decoded : [];
-        }
-
-        return [];
-    }
 }

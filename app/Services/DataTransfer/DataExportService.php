@@ -3,6 +3,7 @@
 namespace App\Services\DataTransfer;
 
 use App\Models\DataExportJob;
+use App\Support\EncodingGuard;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Storage;
@@ -115,7 +116,7 @@ class DataExportService
                         $value = $record->$field;
                         // Serialize JSON/array fields
                         if (is_array($value)) {
-                            $value = json_encode($value, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+                            $value = EncodingGuard::jsonEncode($value, JSON_PRETTY_PRINT);
                         }
                         // Format boolean fields
                         if (is_bool($value)) {
@@ -124,6 +125,9 @@ class DataExportService
                         // Handle enum values
                         if ($value instanceof \BackedEnum) {
                             $value = $value->value;
+                        }
+                        if (is_string($value)) {
+                            $value = EncodingGuard::ensureUtf8($value, autoFixMojibake: true, rejectBroken: true, context: "export field {$field}");
                         }
                         $row[$field] = $value;
                     }
@@ -255,10 +259,7 @@ class DataExportService
      */
     protected function writeJson(Collection $data, string $path): void
     {
-        $json = json_encode(
-            $data->toArray(),
-            JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES
-        );
+        $json = EncodingGuard::jsonEncode($data->toArray(), JSON_PRETTY_PRINT);
 
         file_put_contents($path, $json);
     }

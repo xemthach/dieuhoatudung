@@ -2,6 +2,37 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.17.0] - 2026-05-17
+
+### Added
+- Added a shared `EncodingGuard` utility for UTF-8 validation, BOM stripping, mojibake detection/repair, and Unicode-safe JSON encoding.
+- Added `encoding:source-audit` to scan source files for invalid legacy encodings, UTF-8 BOM, and mojibake artifacts.
+- Added strict AI JSON response parsing that strips Markdown JSON fences, extracts embedded JSON, and fails invalid required JSON responses for retry.
+- Added Product AI preview details for content-layer warnings, blocked product data fields, verified facts used, and blocked claims.
+- Added regression coverage for Product AI selected-scope bulk generation, content-layer-only apply, verified technical fact-checks, provider JSON parsing, Blog AI UTF-8 output, queue health metadata, and encoding guards.
+
+### Fixed
+- Fixed Product list bulk AI generation so `Selected products` processes only checked products instead of all filtered products.
+- Fixed Product AI apply so AI payloads cannot save basic product data, pricing, brand/category, model/SKU, capacity fields, or technical specs; blocked fields are logged on the draft item.
+- Fixed Product AI fact-checking so verified specs such as `6.35 mm`, `15.9 mm`, and `54 dB` pass when present in product technical data, while unverified numeric claims remain blocked.
+- Fixed unverified marketing claims such as VAT and free installation by removing or neutralizing them before a draft can be applied.
+- Fixed AI drafts in queued, processing, failed, or blocked states from being applied through the Product edit action.
+- Fixed AI provider handling for JSON Markdown fences and invalid JSON responses so malformed provider output can be retried instead of silently becoming an empty payload.
+- Fixed Blog AI rate-limit handling so retry metadata is preserved and queued work can be released for a later attempt.
+- Fixed UTF-8 handling in AI logs, provider payloads, import/export, mail templates/providers, media URL replacement, settings, and product spec audit commands by using Unicode-safe encoding paths.
+
+### Changed
+- Changed Product AI admin labels and modal copy from product generation to `Generate AI Content`, clarifying that AI only writes the content layer.
+- Changed Product AI prompt/output governance to separate immutable product data from AI-managed content, SEO, merchant, tags, FAQ, internal links, and media metadata.
+- Changed queue health output and admin display to include worker and scheduler command guidance.
+- Changed AI content job publishing visibility to allow completed-with-warnings and verified completion statuses when a draft exists.
+
+### Removed
+- None.
+
+### Security
+- None.
+
 ## [1.16.4] - 2026-05-15
 
 ### Added

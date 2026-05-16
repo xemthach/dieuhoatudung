@@ -6,6 +6,7 @@ use App\Models\MediaFile;
 use App\Models\R2SyncJob;
 use App\Models\R2SyncItem;
 use App\Services\Settings\SettingService;
+use App\Support\EncodingGuard;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Database\Eloquent\Model;
@@ -74,7 +75,7 @@ class MediaUrlReplaceService
                     
                     // Arrays/JSON
                     if (is_array($originalValue)) {
-                        $newValueJson = json_encode($originalValue, JSON_UNESCAPED_SLASHES);
+                        $newValueJson = EncodingGuard::jsonEncode($originalValue);
                         $result = $this->replaceInString($newValueJson, $oldUrls, $newBaseUrl);
                         if ($result['replaced'] > 0) {
                             $recordOccurrences += $result['replaced'];
