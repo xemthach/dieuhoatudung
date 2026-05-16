@@ -387,6 +387,20 @@ class AIProductContentSystemTest extends TestCase
         $this->assertNotContains('unverified_numeric_claim:15.9 mm', $result['payload']['blocked_claims']);
     }
 
+    public function test_verified_refrigerant_charge_kg_claim_from_specs_json_passes_fact_check(): void
+    {
+        $product = $this->product([
+            'specs_json' => [
+                ['key' => 'refrigerant_charge_kg', 'label' => 'Lượng gas nạp sẵn', 'value' => '0.7'],
+            ],
+        ]);
+        $payload = $this->validPayload(content: $this->content(850).'<p>Lượng gas nạp sẵn 0.7 kg cần đối chiếu theo catalogue.</p>');
+
+        $result = $this->serviceReturning($payload)->generate($product, $this->config(['apply_mode' => 'needs_review']));
+
+        $this->assertNotContains('unverified_numeric_claim:0.7 kg', $result['payload']['blocked_claims']);
+    }
+
     public function test_unverified_noise_claim_is_blocked(): void
     {
         $product = $this->product(['noise_level' => null, 'specs_json' => null]);

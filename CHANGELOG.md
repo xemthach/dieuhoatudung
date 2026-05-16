@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.17.1] - 2026-05-17
+
+### Added
+- Added regression coverage for verified refrigerant charge values such as `0.7 kg` from product technical specs.
+
+### Fixed
+- Fixed Product AI fact-checking so kilogram claims from verified refrigerant charge, factory charge, gas charge, or mass specs pass when the value exists in `specs_json`.
+
+### Changed
+- None.
+
+### Removed
+- None.
+
+### Security
+- None.
+
 ## [1.17.0] - 2026-05-17
 
 ### Added

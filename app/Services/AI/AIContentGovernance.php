@@ -636,7 +636,8 @@ class AIContentGovernance
             Str::contains($key, 'hp') => 'hp',
             Str::contains($key, ['power_consumption', 'cong suat tieu thu', 'consumption']) => 'kw',
             Str::contains($key, 'noise') => 'db',
-            Str::contains($key, 'weight') => 'kg',
+            Str::contains($key, ['weight', 'trong luong', 'khoi luong', 'mass']) => 'kg',
+            Str::contains($key, ['refrigerant_charge', 'factory_charge', 'charge_kg', 'gas nap', 'luong gas', 'nap san']) => 'kg',
             Str::contains($key, 'dimensions') => 'mm',
             Str::contains($key, ['pipe', 'ong dong', 'duong kinh']) => 'mm',
             Str::contains($key, 'area') => 'm2',
@@ -677,6 +678,10 @@ class AIContentGovernance
 
         if (preg_match('/\b(btu|kw|hp|db|pa|mm|kg|w|a|m2)\b/u', $haystack, $match)) {
             return $match[1];
+        }
+
+        if (preg_match('/(?:^|[^a-z])kg(?:[^a-z]|$)/u', $haystack)) {
+            return 'kg';
         }
 
         return $this->inferUnitFromFactKey($haystack);
