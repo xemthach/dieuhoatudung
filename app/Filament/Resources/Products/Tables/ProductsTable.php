@@ -3,12 +3,17 @@
 namespace App\Filament\Resources\Products\Tables;
 
 use App\Enums\StockStatus;
+use App\Jobs\AiProductContentSingleJob;
 use App\Jobs\AiProductContentBatchJob;
 use App\Models\AiProductJob;
+use App\Models\AiProductJobItem;
+use App\Models\AiTechnicalLog;
 use App\Models\Brand;
+use App\Models\Product;
 use App\Models\ProductCategory;
 use App\Services\Product\AIProductContentSystem;
 use App\Support\SchemaColumns;
+use Filament\Actions\Action;
 use Filament\Actions\BulkAction;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
@@ -31,6 +36,8 @@ use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\HtmlString;
 
 class ProductsTable
 {
@@ -50,12 +57,8 @@ class ProductsTable
                         'failed', 'blocked', 'stuck' => 'danger',
                         default => 'gray',
                     })
-                    ->formatStateUsing(fn (?string $state): string => AIProductContentSystem::AI_STATUSES[$state ?: 'not_generated'] ?? (string) $state)
-                    ->tooltip(fn ($record): ?string => $record->ai_error_message
-                        ?: $record->aiProductJobItems()
-                            ->whereNotNull('error_message')
-                            ->latest('id')
-                            ->value('error_message'))
+                    ->formatStateUsing(fn (?string $state, Product $record): string => self::formatAiStatus($state, $record))
+                    ->tooltip(fn (Product $record): ?string => self::aiStatusTooltip($record))
                     ->sortable(),
                 TextColumn::make('ai_score')
                     ->label('SEO Score')
@@ -239,6 +242,46 @@ class ProductsTable
                 TrashedFilter::make(),
             ])
             ->recordActions([
+                Action::make('ai_status_detail')
+                    ->label('AI details')
+                    ->icon('heroicon-o-information-circle')
+                    ->color('gray')
+                    ->modalSubmitAction(false)
+                    ->modalCancelActionLabel('Đóng')
+                    ->modalHeading(fn (Product $record): string => 'AI status: '.$record->name)
+                    ->modalContent(fn (Product $record) => new HtmlString(self::aiStatusDetailHtml($record))),
+                Action::make('ai_logs')
+                    ->label('AI logs')
+                    ->icon('heroicon-o-bug-ant')
+                    ->color('gray')
+                    ->modalSubmitAction(false)
+                    ->modalCancelActionLabel('Đóng')
+                    ->modalHeading(fn (Product $record): string => 'AI logs: '.$record->name)
+                    ->modalContent(fn (Product $record) => new HtmlString('<pre style="white-space:pre-wrap;max-height:520px;overflow:auto">'
+                        .e(self::aiTechnicalLogsText($record)).'</pre>')),
+                Action::make('ai_retry_failed')
+                    ->label('Retry AI')
+                    ->icon('heroicon-o-arrow-path')
+                    ->color('warning')
+                    ->visible(fn (Product $record): bool => $record->aiProductJobItems()->whereIn('status', ['failed', 'stuck', 'cancelled'])->exists())
+                    ->requiresConfirmation()
+                    ->action(function (Product $record): void {
+                        $items = $record->aiProductJobItems()
+                            ->whereIn('status', ['failed', 'stuck', 'cancelled'])
+                            ->latest('id')
+                            ->get();
+                        $count = self::retryAiProductItems($items);
+                        $record->update([
+                            'ai_status' => 'queued',
+                            'ai_error_message' => null,
+                            'ai_last_run_at' => now(),
+                        ]);
+
+                        Notification::make()
+                            ->title($count > 0 ? "Đã retry {$count} AI item" : 'Không có AI item lỗi để retry')
+                            ->status($count > 0 ? 'success' : 'warning')
+                            ->send();
+                    }),
                 EditAction::make(),
             ])
             ->bulkActions([
@@ -260,6 +303,34 @@ class ProductsTable
                         self::aiBulkAction('ai_generate_tags', 'Generate Tags', 'heroicon-o-hashtag', 'generate_tags', [
                             'tags',
                         ]),
+                        BulkAction::make('ai_retry_selected_failed')
+                            ->label('Retry selected failed')
+                            ->icon('heroicon-o-arrow-path')
+                            ->color('warning')
+                            ->visible(fn () => auth()->user()?->can('product.ai_generate') ?? false)
+                            ->requiresConfirmation()
+                            ->action(function (Collection $records) {
+                                abort_unless(auth()->user()?->can('product.ai_generate'), 403);
+
+                                $items = AiProductJobItem::query()
+                                    ->whereIn('product_id', $records->pluck('id')->all())
+                                    ->whereIn('status', ['failed', 'stuck', 'cancelled'])
+                                    ->latest('id')
+                                    ->get();
+                                $count = self::retryAiProductItems($items);
+
+                                Log::info('AI product retry selected payload', [
+                                    'source' => 'products_bulk_action',
+                                    'selected_product_count' => $records->count(),
+                                    'selected_product_ids_sample' => $records->pluck('id')->take(25)->values()->all(),
+                                    'item_count' => $count,
+                                ]);
+
+                                Notification::make()
+                                    ->title($count > 0 ? "Đã retry {$count} AI item" : 'Không có AI item lỗi để retry')
+                                    ->status($count > 0 ? 'success' : 'warning')
+                                    ->send();
+                            }),
                     ])->label('AI Product System')->icon('heroicon-o-cpu-chip'),
 
                     // Phân loại
@@ -561,6 +632,14 @@ class ProductsTable
                 abort_unless(auth()->user()?->can('product.ai_generate'), 403);
 
                 $productIds = self::resolveProductIds($records, $data, $livewire);
+                Log::info('AI product bulk action payload', [
+                    'source' => 'products_table_bulk_action',
+                    'action' => $action,
+                    'scope' => $data['scope'] ?? 'selected',
+                    'record_count' => $records->count(),
+                    'resolved_count' => count($productIds),
+                    'resolved_ids_sample' => array_slice($productIds, 0, 25),
+                ]);
 
                 if ($productIds === []) {
                     Notification::make()
@@ -700,5 +779,126 @@ class ProductsTable
         }
 
         return $records->pluck('id')->values()->all();
+    }
+
+    public static function retryAiProductItems(iterable $items): int
+    {
+        $count = 0;
+
+        foreach ($items as $item) {
+            if (! $item instanceof AiProductJobItem) {
+                $item = AiProductJobItem::find($item->id ?? null);
+            }
+
+            if (! $item) {
+                continue;
+            }
+
+            $item->update(SchemaColumns::existing('ai_product_job_items', [
+                'status' => 'queued',
+                'retry_count' => (int) ($item->retry_count ?? 0) + 1,
+                'error_message' => null,
+                'failed_reason' => null,
+                'last_error_code' => null,
+                'last_error_message' => null,
+                'exception_class' => null,
+                'exception_file' => null,
+                'exception_line' => null,
+                'stack_trace' => null,
+                'finished_at' => null,
+            ]));
+
+            if ($item->job) {
+                $item->job->update(SchemaColumns::existing('ai_product_jobs', [
+                    'status' => 'processing',
+                    'finished_at' => null,
+                    'failed_reason' => null,
+                    'last_error_code' => null,
+                    'last_error_message' => null,
+                ]));
+            }
+
+            Product::whereKey($item->product_id)->update([
+                'ai_status' => 'queued',
+                'ai_error_message' => null,
+                'ai_last_run_at' => now(),
+            ]);
+
+            AiProductContentSingleJob::dispatch($item->product_id, $item->ai_product_job_id, $item->id)->onQueue('ai');
+            $count++;
+        }
+
+        return $count;
+    }
+
+    private static function formatAiStatus(?string $state, Product $record): string
+    {
+        $label = AIProductContentSystem::AI_STATUSES[$state ?: 'not_generated'] ?? (string) $state;
+        $reason = $record->aiProductJobItems()->latest('id')->value('failed_reason');
+
+        return ($state === 'failed' && filled($reason)) ? "{$label}: {$reason}" : $label;
+    }
+
+    private static function aiStatusTooltip(Product $record): ?string
+    {
+        $item = $record->aiProductJobItems()->latest('id')->first();
+        $parts = array_filter([
+            $record->ai_error_message,
+            $item?->failed_reason ? 'failed_reason: '.$item->failed_reason : null,
+            $item?->last_error_code ? 'code: '.$item->last_error_code : null,
+            $item?->last_error_message,
+            $item?->exception_class ? 'exception: '.$item->exception_class.($item->exception_line ? ':'.$item->exception_line : '') : null,
+        ]);
+
+        return $parts === [] ? null : implode("\n", $parts);
+    }
+
+    private static function aiStatusDetailHtml(Product $record): string
+    {
+        $item = $record->aiProductJobItems()->latest('id')->first();
+        $factCheck = $item?->generated_payload_json['fact_check'] ?? [];
+        $blocked = $item?->generated_payload_json['blocked_claims'] ?? [];
+        $blockedFields = $item?->generated_payload_json['blocked_product_data_fields'] ?? [];
+
+        $rows = [
+            'Product AI status' => $record->ai_status ?: 'not_generated',
+            'SEO score' => (string) ($record->ai_score ?? 0),
+            'Error' => $record->ai_error_message,
+            'Item status' => $item?->status,
+            'failed_reason' => $item?->failed_reason,
+            'last_error_code' => $item?->last_error_code,
+            'last_error_message' => $item?->last_error_message,
+            'exception' => $item?->exception_class ? $item->exception_class.($item->exception_line ? ':'.$item->exception_line : '') : null,
+            'provider/model' => trim(($item?->provider ?? '').' / '.($item?->model ?? ''), ' /'),
+            'fact_check' => is_array($factCheck) ? json_encode($factCheck, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) : null,
+            'blocked_claims' => is_array($blocked) ? implode(', ', $blocked) : null,
+            'blocked_fields' => is_array($blockedFields) ? implode(', ', $blockedFields) : null,
+        ];
+
+        $html = '<div class="space-y-2 text-sm">';
+        foreach ($rows as $label => $value) {
+            if (blank($value) && $value !== '0') {
+                continue;
+            }
+            $html .= '<div><strong>'.e($label).':</strong> '.e((string) $value).'</div>';
+        }
+        $html .= '</div>';
+
+        return $html;
+    }
+
+    private static function aiTechnicalLogsText(Product $record): string
+    {
+        $itemIds = $record->aiProductJobItems()->pluck('id');
+
+        return AiTechnicalLog::query()
+            ->where('ai_job_type', 'AiProductJobItem')
+            ->whereIn('ai_job_id', $itemIds)
+            ->latest('id')
+            ->limit(40)
+            ->get()
+            ->map(fn ($log) => '['.$log->created_at?->format('Y-m-d H:i:s')."] {$log->level} {$log->event}: {$log->message}\n"
+                .json_encode($log->context_json ?? [], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES))
+            ->implode("\n\n") ?: 'No technical logs.';
     }
 }

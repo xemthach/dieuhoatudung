@@ -7,6 +7,7 @@ use App\Models\AiProductJobItem;
 use App\Models\Product;
 use App\Services\AI\AITechnicalLogger;
 use App\Services\Product\AIProductContentSystem;
+use App\Services\Product\AIProductSeoScorer;
 use App\Support\SchemaColumns;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -87,16 +88,22 @@ class AiProductContentSingleJob implements ShouldQueue
                 'attempts' => $this->attempts(),
                 'product_id' => $product->id,
             ]);
+            $score = app(AIProductSeoScorer::class)->score($product->loadMissing(['brand', 'category', 'tags', 'faqs', 'relatedProducts', 'posts']));
             $message = $e->getMessage();
             $this->updateItem($item, [
                 'status' => 'failed',
                 'error_message' => $message,
+                'seo_score_before' => $item?->seo_score_before ?? $score['score'],
+                'seo_score_after' => $score['score'],
+                'warnings_json' => $score['warnings'],
                 'finished_at' => now(),
                 'duration_ms' => (int) $item?->started_at?->diffInMilliseconds(now()),
                 ...$technical,
             ]);
             $product->update([
                 'ai_status' => 'failed',
+                'ai_score' => $score['score'],
+                'ai_warning_count' => count($score['warnings']),
                 'ai_error_message' => $message,
                 'ai_last_run_at' => now(),
             ]);
@@ -115,6 +122,8 @@ class AiProductContentSingleJob implements ShouldQueue
     public function failed(\Throwable $exception): void
     {
         $item = $this->aiProductJobItemId ? AiProductJobItem::find($this->aiProductJobItemId) : null;
+        $product = Product::with(['brand', 'category', 'tags', 'faqs', 'relatedProducts', 'posts'])->find($this->productId);
+        $score = $product ? app(AIProductSeoScorer::class)->score($product) : ['score' => 0, 'warnings' => []];
         $technical = app(AITechnicalLogger::class)->exception('ai_product_content', $exception, $item, [
             'product_id' => $this->productId,
         ]);
@@ -122,12 +131,17 @@ class AiProductContentSingleJob implements ShouldQueue
         $this->updateItem($item, [
             'status' => 'failed',
             'error_message' => $exception->getMessage(),
+            'seo_score_before' => $item?->seo_score_before ?? $score['score'],
+            'seo_score_after' => $score['score'],
+            'warnings_json' => $score['warnings'],
             'finished_at' => now(),
             ...$technical,
         ]);
 
         Product::whereKey($this->productId)->update([
             'ai_status' => 'failed',
+            'ai_score' => $score['score'],
+            'ai_warning_count' => count($score['warnings']),
             'ai_error_message' => $exception->getMessage(),
             'ai_last_run_at' => now(),
         ]);

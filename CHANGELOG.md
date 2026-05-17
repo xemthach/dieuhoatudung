@@ -2,6 +2,28 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.17.2] - 2026-05-17
+
+### Added
+- Added Product list AI status detail and AI technical log modals with failed reason, provider/model, exception, fact-check, blocked claims, and blocked field context.
+- Added Product list retry actions for failed AI items at row level, selected-products bulk level, and all failed items in the current filter.
+- Added logging for Product AI bulk selection payloads before dispatch, including scope, selection state sample, resolved ID count, and resolved IDs sample.
+- Added regression coverage for checkbox-style associative selected record state and failed AI item retry dispatch.
+
+### Fixed
+- Fixed header Product AI bulk generation when selected checkboxes are synced as associative boolean state such as `selectedTableRecords[id] = true`.
+- Fixed Product AI failure handling so failed items and products still save the current SEO score and warning details instead of leaving score fields empty.
+- Fixed Product AI list status display so failed products can show the actual `failed_reason` and detailed tooltip instead of only `Thất bại`.
+
+### Changed
+- Changed Product AI bulk notifications to warn when the AI worker heartbeat is offline while still allowing jobs to queue.
+
+### Removed
+- None.
+
+### Security
+- None.
+
 ## [1.17.1] - 2026-05-17
 
 ### Added
