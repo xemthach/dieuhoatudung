@@ -416,6 +416,22 @@ class ManageSiteSettings extends Page
                         TextInput::make('tracking__google_analytics_id')->label('Google Analytics ID'),
                         TextInput::make('tracking__google_tag_manager_id')->label('Google Tag Manager ID'),
                         TextInput::make('tracking__facebook_pixel_id')->label('Facebook Pixel ID'),
+                        \Filament\Schemas\Components\Section::make('Google Ads Offline Conversions')
+                            ->description('Dùng cho upload lead/báo giá offline qua Google Ads API. Có thể cấu hình bằng ENV hoặc lưu tại đây.')
+                            ->schema([
+                                TextInput::make('integrations__google_ads_customer_id')->label('Customer ID'),
+                                TextInput::make('integrations__google_ads_login_customer_id')->label('Login Customer ID')->helperText('Chỉ cần khi dùng MCC.'),
+                                TextInput::make('integrations__google_ads_developer_token')->label('Developer token')->password()->revealable(),
+                                TextInput::make('integrations__google_ads_access_token')->label('OAuth access token')->password()->revealable(),
+                                TextInput::make('integrations__google_ads_conversion_action_resource_name')
+                                    ->label('Conversion action resource name')
+                                    ->placeholder('customers/1234567890/conversionActions/987654321'),
+                                TextInput::make('integrations__google_ads_conversion_action_id')
+                                    ->label('Conversion action ID')
+                                    ->helperText('Fallback nếu không nhập full resource name.'),
+                                TextInput::make('tracking__google_ads_default_conversion_value')->label('Default conversion value')->numeric(),
+                            ])
+                            ->columns(2),
                         Textarea::make('tracking__custom_head_scripts')->label('Custom <head> Scripts')->rows(4),
                         Textarea::make('tracking__custom_body_scripts')->label('Custom <body> Scripts')->rows(4),
                         Textarea::make('tracking__custom_footer_scripts')->label('Custom Footer Scripts')->rows(4),

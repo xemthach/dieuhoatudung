@@ -170,8 +170,9 @@ class ProductAiStatusEndpointTest extends TestCase
 
         $response
             ->assertOk()
-            ->assertSee('Refresh AI Status')
-            ->assertSee('AI Queue: checking...')
+            ->assertSee('AI Tools')
+            ->assertSee('Refresh AI status')
+            ->assertSee('AI Queue')
             ->assertSee('ProductAiStatusPoller', false)
             ->assertSee('admin\\/products\\/ai-status', false);
     }

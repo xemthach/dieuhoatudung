@@ -65,7 +65,7 @@ class ProductsTable
                     ->tooltip(fn (Product $record): ?string => self::aiStatusTooltip($record))
                     ->sortable(),
                 TextColumn::make('ai_score')
-                    ->label('SEO Score')
+                    ->label('SEO')
                     ->badge()
                     ->extraCellAttributes(fn (Product $record): array => [
                         'data-ai-product-id' => (string) $record->id,
@@ -88,7 +88,7 @@ class ProductsTable
                     ->sortable()
                     ->placeholder('-'),
                 TextColumn::make('ai_warning_count')
-                    ->label('Warnings')
+                    ->label('Warn')
                     ->badge()
                     ->extraCellAttributes(fn (Product $record): array => [
                         'data-ai-product-id' => (string) $record->id,
@@ -283,6 +283,8 @@ class ProductsTable
                     ->label('Retry AI')
                     ->icon('heroicon-o-arrow-path')
                     ->color('warning')
+                    ->iconButton()
+                    ->tooltip('Retry AI')
                     ->visible(fn (Product $record): bool => $record->aiProductJobItems()->whereIn('status', ['failed', 'stuck', 'cancelled'])->exists())
                     ->requiresConfirmation()
                     ->action(function (Product $record): void {
@@ -853,10 +855,19 @@ class ProductsTable
 
     private static function formatAiStatus(?string $state, Product $record): string
     {
-        $label = AIProductContentSystem::AI_STATUSES[$state ?: 'not_generated'] ?? (string) $state;
-        $reason = $record->aiProductJobItems()->latest('id')->value('failed_reason');
-
-        return ($state === 'failed' && filled($reason)) ? "{$label}: {$reason}" : $label;
+        return match ($state ?: 'not_generated') {
+            'completed', 'completed_verified' => 'Done',
+            'completed_with_warnings' => 'Done+',
+            'processing' => 'Run',
+            'queued' => 'Queue',
+            'retrying' => 'Retry',
+            'needs_review' => 'Review',
+            'failed' => 'Failed',
+            'blocked' => 'Blocked',
+            'stuck' => 'Stuck',
+            'cancelled' => 'Cancel',
+            default => 'New',
+        };
     }
 
     private static function aiStatusTooltip(Product $record): ?string

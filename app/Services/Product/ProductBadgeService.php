@@ -7,17 +7,15 @@ use Carbon\Carbon;
 
 class ProductBadgeService
 {
+    public function __construct(private PromotionPriceResolver $priceResolver) {}
+
     /**
      * Get all applicable badges for a product, sorted by priority.
-     *
-     * @param Product $product
-     * @return array
      */
     public function getBadges(Product $product): array
     {
         $badges = [];
 
-        // 1. Stock Status Badges (Highest Priority: 10)
         if ($product->stock_status === 'out_of_stock') {
             $badges[] = [
                 'label' => 'Hết hàng',
@@ -41,27 +39,16 @@ class ProductBadgeService
             ];
         }
 
-        // 2. Sale/Discount Badge (Priority: 9)
         if ($this->hasActiveSale($product)) {
-            $label = 'Giảm giá';
-            if ($product->discount_percent > 0) {
-                $label = '-' . $product->discount_percent . '%';
-            } elseif ($product->regular_price && $product->sale_price && $product->regular_price > $product->sale_price) {
-                $percent = round((($product->regular_price - $product->sale_price) / $product->regular_price) * 100);
-                if ($percent > 0) {
-                    $label = '-' . $percent . '%';
-                }
-            }
-
+            $price = $this->priceResolver->resolve($product);
             $badges[] = [
-                'label' => $label,
+                'label' => $price['discount_percent'] ? '-' . $price['discount_percent'] . '%' : 'Giảm giá',
                 'type' => 'sale',
                 'priority' => 9,
                 'css_class' => 'bg-danger-500 text-white',
             ];
         }
 
-        // 3. Bestseller Badge (Priority: 8)
         if ($product->is_bestseller) {
             $badges[] = [
                 'label' => 'Bán chạy',
@@ -71,7 +58,6 @@ class ProductBadgeService
             ];
         }
 
-        // 4. New Badge (Priority: 7)
         if ($product->is_new) {
             $badges[] = [
                 'label' => 'Mới',
@@ -81,7 +67,6 @@ class ProductBadgeService
             ];
         }
 
-        // 5. Featured Badge (Priority: 6)
         if ($product->is_featured) {
             $badges[] = [
                 'label' => 'Nổi bật',
@@ -91,34 +76,13 @@ class ProductBadgeService
             ];
         }
 
-        // Sort by priority descending (highest priority first)
-        usort($badges, function ($a, $b) {
-            return $b['priority'] <=> $a['priority'];
-        });
+        usort($badges, fn ($a, $b) => $b['priority'] <=> $a['priority']);
 
         return $badges;
     }
 
-    /**
-     * Check if the product has an active sale based on prices and dates.
-     */
     protected function hasActiveSale(Product $product): bool
     {
-        // Must have sale price or discount percent
-        if (!$product->sale_price && !$product->discount_percent) {
-            return false;
-        }
-
-        $now = Carbon::now();
-
-        if ($product->promotion_start_at && $now->lt($product->promotion_start_at)) {
-            return false;
-        }
-
-        if ($product->promotion_end_at && $now->gt($product->promotion_end_at)) {
-            return false;
-        }
-
-        return true;
+        return $this->priceResolver->hasActiveDiscount($product, Carbon::now());
     }
 }

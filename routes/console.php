@@ -19,3 +19,7 @@ Schedule::command('ai:queue-health --record')
 Schedule::command('ai:technical-logs-cleanup --days=30')
     ->dailyAt('03:20')
     ->withoutOverlapping();
+
+Schedule::command('google-ads:upload-offline-conversions --limit=50')
+    ->everyFifteenMinutes()
+    ->withoutOverlapping();

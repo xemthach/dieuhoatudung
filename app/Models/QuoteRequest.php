@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 
 class QuoteRequest extends Model
 {
@@ -44,6 +45,11 @@ class QuoteRequest extends Model
     public function product(): BelongsTo
     {
         return $this->belongsTo(Product::class);
+    }
+
+    public function googleAdsConversionImports(): MorphMany
+    {
+        return $this->morphMany(GoogleAdsConversionImport::class, 'source', 'source_type', 'source_id');
     }
 
     /* ── Static label helpers ── */

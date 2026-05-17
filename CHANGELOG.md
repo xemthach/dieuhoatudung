@@ -2,6 +2,35 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.19.0] - 2026-05-18
+
+### Added
+- Added scoped promotions with product, category, brand, and global targeting plus pivot tables for scope assignments.
+- Added `PromotionPriceResolver` to calculate effective product prices from base sale pricing and active scoped promotions.
+- Added Marketing Integrations admin readiness dashboard and clients for Google Search Console, GA4, Bing Webmaster, IndexNow, and Google Merchant diagnostics.
+- Added Google Ads offline conversion import workflow with click-id capture, hashed user identifiers, conversion import records, upload service/client, admin upload action, scheduled command, and settings fields.
+- Added regression coverage for scoped promotions, promotion-aware merchant feed pricing, marketing integration readiness, Google Ads offline conversions, SEO Audit payload handling, and Product AI status polling.
+
+### Fixed
+- Fixed SEO Audit and promotion-aware pricing so missing promotion pivot tables do not crash product audits before migrations are run.
+- Fixed quick quote submission without a selected product so it no longer throws an undefined `product_id` error.
+- Fixed merchant feed, product schema, sitemap, and frontend price output to use resolved effective pricing and active sale windows consistently.
+- Fixed Product admin AI status UI so status refresh, queue health, compact badges, inline retry, and selected/current-page handling are more reliable.
+- Fixed Brand SEO coverage and Merchant diagnostics for missing category, brand, image, and sale-price readiness.
+
+### Changed
+- Changed Product list and Product edit admin actions into grouped AI/Data/More controls with a lighter status display.
+- Changed quote forms and tracking scripts to preserve `gclid`, `gbraid`, and `wbraid` across the session for offline conversion uploads.
+- Changed scheduler setup to attempt pending Google Ads offline conversion uploads every fifteen minutes.
+- Changed promotion admin UI to expose scope-specific product, category, and brand assignments.
+
+### Removed
+- Removed obsolete built CSS asset `public/build/assets/app-Bazn6yrv.css` after rebuilding frontend assets.
+
+### Security
+- Google Ads offline conversion uploads hash email and phone identifiers before sending them to Google Ads.
+- Google Ads credential fields in admin settings are password/revealable fields and no credentials are committed to source.
+
 ## [1.18.0] - 2026-05-17
 
 ### Added

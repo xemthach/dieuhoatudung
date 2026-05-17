@@ -8,9 +8,9 @@ use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\Toggle;
-use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Group;
+use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 
 class PromotionForm
@@ -36,7 +36,7 @@ class PromotionForm
                                 ->rows(3)
                                 ->columnSpanFull(),
                         ]),
-                        
+
                         Section::make('Cấu hình giảm giá')->schema([
                             Grid::make(['default' => 1, 'md' => 2])->schema([
                                 Select::make('discount_type')
@@ -48,6 +48,41 @@ class PromotionForm
                                     ->label('Giá trị giảm')
                                     ->numeric(),
                             ]),
+                        ]),
+
+                        Section::make('Phạm vi áp dụng')->schema([
+                            Select::make('scope')
+                                ->label('Áp dụng cho')
+                                ->options([
+                                    'global' => 'Toàn site',
+                                    'product' => 'Sản phẩm cụ thể',
+                                    'category' => 'Danh mục sản phẩm',
+                                    'brand' => 'Thương hiệu',
+                                ])
+                                ->default('global')
+                                ->live()
+                                ->required(),
+                            Select::make('products')
+                                ->label('Sản phẩm')
+                                ->relationship('products', 'name')
+                                ->multiple()
+                                ->searchable()
+                                ->preload()
+                                ->visible(fn ($get) => $get('scope') === 'product'),
+                            Select::make('categories')
+                                ->label('Danh mục')
+                                ->relationship('categories', 'name')
+                                ->multiple()
+                                ->searchable()
+                                ->preload()
+                                ->visible(fn ($get) => $get('scope') === 'category'),
+                            Select::make('brands')
+                                ->label('Thương hiệu')
+                                ->relationship('brands', 'name')
+                                ->multiple()
+                                ->searchable()
+                                ->preload()
+                                ->visible(fn ($get) => $get('scope') === 'brand'),
                         ]),
                     ])->columnSpan(['default' => 1, 'md' => 2]),
 
@@ -67,6 +102,3 @@ class PromotionForm
             ]);
     }
 }
-
-
-

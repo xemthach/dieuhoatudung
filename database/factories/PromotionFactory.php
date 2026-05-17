@@ -15,6 +15,7 @@ class PromotionFactory extends Factory
             'title' => $title,
             'slug' => Str::slug($title),
             'description' => fake()->sentence(),
+            'scope' => 'global',
             'discount_type' => DiscountType::Percent,
             'discount_value' => fake()->numberBetween(5, 20),
             'start_at' => now()->subDays(2),

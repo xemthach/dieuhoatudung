@@ -150,6 +150,11 @@ class Product extends Model
         return $this->belongsToMany(Product::class, 'product_related', 'related_product_id', 'product_id');
     }
 
+    public function promotions(): BelongsToMany
+    {
+        return $this->belongsToMany(Promotion::class)->withTimestamps();
+    }
+
     public function reviews(): HasMany
     {
         return $this->hasMany(ProductReview::class);

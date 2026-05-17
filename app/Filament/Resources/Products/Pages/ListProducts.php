@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Products\Pages;
 
+use App\Filament\Resources\AiProductJobs\AiProductJobResource;
 use App\Filament\Resources\Products\ProductResource;
 use App\Filament\Resources\Products\Tables\ProductsTable;
 use App\Filament\Traits\HasDataTransferActions;
@@ -12,6 +13,7 @@ use App\Models\Product;
 use App\Services\AI\AIQueueMonitor;
 use App\Support\SchemaColumns;
 use Filament\Actions\Action;
+use Filament\Actions\ActionGroup;
 use Filament\Actions\CreateAction;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ListRecords;
@@ -30,115 +32,167 @@ class ListProducts extends ListRecords
     protected function getHeaderActions(): array
     {
         return [
-            Action::make('ai_generate_filtered')
-                ->label('AI Generate Content theo filter')
-                ->icon('heroicon-o-cpu-chip')
-                ->color('info')
-                ->modalDescription('Header action xử lý current page hoặc all filtered. Nếu muốn chạy đúng các checkbox đã chọn, dùng Tác vụ hàng loạt > AI Product System vì Filament chỉ truyền selected records cho bulk action.')
-                ->visible(fn () => auth()->user()?->can('product.ai_generate') ?? false)
-                ->form(ProductsTable::aiConfigForm([
-                    'content', 'seo', 'merchant', 'tags', 'faq', 'internal_links', 'og',
-                ], 'missing_only', 'current_page'))
-                ->action(function (array $data) {
-                    abort_unless(auth()->user()?->can('product.ai_generate'), 403);
+            CreateAction::make()
+                ->label('Tạo mới product')
+                ->icon('heroicon-o-plus')
+                ->color('primary'),
+            $this->aiToolsActionGroup(),
+            $this->aiQueueHealthAction(),
+            $this->dataActionGroup(),
+        ];
+    }
 
-                    $scope = $data['scope'] ?? 'selected';
-                    $productIds = $this->resolveAiProductIds($scope);
-                    $this->logAiSelectionPayload($scope, $productIds, $data);
-
-                    if ($productIds === []) {
-                        Notification::make()
-                            ->title($scope === 'selected' ? 'Chưa chọn sản phẩm' : 'Không có sản phẩm để xử lý')
-                            ->body('Selection state không có ID hợp lệ. Hãy thử dùng bulk action trong bảng hoặc chọn lại sản phẩm.')
-                            ->warning()
-                            ->send();
-
-                        return;
-                    }
-
-                    $config = ProductsTable::normalizeAiActionData($data, 'generate_ai_content');
-                    $job = AiProductJob::create(array_merge([
-                        'type' => 'generate_ai_content',
-                        'scope' => $scope,
-                        'status' => 'queued',
-                        'total' => count($productIds),
-                        'config_json' => $config,
-                        'created_by' => auth()->id(),
-                    ], SchemaColumns::existing('ai_product_jobs', [
-                        'module' => 'ai_product_bulk',
-                        'queue_name' => 'ai',
-                    ])));
-
-                    AiProductContentBatchJob::dispatch($job->id, $productIds)->onQueue('ai');
-                    $workerOffline = ! (bool) data_get(app(AIQueueMonitor::class)->health(), 'worker_heartbeat.is_running');
-
-                    Notification::make()
-                        ->title('Đã tạo AI Product Job')
-                        ->body("Job #{$job->id} sẽ xử lý ".count($productIds).' sản phẩm.'
-                            .($workerOffline ? ' AI worker offline: job đã vào queue nhưng cần bật worker để xử lý.' : ''))
-                        ->status($workerOffline ? 'warning' : 'success')
-                        ->persistent()
-                        ->send();
-                }),
-            Action::make('ai_refresh_status')
-                ->label('Refresh AI Status')
-                ->icon('heroicon-o-arrow-path')
+    private function aiToolsActionGroup(): ActionGroup
+    {
+        return ActionGroup::make([
+            $this->aiGenerateFilteredAction(),
+            $this->aiRetryAllFailedAction(),
+            $this->aiRefreshStatusAction(),
+            Action::make('ai_open_jobs')
+                ->label('Open AI jobs')
+                ->icon('heroicon-o-list-bullet')
                 ->color('gray')
-                ->url('#')
-                ->extraAttributes([
-                    'data-ai-refresh-button' => '1',
-                    'onclick' => 'event.preventDefault(); window.ProductAiStatusPoller?.refreshNow?.();',
-                ])
+                ->url(fn () => AiProductJobResource::getUrl('index'))
                 ->visible(fn () => auth()->user()?->can('product.ai_generate') ?? false),
-            Action::make('ai_queue_health_badge')
-                ->label('AI Queue: checking...')
-                ->icon('heroicon-o-signal')
-                ->color('gray')
-                ->url('#')
-                ->extraAttributes([
-                    'data-ai-queue-widget' => '1',
-                    'onclick' => 'event.preventDefault(); window.ProductAiStatusPoller?.refreshNow?.();',
-                ])
-                ->visible(fn () => auth()->user()?->can('product.ai_generate') ?? false),
-            Action::make('ai_retry_all_failed')
-                ->label('Retry all failed AI')
-                ->icon('heroicon-o-arrow-path-rounded-square')
-                ->color('warning')
-                ->visible(fn () => auth()->user()?->can('product.ai_generate') ?? false)
-                ->requiresConfirmation()
-                ->modalDescription('Retry tất cả AI product items đang failed/stuck/cancelled trong filter hiện tại.')
-                ->action(function () {
-                    abort_unless(auth()->user()?->can('product.ai_generate'), 403);
+        ])
+            ->label('AI Tools')
+            ->icon('heroicon-o-sparkles')
+            ->color('gray')
+            ->button()
+            ->visible(fn () => auth()->user()?->can('product.ai_generate') ?? false);
+    }
 
-                    $productIds = $this->getFilteredTableQuery()
-                        ->pluck('products.id')
-                        ->map(fn ($id) => (int) $id)
-                        ->all();
+    private function aiGenerateFilteredAction(): Action
+    {
+        return Action::make('ai_generate_filtered')
+            ->label('Generate AI theo filter')
+            ->icon('heroicon-o-cpu-chip')
+            ->color('gray')
+            ->modalDescription('Header action xử lý current page hoặc all filtered. Nếu muốn chạy đúng các checkbox đã chọn, dùng Tác vụ hàng loạt > AI Product System vì Filament chỉ truyền selected records cho bulk action.')
+            ->visible(fn () => auth()->user()?->can('product.ai_generate') ?? false)
+            ->form(ProductsTable::aiConfigForm([
+                'content', 'seo', 'merchant', 'tags', 'faq', 'internal_links', 'og',
+            ], 'missing_only', 'current_page'))
+            ->action(function (array $data) {
+                abort_unless(auth()->user()?->can('product.ai_generate'), 403);
 
-                    $items = AiProductJobItem::query()
-                        ->whereIn('product_id', $productIds)
-                        ->whereIn('status', ['failed', 'stuck', 'cancelled'])
-                        ->latest('id')
-                        ->get();
+                $scope = $data['scope'] ?? 'selected';
+                $productIds = $this->resolveAiProductIds($scope);
+                $this->logAiSelectionPayload($scope, $productIds, $data);
 
-                    $count = ProductsTable::retryAiProductItems($items);
-
-                    Log::info('AI product retry all failed payload', [
-                        'scope' => 'all_filtered',
-                        'filtered_count' => count($productIds),
-                        'item_count' => $count,
-                        'product_ids_sample' => array_slice($productIds, 0, 25),
-                    ]);
-
+                if ($productIds === []) {
                     Notification::make()
-                        ->title($count > 0 ? "Đã retry {$count} AI item" : 'Không có AI item lỗi để retry')
-                        ->status($count > 0 ? 'success' : 'warning')
+                        ->title($scope === 'selected' ? 'Chưa chọn sản phẩm' : 'Không có sản phẩm để xử lý')
+                        ->body('Selection state không có ID hợp lệ. Hãy thử dùng bulk action trong bảng hoặc chọn lại sản phẩm.')
+                        ->warning()
                         ->send();
-                }),
+
+                    return;
+                }
+
+                $config = ProductsTable::normalizeAiActionData($data, 'generate_ai_content');
+                $job = AiProductJob::create(array_merge([
+                    'type' => 'generate_ai_content',
+                    'scope' => $scope,
+                    'status' => 'queued',
+                    'total' => count($productIds),
+                    'config_json' => $config,
+                    'created_by' => auth()->id(),
+                ], SchemaColumns::existing('ai_product_jobs', [
+                    'module' => 'ai_product_bulk',
+                    'queue_name' => 'ai',
+                ])));
+
+                AiProductContentBatchJob::dispatch($job->id, $productIds)->onQueue('ai');
+                $workerOffline = ! (bool) data_get(app(AIQueueMonitor::class)->health(), 'worker_heartbeat.is_running');
+
+                Notification::make()
+                    ->title('Đã tạo AI Product Job')
+                    ->body("Job #{$job->id} sẽ xử lý ".count($productIds).' sản phẩm.'
+                        .($workerOffline ? ' AI worker offline: job đã vào queue nhưng cần bật worker để xử lý.' : ''))
+                    ->status($workerOffline ? 'warning' : 'success')
+                    ->persistent()
+                    ->send();
+            });
+    }
+
+    private function aiRefreshStatusAction(): Action
+    {
+        return Action::make('ai_refresh_status')
+            ->label('Refresh AI status')
+            ->icon('heroicon-o-arrow-path')
+            ->color('gray')
+            ->url('#')
+            ->extraAttributes([
+                'data-ai-refresh-button' => '1',
+                'onclick' => 'event.preventDefault(); window.ProductAiStatusPoller?.refreshNow?.();',
+            ])
+            ->visible(fn () => auth()->user()?->can('product.ai_generate') ?? false);
+    }
+
+    private function aiQueueHealthAction(): Action
+    {
+        return Action::make('ai_queue_health_badge')
+            ->label('AI Queue')
+            ->icon('heroicon-o-signal')
+            ->color('gray')
+            ->url('#')
+            ->extraAttributes([
+                'data-ai-queue-widget' => '1',
+                'onclick' => 'event.preventDefault(); window.ProductAiStatusPoller?.refreshNow?.();',
+            ])
+            ->visible(fn () => auth()->user()?->can('product.ai_generate') ?? false);
+    }
+
+    private function aiRetryAllFailedAction(): Action
+    {
+        return Action::make('ai_retry_all_failed')
+            ->label('Retry failed AI')
+            ->icon('heroicon-o-arrow-path-rounded-square')
+            ->color('gray')
+            ->visible(fn () => auth()->user()?->can('product.ai_generate') ?? false)
+            ->requiresConfirmation()
+            ->modalDescription('Retry tất cả AI product items đang failed/stuck/cancelled trong filter hiện tại.')
+            ->action(function () {
+                abort_unless(auth()->user()?->can('product.ai_generate'), 403);
+
+                $productIds = $this->getFilteredTableQuery()
+                    ->pluck('products.id')
+                    ->map(fn ($id) => (int) $id)
+                    ->all();
+
+                $items = AiProductJobItem::query()
+                    ->whereIn('product_id', $productIds)
+                    ->whereIn('status', ['failed', 'stuck', 'cancelled'])
+                    ->latest('id')
+                    ->get();
+
+                $count = ProductsTable::retryAiProductItems($items);
+
+                Log::info('AI product retry all failed payload', [
+                    'scope' => 'all_filtered',
+                    'filtered_count' => count($productIds),
+                    'item_count' => $count,
+                    'product_ids_sample' => array_slice($productIds, 0, 25),
+                ]);
+
+                Notification::make()
+                    ->title($count > 0 ? "Đã retry {$count} AI item" : 'Không có AI item lỗi để retry')
+                    ->status($count > 0 ? 'success' : 'warning')
+                    ->send();
+            });
+    }
+
+    private function dataActionGroup(): ActionGroup
+    {
+        return ActionGroup::make([
             $this->getExportHeaderAction(),
             $this->getImportHeaderAction(),
-            CreateAction::make(),
-        ];
+        ])
+            ->label('Data')
+            ->icon('heroicon-o-arrow-down-tray')
+            ->color('gray')
+            ->button();
     }
 
     private function resolveAiProductIds(string $scope): array

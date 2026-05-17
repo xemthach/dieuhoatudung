@@ -75,6 +75,7 @@ class SitemapService
     public function buildProducts(): string
     {
         $products = Product::where('is_active', true)
+            ->when(setting('sitemap.sitemap_exclude_noindex', true), fn ($query) => $this->withoutNoindex($query))
             ->orderByDesc('updated_at')
             ->get(['slug', 'updated_at']);
 
@@ -94,6 +95,7 @@ class SitemapService
     public function buildCategories(): string
     {
         $categories = ProductCategory::where('is_active', true)
+            ->when(setting('sitemap.sitemap_exclude_noindex', true), fn ($query) => $this->withoutNoindex($query))
             ->orderByDesc('updated_at')
             ->get(['slug', 'updated_at']);
 
@@ -276,15 +278,15 @@ class SitemapService
         } catch (\Exception $e) {}
 
         // Compare Page
-        try {
-            $urls->push([
-                'loc'        => route('compare.index'),
-                'lastmod'    => Carbon::now()->toAtomString(),
-                'changefreq' => 'monthly',
-                'priority'   => '0.4',
-            ]);
-        } catch (\Exception $e) {}
+        // The compare page is session/state based and should stay out of XML sitemaps.
 
         return view('seo.sitemap-urlset', compact('urls'))->render();
+    }
+
+    protected function withoutNoindex($query)
+    {
+        return $query->where(function ($q) {
+            $q->whereNull('robots')->orWhere('robots', 'not like', '%noindex%');
+        });
     }
 }

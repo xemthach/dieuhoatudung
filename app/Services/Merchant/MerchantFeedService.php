@@ -3,6 +3,7 @@
 namespace App\Services\Merchant;
 
 use App\Models\Product;
+use App\Services\Product\PromotionPriceResolver;
 use Illuminate\Support\Collection;
 
 /**
@@ -11,6 +12,8 @@ use Illuminate\Support\Collection;
  */
 class MerchantFeedService
 {
+    public function __construct(private PromotionPriceResolver $priceResolver) {}
+
     /**
      * Generate the full Google Merchant XML feed.
      */
@@ -60,7 +63,7 @@ class MerchantFeedService
      */
     protected function buildItem(Product $product, string $siteUrl): string
     {
-        $price = $product->sale_price ?? $product->regular_price;
+        $price = $this->priceResolver->resolve($product);
         $productUrl = route('product.show', $product->slug);
         $imageUrl = media_url($product->main_image);
         $condition = $product->condition ?? 'new';
@@ -83,11 +86,20 @@ class MerchantFeedService
 
         $xml .= "    <g:condition>{$condition}</g:condition>\n";
         $xml .= "    <g:availability>{$availability}</g:availability>\n";
-        $xml .= '    <g:price>'.number_format($price, 0, '.', '')." VND</g:price>\n";
+        $merchantPrice = $price['regular_price'] ?? $price['final_price'];
+        $xml .= '    <g:price>'.number_format($merchantPrice, 0, '.', '')." VND</g:price>\n";
 
         // Sale price
-        if ($product->sale_price && $product->regular_price && $product->sale_price < $product->regular_price) {
-            $xml .= '    <g:sale_price>'.number_format($product->sale_price, 0, '.', '')." VND</g:sale_price>\n";
+        if ($price['has_discount']) {
+            $xml .= '    <g:sale_price>'.number_format($price['sale_price'], 0, '.', '')." VND</g:sale_price>\n";
+
+            if ($price['promotion_start_at'] && $price['promotion_end_at']) {
+                $xml .= '    <g:sale_price_effective_date>'
+                    .$price['promotion_start_at']->toIso8601String()
+                    .'/'
+                    .$price['promotion_end_at']->toIso8601String()
+                    ."</g:sale_price_effective_date>\n";
+            }
         }
 
         // Brand
@@ -185,6 +197,25 @@ class MerchantFeedService
             })
             ->count();
         $noBrand = Product::where('is_active', true)->whereNull('brand_id')->count();
+        $expiredSale = Product::where('is_active', true)
+            ->whereNotNull('sale_price')
+            ->whereNotNull('promotion_end_at')
+            ->where('promotion_end_at', '<', now())
+            ->count();
+        $activeSale = Product::where('is_active', true)
+            ->whereNotNull('sale_price')
+            ->where(function ($query) {
+                $query->whereNull('promotion_start_at')->orWhere('promotion_start_at', '<=', now());
+            })
+            ->where(function ($query) {
+                $query->whereNull('promotion_end_at')->orWhere('promotion_end_at', '>=', now());
+            })
+            ->count();
+        $missingGoogleCategory = Product::where('is_active', true)
+            ->where(function ($query) {
+                $query->whereNull('google_product_category')->orWhere('google_product_category', '');
+            })
+            ->count();
 
         return [
             'total_active' => $total,
@@ -192,6 +223,9 @@ class MerchantFeedService
             'excluded_no_price' => $noPrice,
             'excluded_no_image' => $noImage,
             'missing_brand' => $noBrand,
+            'active_sale_prices' => $activeSale,
+            'expired_sale_prices' => $expiredSale,
+            'missing_google_product_category' => $missingGoogleCategory,
         ];
     }
 }

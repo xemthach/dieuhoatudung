@@ -25,6 +25,15 @@ class PromotionsTable
                 TextColumn::make('discount_type')
                     ->badge()
                     ->searchable(),
+                TextColumn::make('scope')
+                    ->label('Phạm vi')
+                    ->badge()
+                    ->formatStateUsing(fn (?string $state): string => match ($state) {
+                        'product' => 'Sản phẩm',
+                        'category' => 'Danh mục',
+                        'brand' => 'Thương hiệu',
+                        default => 'Toàn site',
+                    }),
                 TextColumn::make('discount_value')
                     ->numeric()
                     ->sortable(),

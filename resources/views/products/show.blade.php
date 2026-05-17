@@ -14,7 +14,7 @@
     ]" />
 
     @php
-        $hasDiscount = $product->sale_price && $product->sale_price < $product->regular_price;
+        $price = app(\App\Services\Product\PromotionPriceResolver::class)->resolve($product);
     @endphp
 
     <section class="py-8 lg:py-12">
@@ -107,11 +107,11 @@
                     {{-- Price --}}
                     <div class="mt-6 rounded-xl border border-surface-200 bg-surface-50 p-5">
                         <div class="flex items-baseline gap-3">
-                            @if($hasDiscount)
-                                <span class="text-3xl font-bold text-danger-600">{{ number_format($product->sale_price) }}₫</span>
-                                <span class="text-lg text-surface-400 line-through">{{ number_format($product->regular_price) }}₫</span>
-                            @elseif($product->regular_price)
-                                <span class="text-3xl font-bold text-surface-900">{{ number_format($product->regular_price) }}₫</span>
+                            @if($price['has_discount'])
+                                <span class="text-3xl font-bold text-danger-600">{{ number_format($price['sale_price']) }}₫</span>
+                                <span class="text-lg text-surface-400 line-through">{{ number_format($price['regular_price']) }}₫</span>
+                            @elseif($price['final_price'])
+                                <span class="text-3xl font-bold text-surface-900">{{ number_format($price['final_price']) }}₫</span>
                             @else
                                 <span class="text-xl font-bold text-primary-600">Liên hệ để nhận báo giá</span>
                             @endif

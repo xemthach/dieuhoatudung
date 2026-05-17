@@ -2,6 +2,8 @@
 
 namespace App\Services\Schema;
 
+use App\Services\Product\PromotionPriceResolver;
+
 /**
  * Schema.org JSON-LD generator service.
  * Generates structured data for Organization, WebSite, Product, Article, FAQ, BreadcrumbList.
@@ -151,7 +153,8 @@ class SchemaService
         }
 
         // Offer — ONLY if price exists (fixes price=0 issue)
-        $price = $product->sale_price ?? $product->regular_price;
+        $resolvedPrice = app(PromotionPriceResolver::class)->resolve($product);
+        $price = $resolvedPrice['final_price'];
         if ($price && $price > 0) {
             $offer = [
                 '@type' => 'Offer',

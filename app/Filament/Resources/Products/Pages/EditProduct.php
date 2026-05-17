@@ -10,6 +10,7 @@ use App\Services\Product\AIProductContentSystem;
 use App\Services\Seo\InternalLinkSuggestionService;
 use App\Support\SchemaColumns;
 use Filament\Actions\Action;
+use Filament\Actions\ActionGroup;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\ForceDeleteAction;
 use Filament\Actions\RestoreAction;
@@ -23,11 +24,24 @@ class EditProduct extends EditRecord
 {
     protected static string $resource = ProductResource::class;
 
+    public function getTitle(): string
+    {
+        return (string) ($this->record->name ?? 'Product');
+    }
+
+    public function getBreadcrumbs(): array
+    {
+        return [
+            ProductResource::getUrl('index') => 'Product',
+            'Edit',
+        ];
+    }
+
     protected function getHeaderActions(): array
     {
         return [
             Action::make('ai_product_generate')
-                ->label('Generate AI Content')
+                ->label('Generate AI')
                 ->icon('heroicon-o-sparkles')
                 ->color('primary')
                 ->modalDescription('AI chỉ tạo Nội dung, SEO, Google Merchant, Tags, FAQ và Internal links. AI không tạo hoặc sửa Thông tin cơ bản, giá, model/SKU, brand/category hay Thông số kỹ thuật.')
@@ -63,11 +77,10 @@ class EditProduct extends EditRecord
                         ->persistent()
                         ->send();
                 }),
-
             Action::make('ai_apply_latest_draft')
-                ->label('Preview / Apply AI Draft')
+                ->label('Preview Draft')
                 ->icon('heroicon-o-eye')
-                ->color('warning')
+                ->color('gray')
                 ->modalHeading('Preview AI Product Draft')
                 ->modalDescription('Chỉ các field thuộc Content Layer được apply. Thông tin cơ bản và Thông số kỹ thuật luôn bị bỏ qua nếu xuất hiện trong payload.')
                 ->modalContent(fn () => view('filament.product-ai-preview', [
@@ -106,48 +119,51 @@ class EditProduct extends EditRecord
 
                     ($item ? $notification->success() : $notification->warning())->send();
                 }),
+            ActionGroup::make([
+                Action::make('ai_rollback_latest')
+                    ->label('Rollback AI Content')
+                    ->icon('heroicon-o-arrow-uturn-left')
+                    ->color('gray')
+                    ->requiresConfirmation()
+                    ->modalDescription('Khôi phục bản backup gần nhất trước khi AI ghi đè nội dung sản phẩm.')
+                    ->action(function () {
+                        $version = app(AIProductContentSystem::class)->rollback($this->record);
+                        $notification = Notification::make()
+                            ->title($version ? 'Đã rollback nội dung sản phẩm' : 'Không có bản backup để rollback');
 
-            Action::make('ai_rollback_latest')
-                ->label('Rollback AI Content')
-                ->icon('heroicon-o-arrow-uturn-left')
+                        ($version ? $notification->success() : $notification->warning())->send();
+                    }),
+                Action::make('generate_link_suggestions')
+                    ->label('Gợi ý Internal Links')
+                    ->icon('heroicon-o-link')
+                    ->color('gray')
+                    ->requiresConfirmation()
+                    ->modalHeading('Tạo gợi ý liên kết nội bộ')
+                    ->modalDescription('Hệ thống sẽ phân tích sản phẩm này và gợi ý các trang liên quan: bài viết, sản phẩm cùng BTU, cùng thương hiệu...')
+                    ->action(function () {
+                        try {
+                            $service = app(InternalLinkSuggestionService::class);
+                            $suggestions = $service->generateForModel($this->record, force: true);
+
+                            Notification::make()
+                                ->title("Đã tạo {$suggestions->count()} gợi ý internal link.")
+                                ->success()
+                                ->send();
+                        } catch (\Throwable $e) {
+                            Notification::make()
+                                ->title('Lỗi khi tạo gợi ý: '.$e->getMessage())
+                                ->danger()
+                                ->send();
+                        }
+                    }),
+                DeleteAction::make(),
+                ForceDeleteAction::make(),
+                RestoreAction::make(),
+            ])
+                ->label('More')
+                ->icon('heroicon-o-ellipsis-horizontal')
                 ->color('gray')
-                ->requiresConfirmation()
-                ->modalDescription('Khôi phục bản backup gần nhất trước khi AI ghi đè nội dung sản phẩm.')
-                ->action(function () {
-                    $version = app(AIProductContentSystem::class)->rollback($this->record);
-                    $notification = Notification::make()
-                        ->title($version ? 'Đã rollback nội dung sản phẩm' : 'Không có bản backup để rollback');
-
-                    ($version ? $notification->success() : $notification->warning())->send();
-                }),
-
-            Action::make('generate_link_suggestions')
-                ->label('Gợi ý Internal Links')
-                ->icon('heroicon-o-link')
-                ->color('info')
-                ->requiresConfirmation()
-                ->modalHeading('Tạo gợi ý liên kết nội bộ')
-                ->modalDescription('Hệ thống sẽ phân tích sản phẩm này và gợi ý các trang liên quan (bài viết, sản phẩm cùng BTU, cùng thương hiệu...)')
-                ->action(function () {
-                    try {
-                        $service = app(InternalLinkSuggestionService::class);
-                        $suggestions = $service->generateForModel($this->record, force: true);
-
-                        Notification::make()
-                            ->title("Đã tạo {$suggestions->count()} gợi ý internal link.")
-                            ->success()
-                            ->send();
-                    } catch (\Throwable $e) {
-                        Notification::make()
-                            ->title('Lỗi khi tạo gợi ý: '.$e->getMessage())
-                            ->danger()
-                            ->send();
-                    }
-                }),
-
-            DeleteAction::make(),
-            ForceDeleteAction::make(),
-            RestoreAction::make(),
+                ->button(),
         ];
     }
 

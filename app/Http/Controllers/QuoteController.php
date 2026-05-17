@@ -7,6 +7,7 @@ use App\Models\Product;
 use App\Models\QuoteRequest;
 use App\Services\Calculator\BtuCalculatorService;
 use App\Services\Mail\MailDispatchService;
+use App\Services\Marketing\GoogleAdsOfflineConversionService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\RateLimiter;
@@ -78,13 +79,16 @@ class QuoteController extends Controller
             'utm_source'             => ['nullable', 'string', 'max:100'],
             'utm_medium'             => ['nullable', 'string', 'max:100'],
             'utm_campaign'           => ['nullable', 'string', 'max:100'],
+            'gclid'                  => ['nullable', 'string', 'max:255'],
+            'gbraid'                 => ['nullable', 'string', 'max:255'],
+            'wbraid'                 => ['nullable', 'string', 'max:255'],
         ], [
             'full_name.required' => 'Vui lòng nhập họ tên.',
             'phone.required'     => 'Vui lòng nhập số điện thoại.',
             'phone.regex'        => 'Số điện thoại không hợp lệ.',
         ]);
 
-        $productModel = $validated['product_id']
+        $productModel = ! empty($validated['product_id'])
             ? Product::with(['brand', 'category'])->find($validated['product_id'])
             : null;
 
@@ -124,10 +128,15 @@ class QuoteController extends Controller
             'utm_source'                 => $validated['utm_source'] ?? null,
             'utm_medium'                 => $validated['utm_medium'] ?? null,
             'utm_campaign'               => $validated['utm_campaign'] ?? null,
+            'gclid'                      => $validated['gclid'] ?? null,
+            'gbraid'                     => $validated['gbraid'] ?? null,
+            'wbraid'                     => $validated['wbraid'] ?? null,
             'status'                     => 'new',
             'ip_address'                 => $request->ip(),
             'user_agent'                 => $request->userAgent(),
         ]);
+
+        $this->recordGoogleAdsOfflineConversion($quote, $request, 'quick_quote');
 
         // ── Build mail vars with proper fallbacks ──────────────────────
         $mailVars = [
@@ -298,6 +307,9 @@ class QuoteController extends Controller
             'utm_campaign'             => ['nullable','string','max:100'],
             'utm_term'                 => ['nullable','string','max:100'],
             'utm_content'              => ['nullable','string','max:100'],
+            'gclid'                    => ['nullable','string','max:255'],
+            'gbraid'                   => ['nullable','string','max:255'],
+            'wbraid'                   => ['nullable','string','max:255'],
             'website_url'              => ['nullable','max:0'],
         ], [
             'full_name.required' => 'Vui lòng nhập họ tên.',
@@ -427,11 +439,16 @@ class QuoteController extends Controller
             'utm_campaign'             => $validated['utm_campaign'] ?? null,
             'utm_term'                 => $validated['utm_term'] ?? null,
             'utm_content'              => $validated['utm_content'] ?? null,
+            'gclid'                    => $validated['gclid'] ?? null,
+            'gbraid'                   => $validated['gbraid'] ?? null,
+            'wbraid'                   => $validated['wbraid'] ?? null,
             'recommended_product_ids'  => $recommendedProductIds ?: null,
             'status'                   => 'new',
             'ip_address'               => $request->ip(),
             'user_agent'               => $request->userAgent(),
         ]);
+
+        $this->recordGoogleAdsOfflineConversion($quote, $request, 'submit_quote');
 
         // ── Build shared label map ─────────────────────────────────────
         $projectLabel     = QuoteRequest::projectTypeLabels()[$validated['project_type'] ?? ''] ?? 'Chưa rõ';
@@ -615,5 +632,17 @@ class QuoteController extends Controller
                     'main_image'   => $p->main_image,
                 ])->values()->toArray(),
             ]);
+    }
+
+    protected function recordGoogleAdsOfflineConversion(QuoteRequest $quote, Request $request, string $eventName): void
+    {
+        try {
+            app(GoogleAdsOfflineConversionService::class)->recordQuoteRequest($quote, $request, $eventName);
+        } catch (\Throwable $exception) {
+            Log::warning('Google Ads offline conversion record failed', [
+                'quote_id' => $quote->id,
+                'error' => $exception->getMessage(),
+            ]);
+        }
     }
 }

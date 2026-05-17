@@ -4,6 +4,7 @@ namespace App\Services\Seo;
 
 use App\Enums\PostStatus;
 use App\Enums\TagStatus;
+use App\Models\Brand;
 use App\Models\CaseStudy;
 use App\Models\PolicyPage;
 use App\Models\Post;
@@ -11,6 +12,7 @@ use App\Models\PostCategory;
 use App\Models\Product;
 use App\Models\ProductCategory;
 use App\Models\Tag;
+use App\Services\Product\PromotionPriceResolver;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Schema;
 
@@ -18,6 +20,8 @@ class SeoAuditService
 {
     public const CACHE_KEY = 'seo_audit_results';
     public const CACHE_TTL = 300; // 5 minutes
+
+    public function __construct(private PromotionPriceResolver $priceResolver) {}
 
     /**
      * Run all audits and return flat collection of issues.
@@ -33,6 +37,7 @@ class SeoAuditService
         $issues = $issues->merge($this->auditProducts());
         $issues = $issues->merge($this->auditPosts());
         $issues = $issues->merge($this->auditProductCategories());
+        $issues = $issues->merge($this->auditBrands());
         $issues = $issues->merge($this->auditPostCategories());
         $issues = $issues->merge($this->auditTags());
         $issues = $issues->merge($this->auditCaseStudies());
@@ -260,6 +265,53 @@ class SeoAuditService
     // ─────────────────────────────────────────────
     // POST CATEGORIES
     // ─────────────────────────────────────────────
+    protected function auditBrands(): array
+    {
+        $issues = [];
+
+        $table = (new Brand())->getTable();
+        $desiredColumns = [
+            'id', 'name', 'slug', 'is_active', 'seo_title', 'seo_description',
+            'description', 'logo', 'canonical_url', 'robots',
+        ];
+        $columns = $this->getAvailableColumns($table, $desiredColumns);
+
+        $brands = Brand::select($columns)->get();
+
+        foreach ($brands as $brand) {
+            $id = $brand->id;
+            $name = $brand->name ?? "Brand #{$id}";
+            $edit = route('filament.admin.resources.brands.edit', $id);
+            $publicUrl = ! empty($brand->slug) ? route('brands.show', $brand->slug) : null;
+
+            if (in_array('slug', $columns) && empty($brand->slug)) {
+                $issues[] = $this->issue('Brand', $name, 'Slug trống', 'critical', $edit, $publicUrl, $id);
+            }
+
+            if (in_array('seo_title', $columns) && empty($brand->seo_title)) {
+                $issues[] = $this->issue('Brand', $name, 'Thiếu SEO Title', 'critical', $edit, $publicUrl, $id);
+            }
+
+            if (in_array('seo_description', $columns) && empty($brand->seo_description)) {
+                $issues[] = $this->issue('Brand', $name, 'Thiếu SEO Description', 'warning', $edit, $publicUrl, $id);
+            }
+
+            if (in_array('description', $columns) && mb_strlen(strip_tags((string) $brand->description)) < 120) {
+                $issues[] = $this->issue('Brand', $name, 'Mô tả thương hiệu quá ngắn', 'notice', $edit, $publicUrl, $id);
+            }
+
+            if (in_array('logo', $columns) && empty($brand->logo)) {
+                $issues[] = $this->issue('Brand', $name, 'Thiếu logo thương hiệu', 'notice', $edit, $publicUrl, $id);
+            }
+
+            if (in_array('is_active', $columns) && in_array('robots', $columns) && $brand->is_active && str_contains((string) $brand->robots, 'noindex')) {
+                $issues[] = $this->issue('Brand', $name, 'Brand active nhưng robots=noindex', 'critical', $edit, $publicUrl, $id);
+            }
+        }
+
+        return $issues;
+    }
+
     protected function auditPostCategories(): array
     {
         $issues = [];
@@ -436,6 +488,19 @@ class SeoAuditService
         ?string $publicUrl = null,
         $id = null
     ): array {
+        if (str_starts_with($entity, 'Merchant:') && $message === 'Product') {
+            $legacyMessage = trim((string) substr($entity, strlen('Merchant:')));
+            $entity = 'Merchant';
+            $message = $legacyMessage !== '' ? $legacyMessage : 'Merchant readiness issue';
+            $id = is_numeric($id) ? (int) $id : null;
+        }
+
+        $severity = match ($severity) {
+            'high' => 'warning',
+            'medium' => 'notice',
+            default => $severity,
+        };
+
         $suggestion = 'Cập nhật nội dung';
         $action = null;
 
@@ -479,8 +544,8 @@ class SeoAuditService
             $publicUrl = route('product.show', $product->slug);
 
             // No price → excluded from feed
-            $price = $product->sale_price ?? $product->regular_price;
-            if (!$price || $price <= 0) {
+            $price = $this->priceResolver->resolve($product);
+            if (! $price['final_price'] || $price['final_price'] <= 0) {
                 $issues->push($this->issue(
                     'Merchant: Sản phẩm không có giá', $product->name, 'Product',
                     'critical', $editUrl, $publicUrl,

@@ -4,27 +4,17 @@
 ])
 
 @php
-    $hasDiscount = $product->sale_price && $product->sale_price < $product->regular_price;
+    $price = app(\App\Services\Product\PromotionPriceResolver::class)->resolve($product);
 @endphp
 
 <article {{ $attributes->merge(['class' => 'card group']) }} id="product-card-{{ $product->id }}">
-    {{-- Image --}}
     <a href="{{ route('product.show', $product->slug) }}" class="relative block aspect-square overflow-hidden bg-surface-100">
-        @if($product->main_image)
-            <img
-                src="{{ $product->card_image_url }}"
-                alt="{{ $product->name }}"
-                class="h-full w-full object-contain p-4 transition-transform duration-500 group-hover:scale-105"
-                loading="lazy"
-            >
-        @else
-            <img
-                src="{{ $product->card_image_url }}"
-                alt="{{ $product->name }}"
-                class="h-full w-full object-contain p-4 opacity-60 transition-transform duration-500 group-hover:scale-105"
-                loading="lazy"
-            >
-        @endif
+        <img
+            src="{{ $product->card_image_url }}"
+            alt="{{ $product->name }}"
+            class="h-full w-full object-contain p-4 {{ $product->main_image ? '' : 'opacity-60' }} transition-transform duration-500 group-hover:scale-105"
+            loading="lazy"
+        >
 
         @if($showBadges)
             <div class="absolute left-3 top-3">
@@ -33,23 +23,19 @@
         @endif
     </a>
 
-    {{-- Content --}}
     <div class="p-4">
-        {{-- Brand --}}
         @if($product->brand)
             <p class="mb-1 text-xs font-medium uppercase tracking-wider text-surface-400">
                 {{ $product->brand->name }}
             </p>
         @endif
 
-        {{-- Name --}}
         <h3 class="line-clamp-2 min-h-[2.5rem] text-sm font-semibold text-surface-800 transition-colors group-hover:text-primary-600">
             <a href="{{ route('product.show', $product->slug) }}">
                 {{ $product->name }}
             </a>
         </h3>
 
-        {{-- Specs summary --}}
         <div class="mt-2 flex flex-wrap gap-2 text-xs text-surface-500">
             @if($product->btu)
                 <span class="rounded bg-surface-100 px-1.5 py-0.5">{{ number_format($product->btu) }} BTU</span>
@@ -59,19 +45,17 @@
             @endif
         </div>
 
-        {{-- Price --}}
         <div class="mt-3 flex items-baseline gap-2">
-            @if($hasDiscount)
-                <span class="text-lg font-bold text-danger-600">{{ number_format($product->sale_price) }}₫</span>
-                <span class="text-sm text-surface-400 line-through">{{ number_format($product->regular_price) }}₫</span>
-            @elseif($product->regular_price)
-                <span class="text-lg font-bold text-surface-900">{{ number_format($product->regular_price) }}₫</span>
+            @if($price['has_discount'])
+                <span class="text-lg font-bold text-danger-600">{{ number_format($price['sale_price']) }}₫</span>
+                <span class="text-sm text-surface-400 line-through">{{ number_format($price['regular_price']) }}₫</span>
+            @elseif($price['final_price'])
+                <span class="text-lg font-bold text-surface-900">{{ number_format($price['final_price']) }}₫</span>
             @else
                 <span class="text-sm font-semibold text-primary-600">Liên hệ báo giá</span>
             @endif
         </div>
 
-        {{-- CTA --}}
         <div class="mt-3 flex gap-2">
             @if($product->stock_status === 'out_of_stock')
                 <a href="{{ route('quote.index') }}?product={{ $product->slug }}" class="flex-1 rounded-lg border border-surface-300 bg-surface-100 px-3 py-2 text-center text-xs font-semibold text-surface-600 transition-colors hover:bg-surface-200">

@@ -56,6 +56,9 @@
             <input type="hidden" name="utm_source"   value="{{ request('utm_source') }}">
             <input type="hidden" name="utm_medium"   value="{{ request('utm_medium') }}">
             <input type="hidden" name="utm_campaign" value="{{ request('utm_campaign') }}">
+            <input type="hidden" name="gclid"        value="{{ request('gclid') }}">
+            <input type="hidden" name="gbraid"       value="{{ request('gbraid') }}">
+            <input type="hidden" name="wbraid"       value="{{ request('wbraid') }}">
             {{-- Honeypot --}}
             <div style="position:absolute;left:-9999px;height:0;overflow:hidden" aria-hidden="true">
                 <input type="text" name="website_url" autocomplete="off" tabindex="-1">

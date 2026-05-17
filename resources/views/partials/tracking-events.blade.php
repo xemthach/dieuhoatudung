@@ -18,6 +18,31 @@ window.trackConversion = function(label, value, currency) {
 <script>
 window.dataLayer = window.dataLayer || [];
 
+(function() {
+    const clickIds = ['gclid', 'gbraid', 'wbraid'];
+    const params = new URLSearchParams(window.location.search);
+    const maxAge = 90 * 24 * 60 * 60;
+
+    clickIds.forEach(function(key) {
+        const incoming = params.get(key);
+
+        if (incoming) {
+            localStorage.setItem(key, incoming);
+            document.cookie = key + '=' + encodeURIComponent(incoming) + ';path=/;max-age=' + maxAge + ';SameSite=Lax';
+        }
+
+        const stored = incoming || localStorage.getItem(key) || ((document.cookie.match('(^|;)\\s*' + key + '\\s*=\\s*([^;]+)') || [])[2] ? decodeURIComponent((document.cookie.match('(^|;)\\s*' + key + '\\s*=\\s*([^;]+)') || [])[2]) : '');
+
+        if (stored) {
+            document.querySelectorAll('input[name="' + key + '"]').forEach(function(input) {
+                if (! input.value) {
+                    input.value = stored;
+                }
+            });
+        }
+    });
+})();
+
 // Phone click tracking
 document.querySelectorAll('a[href^="tel:"]').forEach(function(el) {
     el.addEventListener('click', function() {
