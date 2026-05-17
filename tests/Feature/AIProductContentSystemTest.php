@@ -423,6 +423,18 @@ class AIProductContentSystemTest extends TestCase
         $this->assertStringNotContainsString('VAT', $result['payload']['content_html']);
     }
 
+    public function test_vat_claim_is_kept_when_product_price_includes_vat(): void
+    {
+        $product = $this->product(['price_includes_vat' => true]);
+        $payload = $this->validPayload(content: $this->content(850).'<p>Gia ban da bao gom VAT va can xac nhan khi dat hang.</p>');
+
+        $result = $this->serviceReturning($payload)->generate($product, $this->config(['apply_mode' => 'needs_review']));
+
+        $this->assertNotContains('vat', $result['payload']['blocked_claims']);
+        $this->assertNotContains('unverified_claim_removed:vat', $result['payload']['warnings']);
+        $this->assertStringContainsString('VAT', $result['payload']['content_html']);
+    }
+
     public function test_free_install_claim_without_policy_is_removed_before_fact_check(): void
     {
         $product = $this->product();
@@ -433,6 +445,18 @@ class AIProductContentSystemTest extends TestCase
         $this->assertNotContains('mien_phi', $result['payload']['blocked_claims']);
         $this->assertContains('unverified_claim_removed:mien_phi', $result['payload']['warnings']);
         $this->assertStringNotContainsString('miễn phí', $result['payload']['content_html']);
+    }
+
+    public function test_best_claim_without_policy_is_removed_before_fact_check(): void
+    {
+        $product = $this->product();
+        $payload = $this->validPayload(content: $this->content(850).'<p>Đây là lựa chọn tốt nhất cho công trình thương mại.</p>');
+
+        $result = $this->serviceReturning($payload)->generate($product, $this->config(['apply_mode' => 'needs_review']));
+
+        $this->assertNotContains('tot_nhat', $result['payload']['blocked_claims']);
+        $this->assertContains('unverified_claim_removed:tot_nhat', $result['payload']['warnings']);
+        $this->assertStringNotContainsString('tốt nhất', $result['payload']['content_html']);
     }
 
     public function test_one_hundred_percent_official_claim_without_source_is_blocked(): void

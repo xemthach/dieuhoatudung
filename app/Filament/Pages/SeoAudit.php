@@ -7,11 +7,12 @@ use Filament\Actions\Action;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
 use Filament\Support\Enums\Width;
-use Illuminate\Support\Collection;
 
 class SeoAudit extends Page
 {
     protected string $view = 'filament.pages.seo-audit';
+
+    private const MAX_VISIBLE_GROUPS = 50;
 
     public static function canAccess(): bool
     {
@@ -46,11 +47,13 @@ class SeoAudit extends Page
     public string $filterSeverity = 'all';
     public string $search = '';
 
-    public Collection $groupedIssues;
+    public array $groupedIssues = [];
     public int $totalCritical = 0;
     public int $totalWarning = 0;
     public int $totalNotice = 0;
     public int $totalIssues = 0;
+    public int $totalFilteredGroups = 0;
+    public int $displayedGroups = 0;
     public int $seoScore = 100;
     public ?string $errorMessage = null;
 
@@ -87,7 +90,7 @@ class SeoAudit extends Page
             $this->seoScore = max(0, min(100, $score));
 
             // Group issues by entity and name (edit_url)
-            $this->groupedIssues = $filtered->groupBy('edit_url')->map(function ($items, $url) {
+            $groups = $filtered->groupBy('edit_url')->map(function ($items, $url) {
                 $first = $items->first();
                 $severities = $items->pluck('severity')->toArray();
                 
@@ -107,9 +110,14 @@ class SeoAudit extends Page
                     'issues' => $items->toArray(),
                 ];
             })->values();
+            $this->totalFilteredGroups = $groups->count();
+            $this->groupedIssues = $groups->take(self::MAX_VISIBLE_GROUPS)->values()->all();
+            $this->displayedGroups = count($this->groupedIssues);
 
         } catch (\Throwable $e) {
-            $this->groupedIssues = collect();
+            $this->groupedIssues = [];
+            $this->totalFilteredGroups = 0;
+            $this->displayedGroups = 0;
             $this->seoScore = 0;
             $this->errorMessage = $e->getMessage();
             

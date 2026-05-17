@@ -92,7 +92,7 @@
             @endforeach
         </select>
         <div style="margin-left:auto; font-size:14px; color:#6b7280; font-weight:500">
-            Hiển thị <strong>{{ $groupedIssues->count() }}</strong> mục
+            Hiển thị <strong>{{ count($groupedIssues) }}</strong>/<strong>{{ $totalFilteredGroups }}</strong> mục
         </div>
     </div>
 
@@ -108,7 +108,7 @@
                     <p style="margin-top:4px; font-size:14px; color:#b91c1c; background:rgba(255,255,255,0.5); padding:12px; border-radius:6px; font-family:monospace">{{ $errorMessage }}</p>
                 </div>
             </div>
-        @elseif ($groupedIssues->isEmpty())
+        @elseif (empty($groupedIssues))
             <div style="padding:64px; text-align:center">
                 <div style="display:inline-flex; align-items:center; justify-content:center; width:80px; height:80px; border-radius:50%; background:#f0fdf4; margin-bottom:16px">
                     <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" fill="none" stroke="#22c55e" stroke-width="1.5" viewBox="0 0 24 24" style="width:48px;height:48px"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>

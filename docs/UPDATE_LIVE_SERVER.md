@@ -2,12 +2,14 @@
 
 Use this guide after the release commit, tag, and GitHub release are published.
 
-Current release: `v1.15.0`
+Current release: `v1.18.0`
 
 Affected areas:
 
 - Product AI content generation and audit jobs
 - Blog AI content governance and fact checking
+- Product AI governance rule engine, verified fact registry, and real-time status polling
+- Product VAT display flag and VAT-aware AI fact checking
 - Product, quote, lead, import/export, R2, and mail admin flows
 - Public Vietnamese/UTF-8 copy cleanup
 - Queue worker configuration for long AI jobs
@@ -39,7 +41,7 @@ Keep the SQL backup until these checks pass:
 git fetch origin --tags
 git checkout main
 git pull --ff-only origin main
-git checkout v1.15.0
+git checkout v1.18.0
 ```
 
 If the server should track `main` instead of a tag, stop after:
@@ -74,6 +76,7 @@ The migrations add:
 - Product AI status, score, warning count, timestamps, and error fields
 - AI product job tables
 - AI product content version backups
+- Product `price_includes_vat` flag for admin-controlled VAT display and AI VAT governance
 - Cleanup for old public content that had unaccented Vietnamese or placeholder quote commitment text
 
 If a previous deploy showed `ai_product_jobs` missing, this step is mandatory.
@@ -148,6 +151,8 @@ Manual admin checks:
 
 - Login to `/admin`.
 - Open Products and confirm AI Status, SEO Score, Last AI Run, and Warning Count columns render.
+- Click `Refresh AI Status` and confirm AI status updates without reloading the whole page.
+- Edit a product and confirm `Giá đã bao gồm VAT` can be toggled; verify the public product page shows the VAT badge.
 - Trigger a single-product AI draft in preview mode and confirm it creates a queued job, not a long web request.
 - Open AI Product Jobs and confirm job item rows render.
 - Open AI Content Job and confirm statuses render without enum errors.
@@ -200,7 +205,7 @@ Database rollback is not recommended unless you have confirmed no AI product con
 ## 10. GitHub Release Manual Steps
 
 1. Open the repository releases page.
-2. Draft a new release from tag `v1.15.0`.
-3. Use title `v1.15.0`.
-4. Copy the `CHANGELOG.md` section for `1.15.0` into the release notes.
+2. Draft a new release from tag `v1.18.0`.
+3. Use title `v1.18.0`.
+4. Copy the `CHANGELOG.md` section for `1.18.0` into the release notes.
 5. Publish the release.

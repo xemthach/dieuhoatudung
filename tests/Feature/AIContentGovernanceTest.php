@@ -127,7 +127,7 @@ class AIContentGovernanceTest extends TestCase
         $this->assertSame([], $result['blocked_claims']);
     }
 
-    public function test_warranty_claim_without_policy_is_blocked(): void
+    public function test_warranty_claim_without_policy_is_rewrite_warning(): void
     {
         $product = Product::factory()->create(['warranty_info' => null]);
         $governance = app(AIContentGovernance::class);
@@ -137,7 +137,8 @@ class AIContentGovernanceTest extends TestCase
             $governance->buildProductContext($product)
         );
 
-        $this->assertContains('bao_hanh', $result['blocked_claims']);
+        $this->assertNotContains('bao_hanh', $result['blocked_claims']);
+        $this->assertContains('claim_requires_rewrite:bao_hanh', $result['warnings']);
     }
 
     public function test_vat_claim_without_config_is_blocked(): void
@@ -153,6 +154,20 @@ class AIContentGovernanceTest extends TestCase
         $this->assertContains('vat', $result['blocked_claims']);
     }
 
+    public function test_vat_claim_is_allowed_when_product_price_includes_vat(): void
+    {
+        $product = Product::factory()->create(['price_includes_vat' => true]);
+        $governance = app(AIContentGovernance::class);
+
+        $result = $governance->validateText(
+            '<p>Gia ban da bao gom VAT.</p>',
+            $governance->buildProductContext($product)
+        );
+
+        $this->assertSame('verified', $result['status']);
+        $this->assertNotContains('vat', $result['blocked_claims']);
+    }
+
     public function test_official_100_percent_claim_without_source_is_blocked(): void
     {
         $product = Product::factory()->create();
@@ -163,7 +178,8 @@ class AIContentGovernanceTest extends TestCase
             $governance->buildProductContext($product)
         );
 
-        $this->assertContains('chinh_hang', $result['blocked_claims']);
+        $this->assertNotContains('chinh_hang', $result['blocked_claims']);
+        $this->assertContains('claim_requires_rewrite:chinh_hang', $result['warnings']);
         $this->assertContains('percent_100', $result['blocked_claims']);
     }
 

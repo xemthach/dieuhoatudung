@@ -2,6 +2,34 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.18.0] - 2026-05-17
+
+### Added
+- Added a centralized AI governance rule engine with verified fact registry, HVAC unit normalization, forbidden claim rules, UTF-8 validation, code leak detection, and reusable AI content scoring helpers.
+- Added centralized Product AI content-layer allowlist and product-data blocklist configuration.
+- Added Product AI status polling endpoints, inline retry endpoint, refresh status button, and queue health widget for the Product admin list.
+- Added admin Product VAT toggle and public product VAT badge, with Product AI fact-checking allowed to mention VAT only when the product price includes VAT.
+- Added regression coverage for AI governance normalization, verified/unverified facts, forbidden claims, code leaks, Product AI status polling, retry endpoints, VAT policy, SEO Audit payload size, and header AI selected/current-page behavior.
+
+### Fixed
+- Fixed Product AI header action selected-scope failures by falling back to current visible rows when Filament/Livewire does not sync selected record state.
+- Fixed SEO Audit Livewire payload overflow by limiting serialized public issue rows while preserving total issue counts.
+- Fixed false-positive Product AI fact-check blocks for verified HVAC values with unit aliases, ranges, ESP/Pa, decimal currents, thousand-separated BTU, and dimension components from technical specs.
+- Fixed Product AI marketing claim handling so soft unsupported claims are rewritten for review while hard policy claims such as VAT, CO/CQ, and 100% remain blocked without verified source.
+- Fixed Product AI VAT handling so boolean `false` no longer counts as a verified source and boolean `true` allows VAT content to pass.
+- Fixed legacy HVAC technical validator paths to use the new governance validator and content-field validation signatures.
+
+### Changed
+- Changed Product AI governance to build and validate against a verified fact registry instead of scattered raw-text comparisons.
+- Changed Product admin AI status cells to expose lightweight data attributes for AJAX polling without reloading filters, search, pagination, or selected checkboxes.
+- Changed Product AI header action copy and behavior so selected/current-page/all-filtered scopes are explicit and traceable in logs.
+
+### Removed
+- None.
+
+### Security
+- None.
+
 ## [1.17.2] - 2026-05-17
 
 ### Added

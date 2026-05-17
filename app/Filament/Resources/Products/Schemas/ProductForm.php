@@ -78,6 +78,11 @@ class ProductForm
                                                     ]),
                                                 Grid::make(['default' => 1, 'md' => 3])
                                                     ->schema([
+                                                        Toggle::make('price_includes_vat')
+                                                            ->label('Giá đã bao gồm VAT')
+                                                            ->helperText('Bật nếu giá hiển thị hoặc báo giá của sản phẩm đã bao gồm VAT. AI chỉ được nhắc VAT khi field này được bật.')
+                                                            ->default(false)
+                                                            ->inline(false),
                                                         Select::make('stock_status')
                                                             ->label('Trạng thái tồn kho')
                                                             ->options(StockStatus::class)

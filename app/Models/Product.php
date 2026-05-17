@@ -57,6 +57,7 @@ class Product extends Model
             'identifier_exists' => 'boolean',
             'regular_price' => 'decimal:2',
             'sale_price' => 'decimal:2',
+            'price_includes_vat' => 'boolean',
             'promotion_start_at' => 'datetime',
             'promotion_end_at' => 'datetime',
         ];

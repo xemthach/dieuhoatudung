@@ -26,6 +26,7 @@ class ProductFactory extends Factory
             'inverter' => fake()->boolean(),
             'regular_price' => $regularPrice,
             'sale_price' => $salePrice,
+            'price_includes_vat' => false,
             'short_description' => fake()->paragraph(),
             'is_active' => true,
         ];

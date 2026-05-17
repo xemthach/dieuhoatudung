@@ -4,6 +4,11 @@ namespace App\Services\AI;
 
 use App\Models\AiContentJob;
 use App\Models\Product;
+use App\Services\AI\Governance\AICodeLeakDetector;
+use App\Services\AI\Governance\ForbiddenClaimEngine;
+use App\Services\AI\Governance\HVACTechnicalFactValidator;
+use App\Services\AI\Governance\UTF8ContentValidator;
+use App\Services\AI\Governance\VerifiedFactRegistry;
 use App\Services\Calculator\BtuCalculatorService;
 use App\Support\IssueList;
 use Illuminate\Support\Arr;
@@ -12,6 +17,14 @@ use Illuminate\Support\Str;
 class AIContentGovernance
 {
     public const PROMPT_VERSION = 'ai-product-content-layer-v2';
+
+    public function __construct(
+        private readonly VerifiedFactRegistry $factRegistry,
+        private readonly HVACTechnicalFactValidator $technicalFactValidator,
+        private readonly ForbiddenClaimEngine $claimEngine,
+        private readonly AICodeLeakDetector $codeLeakDetector,
+        private readonly UTF8ContentValidator $utf8Validator,
+    ) {}
 
     private const NUMERIC_UNITS = [
         'btu', 'kw', 'hp', 'm2', 'm²', 'db', 'pa', 'mm', 'kg', 'w', 'a', 'vnd',
@@ -81,6 +94,7 @@ class AIContentGovernance
         $this->addFact($allowedFacts, 'product.warranty_info', strip_tags((string) $product->warranty_info), 'products.warranty_info');
         $this->addFact($allowedFacts, 'product.regular_price', $product->regular_price, 'products.regular_price');
         $this->addFact($allowedFacts, 'product.sale_price', $product->sale_price, 'products.sale_price');
+        $this->addFact($allowedFacts, 'product.vat_enabled', (bool) $product->price_includes_vat, 'products.price_includes_vat');
 
         foreach ($this->flattenSpecs($product->specs_json ?? []) as $index => $spec) {
             $this->addFact(
@@ -100,6 +114,7 @@ class AIContentGovernance
             );
         }
 
+        $verifiedFactRegistry = $this->factRegistry->buildForProduct($product, $allowedFacts);
         $missingFacts = $this->missingProductFacts($product);
         if (! $this->hasVerifiedSourcePage($product)) {
             $missingFacts[] = 'no_verified_source_page';
@@ -108,13 +123,14 @@ class AIContentGovernance
         return [
             'prompt_version' => self::PROMPT_VERSION,
             'allowed_facts' => $allowedFacts,
+            'verified_fact_registry' => $verifiedFactRegistry,
             'missing_facts' => array_values(array_unique($missingFacts)),
             'calculation_rules' => [
                 'source' => 'verified_hvac_calculation_rules',
                 'specific_btu_result_allowed' => false,
                 'rule' => 'Do not calculate BTU unless a verified calculation result is provided in allowed facts.',
             ],
-            'forbidden_claims' => array_keys(self::FORBIDDEN_CLAIMS),
+            'forbidden_claims' => array_keys((array) config('ai_claim_rules.claims', [])),
             'content_task' => $contentTask,
             'data_completeness' => $this->dataCompleteness($product),
             'product_identity' => [
@@ -125,41 +141,7 @@ class AIContentGovernance
                 'category' => $product->category?->name,
             ],
             'allowed_content_tasks' => array_keys(array_filter((array) ($contentTask['outputs'] ?? []))),
-            'forbidden_update_fields' => [
-                'basic_info',
-                'technical_specs',
-                'technical_specs_json',
-                'name',
-                'slug',
-                'sku',
-                'model_code',
-                'brand_id',
-                'product_category_id',
-                'series',
-                'btu',
-                'capacity_btu',
-                'capacity_kw',
-                'hp',
-                'cooling_type',
-                'inverter',
-                'voltage',
-                'phase',
-                'refrigerant',
-                'refrigerant_gas',
-                'power_consumption',
-                'airflow',
-                'noise_level',
-                'recommended_area',
-                'indoor_dimensions',
-                'outdoor_dimensions',
-                'weight',
-                'regular_price',
-                'sale_price',
-                'discount_percent',
-                'stock_status',
-                'specs_json',
-                'technical_specs_json',
-            ],
+            'forbidden_update_fields' => config('ai_product_allowed_fields.blocked_product_data_fields', []),
         ];
     }
 
@@ -178,9 +160,10 @@ class AIContentGovernance
             : [
                 'prompt_version' => self::PROMPT_VERSION,
                 'allowed_facts' => [],
+                'verified_fact_registry' => [],
                 'missing_facts' => [],
                 'calculation_rules' => [],
-                'forbidden_claims' => array_keys(self::FORBIDDEN_CLAIMS),
+                'forbidden_claims' => array_keys((array) config('ai_claim_rules.claims', [])),
                 'content_task' => [
                     'type' => 'blog_content',
                     'topic' => $input['topic'] ?? $job->topic,
@@ -241,6 +224,7 @@ class AIContentGovernance
         }
 
         $context['missing_facts'] = array_values(array_unique($context['missing_facts']));
+        $context['verified_fact_registry'] = $this->factRegistry->buildFromAllowedFacts($context['allowed_facts'] ?? []);
 
         return $context;
     }
@@ -297,7 +281,7 @@ class AIContentGovernance
 
     public function validateText(string $html, array $context, array $usedFacts = []): array
     {
-        $plain = $this->plainText($html);
+        $plain = $this->utf8Validator->cleanString($this->plainText($html), 'ai_governance_text');
         $ascii = Str::ascii(Str::lower($plain));
         $allowedNumbers = $this->allowedNumbers($context);
         $allowedRanges = $this->allowedNumberRanges($context);
@@ -305,6 +289,24 @@ class AIContentGovernance
         $warnings = [];
         $blockedClaims = [];
         $used = $this->validateUsedFacts($usedFacts, $context, $warnings);
+
+        $technical = $this->technicalFactValidator->validateText($plain, $context);
+        $claims = $this->claimEngine->detect($plain, $context);
+        $codeLeaks = $this->codeLeakDetector->detect($plain);
+
+        $warnings = array_merge(
+            $warnings,
+            $technical['warnings'] ?? [],
+            $claims['warnings'] ?? [],
+            $codeLeaks['warnings'] ?? []
+        );
+        $blockedClaims = array_merge(
+            $blockedClaims,
+            $technical['blocked_claims'] ?? [],
+            $claims['blocked_claims'] ?? [],
+            $codeLeaks['blocked_claims'] ?? []
+        );
+        $used = array_merge($used, $technical['used_facts'] ?? []);
 
         if (preg_match_all('/(\d{1,3}(?:[.,]\d{3})*(?:[.,]\d+)?|\d+)\s*(BTU|kW|HP|m2|m²|dB|Pa|mm|kg|W|A)\b/iu', $plain, $matches, PREG_SET_ORDER)) {
             foreach ($matches as $match) {
@@ -336,7 +338,13 @@ class AIContentGovernance
         }
 
         foreach (self::FORBIDDEN_CLAIMS as $code => $rule) {
-            if (preg_match($rule['pattern'], $ascii) && ! $this->hasAllowedFact($context, $rule['source_key'])) {
+            if (config('ai_claim_rules.claims.'.$code.'.severity') !== 'block') {
+                continue;
+            }
+
+            if (preg_match($rule['pattern'], $ascii)
+                && ! $this->claimAllowedByConfig($code, $context)
+                && ! $this->hasAllowedFact($context, $rule['source_key'])) {
                 $warnings[] = 'blocked_claim:'.$code;
                 $blockedClaims[] = $code;
             }
@@ -366,6 +374,7 @@ class AIContentGovernance
             'warnings' => IssueList::normalize($warnings),
             'blocked_claims' => IssueList::normalize($blockedClaims),
             'used_facts' => IssueList::normalize($used),
+            'technical_claims' => $technical['technical_claims'] ?? [],
             'calculation_source' => Arr::get($context, 'calculation_rules.specific_btu_result_allowed')
                 ? 'verified_hvac_calculation'
                 : null,
@@ -635,6 +644,7 @@ class AIContentGovernance
             Str::contains($key, 'capacity_kw') => 'kw',
             Str::contains($key, 'hp') => 'hp',
             Str::contains($key, ['power_consumption', 'cong suat tieu thu', 'consumption']) => 'kw',
+            Str::contains($key, ['esp', 'external static pressure', 'static pressure', 'ap suat tinh', 'cot ap']) => 'pa',
             Str::contains($key, 'noise') => 'db',
             Str::contains($key, ['weight', 'trong luong', 'khoi luong', 'mass']) => 'kg',
             Str::contains($key, ['refrigerant_charge', 'factory_charge', 'charge_kg', 'gas nap', 'luong gas', 'nap san']) => 'kg',
@@ -694,6 +704,10 @@ class AIContentGovernance
             return true;
         }
 
+        if ($unit !== 'vnd') {
+            return true;
+        }
+
         foreach ($allowedNumbers[$unit] ?? [] as $allowed) {
             $tolerance = max(0.01, abs($allowed) * 0.01);
             if (abs($number - $allowed) <= $tolerance) {
@@ -737,6 +751,34 @@ class AIContentGovernance
     private function hasAllowedFact(array $context, string $key): bool
     {
         return filled($context['allowed_facts'][$key]['value'] ?? null);
+    }
+
+    private function claimAllowedByConfig(string $code, array $context): bool
+    {
+        $rule = (array) config('ai_claim_rules.claims.'.$code, []);
+
+        foreach ((array) ($rule['allow_if'] ?? []) as $key) {
+            if ($this->sourceValueAllowsClaim(Arr::get($context, 'allowed_facts.'.$key.'.value'))) {
+                return true;
+            }
+
+            foreach ((array) Arr::get($context, 'verified_fact_registry', []) as $fact) {
+                if (($fact['fact_key'] ?? null) === $key && $this->sourceValueAllowsClaim($fact['original_value'] ?? null)) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    private function sourceValueAllowsClaim(mixed $value): bool
+    {
+        if (is_bool($value)) {
+            return $value;
+        }
+
+        return filled($value);
     }
 
     private function humanFactName(string $key): string

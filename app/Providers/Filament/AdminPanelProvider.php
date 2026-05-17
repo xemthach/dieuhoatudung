@@ -12,6 +12,7 @@ use Filament\Pages\Dashboard;
 use Filament\Panel;
 use Filament\PanelProvider;
 use Filament\Support\Colors\Color;
+use Filament\View\PanelsRenderHook;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
 use Illuminate\Cookie\Middleware\EncryptCookies;
 use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
@@ -38,21 +39,20 @@ class AdminPanelProvider extends PanelProvider
             ])
             ->discoverWidgets(in: app_path('Filament/Widgets'), for: 'App\\Filament\\Widgets')
             ->widgets([])
-
-            // ── User menu (top-right avatar dropdown) ─────────────────────
             ->userMenuItems([
                 MenuItem::make()
                     ->label('Hồ sơ của tôi')
                     ->icon('heroicon-o-user-circle')
                     ->url(fn () => Profile::getUrl()),
             ])
-
-            // ── Version display in sidebar footer ─────────────────────
             ->renderHook(
-                'panels::sidebar.footer',
+                PanelsRenderHook::SIDEBAR_FOOTER,
                 fn () => '<div style="padding:0.5rem 1rem;text-align:center;font-size:0.7rem;color:#9ca3af;">v' . trim(file_get_contents(base_path('VERSION'))) . '</div>'
             )
-
+            ->renderHook(
+                PanelsRenderHook::BODY_END,
+                fn () => view('filament.products-ai-status-poller')->render()
+            )
             ->middleware([
                 EncryptCookies::class,
                 AddQueuedCookiesToResponse::class,

@@ -114,6 +114,38 @@ class AIProductHeaderActionTest extends TestCase
         $this->assertSame(4, $job->total);
     }
 
+    public function test_header_ai_generate_current_page_scope_does_not_require_selected_records(): void
+    {
+        Bus::fake();
+        $this->actingAsAiProductUser();
+        Product::factory()->count(12)->create();
+
+        Livewire::test(ListProducts::class)
+            ->callAction('ai_generate_filtered', $this->actionData(['scope' => 'current_page']));
+
+        $job = AiProductJob::first();
+        $this->assertNotNull($job);
+        $this->assertSame('current_page', $job->scope);
+        $this->assertSame(10, $job->total);
+    }
+
+    public function test_header_selected_scope_falls_back_to_current_page_when_selection_state_is_missing(): void
+    {
+        Bus::fake();
+        $this->actingAsAiProductUser();
+        Product::factory()->count(12)->create();
+
+        Livewire::test(ListProducts::class)
+            ->callAction('ai_generate_filtered', $this->actionData(['scope' => 'selected']));
+
+        $job = AiProductJob::first();
+        $this->assertNotNull($job);
+        $this->assertSame('selected', $job->scope);
+        $this->assertSame(10, $job->total);
+
+        Bus::assertDispatched(AiProductContentBatchJob::class);
+    }
+
     public function test_retry_ai_product_items_resets_failed_items_and_dispatches_single_jobs(): void
     {
         Bus::fake();

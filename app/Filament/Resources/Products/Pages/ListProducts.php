@@ -34,11 +34,11 @@ class ListProducts extends ListRecords
                 ->label('AI Generate Content theo filter')
                 ->icon('heroicon-o-cpu-chip')
                 ->color('info')
-                ->modalDescription('AI chỉ tạo Content Layer: Nội dung, SEO, Google Merchant, Tags, FAQ và Internal links. Không cập nhật Thông tin cơ bản, giá, model/SKU, brand/category hoặc Thông số kỹ thuật.')
+                ->modalDescription('Header action xử lý current page hoặc all filtered. Nếu muốn chạy đúng các checkbox đã chọn, dùng Tác vụ hàng loạt > AI Product System vì Filament chỉ truyền selected records cho bulk action.')
                 ->visible(fn () => auth()->user()?->can('product.ai_generate') ?? false)
                 ->form(ProductsTable::aiConfigForm([
                     'content', 'seo', 'merchant', 'tags', 'faq', 'internal_links', 'og',
-                ], 'missing_only'))
+                ], 'missing_only', 'current_page'))
                 ->action(function (array $data) {
                     abort_unless(auth()->user()?->can('product.ai_generate'), 403);
 
@@ -80,6 +80,26 @@ class ListProducts extends ListRecords
                         ->persistent()
                         ->send();
                 }),
+            Action::make('ai_refresh_status')
+                ->label('Refresh AI Status')
+                ->icon('heroicon-o-arrow-path')
+                ->color('gray')
+                ->url('#')
+                ->extraAttributes([
+                    'data-ai-refresh-button' => '1',
+                    'onclick' => 'event.preventDefault(); window.ProductAiStatusPoller?.refreshNow?.();',
+                ])
+                ->visible(fn () => auth()->user()?->can('product.ai_generate') ?? false),
+            Action::make('ai_queue_health_badge')
+                ->label('AI Queue: checking...')
+                ->icon('heroicon-o-signal')
+                ->color('gray')
+                ->url('#')
+                ->extraAttributes([
+                    'data-ai-queue-widget' => '1',
+                    'onclick' => 'event.preventDefault(); window.ProductAiStatusPoller?.refreshNow?.();',
+                ])
+                ->visible(fn () => auth()->user()?->can('product.ai_generate') ?? false),
             Action::make('ai_retry_all_failed')
                 ->label('Retry all failed AI')
                 ->icon('heroicon-o-arrow-path-rounded-square')
@@ -158,6 +178,17 @@ class ListProducts extends ListRecords
                 ->pluck('products.id')
                 ->map(fn ($id) => (int) $id)
                 ->all();
+        }
+
+        if ($selectedIds === []) {
+            Log::warning('AI product selected scope fell back to current page records', [
+                'source' => 'products_header_action',
+                'selected_state_count' => count($this->selectedTableRecords ?? []),
+                'deselected_state_count' => count($this->deselectedTableRecords ?? []),
+                'is_tracking_deselected' => (bool) ($this->isTrackingDeselectedTableRecords ?? false),
+            ]);
+
+            return $this->resolveAiProductIds('current_page');
         }
 
         return Product::query()

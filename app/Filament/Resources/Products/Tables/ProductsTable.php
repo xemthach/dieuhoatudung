@@ -50,6 +50,10 @@ class ProductsTable
                 TextColumn::make('ai_status')
                     ->label('AI Status')
                     ->badge()
+                    ->extraCellAttributes(fn (Product $record): array => [
+                        'data-ai-product-id' => (string) $record->id,
+                        'data-ai-field' => 'ai_status',
+                    ])
                     ->color(fn (?string $state): string => match ($state) {
                         'completed', 'completed_verified', 'completed_with_warnings' => 'success',
                         'processing', 'queued' => 'info',
@@ -63,6 +67,10 @@ class ProductsTable
                 TextColumn::make('ai_score')
                     ->label('SEO Score')
                     ->badge()
+                    ->extraCellAttributes(fn (Product $record): array => [
+                        'data-ai-product-id' => (string) $record->id,
+                        'data-ai-field' => 'seo_score',
+                    ])
                     ->color(fn (?int $state): string => match (true) {
                         (int) $state >= 85 => 'success',
                         (int) $state >= 70 => 'info',
@@ -72,12 +80,20 @@ class ProductsTable
                     ->sortable(),
                 TextColumn::make('ai_last_run_at')
                     ->label('Last AI Run')
+                    ->extraCellAttributes(fn (Product $record): array => [
+                        'data-ai-product-id' => (string) $record->id,
+                        'data-ai-field' => 'last_ai_run',
+                    ])
                     ->since()
                     ->sortable()
                     ->placeholder('-'),
                 TextColumn::make('ai_warning_count')
                     ->label('Warnings')
                     ->badge()
+                    ->extraCellAttributes(fn (Product $record): array => [
+                        'data-ai-product-id' => (string) $record->id,
+                        'data-ai-field' => 'warnings_count',
+                    ])
                     ->color(fn (?int $state): string => ((int) $state) > 0 ? 'warning' : 'success')
                     ->sortable(),
                 TextColumn::make('slug')
@@ -125,6 +141,10 @@ class ProductsTable
                 TextColumn::make('sale_price')
                     ->money()
                     ->sortable(),
+                IconColumn::make('price_includes_vat')
+                    ->label('VAT')
+                    ->boolean()
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('discount_percent')
                     ->numeric()
                     ->sortable(),
@@ -675,7 +695,7 @@ class ProductsTable
             ->deselectRecordsAfterCompletion();
     }
 
-    public static function aiConfigForm(array $defaultOutputs, string $defaultMode): array
+    public static function aiConfigForm(array $defaultOutputs, string $defaultMode, string $defaultScope = 'selected'): array
     {
         return [
             Select::make('scope')
@@ -685,7 +705,7 @@ class ProductsTable
                     'current_page' => 'Current page',
                     'all_filtered' => 'All products by current filter',
                 ])
-                ->default('selected')
+                ->default($defaultScope)
                 ->required(),
             CheckboxList::make('outputs')
                 ->label('Output cần tạo')

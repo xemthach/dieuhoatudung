@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\PageController;
 use App\Http\Controllers\ProductController;
+use App\Http\Controllers\Admin\ProductAiStatusController;
 use App\Http\Controllers\BlogController;
 use App\Http\Controllers\LandingController;
 use App\Http\Controllers\SitemapController;
@@ -166,4 +167,9 @@ Route::middleware(['auth'])->prefix('admin')->group(function () {
             'updated_at' => $aiProductJob->updated_at?->toIso8601String(),
         ]);
     })->name('admin.ai-product-jobs.status');
+
+    Route::get('/products/ai-status', [ProductAiStatusController::class, 'index'])
+        ->name('admin.products.ai-status');
+    Route::post('/products/{product}/ai-retry', [ProductAiStatusController::class, 'retry'])
+        ->name('admin.products.ai-retry');
 });

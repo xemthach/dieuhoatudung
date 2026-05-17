@@ -9,6 +9,7 @@ use App\Models\Faq;
 use App\Models\Product;
 use App\Models\Tag;
 use App\Services\AI\AIContentGovernance;
+use App\Services\AI\Governance\ForbiddenClaimEngine;
 use App\Services\AI\AIManager;
 use App\Services\AI\AITechnicalLogger;
 use App\Support\SchemaColumns;
@@ -648,7 +649,7 @@ class AIProductContentSystem
             ]);
         }
 
-        $payload = Arr::only($payload, self::CONTENT_LAYER_FIELDS);
+        $payload = Arr::only($payload, config('ai_product_allowed_fields.content_layer_fields', self::CONTENT_LAYER_FIELDS));
         $payload['product_id'] = (int) ($payload['product_id'] ?? $product->id);
         foreach (['excerpt', 'content_html', 'seo_title', 'meta_description', 'og_title', 'og_description', 'merchant_title', 'merchant_description'] as $key) {
             $payload[$key] = (string) ($payload[$key] ?? '');
@@ -696,7 +697,7 @@ class AIProductContentSystem
             $normalized = Str::snake($key);
 
             if ($normalized !== ''
-                && in_array($normalized, self::BLOCKED_PRODUCT_DATA_FIELDS, true)
+                && in_array($normalized, config('ai_product_allowed_fields.blocked_product_data_fields', self::BLOCKED_PRODUCT_DATA_FIELDS), true)
                 && ! in_array($parentKey, ['product_identity', 'verified_technical_facts'], true)) {
                 $blocked[] = $normalized;
             }
@@ -707,10 +708,34 @@ class AIProductContentSystem
 
     private function neutralizeUnverifiedMarketingClaims(array $payload, Product $product): array
     {
+        $claimEngine = app(ForbiddenClaimEngine::class);
+        $claimContext = $this->governance->buildProductContext($product);
         $rules = [];
 
         $removed = [];
         $textKeys = ['excerpt', 'content_html', 'seo_title', 'meta_description', 'og_title', 'og_description', 'merchant_title', 'merchant_description'];
+
+        foreach ($textKeys as $key) {
+            $result = $claimEngine->rewriteText((string) ($payload[$key] ?? ''), $claimContext);
+            if ($result['text'] !== ($payload[$key] ?? '')) {
+                $payload[$key] = $result['text'];
+                $removed = array_merge($removed, $result['removed_claims']);
+            }
+        }
+
+        foreach ((array) ($payload['faq'] ?? []) as $index => $faq) {
+            if (! is_array($faq)) {
+                continue;
+            }
+
+            foreach (['question', 'answer'] as $key) {
+                $result = $claimEngine->rewriteText((string) ($faq[$key] ?? ''), $claimContext);
+                if ($result['text'] !== ($payload['faq'][$index][$key] ?? '')) {
+                    $payload['faq'][$index][$key] = $result['text'];
+                    $removed = array_merge($removed, $result['removed_claims']);
+                }
+            }
+        }
 
         foreach ($textKeys as $key) {
             foreach ($rules as $code => $rule) {
@@ -762,6 +787,10 @@ class AIProductContentSystem
             ];
 
             foreach ($fallbackRules as $code => [$needle, $pattern, $replacement]) {
+                if ($this->claimAllowedByContext($code, $claimContext)) {
+                    continue;
+                }
+
                 if (! str_contains($ascii, $needle)) {
                     continue;
                 }
@@ -784,6 +813,34 @@ class AIProductContentSystem
         }
 
         return $payload;
+    }
+
+    private function claimAllowedByContext(string $code, array $context): bool
+    {
+        $rule = (array) config('ai_claim_rules.claims.'.$code, []);
+
+        foreach ((array) ($rule['allow_if'] ?? []) as $key) {
+            if ($this->sourceValueAllowsClaim(Arr::get($context, 'allowed_facts.'.$key.'.value'))) {
+                return true;
+            }
+
+            foreach ((array) Arr::get($context, 'verified_fact_registry', []) as $fact) {
+                if (($fact['fact_key'] ?? null) === $key && $this->sourceValueAllowsClaim($fact['original_value'] ?? null)) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    private function sourceValueAllowsClaim(mixed $value): bool
+    {
+        if (is_bool($value)) {
+            return $value;
+        }
+
+        return filled($value);
     }
 
     private function validatePayload(array &$payload, Product $product, array $config): void
