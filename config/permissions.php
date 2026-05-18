@@ -332,6 +332,17 @@ return [
         ],
     ],
 
+    'site_campaign' => [
+        'label' => 'Site Campaigns / Popups',
+        'icon'  => 'heroicon-o-megaphone',
+        'permissions' => [
+            'view'   => 'Xem site campaigns',
+            'create' => 'Tạo site campaign',
+            'edit'   => 'Sửa site campaign',
+            'delete' => 'Xóa site campaign',
+        ],
+    ],
+
     // ── Landing & Pages: Policy Pages ──────────────────────────────────
     'policy_page' => [
         'label' => 'Trang chính sách',

@@ -113,6 +113,12 @@ class HomeBenefitItemForm
                                 ->label('Hiển thị')
                                 ->default(true),
 
+                            Select::make('display_device')
+                                ->label('Hiển thị trên thiết bị')
+                                ->options(HomeBenefitItem::displayDeviceOptions())
+                                ->default('both')
+                                ->required(),
+
                             TextInput::make('sort_order')
                                 ->label('Thứ tự')
                                 ->numeric()

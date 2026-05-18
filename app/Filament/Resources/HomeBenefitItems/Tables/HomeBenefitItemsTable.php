@@ -44,6 +44,20 @@ class HomeBenefitItemsTable
                         default    => 'gray',
                     }),
 
+                Tables\Columns\TextColumn::make('display_device')
+                    ->label('Thiết bị')
+                    ->badge()
+                    ->formatStateUsing(fn (?string $state): string => match ($state) {
+                        'desktop' => 'Desktop',
+                        'mobile' => 'Mobile',
+                        default => 'Both',
+                    })
+                    ->color(fn (?string $state): string => match ($state) {
+                        'desktop' => 'info',
+                        'mobile' => 'warning',
+                        default => 'success',
+                    }),
+
                 Tables\Columns\IconColumn::make('is_active')
                     ->label('Active')
                     ->boolean()

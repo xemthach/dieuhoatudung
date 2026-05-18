@@ -21,6 +21,14 @@ class AIProductContentSanitizer
         'merchant_description',
     ];
 
+    private const MAX_TEXT_LENGTHS = [
+        'seo_title' => 255,
+        'meta_description' => 255,
+        'og_title' => 255,
+        'og_description' => 255,
+        'merchant_title' => 255,
+    ];
+
     private const VIETNAMESE_DIACRITIC_PATTERN = '/[ăâđêôơưáàảãạắằẳẵặấầẩẫậéèẻẽẹếềểễệíìỉĩịóòỏõọốồổỗộớờởỡợúùủũụứừửữựýỳỷỹỵ]/iu';
 
     private const MOJIBAKE_PATTERN = '/�|Ã.|Ä.|Æ.|áº|á»|â€|â€™|â€œ|â€|â€“|â€”/u';
@@ -44,11 +52,11 @@ class AIProductContentSanitizer
 
         $payload['excerpt'] = $this->cleanText((string) ($payload['excerpt'] ?? ''));
         $payload['content_html'] = $this->sanitizeHtml((string) ($payload['content_html'] ?? ''));
-        $payload['seo_title'] = $this->cleanText((string) ($payload['seo_title'] ?? ''));
-        $payload['meta_description'] = $this->cleanText((string) ($payload['meta_description'] ?? ''));
-        $payload['og_title'] = $this->cleanText((string) ($payload['og_title'] ?? ''));
-        $payload['og_description'] = $this->cleanText((string) ($payload['og_description'] ?? ''));
-        $payload['merchant_title'] = $this->cleanText((string) ($payload['merchant_title'] ?? ''));
+        $payload['seo_title'] = $this->cleanLimitedText('seo_title', (string) ($payload['seo_title'] ?? ''));
+        $payload['meta_description'] = $this->cleanLimitedText('meta_description', (string) ($payload['meta_description'] ?? ''));
+        $payload['og_title'] = $this->cleanLimitedText('og_title', (string) ($payload['og_title'] ?? ''));
+        $payload['og_description'] = $this->cleanLimitedText('og_description', (string) ($payload['og_description'] ?? ''));
+        $payload['merchant_title'] = $this->cleanLimitedText('merchant_title', (string) ($payload['merchant_title'] ?? ''));
         $payload['merchant_description'] = $this->cleanText((string) ($payload['merchant_description'] ?? ''));
         $payload['tags'] = $this->sanitizeTags($payload['tags'] ?? []);
         $payload['internal_links'] = $this->sanitizeLinks($payload['internal_links'] ?? []);
@@ -147,6 +155,14 @@ class AIProductContentSanitizer
         $text = $this->humanizeInternalLanguage($text);
 
         return trim(preg_replace('/\s+/u', ' ', html_entity_decode(strip_tags($text), ENT_QUOTES | ENT_HTML5, 'UTF-8')) ?? '');
+    }
+
+    private function cleanLimitedText(string $key, string $text): string
+    {
+        $text = $this->cleanText($text);
+        $limit = self::MAX_TEXT_LENGTHS[$key] ?? null;
+
+        return $limit ? Str::limit($text, $limit, '') : $text;
     }
 
     private function humanizeInternalLanguage(string $text): string

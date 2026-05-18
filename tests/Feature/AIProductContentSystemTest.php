@@ -41,6 +41,22 @@ class AIProductContentSystemTest extends TestCase
         $this->assertSame(3, $product->tags()->count());
     }
 
+    public function test_auto_apply_trims_ai_meta_fields_to_database_safe_lengths(): void
+    {
+        $product = $this->product(['btu' => 42000, 'specs_json' => [['key' => 'airflow', 'value' => '1800 m3/h']]]);
+        $payload = $this->validPayload();
+        $payload['meta_description'] = str_repeat('Điều hòa âm trần Gree cassette 42000BTU cho văn phòng showroom cần khảo sát tải nhiệt thực tế. ', 8);
+        $payload['og_description'] = str_repeat('Giải pháp điều hòa âm trần Gree cassette cho không gian thương mại. ', 8);
+        $service = $this->serviceReturning($payload);
+
+        $service->generate($product, $this->config(['apply_mode' => 'auto_apply']));
+
+        $product->refresh();
+        $this->assertLessThanOrEqual(255, mb_strlen($product->seo_description));
+        $this->assertLessThanOrEqual(255, mb_strlen($product->og_description));
+        $this->assertNotSame('failed', $product->ai_status);
+    }
+
     public function test_product_ai_e2e_via_provider_updates_content_layer_only(): void
     {
         Http::fake([

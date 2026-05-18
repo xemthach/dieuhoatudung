@@ -181,6 +181,9 @@
     {{-- Compare Bar --}}
     <x-compare-bar />
 
+    {{-- Site Campaigns / Popups --}}
+    <x-site-campaigns />
+
     {{-- Additional Scripts --}}
     @stack('scripts')
     {!! setting('tracking.custom_body_scripts') !!}

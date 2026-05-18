@@ -3,15 +3,23 @@
     $benefits = \App\Models\HomeBenefitItem::active()->get();
     $hasBenefits = $benefits->isNotEmpty();
     $iconMap = \App\Models\HomeBenefitItem::iconSvgMap();
+
+    $deviceClass = function (?string $device): string {
+        return match ($device) {
+            'desktop' => 'hidden lg:flex',
+            'mobile' => 'flex lg:hidden',
+            default => 'flex',
+        };
+    };
 @endphp
 
 <section class="border-b border-surface-200 bg-white py-6">
     <div class="container-main">
         @if($hasBenefits)
         {{-- ═══ DYNAMIC BENEFITS ═══ --}}
-        <div class="grid grid-cols-2 gap-4 sm:grid-cols-{{ min($benefits->count(), 4) }}">
+        <div class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
             @foreach($benefits as $item)
-            <div class="flex items-center gap-3 rounded-lg p-3">
+            <div class="{{ $deviceClass($item->display_device ?? 'both') }} items-center gap-3 rounded-lg p-3">
                 <div class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full {{ $item->bg_color }} {{ $item->icon_color }}">
                     @if($item->icon_type === 'heroicon' && isset($iconMap[$item->icon_name]))
                         <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -28,9 +36,9 @@
                     @endif
                 </div>
                 <div>
-                    <p class="text-sm font-semibold text-surface-900">{{ $item->title }}</p>
+                    <p class="benefit-title text-sm font-semibold text-surface-900">{{ $item->title }}</p>
                     @if($item->subtitle)
-                    <p class="text-xs text-surface-500">{{ $item->subtitle }}</p>
+                    <p class="benefit-subtitle text-xs text-surface-500">{{ $item->subtitle }}</p>
                     @endif
                 </div>
             </div>

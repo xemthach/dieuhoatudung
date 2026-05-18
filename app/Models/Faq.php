@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\MorphToMany;
+use Illuminate\Support\Str;
 
 class Faq extends Model
 {
@@ -19,6 +20,24 @@ class Faq extends Model
             'is_active'   => 'boolean',
             'sort_order'  => 'integer',
         ];
+    }
+
+    protected static function booted(): void
+    {
+        static::saving(function (Faq $faq): void {
+            $faq->normalized_search_text = static::normalizeSearchText(
+                trim(implode(' ', array_filter([
+                    $faq->group,
+                    $faq->question,
+                    strip_tags((string) $faq->answer),
+                ])))
+            );
+        });
+    }
+
+    public static function normalizeSearchText(string $text): string
+    {
+        return Str::ascii(Str::lower($text));
     }
 
     // ─── Inverse polymorphic relations ─────────────────────────────────────

@@ -7,4 +7,8 @@
             @endforeach
         </div>
     </div>
+
+    @push('schema')
+        {!! \App\Services\Schema\SchemaService::toScript(app(\App\Services\Schema\SchemaService::class)->faqPage($faqs)) !!}
+    @endpush
 </x-layouts.app>

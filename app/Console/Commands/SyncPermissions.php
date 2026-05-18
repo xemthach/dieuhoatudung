@@ -50,7 +50,7 @@ class SyncPermissions extends Command
                 // Leads
                 'lead.*', 'quote_request.*', 'btu_calculator.*',
                 // Pages
-                'faq.*', 'landing_section.*', 'policy_page.*',
+                'faq.*', 'landing_section.*', 'site_campaign.*', 'policy_page.*',
                 'case_study.*', 'testimonial.*',
                 // Reviews
                 'product_review.*', 'product_question.*',
@@ -71,6 +71,7 @@ class SyncPermissions extends Command
                 // Pages
                 'faq.*', 'case_study.*', 'testimonial.*',
                 'landing_section.view', 'landing_section.edit',
+                'site_campaign.view', 'site_campaign.edit',
                 // Leads (view only)
                 'lead.view',
                 // Mail log (view only)

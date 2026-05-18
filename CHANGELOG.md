@@ -2,6 +2,33 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.20.0] - 2026-05-18
+
+### Added
+- Added device-targeted Home Benefits with desktop, mobile, and both display options in the admin form and list badges.
+- Added accent-insensitive FAQ search support through `normalized_search_text`, automatic FAQ search text normalization, admin question/answer previews, group filtering, and active filtering.
+- Added FAQPage schema output for the standalone FAQ page.
+- Added Site Campaigns / Popups management with Filament CRUD, scheduling, placement and URL targeting, device rules, frequency controls, priority conflict handling, frontend rendering, and event tracking.
+- Added `site_campaigns` and `site_campaign_events` tables plus campaign impression, click, close, and conversion event capture.
+- Added regression coverage for database-safe AI metadata trimming during Product AI auto-apply.
+
+### Fixed
+- Fixed Home Benefits mobile wrapping by applying the existing benefit title/subtitle classes to rendered benefit text.
+- Fixed Home Benefits responsive grid generation by replacing a dynamic Tailwind grid class with stable responsive grid classes.
+- Fixed Product AI auto-apply so long SEO, Open Graph, and merchant title fields are trimmed to database-safe lengths before saving.
+- Fixed mobile product cards so the “Xem chi tiết” action is a compact accessible eye icon button while preserving the original product detail link.
+
+### Changed
+- Changed the mobile product card detail icon to use the primary button color for stronger CTA contrast while leaving desktop product cards unchanged.
+- Changed Site Campaign permissions and default role permission sync to include `site_campaign.*` access rules.
+- Changed built frontend assets after rebuilding Tailwind/Vite for the product card responsive action update.
+
+### Removed
+- Removed obsolete built CSS asset `public/build/assets/app-Bc3fXyLG.css` after rebuilding frontend assets.
+
+### Security
+- Added explicit RBAC permission entries for Site Campaigns / Popups so campaign management can be assigned through the permission registry.
+
 ## [1.19.0] - 2026-05-18
 
 ### Added

@@ -10,7 +10,7 @@ class HomeBenefitItem extends Model
         'title', 'subtitle',
         'icon_type', 'icon_name', 'icon_image', 'icon_svg',
         'icon_color', 'bg_color',
-        'sort_order', 'is_active',
+        'display_device', 'sort_order', 'is_active',
     ];
 
     protected $casts = [
@@ -23,6 +23,15 @@ class HomeBenefitItem extends Model
     public function scopeActive($query)
     {
         return $query->where('is_active', true)->orderBy('sort_order');
+    }
+
+    public static function displayDeviceOptions(): array
+    {
+        return [
+            'both' => 'Cả desktop & mobile',
+            'desktop' => 'Chỉ desktop',
+            'mobile' => 'Chỉ mobile',
+        ];
     }
 
     /* ---- Accessors ---- */

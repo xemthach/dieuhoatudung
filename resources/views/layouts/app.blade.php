@@ -124,6 +124,9 @@
     {{-- Sticky CTA Mobile --}}
     @include('partials.sticky-cta')
 
+    {{-- Site Campaigns / Popups --}}
+    <x-site-campaigns />
+
     {{-- Additional Scripts --}}
     @stack('scripts')
 

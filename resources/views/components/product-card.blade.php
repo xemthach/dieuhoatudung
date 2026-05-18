@@ -62,12 +62,15 @@
                     Liên hệ tương đương
                 </a>
             @else
-                <a href="{{ route('product.show', $product->slug) }}" class="flex-1 rounded-lg bg-primary-600 px-3 py-2 text-center text-xs font-semibold text-white transition-colors hover:bg-primary-700">
+                <a href="{{ route('product.show', $product->slug) }}" class="hidden flex-1 rounded-lg bg-primary-600 px-3 py-2 text-center text-xs font-semibold text-white transition-colors hover:bg-primary-700 sm:block">
                     Xem chi tiết
                 </a>
+                <a href="{{ route('product.show', $product->slug) }}" class="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-primary-600 bg-primary-600 text-white transition hover:border-primary-700 hover:bg-primary-700 sm:hidden" aria-label="Xem chi tiết" title="Xem chi tiết">
+                    <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.25 12s3.75-6.75 9.75-6.75S21.75 12 21.75 12 18 18.75 12 18.75 2.25 12 2.25 12z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                </a>
             @endif
-            <button type="button" onclick="addToCompare('{{ $product->slug }}')" class="rounded-lg border border-surface-200 bg-surface-50 px-3 py-2 text-surface-600 transition hover:bg-surface-100 hover:text-primary-600" title="Thêm vào so sánh">
-                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+            <button type="button" onclick="addToCompare('{{ $product->slug }}')" class="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-surface-200 bg-surface-50 text-surface-600 transition hover:bg-surface-100 hover:text-primary-600 sm:h-auto sm:w-auto sm:px-3 sm:py-2" title="Thêm vào so sánh" aria-label="Thêm vào so sánh">
+                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
             </button>
         </div>
     </div>

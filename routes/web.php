@@ -11,6 +11,7 @@ use App\Http\Controllers\MiscController;
 use App\Http\Controllers\BtuCalculatorController;
 use App\Http\Controllers\QuoteController;
 use App\Http\Controllers\PriceListController;
+use App\Http\Controllers\SiteCampaignEventController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -25,6 +26,10 @@ Route::get('/', [PageController::class, 'home'])->name('home');
 Route::get('/csrf-token', function () {
     return response()->json(['token' => csrf_token()]);
 })->name('csrf.token');
+
+Route::post('/site-campaign-events', [SiteCampaignEventController::class, 'store'])
+    ->middleware('throttle:120,1')
+    ->name('site-campaign-events.store');
 
 // Landing Page (SEO main keyword page)
 Route::get('/dieu-hoa-tu-dung', [LandingController::class, 'index'])->name('landing');
