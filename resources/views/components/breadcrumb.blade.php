@@ -29,6 +29,7 @@
         </ol>
     </div>
 
+    @if(setting('seo.enable_schema', true) && setting('seo.enable_breadcrumb_schema', true))
     @push('schema')
     <script type="application/ld+json">
     {
@@ -55,4 +56,5 @@
     }
     </script>
     @endpush
+    @endif
 </nav>

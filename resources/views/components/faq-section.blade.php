@@ -17,7 +17,7 @@
         </div>
     </section>
 
-    @unless($skipSchema)
+    @if(! $skipSchema && setting('seo.enable_schema', true) && setting('seo.enable_faq_schema', true))
     @push('schema')
         <script type="application/ld+json">
         {
@@ -38,5 +38,5 @@
         }
         </script>
     @endpush
-    @endunless
+    @endif
 @endif

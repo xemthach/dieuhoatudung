@@ -64,6 +64,11 @@ class UploadSettingService
         return $this->integerSetting('upload.product_image_max_size_kb', self::DEFAULT_PRODUCT_IMAGE_MAX_SIZE_KB);
     }
 
+    public function campaignImageMaxSizeKb(): int
+    {
+        return $this->imageMaxSizeKb();
+    }
+
     public function brandLogoMaxSizeKb(): int
     {
         return $this->integerSetting('upload.brand_logo_max_size_kb', self::DEFAULT_BRAND_LOGO_MAX_SIZE_KB);
@@ -92,6 +97,17 @@ class UploadSettingService
     public function allowedImageTypes(): array
     {
         return $this->csvSetting('upload.allowed_image_types', self::DEFAULT_ALLOWED_IMAGE_TYPES);
+    }
+
+    public function allowedImageExtensions(): array
+    {
+        return $this->mimeTypesToExtensions($this->allowedImageTypes(), [
+            'jpg',
+            'jpeg',
+            'png',
+            'webp',
+            'gif',
+        ]);
     }
 
     public function allowedFileTypes(): array
@@ -137,5 +153,27 @@ class UploadSettingService
         }
 
         return array_values(array_filter(array_map('trim', explode(',', (string) $raw))));
+    }
+
+    private function mimeTypesToExtensions(array $mimeTypes, array $default): array
+    {
+        $map = [
+            'image/jpeg' => ['jpg', 'jpeg'],
+            'image/jpg' => ['jpg', 'jpeg'],
+            'image/png' => ['png'],
+            'image/webp' => ['webp'],
+            'image/gif' => ['gif'],
+            'image/svg+xml' => ['svg'],
+        ];
+
+        $extensions = [];
+
+        foreach ($mimeTypes as $mimeType) {
+            array_push($extensions, ...($map[strtolower($mimeType)] ?? []));
+        }
+
+        $extensions = array_values(array_unique(array_filter($extensions)));
+
+        return $extensions !== [] ? $extensions : $default;
     }
 }

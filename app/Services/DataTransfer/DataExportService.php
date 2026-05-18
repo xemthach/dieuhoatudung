@@ -22,8 +22,12 @@ class DataExportService
         array $fieldGroups = [],
         array $filters = [],
         array $selectedIds = [],
+        string $scope = 'all',
         ?int $userId = null,
     ): DataExportJob {
+        $scope = $this->normalizeScope($scope);
+        $selectedIds = $this->normalizeIds($selectedIds);
+
         $job = DataExportJob::create([
             'module'             => $module,
             'file_type'          => $fileType,
@@ -38,10 +42,10 @@ class DataExportService
             $job->update(['status' => 'processing', 'started_at' => now()]);
 
             $fields = $this->resolveFields($module, $fieldGroups);
-            $query = $this->buildQuery($module, $filters, $selectedIds);
+            $query = $this->buildQuery($module, $filters, $selectedIds, $scope);
             $data = $this->fetchData($query, $fields, $module);
 
-            $fileName = $this->generateFileName($module, $fileType);
+            $fileName = $this->generateFileName($module, $fileType, $scope, $data->count());
             $filePath = $this->writeFile($data, $fields, $fileType, $fileName, $module);
 
             $job->update([
@@ -77,12 +81,22 @@ class DataExportService
     /**
      * Build the Eloquent query with optional filters and selected IDs.
      */
-    protected function buildQuery(string $module, array $filters, array $selectedIds): Builder
+    protected function buildQuery(string $module, array $filters, array $selectedIds, string $scope): Builder
     {
         $modelClass = ModuleRegistry::modelClass($module);
         $query = $modelClass::query();
 
-        if (!empty($selectedIds)) {
+        if (in_array($scope, ['selected', 'current_page', 'filter'], true)) {
+            if ($scope === 'selected' && empty($selectedIds)) {
+                throw new \InvalidArgumentException('Chưa chọn bản ghi để export.');
+            }
+
+            if (empty($selectedIds)) {
+                $query->whereRaw('1 = 0');
+            } else {
+                $query->whereIn('id', $selectedIds);
+            }
+        } elseif (!empty($selectedIds)) {
             $query->whereIn('id', $selectedIds);
         }
 
@@ -98,6 +112,25 @@ class DataExportService
         }
 
         return $query;
+    }
+
+    protected function normalizeScope(string $scope): string
+    {
+        return match ($scope) {
+            'filtered' => 'filter',
+            'selected', 'current_page', 'filter', 'all' => $scope,
+            default => throw new \InvalidArgumentException("Unsupported export scope: {$scope}"),
+        };
+    }
+
+    protected function normalizeIds(array $ids): array
+    {
+        return collect($ids)
+            ->filter(fn ($id) => is_numeric($id) && (int) $id > 0)
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values()
+            ->all();
     }
 
     /**
@@ -267,10 +300,10 @@ class DataExportService
     /**
      * Generate a filename for the export.
      */
-    protected function generateFileName(string $module, string $fileType): string
+    protected function generateFileName(string $module, string $fileType, string $scope, int $rowCount): string
     {
         $timestamp = now()->format('Y-m-d_His');
-        return "{$module}_export_{$timestamp}.{$fileType}";
+        return "{$module}_export_{$scope}_{$rowCount}_{$timestamp}.{$fileType}";
     }
 
     /**

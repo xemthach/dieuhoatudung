@@ -88,8 +88,10 @@
     {!! setting('tracking.custom_head_scripts') !!}
     @endif
 
-    {{-- JSON-LD Schema --}}
-    @stack('schema')
+    @if(setting('seo.enable_schema', true))
+        {{-- JSON-LD Schema --}}
+        @stack('schema')
+    @endif
 
     {{-- Additional Head --}}
     @stack('head')

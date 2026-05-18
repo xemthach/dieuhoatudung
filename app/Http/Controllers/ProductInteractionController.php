@@ -7,6 +7,7 @@ use App\Models\ProductReview;
 use App\Models\ProductQuestion;
 use App\Services\Mail\MailDispatchService;
 use App\Services\Media\MediaDiskService;
+use App\Services\Settings\UploadSettingService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\RateLimiter;
@@ -17,7 +18,8 @@ class ProductInteractionController extends Controller
 {
     public function __construct(
         private MediaDiskService    $mediaDisk,
-        private MailDispatchService $mailService
+        private MailDispatchService $mailService,
+        private UploadSettingService $uploadSettings
     ) {}
 
     /**
@@ -41,8 +43,9 @@ class ProductInteractionController extends Controller
         $requirePhone = setting('product_detail.review_require_phone', false);
         $allowImages  = setting('product_detail.review_allow_images', true);
         $maxImages    = (int) setting('product_detail.review_max_images', 3);
-        $maxSizeMb    = (int) setting('product_detail.review_max_image_size_mb', 3);
-        $maxSizeKb    = $maxSizeMb * 1024;
+        $maxSizeKb    = $this->uploadSettings->reviewImageMaxSizeKb();
+        $maxSizeText  = $this->uploadSettings->formatMb($maxSizeKb);
+        $imageTypes   = $this->uploadSettings->allowedImageExtensions();
         $autoApprove  = setting('product_detail.review_auto_approve', false);
 
         $rules = [
@@ -56,14 +59,14 @@ class ProductInteractionController extends Controller
 
         if ($allowImages) {
             $rules['images']   = 'nullable|array|max:' . $maxImages;
-            $rules['images.*'] = "image|mimes:jpg,jpeg,png,webp|max:{$maxSizeKb}";
+            $rules['images.*'] = 'image|mimes:' . implode(',', $imageTypes) . "|max:{$maxSizeKb}";
         }
 
         $validated = $request->validate($rules, [
             'images.max'      => "Bạn chỉ được gửi tối đa {$maxImages} ảnh.",
             'images.*.image'  => 'File phải là hình ảnh.',
-            'images.*.mimes'  => 'Hình ảnh phải ở định dạng JPG, PNG hoặc WebP.',
-            'images.*.max'    => "Mỗi hình ảnh không được vượt quá {$maxSizeMb}MB.",
+            'images.*.mimes'  => 'Hình ảnh không đúng định dạng cho phép.',
+            'images.*.max'    => "Mỗi hình ảnh không được vượt quá {$maxSizeText}.",
             'content.min'     => 'Nội dung đánh giá cần ít nhất 10 ký tự.',
             'rating.required' => 'Vui lòng chọn số sao đánh giá.',
         ]);

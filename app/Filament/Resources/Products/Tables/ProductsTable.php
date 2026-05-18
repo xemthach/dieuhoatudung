@@ -12,6 +12,8 @@ use App\Models\Brand;
 use App\Models\Product;
 use App\Models\ProductCategory;
 use App\Services\Product\AIProductContentSystem;
+use App\Services\DataTransfer\DataExportService;
+use App\Services\DataTransfer\ModuleRegistry;
 use App\Support\SchemaColumns;
 use Filament\Actions\Action;
 use Filament\Actions\BulkAction;
@@ -355,6 +357,83 @@ class ProductsTable
                             }),
                     ])->label('AI Product System')->icon('heroicon-o-cpu-chip'),
 
+                    BulkActionGroup::make([
+                        BulkAction::make('export_selected_products')
+                            ->label('Export selected products')
+                            ->icon('heroicon-o-arrow-down-tray')
+                            ->color('success')
+                            ->visible(fn () => auth()->user()?->isSuperAdmin() || (auth()->user()?->can('product.export') ?? false))
+                            ->requiresConfirmation()
+                            ->modalHeading('Export sản phẩm đã chọn')
+                            ->modalDescription('Scope: sản phẩm đã chọn. Export này chỉ xuất các sản phẩm đang được tick trong bảng.')
+                            ->modalSubmitActionLabel('Export selected')
+                            ->form([
+                                Select::make('file_type')
+                                    ->label('Định dạng')
+                                    ->options([
+                                        'xlsx' => 'Excel (XLSX)',
+                                        'csv' => 'CSV (UTF-8)',
+                                        'xml' => 'XML',
+                                        'json' => 'JSON',
+                                    ])
+                                    ->default('xlsx')
+                                    ->required(),
+                                CheckboxList::make('field_groups')
+                                    ->label('Nhóm dữ liệu')
+                                    ->options(fn (): array => collect(ModuleRegistry::fieldGroups('product'))
+                                        ->mapWithKeys(fn ($group, $key) => [$key => $group['label']])
+                                        ->all())
+                                    ->columns(3),
+                            ])
+                            ->action(function (Collection $records, array $data): void {
+                                abort_unless(auth()->user()?->isSuperAdmin() || auth()->user()?->can('product.export'), 403);
+
+                                $selectedIds = $records->pluck('id')->map(fn ($id) => (int) $id)->unique()->values()->all();
+
+                                if ($selectedIds === []) {
+                                    Notification::make()
+                                        ->title('Chưa chọn sản phẩm để export')
+                                        ->warning()
+                                        ->send();
+
+                                    return;
+                                }
+
+                                $job = app(DataExportService::class)->export(
+                                    module: 'product',
+                                    fileType: $data['file_type'],
+                                    fieldGroups: $data['field_groups'] ?? [],
+                                    selectedIds: $selectedIds,
+                                    scope: 'selected',
+                                );
+
+                                Log::info('Product selected export payload', [
+                                    'source' => 'products_table_bulk_action',
+                                    'user_id' => auth()->id(),
+                                    'scope' => 'selected',
+                                    'selected_count' => count($selectedIds),
+                                    'selected_ids_sample' => array_slice($selectedIds, 0, 25),
+                                    'total_rows' => $job->total_rows,
+                                    'selected_product_ids' => $selectedIds,
+                                    'selected_product_ids_count' => count($selectedIds),
+                                    'current_page_ids' => [],
+                                    'current_page_ids_count' => 0,
+                                    'filters' => [],
+                                    'fields' => $data['field_groups'] ?? [],
+                                    'format' => $data['file_type'] ?? null,
+                                    'resolved_total_items' => $job->total_rows,
+                                    'route' => request()?->route()?->getName(),
+                                    'timestamp' => now()->toIso8601String(),
+                                ]);
+
+                                Notification::make()
+                                    ->title('Export selected thành công')
+                                    ->body("Đã export {$job->total_rows} sản phẩm đã chọn.")
+                                    ->success()
+                                    ->send();
+                            }),
+                    ])->label('Data')->icon('heroicon-o-arrow-down-tray'),
+
                     // Phân loại
                     BulkActionGroup::make([
                         BulkAction::make('bulk_update_category')
@@ -649,21 +728,40 @@ class ProductsTable
             ->icon($icon)
             ->color('info')
             ->visible(fn () => auth()->user()?->can('product.ai_generate') ?? false)
-            ->form(self::aiConfigForm($defaultOutputs, $defaultMode))
+            ->requiresConfirmation()
+            ->modalHeading('Xác nhận tạo nội dung AI')
+            ->modalDescription('Scope: sản phẩm đã chọn. Action này chỉ chạy các sản phẩm đang được tick trong bảng.')
+            ->modalSubmitActionLabel('Bắt đầu chạy AI')
+            ->form(self::aiConfigForm($defaultOutputs, $defaultMode, 'selected', [
+                'selected' => 'Sản phẩm đã chọn',
+            ]))
             ->action(function (Collection $records, array $data, $livewire = null) use ($action) {
                 abort_unless(auth()->user()?->can('product.ai_generate'), 403);
 
                 $productIds = self::resolveProductIds($records, $data, $livewire);
                 Log::info('AI product bulk action payload', [
                     'source' => 'products_table_bulk_action',
+                    'user_id' => auth()->id(),
                     'action' => $action,
                     'scope' => $data['scope'] ?? 'selected',
                     'record_count' => $records->count(),
                     'resolved_count' => count($productIds),
                     'resolved_ids_sample' => array_slice($productIds, 0, 25),
+                    'route' => request()?->route()?->getName(),
+                    'timestamp' => now()->toIso8601String(),
                 ]);
 
                 if ($productIds === []) {
+                    Log::warning('bulk_selection_empty', [
+                        'source' => 'products_table_bulk_action',
+                        'user_id' => auth()->id(),
+                        'action' => $action,
+                        'scope' => $data['scope'] ?? 'selected',
+                        'record_count' => $records->count(),
+                        'route' => request()?->route()?->getName(),
+                        'timestamp' => now()->toIso8601String(),
+                    ]);
+
                     Notification::make()
                         ->title('Chưa có sản phẩm để xử lý')
                         ->warning()
@@ -683,6 +781,7 @@ class ProductsTable
                 ], SchemaColumns::existing('ai_product_jobs', [
                     'module' => 'ai_product_bulk',
                     'queue_name' => 'ai',
+                    'selected_product_ids_json' => $productIds,
                 ])));
 
                 AiProductContentBatchJob::dispatch($job->id, $productIds)->onQueue('ai');
@@ -697,17 +796,25 @@ class ProductsTable
             ->deselectRecordsAfterCompletion();
     }
 
-    public static function aiConfigForm(array $defaultOutputs, string $defaultMode, string $defaultScope = 'selected'): array
+    public static function aiConfigForm(
+        array $defaultOutputs,
+        string $defaultMode,
+        string $defaultScope = 'selected',
+        ?array $scopeOptions = null
+    ): array
     {
+        $scopeOptions ??= [
+            'selected' => 'Sản phẩm đã chọn',
+            'current_page' => 'Trang hiện tại',
+            'filter' => 'Theo bộ lọc hiện tại',
+        ];
+
         return [
             Select::make('scope')
                 ->label('Scope')
-                ->options([
-                    'selected' => 'Selected products',
-                    'current_page' => 'Current page',
-                    'all_filtered' => 'All products by current filter',
-                ])
+                ->options($scopeOptions)
                 ->default($defaultScope)
+                ->live()
                 ->required(),
             CheckboxList::make('outputs')
                 ->label('Output cần tạo')
@@ -796,11 +903,18 @@ class ProductsTable
 
     private static function resolveProductIds(Collection $records, array $data, mixed $livewire): array
     {
-        if (($data['scope'] ?? 'selected') === 'all_filtered' && $livewire && method_exists($livewire, 'getFilteredTableQuery')) {
-            return $livewire->getFilteredTableQuery()->pluck('products.id')->all();
+        if (in_array($data['scope'] ?? 'selected', ['filter', 'all_filtered'], true) && $livewire && method_exists($livewire, 'getFilteredTableQuery')) {
+            return $livewire->getFilteredTableQuery()
+                ->pluck('products.id')
+                ->map(fn ($id) => (int) $id)
+                ->all();
         }
 
-        return $records->pluck('id')->values()->all();
+        return $records->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values()
+            ->all();
     }
 
     public static function retryAiProductItems(iterable $items): int

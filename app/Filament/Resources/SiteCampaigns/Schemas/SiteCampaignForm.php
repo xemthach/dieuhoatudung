@@ -4,6 +4,7 @@ namespace App\Filament\Resources\SiteCampaigns\Schemas;
 
 use App\Models\SiteCampaign;
 use App\Services\Media\MediaDiskService;
+use App\Services\Settings\UploadSettingService;
 use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Select;
@@ -80,10 +81,12 @@ class SiteCampaignForm
                                 ->label('Image')
                                 ->disk(fn () => app(MediaDiskService::class)->getUploadDisk())
                                 ->directory('campaigns')
-                                ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/webp', 'image/svg+xml'])
-                                ->maxSize(2048),
+                                ->acceptedFileTypes(fn () => app(UploadSettingService::class)->allowedImageTypes())
+                                ->maxSize(fn () => app(UploadSettingService::class)->campaignImageMaxSizeKb())
+                                ->helperText(fn () => 'Tối đa ' . app(UploadSettingService::class)->formatMb(app(UploadSettingService::class)->campaignImageMaxSizeKb()) . '.'),
                             TextInput::make('content_json.video_url')
                                 ->label('Video URL')
+                                ->url()
                                 ->maxLength(500),
                         ]),
 
@@ -94,18 +97,23 @@ class SiteCampaignForm
                                     ->maxLength(80),
                                 TextInput::make('content_json.button_primary_url')
                                     ->label('Primary button URL')
+                                    ->rules(['nullable', 'regex:/^(https?:\/\/|\/)[^\s]*$/i'])
+                                    ->helperText('Dùng URL bắt đầu bằng http(s):// hoặc path nội bộ bắt đầu bằng /.')
                                     ->maxLength(500),
                                 TextInput::make('content_json.button_secondary_text')
                                     ->label('Secondary button text')
                                     ->maxLength(80),
                                 TextInput::make('content_json.button_secondary_url')
                                     ->label('Secondary button URL')
+                                    ->rules(['nullable', 'regex:/^(https?:\/\/|\/)[^\s]*$/i'])
+                                    ->helperText('Dùng URL bắt đầu bằng http(s):// hoặc path nội bộ bắt đầu bằng /.')
                                     ->maxLength(500),
                                 TextInput::make('content_json.phone')
                                     ->label('Phone')
                                     ->maxLength(40),
                                 TextInput::make('content_json.zalo_url')
                                     ->label('Zalo URL')
+                                    ->url()
                                     ->maxLength(500),
                             ]),
                         ]),

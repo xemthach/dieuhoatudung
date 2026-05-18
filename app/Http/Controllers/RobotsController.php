@@ -11,12 +11,27 @@ class RobotsController extends Controller
         $content = setting('robots.robots_content');
         
         if (!$content) {
-            $disallow  = config('seo.robots.disallow', ['/admin']);
+            $disallow = ['/login'];
+
+            if (setting('robots.robots_disallow_admin', true)) {
+                $disallow[] = '/admin';
+            }
+
+            if (setting('robots.robots_disallow_search', true)) {
+                $disallow[] = '/search';
+                $disallow[] = '/tim-kiem';
+            }
+
+            if (setting('robots.robots_disallow_filter_urls', true)) {
+                $disallow[] = '/*?sort=';
+                $disallow[] = '/*?filter=';
+            }
+
             $sitemapUrl = setting('seo.canonical_base_url', config('app.url')) . '/sitemap.xml';
 
             $lines = ["User-agent: *"];
 
-            foreach ($disallow as $path) {
+            foreach (array_values(array_unique($disallow)) as $path) {
                 $lines[] = "Disallow: {$path}";
             }
 

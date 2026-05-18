@@ -428,6 +428,7 @@
     />
 
     {{-- Product Schema.org JSON-LD (via SchemaService — fixes @@type + price=0) --}}
+    @if(setting('seo.enable_schema', true) && (bool) ($product->schema_enabled ?? true))
     @push('schema')
     @php
         $schemaService = app(\App\Services\Schema\SchemaService::class);
@@ -440,6 +441,7 @@
         ['label' => $product->name],
     ])) !!}
     @endpush
+    @endif
 
     {{-- Combined FAQ Schema (product FAQs + answered Q&A) — single FAQPage to avoid duplicates --}}
     @php
@@ -463,7 +465,7 @@
             }
         }
     @endphp
-    @if(count($allFaqEntities) > 0)
+    @if(count($allFaqEntities) > 0 && setting('seo.enable_schema', true) && setting('seo.enable_faq_schema', true))
     @push('schema')
     <script type="application/ld+json">
     {

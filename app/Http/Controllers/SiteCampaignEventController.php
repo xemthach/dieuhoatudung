@@ -26,8 +26,8 @@ class SiteCampaignEventController extends Controller
             'session_id' => ['nullable', 'string', 'max:120'],
         ]);
 
-        $campaign = SiteCampaign::query()->find($validated['campaign_id']);
-        if (! $campaign || $campaign->status !== 'active') {
+        $campaign = SiteCampaign::active()->whereKey($validated['campaign_id'])->first();
+        if (! $campaign) {
             return response()->json(['ok' => false], 404);
         }
 

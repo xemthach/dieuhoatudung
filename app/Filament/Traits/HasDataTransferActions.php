@@ -8,8 +8,12 @@ use App\Services\DataTransfer\ModuleRegistry;
 use Filament\Actions\Action;
 use Filament\Forms\Components\CheckboxList;
 use Filament\Forms\Components\FileUpload;
+use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Select;
 use Filament\Notifications\Notification;
+use Illuminate\Contracts\Pagination\Paginator;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 
 /**
@@ -51,17 +55,23 @@ trait HasDataTransferActions
                 Select::make('export_scope')
                     ->label('Phạm vi')
                     ->options([
-                        'all'      => 'Tất cả dữ liệu',
-                        'filtered' => 'Theo filter hiện tại',
-                        'selected' => 'Dòng đang chọn',
+                        'selected' => 'Sản phẩm đã chọn',
+                        'current_page' => 'Trang hiện tại',
+                        'filter' => 'Theo filter hiện tại',
                     ])
-                    ->default('all')
+                    ->default('selected')
+                    ->live()
                     ->required(),
+
+                Placeholder::make('export_scope_summary')
+                    ->label('Tóm tắt phạm vi')
+                    ->content(fn ($get): string => $this->exportScopeSummary((string) $get('export_scope'))),
 
                 CheckboxList::make('field_groups')
                     ->label('Nhóm dữ liệu (bỏ trống = tất cả)')
                     ->options(function () use ($module) {
                         $groups = ModuleRegistry::fieldGroups($module);
+
                         return collect($groups)->mapWithKeys(fn ($g, $k) => [$k => $g['label']])->toArray();
                     })
                     ->columns(3),
@@ -74,10 +84,52 @@ trait HasDataTransferActions
                 try {
                     $filters = [];
                     $selectedIds = [];
+                    $currentPageIds = [];
+                    $scope = $data['export_scope'] ?? 'selected';
 
-                    // Note: filtered/selected scope requires JS integration which
-                    // is complex in Filament v5. For now we export all.
-                    // Filter support can be added via table state if needed.
+                    if ($scope === 'selected') {
+                        $selectedIds = $this->resolveExportSelectedIds();
+
+                        if ($selectedIds === []) {
+                            Notification::make()
+                                ->title('Chưa chọn sản phẩm để export')
+                                ->body('Hãy tick ít nhất một sản phẩm, hoặc đổi phạm vi sang Trang hiện tại / Theo filter hiện tại.')
+                                ->warning()
+                                ->send();
+
+                            return;
+                        }
+                    }
+
+                    if ($scope === 'current_page') {
+                        $currentPageIds = $this->resolveExportCurrentPageIds();
+                        $selectedIds = $currentPageIds;
+                    }
+
+                    if ($scope === 'filter' && method_exists($this, 'getFilteredTableQuery')) {
+                        $selectedIds = $this->getFilteredTableQuery()
+                            ->pluck('id')
+                            ->map(fn ($id) => (int) $id)
+                            ->unique()
+                            ->values()
+                            ->all();
+                    }
+
+                    Log::info('Data export header payload', [
+                        'module' => $module,
+                        'scope' => $scope,
+                        'selected_product_ids' => $scope === 'selected' ? $selectedIds : [],
+                        'selected_product_ids_count' => $scope === 'selected' ? count($selectedIds) : 0,
+                        'current_page_ids' => $currentPageIds,
+                        'current_page_ids_count' => count($currentPageIds),
+                        'filters' => $filters,
+                        'fields' => $data['field_groups'] ?? [],
+                        'format' => $data['file_type'] ?? null,
+                        'resolved_total_items' => count($selectedIds),
+                        'resolved_ids_sample' => array_slice($selectedIds, 0, 25),
+                        'user_id' => auth()->id(),
+                        'route' => request()?->route()?->getName(),
+                    ]);
 
                     $job = $service->export(
                         module: $module,
@@ -85,6 +137,7 @@ trait HasDataTransferActions
                         fieldGroups: $data['field_groups'] ?? [],
                         filters: $filters,
                         selectedIds: $selectedIds,
+                        scope: $scope,
                     );
 
                     if ($job->status === 'completed') {
@@ -92,8 +145,8 @@ trait HasDataTransferActions
 
                         Notification::make()
                             ->success()
-                            ->title('Export thành công!')
-                            ->body("Đã export {$job->total_rows} dòng. File: {$job->file_name}")
+                            ->title('Export thành công')
+                            ->body($this->exportSuccessMessage($scope, $job->total_rows, $job->file_name))
                             ->send();
 
                         return response()->download(
@@ -150,7 +203,7 @@ trait HasDataTransferActions
                         return ModuleRegistry::matchingKeys($module);
                     })
                     ->default('id')
-                    ->visible(fn ($get) => in_array($get('mode'), ['update', 'upsert'])),
+                    ->visible(fn ($get) => in_array($get('mode'), ['update', 'upsert'], true)),
 
                 FileUpload::make('import_file')
                     ->label('Chọn file')
@@ -190,6 +243,7 @@ trait HasDataTransferActions
                             ->title('Import thất bại')
                             ->body($errorMsg)
                             ->send();
+
                         return;
                     }
 
@@ -202,5 +256,82 @@ trait HasDataTransferActions
                         ->send();
                 }
             });
+    }
+
+    protected function resolveExportSelectedIds(): array
+    {
+        $selectedIds = $this->normalizeExportRecordIds($this->selectedTableRecords ?? []);
+
+        if ($selectedIds === [] && ($this->isTrackingDeselectedTableRecords ?? false) && method_exists($this, 'getFilteredTableQuery')) {
+            return $this->getFilteredTableQuery()
+                ->whereKeyNot($this->deselectedTableRecords ?? [])
+                ->pluck('id')
+                ->map(fn ($id) => (int) $id)
+                ->unique()
+                ->values()
+                ->all();
+        }
+
+        return $selectedIds;
+    }
+
+    protected function resolveExportCurrentPageIds(): array
+    {
+        if (! method_exists($this, 'getTableRecords')) {
+            return [];
+        }
+
+        $records = $this->getTableRecords();
+        if ($records instanceof Paginator) {
+            $records = collect($records->items());
+        }
+
+        return $records instanceof Collection
+            ? $records->pluck('id')->map(fn ($id) => (int) $id)->unique()->values()->all()
+            : [];
+    }
+
+    protected function normalizeExportRecordIds(array $state): array
+    {
+        $ids = [];
+
+        foreach ($state as $key => $value) {
+            if ($value === false || $value === null || $value === '') {
+                continue;
+            }
+
+            if (is_numeric($value) && (int) $value > 0) {
+                $ids[] = (int) $value;
+                continue;
+            }
+
+            if (is_numeric($key) && (int) $key > 0) {
+                $ids[] = (int) $key;
+            }
+        }
+
+        return array_values(array_unique($ids));
+    }
+
+    protected function exportSuccessMessage(string $scope, int $totalRows, string $fileName): string
+    {
+        $scopeText = match ($scope) {
+            'selected' => "{$totalRows} sản phẩm đã chọn",
+            'current_page' => "{$totalRows} sản phẩm trên trang hiện tại",
+            'filter' => "{$totalRows} sản phẩm theo filter",
+            default => "{$totalRows} dòng",
+        };
+
+        return "Đã export {$scopeText}. File: {$fileName}";
+    }
+
+    protected function exportScopeSummary(string $scope): string
+    {
+        return match ($scope) {
+            'selected' => 'Xuất các sản phẩm đang được tick trong bảng.',
+            'current_page' => 'Xuất các sản phẩm đang hiển thị trên trang hiện tại, không dùng checkbox đã tick.',
+            'filter' => 'Xuất toàn bộ sản phẩm theo filter hiện tại, không dùng checkbox đã tick.',
+            default => 'Chọn phạm vi export.',
+        };
     }
 }

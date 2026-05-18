@@ -15,6 +15,23 @@
                 $bg = data_get($design, 'background_color', '#ffffff');
                 $color = data_get($design, 'text_color', '#0f172a');
                 $type = $campaign->type;
+                $position = data_get($design, 'position', 'center');
+                $position = in_array($position, ['center', 'bottom_right', 'bottom_left'], true) ? $position : 'center';
+                $videoUrl = data_get($content, 'video_url');
+                $videoEmbedUrl = null;
+                if (is_string($videoUrl) && $videoUrl !== '') {
+                    $videoHost = strtolower((string) parse_url($videoUrl, PHP_URL_HOST));
+                    $videoPath = (string) parse_url($videoUrl, PHP_URL_PATH);
+                    parse_str((string) parse_url($videoUrl, PHP_URL_QUERY), $videoQuery);
+
+                    if (str_contains($videoHost, 'youtube.com') && ! empty($videoQuery['v'])) {
+                        $videoEmbedUrl = 'https://www.youtube.com/embed/' . rawurlencode((string) $videoQuery['v']);
+                    } elseif (str_contains($videoHost, 'youtu.be')) {
+                        $videoEmbedUrl = 'https://www.youtube.com/embed/' . rawurlencode(trim($videoPath, '/'));
+                    } elseif (str_contains($videoHost, 'vimeo.com')) {
+                        $videoEmbedUrl = 'https://player.vimeo.com/video/' . rawurlencode(trim($videoPath, '/'));
+                    }
+                }
                 $isBar = in_array($type, ['top_bar', 'bottom_bar', 'floating_cta'], true);
                 $panelClass = match ($type) {
                     'top_bar' => 'site-campaign__bar site-campaign__bar--top',
@@ -26,7 +43,7 @@
             @endphp
 
             <div
-                class="site-campaign site-campaign--{{ $type }} hidden"
+                class="site-campaign site-campaign--{{ $type }} site-campaign--position-{{ $position }} hidden"
                 data-site-campaign
                 data-campaign-id="{{ $campaign->id }}"
                 data-type="{{ $type }}"
@@ -45,6 +62,18 @@
 
                     @if($imageUrl)
                         <img src="{{ $imageUrl }}" alt="{{ data_get($content, 'title', $campaign->title) }}" class="site-campaign__image" loading="lazy">
+                    @endif
+
+                    @if($videoEmbedUrl)
+                        <div class="site-campaign__video">
+                            <iframe
+                                src="{{ $videoEmbedUrl }}"
+                                title="{{ data_get($content, 'title', $campaign->title) }}"
+                                loading="lazy"
+                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                                allowfullscreen
+                            ></iframe>
+                        </div>
                     @endif
 
                     <div class="site-campaign__body">
@@ -104,10 +133,28 @@
             width: min(92vw, 520px);
             transform: translate(-50%, -50%);
         }
+        .site-campaign--position-bottom_right .site-campaign__modal-panel {
+            left: auto;
+            right: 1rem;
+            top: auto;
+            bottom: 1rem;
+            transform: none;
+        }
+        .site-campaign--position-bottom_left .site-campaign__modal-panel {
+            left: 1rem;
+            right: auto;
+            top: auto;
+            bottom: 1rem;
+            transform: none;
+        }
         .site-campaign__slide-in {
             right: 1rem;
             bottom: 1rem;
             width: min(92vw, 420px);
+        }
+        .site-campaign--position-bottom_left .site-campaign__slide-in {
+            left: 1rem;
+            right: auto;
         }
         .site-campaign__bar {
             position: fixed;
@@ -130,6 +177,10 @@
             padding: .875rem;
             box-shadow: 0 16px 40px rgba(15, 23, 42, .2);
         }
+        .site-campaign--position-bottom_left .site-campaign__floating {
+            left: 1rem;
+            right: auto;
+        }
         .site-campaign__close {
             position: absolute;
             right: .75rem;
@@ -143,6 +194,8 @@
             line-height: 1;
         }
         .site-campaign__image { width: 100%; max-height: 280px; object-fit: cover; border-radius: .75rem .75rem 0 0; }
+        .site-campaign__video { position: relative; aspect-ratio: 16 / 9; background: #0f172a; border-radius: .75rem .75rem 0 0; overflow: hidden; }
+        .site-campaign__video iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
         .site-campaign__body { padding: 1.25rem; }
         .site-campaign__bar .site-campaign__body { padding: 0; text-align: center; }
         .site-campaign__title { font-weight: 800; font-size: 1.125rem; line-height: 1.3; }

@@ -255,7 +255,8 @@ class ProductForm
                                         FileUpload::make('documents_json')
                                             ->label('Tài liệu kỹ thuật')
                                             ->multiple()
-                                            ->acceptedFileTypes(['application/pdf'])
+                                            ->acceptedFileTypes(fn () => app(UploadSettingService::class)->allowedFileTypes())
+                                            ->maxSize(fn () => app(UploadSettingService::class)->documentMaxSizeKb())
                                             ->disk(fn () => app(MediaDiskService::class)->getUploadDisk())
                                             ->directory('media/documents'),
                                     ]),

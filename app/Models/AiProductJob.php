@@ -14,6 +14,10 @@ class AiProductJob extends Model
     {
         return [
             'config_json' => 'array',
+            'selected_product_ids_json' => 'array',
+            'current_page_ids_json' => 'array',
+            'filter_json' => 'array',
+            'confirm_filter_scope' => 'boolean',
             'validation_errors' => 'array',
             'started_at' => 'datetime',
             'finished_at' => 'datetime',

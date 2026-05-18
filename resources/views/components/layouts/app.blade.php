@@ -63,6 +63,7 @@
     {{-- Vite Assets --}}
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 
+    @if(setting('seo.enable_schema', true))
     {{-- JSON-LD Schema --}}
     @stack('schema')
 
@@ -103,6 +104,7 @@
         }
     ]
     </script>
+    @endif
 
     @if(setting('tracking.google_analytics_id'))
         <!-- Google tag (gtag.js) -->

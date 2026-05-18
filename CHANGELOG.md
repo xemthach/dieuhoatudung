@@ -2,6 +2,43 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.21.0] - 2026-05-18
+
+### Added
+- Added Product table bulk export for selected products with field group selection and selected-record logging.
+- Added explicit Product export scopes for selected records, current page, and current filter, including scope/count-aware export filenames.
+- Added Product AI header actions that separate current-page generation from filter-wide generation with explicit filter confirmation.
+- Added persisted AI Product Job scope payload fields for selected product IDs, current page IDs, filter metadata, and filter confirmation.
+- Added Site Campaign video popup rendering for YouTube and Vimeo URLs plus position-aware modal, slide-in, and floating CTA placement.
+- Added upload-setting helpers for campaign image limits and allowed image extension derivation.
+- Added regression coverage for Product export scope handling, AI bulk scope handling, Site Campaign resolver behavior, upload settings, and SEO runtime settings.
+
+### Fixed
+- Fixed Product export from `/admin/products` so selected scope exports only checked products and no longer silently falls back to all products.
+- Fixed Product export current-page and filter scopes so they resolve explicit product IDs before generating files.
+- Fixed Site Campaign resolver so device targeting is applied before priority conflict resolution.
+- Fixed Site Campaign URL targeting so lower-priority matching campaigns are not dropped by a pre-filter query limit.
+- Fixed Site Campaign event tracking so expired campaigns no longer accept tracking events.
+- Fixed Site Campaign image uploads to use centralized upload MIME and size settings instead of a hardcoded 2 MB limit.
+- Fixed product review image validation and frontend hints to use centralized upload settings.
+- Fixed product technical document uploads to use centralized allowed file types and document size limits.
+- Fixed robots.txt generation so admin, search, and filter URL disallow rules follow site settings.
+- Fixed sitemap cache headers so they use the configured sitemap cache duration.
+- Fixed schema output toggles for layouts, breadcrumb schema, FAQ schema, and product schema.
+
+### Changed
+- Changed Product AI header actions to reject checkbox-selected scope and direct admins to table bulk actions for selected products.
+- Changed Product AI and export logging to include resolved IDs, scope, route, user, format, fields, and timestamps for auditability.
+- Changed Site Campaign CTA URL fields to require http(s) URLs or internal paths, and video/Zalo URL fields to validate as URLs.
+- Changed frontend JSON-LD rendering so global schema output can be disabled through SEO settings.
+
+### Removed
+- Nothing removed.
+
+### Security
+- Hardened Site Campaign tracking by requiring campaigns to be currently active within schedule before recording events.
+- Hardened Site Campaign admin URL fields against invalid CTA, video, and Zalo URLs.
+
 ## [1.20.0] - 2026-05-18
 
 ### Added

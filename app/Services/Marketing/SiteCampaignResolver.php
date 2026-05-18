@@ -18,10 +18,11 @@ class SiteCampaignResolver
         $placement = $this->placementForRoute((string) $request->route()?->getName());
         $path = '/'.ltrim($request->path(), '/');
         $url = $request->fullUrl();
+        $device = $this->deviceForRequest($request);
 
         $matches = SiteCampaign::active()
             ->whereIn('placement', ['all', $placement])
-            ->limit(25)
+            ->whereIn('device', ['both', $device])
             ->get()
             ->filter(fn (SiteCampaign $campaign): bool => $this->matchesUrlRules($campaign, $path, $url))
             ->values();
@@ -44,6 +45,15 @@ class SiteCampaignResolver
             str_starts_with($routeName, 'compare.') => 'compare',
             default => 'all',
         };
+    }
+
+    protected function deviceForRequest(Request $request): string
+    {
+        $userAgent = strtolower((string) $request->userAgent());
+
+        return preg_match('/mobile|android|iphone|ipad|ipod|blackberry|opera mini|iemobile/', $userAgent)
+            ? 'mobile'
+            : 'desktop';
     }
 
     protected function matchesUrlRules(SiteCampaign $campaign, string $path, string $url): bool

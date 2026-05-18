@@ -6,7 +6,9 @@
     $requirePhone  = $settings['require_phone'] ?? false;
     $allowImages   = $settings['allow_images'] ?? true;
     $maxImages     = (int) ($settings['max_images'] ?? 3);
-    $maxSizeMb     = (int) (setting('product_detail.review_max_image_size_mb', 3));
+    $uploadSettings = app(\App\Services\Settings\UploadSettingService::class);
+    $maxSizeText   = $uploadSettings->formatMb($uploadSettings->reviewImageMaxSizeKb());
+    $allowedImageTypes = $uploadSettings->allowedImageTypes();
     $showVerified  = $settings['show_verified_badge'] ?? true;
     // Re-open form on validation error or success flash (so user sees feedback)
     $formOpenInit  = ($errors->any() && old('_form') === 'review') ? 'true' : 'false';
@@ -225,17 +227,17 @@
                         @if($allowImages)
                             <div class="mt-4">
                                 <label for="review_images" class="mb-1 block text-sm font-medium text-surface-700">
-                                    Hình ảnh <span class="text-surface-400 font-normal">(tối đa {{ $maxImages }} ảnh, mỗi ảnh {{ $maxSizeMb }}MB)</span>
+                                    Hình ảnh <span class="text-surface-400 font-normal">(tối đa {{ $maxImages }} ảnh, mỗi ảnh {{ $maxSizeText }})</span>
                                 </label>
                                 <input
                                     type="file"
                                     id="review_images"
                                     name="images[]"
                                     multiple
-                                    accept="image/jpeg,image/png,image/webp"
+                                    accept="{{ implode(',', $allowedImageTypes) }}"
                                     class="w-full rounded-lg border border-surface-300 px-4 py-2 text-sm file:mr-4 file:rounded-lg file:border-0 file:bg-primary-50 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-primary-700 hover:file:bg-primary-100"
                                 >
-                                <p class="mt-1 text-xs text-surface-400">Định dạng hỗ trợ: JPG, PNG, WebP</p>
+                                <p class="mt-1 text-xs text-surface-400">Định dạng hỗ trợ: {{ implode(', ', $uploadSettings->allowedImageExtensions()) }}</p>
                             </div>
                         @endif
 
