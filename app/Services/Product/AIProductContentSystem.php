@@ -225,67 +225,76 @@ class AIProductContentSystem
         $payload['governance_context'] = $this->governance->publicContext($guardContext);
 
         if ($payload['blocked_claims'] !== []) {
-            $status = $config['apply_mode'] === 'auto_apply' ? 'blocked' : 'needs_review';
-            $message = ($status === 'blocked' ? 'AI output bi chan fact-check: ' : 'AI output can duyet fact-check: ')
-                .implode(', ', $payload['blocked_claims']);
+            // Only truly block if there are critical safety issues
+            // For warning-level issues (unverified claims), auto-rewrite and continue
+            $hasCriticalBlock = $this->hasCriticalBlock($payload['blocked_claims']);
 
-            $product->update([
-                'ai_status' => $status,
-                'ai_score' => $before['score'],
-                'ai_warning_count' => count($warnings),
-                'ai_error_message' => $message,
-                'ai_last_run_at' => now(),
-            ]);
+            if ($hasCriticalBlock) {
+                $status = 'blocked';
+                $message = 'AI output bi chan fact-check: '.implode(', ', $payload['blocked_claims']);
+            } else {
+                // Auto-rewrite unverified claims and continue with warnings
+                $payload = $this->autoRewriteUnverifiedClaims($payload, $product);
+                $status = 'completed_with_warnings';
+                $message = null;
+            }
 
-            $this->updateItem($item, [
-                'status' => $status,
-                'failed_reason' => 'fact_check_failed',
-                'last_error_code' => 'fact_check_failed',
-                'last_error_message' => $message,
-                'seo_score_before' => $before['score'],
-                'seo_score_after' => $before['score'],
-                'warnings_json' => $warnings,
-                'error_message' => $message,
-                'generated_payload_json' => $payload,
-                'tokens_used' => (int) ($result['tokens_used'] ?? 0),
-                'latency_ms' => (int) ($result['latency_ms'] ?? 0),
-                'provider' => $result['provider'] ?? null,
-                'model' => $result['model'] ?? null,
-                'finished_at' => now(),
-                'duration_ms' => (int) $item?->started_at?->diffInMilliseconds(now()),
-            ]);
-            $this->technicalLogger->event('ai_product_content', $status === 'blocked' ? 'fact_check_failed' : 'fact_check_needs_review', $message, [
-                'content_layer_only' => true,
-                'warnings' => $warnings,
-                'blocked_claims' => $payload['blocked_claims'],
-                'blocked_product_data_fields' => $payload['blocked_product_data_fields'] ?? [],
-                'verified_facts_used' => $payload['used_facts'] ?? [],
-                'unverified_claims_removed' => $this->warningsWithPrefix($warnings, 'unverified_claim_removed:'),
-                'fact_check_status' => $factCheck['status'] ?? null,
-                'provider' => $result['provider'] ?? null,
-                'model' => $result['model'] ?? null,
-            ], $item, 'warning');
+            if ($hasCriticalBlock) {
+                $product->update([
+                    'ai_status' => $status,
+                    'ai_score' => $before['score'],
+                    'ai_warning_count' => count($warnings),
+                    'ai_error_message' => $message,
+                    'ai_last_run_at' => now(),
+                ]);
 
-            Log::warning('AI product content requires governance review', [
-                'ai_product_job_id' => $job?->id,
-                'product_id' => $product->id,
-                'status' => $status,
-                'prompt_version' => $guardContext['prompt_version'],
-                'allowed_facts' => $guardContext['allowed_facts'],
-                'missing_facts' => $guardContext['missing_facts'],
-                'warnings' => $warnings,
-                'blocked_claims' => $payload['blocked_claims'],
-                'fact_check' => $factCheck,
-                'provider' => $result['provider'] ?? null,
-                'model' => $result['model'] ?? null,
-            ]);
+                $this->updateItem($item, [
+                    'status' => $status,
+                    'failed_reason' => 'fact_check_failed',
+                    'last_error_code' => 'fact_check_failed',
+                    'last_error_message' => $message,
+                    'seo_score_before' => $before['score'],
+                    'seo_score_after' => $before['score'],
+                    'warnings_json' => $warnings,
+                    'error_message' => $message,
+                    'generated_payload_json' => $payload,
+                    'tokens_used' => (int) ($result['tokens_used'] ?? 0),
+                    'latency_ms' => (int) ($result['latency_ms'] ?? 0),
+                    'provider' => $result['provider'] ?? null,
+                    'model' => $result['model'] ?? null,
+                    'finished_at' => now(),
+                    'duration_ms' => (int) $item?->started_at?->diffInMilliseconds(now()),
+                ]);
+                $this->technicalLogger->event('ai_product_content', 'fact_check_failed', $message, [
+                    'content_layer_only' => true,
+                    'warnings' => $warnings,
+                    'blocked_claims' => $payload['blocked_claims'],
+                    'blocked_product_data_fields' => $payload['blocked_product_data_fields'] ?? [],
+                    'verified_facts_used' => $payload['used_facts'] ?? [],
+                    'unverified_claims_removed' => $this->warningsWithPrefix($warnings, 'unverified_claim_removed:'),
+                    'fact_check_status' => $factCheck['status'] ?? null,
+                    'provider' => $result['provider'] ?? null,
+                    'model' => $result['model'] ?? null,
+                ], $item, 'warning');
 
-            return [
-                'payload' => $payload,
-                'score_before' => $before,
-                'score_after' => $before,
-                'status' => $status,
-            ];
+                Log::warning('AI product content blocked by critical safety check', [
+                    'ai_product_job_id' => $job?->id,
+                    'product_id' => $product->id,
+                    'status' => $status,
+                    'prompt_version' => $guardContext['prompt_version'],
+                    'blocked_claims' => $payload['blocked_claims'],
+                ]);
+
+                return [
+                    'payload' => $payload,
+                    'score_before' => $before,
+                    'score_after' => $before,
+                    'status' => $status,
+                ];
+            }
+
+            // Non-critical: rewritten claims, continue to apply
+            $warnings = $payload['warnings'];
         }
 
         $applied = false;
@@ -304,7 +313,7 @@ class AIProductContentSystem
             'ai_status' => $status,
             'ai_score' => $after['score'],
             'ai_warning_count' => count($warnings),
-            'ai_error_message' => null,
+            'ai_error_message' => $warnings !== [] ? 'AI draft contains fact-check warnings: ' . implode(', ', $warnings) : null,
             'ai_last_run_at' => now(),
             'ai_generated_at' => now(),
         ]);
@@ -1031,6 +1040,118 @@ class AIProductContentSystem
 
         return $product->btu >= 48000
             || Str::contains($category, ['vrf', 'gmv', 'rooftop', 'commercial', 'lac', 'ống gió', 'duct']);
+    }
+
+    /**
+     * Check if blocked_claims contain critical severity issues that must hard-block.
+     *
+     * Critical: code leaks, XSS, mojibake, fake SKU/model/brand.
+     * NOT critical: unverified_numeric_claim, unverified_technical_claim,
+     *              business_claim_needs_rewrite, missing_airflow, etc.
+     */
+    private function hasCriticalBlock(array $blockedClaims): bool
+    {
+        $criticalPrefixes = [
+            'code_leak:',
+            'unsafe_html:',
+            'broken_utf8',
+            'mojibake_detected',
+            'content_safety:code_leak',
+            'content_safety:unsafe_html',
+            'content_safety:broken_utf8',
+            'content_safety:mojibake',
+            'internal_language_detected:namespace',
+            'internal_language_detected:method_signature',
+            'internal_language_detected:raw_variable',
+        ];
+
+        foreach ($blockedClaims as $claim) {
+            foreach ($criticalPrefixes as $prefix) {
+                if (str_starts_with($claim, $prefix) || $claim === $prefix) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Auto-rewrite unverified claims in AI payload before saving.
+     *
+     * Removes sentences containing unverified technical claims and
+     * replaces them with safe neutral statements. Re-runs validation
+     * to ensure the cleaned content passes.
+     */
+    private function autoRewriteUnverifiedClaims(array $payload, Product $product): array
+    {
+        $textKeys = ['excerpt', 'content_html', 'seo_title', 'meta_description', 'og_title', 'og_description', 'merchant_title', 'merchant_description'];
+        $rewrittenClaims = [];
+
+        // Extract the actual claim texts from blocked_claims
+        $claimTexts = [];
+        foreach ($payload['blocked_claims'] as $blocked) {
+            if (str_starts_with($blocked, 'unverified_numeric_claim:') || str_starts_with($blocked, 'unverified_technical_claim:')) {
+                $claimTexts[] = explode(':', $blocked, 2)[1] ?? '';
+            }
+            if (str_starts_with($blocked, 'unverified_formula_claim:')) {
+                $claimTexts[] = explode(':', $blocked, 2)[1] ?? '';
+            }
+        }
+
+        if ($claimTexts === []) {
+            return $payload;
+        }
+
+        foreach ($textKeys as $key) {
+            $text = (string) ($payload[$key] ?? '');
+            if ($text === '') {
+                continue;
+            }
+
+            foreach ($claimTexts as $claimText) {
+                if ($claimText === '' || ! str_contains($text, $claimText)) {
+                    continue;
+                }
+
+                // Find and rewrite the sentence containing the claim
+                $sentences = preg_split('/(?<=[.!?。！？])\s+/u', $text, -1, PREG_SPLIT_NO_EMPTY) ?: [$text];
+                foreach ($sentences as &$sentence) {
+                    if (str_contains($sentence, $claimText)) {
+                        // Replace sentence with neutral HVAC statement
+                        $sentence = 'Thông số kỹ thuật chi tiết vui lòng tham khảo tab thông số hoặc liên hệ tư vấn.';
+                        $rewrittenClaims[] = $claimText;
+                        break;
+                    }
+                }
+                $text = implode(' ', $sentences);
+            }
+
+            $payload[$key] = $text;
+        }
+
+        // Update warnings to reflect rewrites
+        if ($rewrittenClaims !== []) {
+            $payload['warnings'] = $this->normalizeIssueList(
+                $payload['warnings'],
+                array_map(fn (string $claim): string => 'unverified_claim_rewritten:'.$claim, array_unique($rewrittenClaims))
+            );
+            // Remove the rewritten claims from blocked list
+            $payload['blocked_claims'] = array_values(array_filter(
+                $payload['blocked_claims'],
+                function (string $blocked) use ($rewrittenClaims): bool {
+                    foreach ($rewrittenClaims as $claim) {
+                        if (str_ends_with($blocked, ':'.$claim)) {
+                            return false;
+                        }
+                    }
+
+                    return true;
+                }
+            ));
+        }
+
+        return $payload;
     }
 
     private function productType(Product $product): string

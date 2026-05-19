@@ -424,7 +424,7 @@ class AIProductContentSystemTest extends TestCase
 
         $result = $this->serviceReturning($payload)->generate($product, $this->config(['apply_mode' => 'needs_review']));
 
-        $this->assertContains('unverified_numeric_claim:54 dB', $result['payload']['blocked_claims']);
+        $this->assertContains('unverified_technical_claim:54 dB', $result['payload']['warnings']);
     }
 
     public function test_vat_claim_without_config_is_removed_before_fact_check(): void

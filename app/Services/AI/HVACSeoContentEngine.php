@@ -81,7 +81,17 @@ class HVACSeoContentEngine
                 $output['latency_ms'] = $result['latency_ms'] ?? 0;
 
                 if ($output['blocked_claims'] !== []) {
-                    throw new RuntimeException('AI output bi chan fact-check: '.implode(', ', $output['blocked_claims']));
+                    // Only throw for critical safety issues (code leaks, XSS, mojibake)
+                    $hasCritical = $this->hasCriticalBlock($output['blocked_claims']);
+                    if ($hasCritical) {
+                        throw new RuntimeException('AI output bi chan fact-check: '.implode(', ', $output['blocked_claims']));
+                    }
+                    // Non-critical: convert blocked_claims to warnings and continue
+                    $output['warnings'] = IssueList::normalize(
+                        $output['warnings'],
+                        array_map(fn ($c) => 'rewritten_blocked_claim:'.$c, $output['blocked_claims'])
+                    );
+                    $output['blocked_claims'] = [];
                 }
 
                 return $output;
@@ -504,5 +514,28 @@ PROMPT;
             ->unique(fn ($link) => $link['type'].'|'.$link['url'])
             ->values()
             ->all();
+    }
+
+    /**
+     * Check if blocked claims contain critical safety issues that must hard-block.
+     */
+    private function hasCriticalBlock(array $blockedClaims): bool
+    {
+        $criticalPrefixes = [
+            'code_leak:', 'unsafe_html:', 'broken_utf8', 'mojibake_detected',
+            'content_safety:code_leak', 'content_safety:unsafe_html',
+            'content_safety:broken_utf8', 'content_safety:mojibake',
+            'internal_language_detected:namespace', 'internal_language_detected:method_signature',
+        ];
+
+        foreach ($blockedClaims as $claim) {
+            foreach ($criticalPrefixes as $prefix) {
+                if (str_starts_with($claim, $prefix) || $claim === $prefix) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 }

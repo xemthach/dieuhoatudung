@@ -7,7 +7,7 @@ return [
             'required_source' => 'policy.vat',
             'allow_if' => ['product.vat_enabled', 'settings.vat_enabled'],
             'rewrite_strategy' => 'remove_or_replace_with_pricing_policy',
-            'severity' => 'block',
+            'severity' => 'rewrite',
         ],
         'mien_phi' => [
             'patterns' => ['/\\bmien\\s+phi\\b/iu', '/\\bmiễn\\s+phí\\b/iu'],
@@ -63,7 +63,7 @@ return [
             'required_source' => 'policy.co_cq',
             'allow_if' => ['policy.co_cq'],
             'rewrite_strategy' => 'remove_certification_claim',
-            'severity' => 'block',
+            'severity' => 'rewrite',
         ],
         'percent_100' => [
             'patterns' => ['/100\\s*%/u'],

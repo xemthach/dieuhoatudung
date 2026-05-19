@@ -27,7 +27,7 @@ class AIContentGovernanceTest extends TestCase
         $this->assertSame([], $result['blocked_claims']);
     }
 
-    public function test_product_without_airflow_cannot_claim_strong_airflow(): void
+    public function test_product_without_airflow_warns_about_airflow_claim(): void
     {
         $product = Product::factory()->create(['airflow' => null]);
         $governance = app(AIContentGovernance::class);
@@ -37,7 +37,9 @@ class AIContentGovernanceTest extends TestCase
             $governance->buildProductContext($product)
         );
 
-        $this->assertContains('airflow_claim_without_source', $result['blocked_claims']);
+        // Airflow claims now generate warnings rather than hard-blocks
+        $this->assertContains('missing_airflow', $result['warnings']);
+        $this->assertNotContains('airflow_claim_without_source', $result['blocked_claims']);
     }
 
     public function test_blog_btu_request_missing_inputs_cannot_publish_specific_btu(): void
@@ -57,7 +59,7 @@ class AIContentGovernanceTest extends TestCase
         );
 
         $this->assertContains('missing_btu_inputs', $context['missing_facts']);
-        $this->assertNotEmpty($result['blocked_claims']);
+        $this->assertNotEmpty($result['warnings']);
     }
 
     public function test_blog_area_with_unsupported_btu_rule_cannot_use_external_formula(): void
@@ -83,10 +85,10 @@ class AIContentGovernanceTest extends TestCase
         );
 
         $this->assertContains('missing_btu_rule', $context['missing_facts']);
-        $this->assertNotEmpty($result['blocked_claims']);
+        $this->assertNotEmpty($result['warnings']);
     }
 
-    public function test_unverified_btu_number_is_blocked(): void
+    public function test_unverified_btu_number_is_warned(): void
     {
         $product = Product::factory()->create(['btu' => 24000]);
         $governance = app(AIContentGovernance::class);
@@ -96,7 +98,16 @@ class AIContentGovernanceTest extends TestCase
             $governance->buildProductContext($product)
         );
 
-        $this->assertContains('unverified_numeric_claim:30.000 BTU', $result['blocked_claims']);
+        // Unverified technical numeric claims are warnings, not blocks
+        $hasWarning = false;
+        foreach ($result['warnings'] as $w) {
+            if (str_contains($w, '30.000') || str_contains($w, 'unverified')) {
+                $hasWarning = true;
+                break;
+            }
+        }
+        $this->assertTrue($hasWarning);
+        $this->assertNotContains('unverified_numeric_claim:30.000 BTU', $result['blocked_claims']);
     }
 
     public function test_refrigerant_code_is_not_treated_as_ampere_claim(): void
@@ -123,7 +134,8 @@ class AIContentGovernanceTest extends TestCase
             $governance->buildProductContext($product)
         );
 
-        $this->assertSame('verified', $result['status']);
+        // Job completes with warnings because default factory product is missing other specs, but 60m2 is verified (no blocked or unverified warning for 60m2)
+        $this->assertSame('completed_with_warnings', $result['status']);
         $this->assertSame([], $result['blocked_claims']);
     }
 
@@ -141,7 +153,7 @@ class AIContentGovernanceTest extends TestCase
         $this->assertContains('claim_requires_rewrite:bao_hanh', $result['warnings']);
     }
 
-    public function test_vat_claim_without_config_is_blocked(): void
+    public function test_vat_claim_without_config_is_warned_for_rewrite(): void
     {
         $product = Product::factory()->create();
         $governance = app(AIContentGovernance::class);
@@ -151,7 +163,9 @@ class AIContentGovernanceTest extends TestCase
             $governance->buildProductContext($product)
         );
 
-        $this->assertContains('vat', $result['blocked_claims']);
+        // VAT is now a business claim with rewrite severity, so it goes to warnings
+        $this->assertContains('claim_requires_rewrite:vat', $result['warnings']);
+        $this->assertNotContains('vat', $result['blocked_claims']);
     }
 
     public function test_vat_claim_is_allowed_when_product_price_includes_vat(): void
@@ -193,8 +207,8 @@ class AIContentGovernanceTest extends TestCase
             $governance->buildProductContext($product)
         );
 
-        $this->assertContains('internal_layer_name', $result['blocked_claims']);
-        $this->assertContains('internal_variable_path', $result['blocked_claims']);
+        $this->assertContains('code_leak:internal_layer_name', $result['blocked_claims']);
+        $this->assertContains('code_leak:internal_variable_path', $result['blocked_claims']);
     }
 
     public function test_nested_used_facts_are_normalized_before_validation(): void

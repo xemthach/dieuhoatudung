@@ -5,6 +5,8 @@ namespace App\Services\AI;
 use App\Models\AiContentJob;
 use App\Models\Product;
 use App\Services\AI\Governance\AICodeLeakDetector;
+use App\Services\AI\Governance\BusinessClaimValidator;
+use App\Services\AI\Governance\ContentSafetyValidator;
 use App\Services\AI\Governance\ForbiddenClaimEngine;
 use App\Services\AI\Governance\HVACTechnicalFactValidator;
 use App\Services\AI\Governance\UTF8ContentValidator;
@@ -21,6 +23,8 @@ class AIContentGovernance
     public function __construct(
         private readonly VerifiedFactRegistry $factRegistry,
         private readonly HVACTechnicalFactValidator $technicalFactValidator,
+        private readonly BusinessClaimValidator $businessClaimValidator,
+        private readonly ContentSafetyValidator $contentSafetyValidator,
         private readonly ForbiddenClaimEngine $claimEngine,
         private readonly AICodeLeakDetector $codeLeakDetector,
         private readonly UTF8ContentValidator $utf8Validator,
@@ -283,102 +287,102 @@ class AIContentGovernance
     {
         $plain = $this->utf8Validator->cleanString($this->plainText($html), 'ai_governance_text');
         $ascii = Str::ascii(Str::lower($plain));
-        $allowedNumbers = $this->allowedNumbers($context);
-        $allowedRanges = $this->allowedNumberRanges($context);
 
         $warnings = [];
         $blockedClaims = [];
+        $validationLog = [];
         $used = $this->validateUsedFacts($usedFacts, $context, $warnings);
 
+        // Layer 1: Technical Fact Validation (context-aware classification)
         $technical = $this->technicalFactValidator->validateText($plain, $context);
-        $claims = $this->claimEngine->detect($plain, $context);
-        $codeLeaks = $this->codeLeakDetector->detect($plain);
-
-        $warnings = array_merge(
-            $warnings,
-            $technical['warnings'] ?? [],
-            $claims['warnings'] ?? [],
-            $codeLeaks['warnings'] ?? []
-        );
-        $blockedClaims = array_merge(
-            $blockedClaims,
-            $technical['blocked_claims'] ?? [],
-            $claims['blocked_claims'] ?? [],
-            $codeLeaks['blocked_claims'] ?? []
-        );
+        $warnings = array_merge($warnings, $technical['warnings'] ?? []);
+        // Technical claims now produce warnings, not blocks (rewrite-first approach)
         $used = array_merge($used, $technical['used_facts'] ?? []);
+        $validationLog = array_merge($validationLog, $technical['log'] ?? []);
 
-        if (preg_match_all('/(\d{1,3}(?:[.,]\d{3})*(?:[.,]\d+)?|\d+)\s*(BTU|kW|HP|m2|m²|dB|Pa|mm|kg|W|A)\b/iu', $plain, $matches, PREG_SET_ORDER)) {
-            foreach ($matches as $match) {
-                if (preg_match('/[A-Za-z]'.preg_quote(trim($match[0]), '/').'\b/u', $plain)) {
-                    continue;
-                }
+        // Layer 2: Business Claim Validation (VAT, warranty, etc. - never blocks)
+        $business = $this->businessClaimValidator->validate($plain, $context);
+        $warnings = array_merge($warnings, $business['warnings'] ?? []);
+        $validationLog = array_merge($validationLog, $business['log'] ?? []);
 
-                $unit = Str::lower($match[2]);
-                $normalizedUnit = $unit === 'm²' ? 'm2' : $unit;
-                $number = $this->normalizeNumber($match[1]);
+        // Layer 3: Content Safety Validation (UTF-8, code leaks, XSS - critical blocks)
+        $safety = $this->contentSafetyValidator->validate($plain);
+        $warnings = array_merge($warnings, $safety['warnings'] ?? []);
+        $blockedClaims = array_merge($blockedClaims, $safety['blocked_claims'] ?? []);
+        $validationLog = array_merge($validationLog, $safety['log'] ?? []);
 
-                if (! $this->numberAllowed($number, $normalizedUnit, $allowedNumbers, $allowedRanges)) {
-                    $claim = trim($match[0]);
-                    $warnings[] = 'unverified_numeric_claim:'.$claim;
-                    $blockedClaims[] = 'unverified_numeric_claim:'.$claim;
-                }
-            }
-        }
+        // Legacy claim engine for backward compatibility (forbidden marketing claims)
+        $claims = $this->claimEngine->detect($plain, $context);
+        $warnings = array_merge($warnings, $claims['warnings'] ?? []);
+        $blockedClaims = array_merge($blockedClaims, $claims['blocked_claims'] ?? []);
 
+        // Price claims still verified against allowed numbers
+        $allowedNumbers = $this->allowedNumbers($context);
+        $allowedRanges = $this->allowedNumberRanges($context);
         if (preg_match_all('/(\d{1,3}(?:[.,]\d{3})*(?:[.,]\d+)?|\d+)\s*(VND|VNĐ|đ|dong)\b/iu', $plain, $matches, PREG_SET_ORDER)) {
             foreach ($matches as $match) {
                 $number = $this->normalizeNumber($match[1]);
                 if (! $this->numberAllowed($number, 'vnd', $allowedNumbers, $allowedRanges)) {
                     $claim = trim($match[0]);
                     $warnings[] = 'unverified_price_claim:'.$claim;
-                    $blockedClaims[] = 'unverified_price_claim:'.$claim;
                 }
             }
         }
 
-        foreach (self::FORBIDDEN_CLAIMS as $code => $rule) {
-            if (config('ai_claim_rules.claims.'.$code.'.severity') !== 'block') {
-                continue;
-            }
-
-            if (preg_match($rule['pattern'], $ascii)
-                && ! $this->claimAllowedByConfig($code, $context)
-                && ! $this->hasAllowedFact($context, $rule['source_key'])) {
-                $warnings[] = 'blocked_claim:'.$code;
-                $blockedClaims[] = $code;
-            }
-        }
-
-        foreach (self::INTERNAL_LANGUAGE_PATTERNS as $code => $pattern) {
-            if (preg_match($pattern, $plain)) {
-                $warnings[] = 'internal_language_detected:'.$code;
-                $blockedClaims[] = $code;
-            }
-        }
-
+        // Soft qualitative claims (missing airflow/noise sources produce warnings, not blocks)
         if (in_array('missing_airflow', $context['missing_facts'] ?? [], true)
             && preg_match('/\b(luu luong gio|gio manh|thoi gio manh|phan phoi gio manh)\b/u', $ascii)) {
             $warnings[] = 'missing_airflow';
-            $blockedClaims[] = 'airflow_claim_without_source';
         }
 
         if (in_array('missing_noise_level', $context['missing_facts'] ?? [], true)
             && preg_match('/\b(em ai|do on thap|van hanh em)\b/u', $ascii)) {
             $warnings[] = 'missing_noise_level';
-            $blockedClaims[] = 'noise_claim_without_source';
         }
 
+        // Determine final status based on severity
+        $status = $this->determineValidationStatus($blockedClaims, $warnings, $technical, $safety);
+
         return [
-            'status' => $blockedClaims === [] ? 'verified' : 'blocked',
+            'status' => $status,
             'warnings' => IssueList::normalize($warnings),
             'blocked_claims' => IssueList::normalize($blockedClaims),
             'used_facts' => IssueList::normalize($used),
             'technical_claims' => $technical['technical_claims'] ?? [],
+            'rewritable_claims' => $technical['rewritable_claims'] ?? [],
+            'business_claims' => $business['allowed_claims'] ?? [],
+            'validation_log' => $validationLog,
             'calculation_source' => Arr::get($context, 'calculation_rules.specific_btu_result_allowed')
                 ? 'verified_hvac_calculation'
                 : null,
         ];
+    }
+
+    /**
+     * Determine validation status using severity classification.
+     *
+     * critical: blocks (code leaks, XSS, mojibake, fake SKU/model)
+     * warning: completed_with_warnings (unverified claims rewritten)
+     * review: needs_review (claims possibly correct but unverified)
+     */
+    private function determineValidationStatus(array $blockedClaims, array $warnings, array $technical, array $safety): string
+    {
+        // Critical safety issues always block
+        if ($blockedClaims !== []) {
+            return 'blocked';
+        }
+
+        // If there are rewritable technical claims, mark as needs rewrite (not blocked)
+        if (! empty($technical['rewritable_claims'])) {
+            return 'completed_with_warnings';
+        }
+
+        // If there are any warnings, mark accordingly
+        if ($warnings !== []) {
+            return 'completed_with_warnings';
+        }
+
+        return 'verified';
     }
 
     public function dataCompleteness(Product $product): array

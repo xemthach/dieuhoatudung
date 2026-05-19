@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.22.0] - 2026-05-19
+
+### Added
+- Created 3-layer AI Governance testing suite `AIGovernanceThreeLayerTest.php` containing 24 integration tests covering Technical Claim Verification, Business/Policy Claim Verification, and Safety & Code Leak checks.
+- Integrated automated rewrite logic (`autoRewriteUnverifiedClaims` and `hasCriticalBlock`) into `AIProductContentSystem` and `HVACSeoContentEngine`.
+
+### Fixed
+- Fixed unverified HVAC technical/marketing claims (such as noise levels, dimensions, BTU capacity, and floor areas) so they are automatically rewritten to neutral Vietnamese statements instead of hard-blocking AI content generation jobs.
+- Changed default severities of `vat` and `co_cq` rules in `config/ai_claim_rules.php` from `block` to `rewrite` to prevent unnecessary job failures when they are not configured.
+- Hardened internal code safety in `ContentSafetyValidator.php` by adding regex patterns to detect internal Laravel variable paths (e.g. `product.capacity_btu`) and safety-blocking them.
+- Updated `AIProductContentSystemTest.php`, `AIGovernanceRuleEngineTest.php`, and `AIContentGovernanceTest.php` to align legacy assertions with the new 3-layer warn-and-rewrite governance behavior.
+
 ## [1.21.0] - 2026-05-18
 
 ### Added

@@ -52,7 +52,7 @@ class AIGovernanceRuleEngineTest extends TestCase
         $this->assertContains('product.technical_specs_json.0', $result['used_facts']);
     }
 
-    public function test_unverified_technical_claim_is_blocked_by_registry(): void
+    public function test_unverified_technical_claim_is_warned_by_registry(): void
     {
         $product = Product::factory()->create([
             'specs_json' => [
@@ -66,10 +66,19 @@ class AIGovernanceRuleEngineTest extends TestCase
             $governance->buildProductContext($product)
         );
 
-        $this->assertContains('unverified_numeric_claim:160 Pa', $result['blocked_claims']);
+        // Unverified technical claims now produce warnings, not blocks
+        $hasWarning = false;
+        foreach ($result['warnings'] as $w) {
+            if (str_contains($w, '160') || str_contains($w, 'unverified')) {
+                $hasWarning = true;
+                break;
+            }
+        }
+        $this->assertTrue($hasWarning);
+        $this->assertNotSame('blocked', $result['status']);
     }
 
-    public function test_forbidden_claim_engine_blocks_policy_claims_without_source(): void
+    public function test_forbidden_claim_engine_handles_policy_claims_without_source(): void
     {
         $product = Product::factory()->create(['warranty_info' => null]);
         $context = app(AIContentGovernance::class)->buildProductContext($product);
@@ -79,8 +88,10 @@ class AIGovernanceRuleEngineTest extends TestCase
             $context
         );
 
-        $this->assertContains('vat', $result['blocked_claims']);
-        $this->assertContains('co_cq', $result['blocked_claims']);
+        // VAT and CO/CQ are now rewrite severity (business claims), not block
+        $this->assertContains('claim_requires_rewrite:vat', $result['warnings']);
+        $this->assertContains('claim_requires_rewrite:co_cq', $result['warnings']);
+        // percent_100 remains block severity
         $this->assertContains('percent_100', $result['blocked_claims']);
         $this->assertNotContains('chinh_hang', $result['blocked_claims']);
         $this->assertContains('claim_requires_rewrite:chinh_hang', $result['warnings']);
@@ -161,7 +172,7 @@ class AIGovernanceRuleEngineTest extends TestCase
         $this->assertNotContains('unverified_numeric_claim:160 Pa', $result['blocked_claims']);
     }
 
-    public function test_area_claim_without_recommended_area_remains_blocked(): void
+    public function test_area_claim_without_recommended_area_is_warned(): void
     {
         $product = Product::factory()->create([
             'recommended_area' => null,
@@ -174,7 +185,16 @@ class AIGovernanceRuleEngineTest extends TestCase
             $governance->buildProductContext($product)
         );
 
-        $this->assertContains('unverified_numeric_claim:60m2', $result['blocked_claims']);
+        // Area claims without source now produce warnings, not blocks
+        $this->assertNotSame('blocked', $result['status']);
+        $hasWarning = false;
+        foreach ($result['warnings'] as $w) {
+            if (str_contains($w, '60') || str_contains($w, 'unverified')) {
+                $hasWarning = true;
+                break;
+            }
+        }
+        $this->assertTrue($hasWarning);
     }
 
     public function test_range_claim_passes_when_both_endpoints_exist_in_same_verified_fact(): void
