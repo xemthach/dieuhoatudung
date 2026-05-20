@@ -3,12 +3,14 @@
 namespace App\Services\Product;
 
 use App\Models\AiProductContentVersion;
+use App\Models\AiProductDraft;
 use App\Models\AiProductJob;
 use App\Models\AiProductJobItem;
 use App\Models\Faq;
 use App\Models\Product;
 use App\Models\Tag;
 use App\Services\AI\AIContentGovernance;
+use App\Services\AI\AIContentPatchService;
 use App\Services\AI\Governance\ForbiddenClaimEngine;
 use App\Services\AI\AIManager;
 use App\Services\AI\AITechnicalLogger;
@@ -119,12 +121,19 @@ class AIProductContentSystem
             $outputs = [];
         }
 
+        $applyMode = match ($config['apply_mode'] ?? 'draft_only') {
+            'needs_review' => 'draft_only',
+            'auto_apply' => 'auto_apply_safe_fields',
+            'draft_only', 'auto_apply_safe_fields', 'full_auto_if_passed' => $config['apply_mode'],
+            default => 'draft_only',
+        };
+
         return [
             'mode' => $config['mode'] ?? 'missing_only',
             'depth' => $config['depth'] ?? 'seo',
             'tone' => $config['tone'] ?? 'hvac_expert',
             'batch_size' => max(1, min((int) ($config['batch_size'] ?? 10), 50)),
-            'apply_mode' => $config['apply_mode'] ?? 'needs_review',
+            'apply_mode' => $applyMode,
             'outputs' => array_merge([
                 'content' => false,
                 'seo' => false,
@@ -201,6 +210,7 @@ class AIProductContentSystem
             $payload = json_decode($result['content'], true) ?: [];
         }
 
+        $rawPayload = $payload;
         $payload = $this->normalizePayload($payload, $product, $config);
         $factCheck = $this->governance->validatePayload($payload, $guardContext, [
             'excerpt',
@@ -223,6 +233,32 @@ class AIProductContentSystem
         $payload['used_facts'] = $factCheck['used_facts'];
         $payload['fact_check'] = $factCheck;
         $payload['governance_context'] = $this->governance->publicContext($guardContext);
+        $validationErrors = $this->structuredValidationErrors($payload, $config);
+        $fieldStatus = $this->fieldStatus($payload, $warnings, $payload['blocked_claims'], $config);
+        $tokenUsage = [
+            'generate_tokens' => (int) ($result['tokens_used'] ?? 0),
+            'patch_tokens' => 0,
+            'saved_tokens_estimate' => 0,
+            'provider' => $result['provider'] ?? null,
+            'model' => $result['model'] ?? null,
+            'product_id' => $product->id,
+            'job_id' => $job?->id,
+        ];
+        $draft = $this->persistDraft($product, $job, $item, $rawPayload, $payload, $fieldStatus, $validationErrors, $warnings, $tokenUsage, 'draft');
+        foreach ($fieldStatus as $fieldName => $statusForField) {
+            Log::info('ai_token_usage', [
+                'generate_tokens' => $tokenUsage['generate_tokens'],
+                'patch_tokens' => 0,
+                'saved_tokens_estimate' => 0,
+                'provider' => $tokenUsage['provider'],
+                'model' => $tokenUsage['model'],
+                'field_name' => $fieldName,
+                'field_status' => $statusForField,
+                'product_id' => $product->id,
+                'job_id' => $job?->id,
+                'mode' => 'generate',
+            ]);
+        }
 
         if ($payload['blocked_claims'] !== []) {
             // Only truly block if there are critical safety issues
@@ -284,6 +320,7 @@ class AIProductContentSystem
                     'prompt_version' => $guardContext['prompt_version'],
                     'blocked_claims' => $payload['blocked_claims'],
                 ]);
+                $draft?->update(['status' => 'blocked']);
 
                 return [
                     'payload' => $payload,
@@ -298,7 +335,13 @@ class AIProductContentSystem
         }
 
         $applied = false;
-        if ($config['apply_mode'] === 'auto_apply') {
+        $canApply = match ($config['apply_mode']) {
+            'full_auto_if_passed' => $warnings === [] && ($payload['blocked_claims'] ?? []) === [],
+            'auto_apply_safe_fields' => ! $this->hasCriticalBlock($payload['blocked_claims'] ?? []),
+            default => false,
+        };
+
+        if ($canApply) {
             $this->applyPayload($product, $payload, $config, $before['score'], $userId);
             $applied = true;
             $product->refresh()->loadMissing(['brand', 'category', 'tags', 'faqs', 'relatedProducts', 'posts']);
@@ -331,6 +374,7 @@ class AIProductContentSystem
             'finished_at' => now(),
             'duration_ms' => (int) $item?->started_at?->diffInMilliseconds(now()),
         ]);
+        $draft?->update(['status' => $status]);
         $this->technicalLogger->event('ai_product_content', 'job_completed', 'AI product content generated.', [
             'content_layer_only' => true,
             'status' => $status,
@@ -422,6 +466,101 @@ class AIProductContentSystem
         ]);
 
         return $item;
+    }
+
+    public function retryDraftPatch(Product $product, AiProductJobItem $item, ?AiProductJob $job = null): ?array
+    {
+        $draft = $item->draft ?: AiProductDraft::query()
+            ->where('product_id', $product->id)
+            ->latest('id')
+            ->first();
+        $payload = $draft?->normalized_output_json ?: $item->generated_payload_json;
+
+        if (! is_array($payload) || $payload === []) {
+            return null;
+        }
+
+        $config = $this->normalizeConfig($job?->config_json ?? $item->job?->config_json ?? []);
+        $validationErrors = $draft?->validation_errors_json ?: $this->structuredValidationErrors($payload, $config);
+
+        if ($this->hasCriticalBlock($payload['blocked_claims'] ?? [])) {
+            $item->update(SchemaColumns::existing('ai_product_job_items', [
+                'status' => 'blocked',
+                'error_message' => 'Critical draft issue requires admin review.',
+                'validation_errors' => $validationErrors,
+                'finished_at' => now(),
+            ]));
+
+            return ['status' => 'blocked', 'payload' => $payload];
+        }
+
+        $patcher = app(AIContentPatchService::class);
+        $patchedFields = [];
+        foreach (array_keys($this->fieldStatus($payload, $payload['warnings'] ?? [], $payload['blocked_claims'] ?? [], $config)) as $field) {
+            $fieldErrors = array_values(array_filter($validationErrors, fn (array $error): bool => ($error['field'] ?? null) === $field));
+            if ($fieldErrors === []) {
+                continue;
+            }
+
+            $patched = $patcher->patchField(
+                $payload[$field] ?? null,
+                $fieldErrors,
+                $payload['used_facts'] ?? [],
+                [],
+                $field,
+            );
+            $payload[$field] = $patched['patched_field_content'];
+            $patchedFields[$field] = $patched['patch_notes'];
+        }
+
+        $payload['blocked_claims'] = [];
+        $payload['warnings'] = $this->normalizeIssueList($payload['warnings'] ?? [], 'patched_invalid_fragments');
+        $fieldStatus = $this->fieldStatus($payload, $payload['warnings'], [], $config);
+        $tokenUsage = [
+            'generate_tokens' => (int) ($item->tokens_used ?? 0),
+            'patch_tokens' => 0,
+            'saved_tokens_estimate' => max(0, (int) ($item->tokens_used ?? 0)),
+            'provider' => $item->provider,
+            'model' => $item->model,
+            'product_id' => $product->id,
+            'job_id' => $job?->id ?? $item->ai_product_job_id,
+            'patched_fields' => array_keys($patchedFields),
+        ];
+        $newDraft = $this->persistDraft($product, $job ?? $item->job, $item, $payload, $payload, $fieldStatus, [], $payload['warnings'], $tokenUsage, 'needs_review');
+
+        $product->update([
+            'ai_status' => 'needs_review',
+            'ai_error_message' => 'Draft patched partially; review before applying.',
+            'ai_last_run_at' => now(),
+        ]);
+        $item->update(SchemaColumns::existing('ai_product_job_items', [
+            'status' => 'needs_review',
+            'generated_payload_json' => $payload,
+            'warnings_json' => $payload['warnings'],
+            'field_status_json' => $fieldStatus,
+            'token_usage_json' => $tokenUsage,
+            'draft_id' => $newDraft?->id,
+            'finished_at' => now(),
+        ]));
+        $this->technicalLogger->event('ai_product_content', 'draft_patch_completed', 'Retried failed AI item by patching invalid fields only.', [
+            'patched_fields' => array_keys($patchedFields),
+            'saved_tokens_estimate' => $tokenUsage['saved_tokens_estimate'],
+        ], $item);
+        foreach (array_keys($patchedFields) as $fieldName) {
+            Log::info('ai_token_usage', [
+                'generate_tokens' => $tokenUsage['generate_tokens'],
+                'patch_tokens' => $tokenUsage['patch_tokens'],
+                'saved_tokens_estimate' => $tokenUsage['saved_tokens_estimate'],
+                'provider' => $tokenUsage['provider'],
+                'model' => $tokenUsage['model'],
+                'field_name' => $fieldName,
+                'product_id' => $product->id,
+                'job_id' => $job?->id ?? $item->ai_product_job_id,
+                'mode' => 'patch',
+            ]);
+        }
+
+        return ['status' => 'needs_review', 'payload' => $payload];
     }
 
     public function rollback(Product $product, ?int $versionId = null): ?AiProductContentVersion
@@ -544,6 +683,119 @@ class AIProductContentSystem
     private function updateItem(?AiProductJobItem $item, array $attributes): void
     {
         $item?->update(SchemaColumns::existing('ai_product_job_items', $attributes));
+    }
+
+    private function persistDraft(
+        Product $product,
+        ?AiProductJob $job,
+        ?AiProductJobItem $item,
+        array $rawPayload,
+        array $payload,
+        array $fieldStatus,
+        array $validationErrors,
+        array $warnings,
+        array $tokenUsage,
+        string $status,
+    ): ?AiProductDraft {
+        $draft = AiProductDraft::create([
+            'job_id' => $job?->id,
+            'product_id' => $product->id,
+            'module' => 'ai_product',
+            'raw_output_json' => $rawPayload,
+            'normalized_output_json' => $payload,
+            'field_status_json' => $fieldStatus,
+            'validation_errors_json' => $validationErrors,
+            'warnings_json' => $warnings,
+            'used_verified_facts_json' => $payload['used_facts'] ?? [],
+            'token_usage_json' => $tokenUsage,
+            'status' => $status,
+        ]);
+
+        $this->updateItem($item, [
+            'draft_id' => $draft->id,
+            'field_status_json' => $fieldStatus,
+            'token_usage_json' => $tokenUsage,
+            'error_count' => count($validationErrors),
+            'warning_count' => count($warnings),
+        ]);
+
+        return $draft;
+    }
+
+    private function fieldStatus(array $payload, array $warnings, array $blockedClaims, array $config): array
+    {
+        $fields = [
+            'excerpt', 'content_html', 'seo_title', 'meta_description', 'og_title', 'og_description',
+            'merchant_title', 'merchant_description', 'tags', 'faq', 'internal_links',
+        ];
+        $status = [];
+
+        foreach ($fields as $field) {
+            $value = $payload[$field] ?? null;
+            $status[$field] = blank($value) || $value === [] ? 'skipped' : 'valid';
+        }
+
+        foreach ($warnings as $warning) {
+            $field = $this->fieldFromIssue((string) $warning, $config);
+            $status[$field] = $status[$field] === 'skipped' ? 'warning' : 'warning';
+        }
+
+        foreach ($blockedClaims as $claim) {
+            $field = $this->fieldFromIssue((string) $claim, $config);
+            $status[$field] = $this->hasCriticalBlock([(string) $claim]) ? 'failed' : 'needs_patch';
+        }
+
+        return $status;
+    }
+
+    private function fieldFromIssue(string $issue, array $config): string
+    {
+        foreach (['merchant_description', 'merchant_title', 'faq', 'tags', 'seo_title', 'meta_description', 'og_title', 'og_description', 'content_html', 'excerpt'] as $field) {
+            if (str_contains($issue, $field)) {
+                return $field;
+            }
+        }
+
+        if (($config['outputs']['merchant'] ?? false) && str_contains($issue, 'merchant')) {
+            return 'merchant_description';
+        }
+
+        if (($config['outputs']['faq'] ?? false) && str_contains($issue, 'faq')) {
+            return 'faq';
+        }
+
+        return 'content_html';
+    }
+
+    private function structuredValidationErrors(array $payload, array $config): array
+    {
+        $errors = [];
+
+        foreach ($payload['blocked_claims'] ?? [] as $claim) {
+            $claim = (string) $claim;
+            $errors[] = [
+                'field' => $this->fieldFromIssue($claim, $config),
+                'severity' => $this->hasCriticalBlock([$claim]) ? 'critical' : 'warning',
+                'claim' => $claim,
+                'reason' => 'fact_check',
+                'suggested_action' => $this->hasCriticalBlock([$claim]) ? 'block' : 'patch',
+                'replacement' => '',
+            ];
+        }
+
+        foreach ($payload['warnings'] ?? [] as $warning) {
+            $warning = (string) $warning;
+            $errors[] = [
+                'field' => $this->fieldFromIssue($warning, $config),
+                'severity' => 'warning',
+                'claim' => $warning,
+                'reason' => 'validation_warning',
+                'suggested_action' => 'rewrite',
+                'replacement' => '',
+            ];
+        }
+
+        return $errors;
     }
 
     private function filterAiDeclaredMissingWarnings(array $warnings, array $guardContext): array

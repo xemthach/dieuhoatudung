@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Jobs\AiProductContentBatchJob;
 use App\Jobs\AiProductContentSingleJob;
 use App\Models\AiProductContentVersion;
+use App\Models\AiProductDraft;
 use App\Models\AiProductJob;
 use App\Models\AiProvider;
 use App\Models\Brand;
@@ -553,6 +554,63 @@ class AIProductContentSystemTest extends TestCase
             $this->assertSame([['key' => 'pipe_liquid', 'value' => '6.35']], $product->specs_json);
             $this->assertNotEmpty($product->long_description);
         }
+    }
+
+    public function test_generate_persists_field_level_draft_even_when_fact_check_warns(): void
+    {
+        $product = $this->product();
+        $payload = $this->validPayload(content: $this->content(850).'<p>Khu vuc 60m2 can duoc xac minh lai.</p>');
+        $job = AiProductJob::create(['type' => 'generate_ai_content', 'scope' => 'selected', 'status' => 'queued', 'total' => 1, 'config_json' => $this->config()]);
+        $item = $job->items()->create(['product_id' => $product->id, 'status' => 'queued']);
+
+        $this->serviceReturning($payload)->generate($product, $job->config_json, $job, $item);
+
+        $draft = AiProductDraft::first();
+        $this->assertNotNull($draft);
+        $this->assertSame($product->id, $draft->product_id);
+        $this->assertArrayHasKey('content_html', $draft->field_status_json);
+        $this->assertSame($draft->id, $item->refresh()->draft_id);
+    }
+
+    public function test_retry_failed_item_with_existing_draft_patches_fields_without_full_generate(): void
+    {
+        $product = $this->product();
+        $job = AiProductJob::create(['type' => 'generate_ai_content', 'scope' => 'selected', 'status' => 'queued', 'total' => 1, 'config_json' => $this->config()]);
+        $item = $job->items()->create([
+            'product_id' => $product->id,
+            'status' => 'failed',
+            'retry_count' => 1,
+            'generated_payload_json' => array_merge($this->validPayload(), [
+                'blocked_claims' => ['unverified_numeric_claim:60m2'],
+                'warnings' => [],
+            ]),
+        ]);
+        $draft = AiProductDraft::create([
+            'job_id' => $job->id,
+            'product_id' => $product->id,
+            'normalized_output_json' => $item->generated_payload_json,
+            'field_status_json' => ['content_html' => 'needs_patch'],
+            'validation_errors_json' => [[
+                'field' => 'content_html',
+                'severity' => 'warning',
+                'claim' => '60m2',
+                'reason' => 'fact_check',
+                'suggested_action' => 'remove',
+                'replacement' => '',
+            ]],
+            'status' => 'failed',
+        ]);
+        $item->update(['draft_id' => $draft->id]);
+        $aiManager = Mockery::mock(AIManager::class);
+        $aiManager->shouldNotReceive('generate');
+        $system = new AIProductContentSystem($aiManager, app(AIProductSeoScorer::class), app(AIProductContentSanitizer::class));
+
+        $result = $system->retryDraftPatch($product, $item, $job);
+
+        $this->assertSame('needs_review', $result['status']);
+        $this->assertSame('needs_review', $item->refresh()->status);
+        $this->assertSame([], $item->generated_payload_json['blocked_claims']);
+        $this->assertSame(['content_html'], $item->token_usage_json['patched_fields']);
     }
 
     private function serviceReturning(array $payload): AIProductContentSystem

@@ -5,6 +5,7 @@ namespace App\Filament\Resources\Products\Schemas;
 use App\Enums\StockStatus;
 use App\Filament\Traits\HasSEOFields;
 use App\Models\Brand;
+use App\Models\ProductCategory;
 use App\Services\Media\MediaDiskService;
 use App\Services\Product\ProductAIContentService;
 use App\Services\Settings\UploadSettingService;
@@ -12,6 +13,7 @@ use App\Support\ProductSpecLabel;
 use Filament\Actions\Action;
 use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\FileUpload;
+use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\RichEditor;
 use Filament\Forms\Components\Select;
@@ -42,8 +44,11 @@ class ProductForm
                             ->tabs([
                                 Tabs\Tab::make('Thông tin cơ bản')
                                     ->schema([
-                                        Grid::make(['default' => 1, 'md' => 2])
-                                            ->schema([
+                                        Placeholder::make('basic_specs_notice')
+                                            ->content(fn (Get $get): string => self::specsHelperText($get('product_category_id')))
+                                            ->columnSpanFull(),
+
+                                        Grid::make(['default' => 1, 'md' => 2])->schema([
                                                 TextInput::make('name')
                                                     ->label('Tên sản phẩm')
                                                     ->required()
@@ -144,6 +149,11 @@ class ProductForm
                                                     ->label('Trọng lượng'),
                                             ]),
 
+                                        Placeholder::make('technical_schema_notice')
+                                            ->label('Schema category')
+                                            ->content(fn (Get $get): string => self::technicalSchemaNotice($get('product_category_id')))
+                                            ->columnSpanFull(),
+
                                         Repeater::make('specs_json')
                                             ->label('Thông số kỹ thuật mở rộng')
                                             ->helperText('Chỉ thêm thông số KHÔNG có field chuẩn ở trên.')
@@ -159,7 +169,8 @@ class ProductForm
                                             ->columns(2)
                                             ->itemLabel(fn (array $state): ?string => isset($state['key']) ? ProductSpecLabel::label($state['key']).': '.($state['value'] ?? '') : null)
                                             ->collapsed()
-                                            ->defaultItems(0),
+                                            ->defaultItems(0)
+                                            ->disabled(fn (Get $get): bool => ! self::categoryHasTechnicalSchema($get('product_category_id'))),
                                     ]),
 
                                 Tabs\Tab::make('Nội dung')
@@ -433,5 +444,61 @@ class ProductForm
                     ])->columnSpan(['default' => 1, 'md' => 1]),
                 ]),
             ]);
+    }
+
+    private static function categoryHasTechnicalSchema(mixed $categoryId): bool
+    {
+        if (! is_numeric($categoryId)) {
+            return false;
+        }
+
+        return (bool) ProductCategory::query()
+            ->whereKey((int) $categoryId)
+            ->first()
+            ?->hasTechnicalSchema();
+    }
+
+    private static function specsHelperText(mixed $categoryId): string
+    {
+        if (! is_numeric($categoryId)) {
+            return 'Select a product category first. Extended specs stay locked until the category schema exists.';
+        }
+
+        $category = ProductCategory::query()->find((int) $categoryId);
+
+        if (! $category) {
+            return 'Select a valid category before editing extended specs.';
+        }
+
+        if (! $category->hasTechnicalSchema()) {
+            return 'Category technical schema is missing. Extended specs stay locked until the schema is defined.';
+        }
+
+        return 'Only add specs that are not already defined in the category schema.';
+    }
+
+    private static function technicalSchemaNotice(mixed $categoryId): string
+    {
+        if (! is_numeric($categoryId)) {
+            return 'Chọn danh mục sản phẩm để kiểm tra schema category.';
+        }
+
+        $category = ProductCategory::query()->find((int) $categoryId);
+
+        if (! $category) {
+            return 'Danh mục không hợp lệ nên không thể kiểm tra schema.';
+        }
+
+        if (! $category->hasTechnicalSchema()) {
+            return 'Cảnh báo: category này chưa có technical schema hợp lệ. Chưa nên lưu thông số kỹ thuật mở rộng.';
+        }
+
+        $issues = $category->technicalSchemaIssues();
+
+        if ($issues !== []) {
+            return 'Schema category có dấu hiệu lỗi: '.implode(', ', $issues);
+        }
+
+        return 'Schema category hợp lệ. Extra specs chỉ nên dùng cho field chưa có trong schema.';
     }
 }

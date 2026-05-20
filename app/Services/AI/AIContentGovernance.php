@@ -120,6 +120,9 @@ class AIContentGovernance
 
         $verifiedFactRegistry = $this->factRegistry->buildForProduct($product, $allowedFacts);
         $missingFacts = $this->missingProductFacts($product);
+        if (! $product->category?->hasTechnicalSchema()) {
+            $missingFacts[] = 'category_schema_missing';
+        }
         if (! $this->hasVerifiedSourcePage($product)) {
             $missingFacts[] = 'no_verified_source_page';
         }

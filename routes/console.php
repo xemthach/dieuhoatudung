@@ -23,3 +23,11 @@ Schedule::command('ai:technical-logs-cleanup --days=30')
 Schedule::command('google-ads:upload-offline-conversions --limit=50')
     ->everyFifteenMinutes()
     ->withoutOverlapping();
+
+Schedule::command('products:audit-category-technical-schema --report')
+    ->dailyAt('02:40')
+    ->withoutOverlapping();
+
+Schedule::command('products:audit-technical-specs --report')
+    ->dailyAt('03:10')
+    ->withoutOverlapping();

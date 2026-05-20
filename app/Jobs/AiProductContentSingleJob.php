@@ -61,6 +61,13 @@ class AiProductContentSingleJob implements ShouldQueue
         ], $item);
 
         try {
+            if ($item && $this->shouldPatchExistingDraft($item)) {
+                $patched = $system->retryDraftPatch($product, $item, $job);
+                if ($patched !== null) {
+                    return;
+                }
+            }
+
             $system->generate($product, $job?->config_json ?? [], $job, $item, $job?->created_by);
         } catch (\Throwable $e) {
             if ($this->isRateLimit($e) && $this->attempts() < $this->tries) {
@@ -161,6 +168,17 @@ class AiProductContentSingleJob implements ShouldQueue
             ['product_id' => $product->id],
             ['status' => 'queued']
         );
+    }
+
+    private function shouldPatchExistingDraft(?AiProductJobItem $item): bool
+    {
+        if (! $item) {
+            return false;
+        }
+
+        return (int) ($item->retry_count ?? 0) > 0
+            && (is_array($item->generated_payload_json) || $item->draft_id)
+            && in_array($item->status, ['processing', 'queued', 'failed', 'blocked', 'needs_review'], true);
     }
 
     private function updateItem(?AiProductJobItem $item, array $attributes): void

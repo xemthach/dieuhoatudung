@@ -54,6 +54,10 @@ class ProductImportHandler implements ImportHandlerInterface
             }
         }
 
+        if (blank($row['product_category_id'] ?? null)) {
+            $errors[] = 'Danh muc san pham (product_category_id) la bat buoc de doi chieu schema category.';
+        }
+
         // Validate prices
         foreach (['regular_price', 'sale_price'] as $priceField) {
             if (!empty($row[$priceField] ?? null) && !is_numeric($row[$priceField])) {
@@ -82,6 +86,15 @@ class ProductImportHandler implements ImportHandlerInterface
             if (!$cat) {
                 $errors[] = "Category \"{$row['product_category_id']}\" không tìm thấy.";
             }
+        }
+
+        $category = $this->resolveCategory($row);
+        if ($category && ! $category->hasTechnicalSchema()) {
+            $errors[] = "Category schema missing for {$category->name}. Product technical specs cannot be validated until the category schema is defined.";
+        }
+
+        if ($category && $category->hasTechnicalSchema() && !empty($row['specs_json'] ?? null)) {
+            $errors = array_merge($errors, $this->validateSpecsAgainstCategorySchema($category, $row['specs_json']));
         }
 
         // Validate JSON fields
@@ -260,5 +273,78 @@ class ProductImportHandler implements ImportHandlerInterface
         return empty($specs['source_catalogue'])
             && empty($specs['source_page'])
             && empty($specs['source_table']);
+    }
+
+    private function resolveCategory(array $row): ?ProductCategory
+    {
+        $raw = $row['product_category_id'] ?? null;
+
+        if (is_numeric($raw)) {
+            return ProductCategory::query()->find((int) $raw);
+        }
+
+        if (! empty($raw)) {
+            return ProductCategory::query()->where('name', (string) $raw)->first();
+        }
+
+        return null;
+    }
+
+    private function validateSpecsAgainstCategorySchema(ProductCategory $category, mixed $specs): array
+    {
+        if (is_string($specs)) {
+            $specs = json_decode($specs, true);
+        }
+
+        if (! is_array($specs) || $specs === []) {
+            return [];
+        }
+
+        $allowed = $category->technicalSchemaPermittedFields();
+        $flatSpecs = $this->flattenSpecs($specs);
+        $errors = [];
+
+        if ($allowed === []) {
+            return ["Category schema for {$category->name} is incomplete: allowed fields are missing."];
+        }
+
+        foreach ($flatSpecs as $key => $value) {
+            $normalizedKey = $category->normalizeTechnicalSchemaKey((string) $key);
+            if ($normalizedKey === '') {
+                continue;
+            }
+
+            if (! in_array($normalizedKey, $allowed, true)) {
+                $errors[] = "Spec key '{$key}' is outside the category schema for {$category->name}.";
+            }
+        }
+
+        return array_values(array_unique($errors));
+    }
+
+    private function flattenSpecs(array $specs): array
+    {
+        $flat = [];
+
+        if (isset($specs[0]) && is_array($specs[0])) {
+            foreach ($specs as $item) {
+                $key = (string) ($item['key'] ?? $item['label'] ?? '');
+                if ($key === '') {
+                    continue;
+                }
+
+                $flat[$key] = $item['value'] ?? $item['text'] ?? null;
+            }
+
+            return $flat;
+        }
+
+        foreach ($specs as $key => $value) {
+            if (is_string($key) && $key !== '') {
+                $flat[$key] = $value;
+            }
+        }
+
+        return $flat;
     }
 }

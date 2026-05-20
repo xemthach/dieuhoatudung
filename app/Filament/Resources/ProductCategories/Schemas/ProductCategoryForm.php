@@ -13,6 +13,7 @@ use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Group;
 use Filament\Schemas\Schema;
 use App\Services\Media\MediaDiskService;
+use Illuminate\Validation\ValidationException;
 
 class ProductCategoryForm
 {
@@ -58,6 +59,58 @@ class ProductCategoryForm
                                 ->label('Robots')
                                 ->required()
                                 ->default('index,follow'),
+                        ])->collapsed(),
+
+                        Section::make('Technical schema')->schema([
+                            Grid::make(['default' => 1, 'md' => 2])->schema([
+                                Select::make('technical_schema_status')
+                                    ->label('Schema status')
+                                    ->options([
+                                        'missing' => 'missing',
+                                        'draft' => 'draft',
+                                        'active' => 'active',
+                                        'locked' => 'locked',
+                                    ])
+                                    ->default('missing')
+                                    ->required(),
+                                TextInput::make('technical_schema_version')
+                                    ->label('Schema version')
+                                    ->placeholder('v1'),
+                            ]),
+                            Textarea::make('technical_schema_notes')
+                                ->label('Schema notes')
+                                ->rows(3)
+                                ->columnSpanFull(),
+                            Textarea::make('technical_schema_json')
+                                ->label('Technical schema JSON')
+                                ->helperText('Single source of truth for product technical specs. Keep this as structured JSON.')
+                                ->rules(['nullable', 'json'])
+                                ->rows(14)
+                                ->columnSpanFull()
+                                ->formatStateUsing(fn ($state) => filled($state)
+                                    ? json_encode($state, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)
+                                    : null)
+                                ->dehydrateStateUsing(function ($state) {
+                                    if (blank($state)) {
+                                        return null;
+                                    }
+
+                                    $decoded = json_decode((string) $state, true);
+
+                                    if (json_last_error() !== JSON_ERROR_NONE) {
+                                        throw ValidationException::withMessages([
+                                            'technical_schema_json' => 'Technical schema JSON must be valid JSON.',
+                                        ]);
+                                    }
+
+                                    if (! is_array($decoded)) {
+                                        throw ValidationException::withMessages([
+                                            'technical_schema_json' => 'Technical schema JSON must decode to an object or array structure.',
+                                        ]);
+                                    }
+
+                                    return $decoded;
+                                }),
                         ])->collapsed(),
                     ])->columnSpan(['default' => 1, 'md' => 2]),
 

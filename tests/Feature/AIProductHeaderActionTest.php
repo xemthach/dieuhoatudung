@@ -207,6 +207,7 @@ class AIProductHeaderActionTest extends TestCase
             ->callAction('export_data', [
                 'file_type' => 'json',
                 'export_scope' => 'filter',
+                'confirm_filter_scope' => true,
                 'field_groups' => [],
             ]);
 
@@ -215,6 +216,22 @@ class AIProductHeaderActionTest extends TestCase
         $this->assertSame(4, $job->total_rows);
         $this->assertCount(4, $job->selected_ids_json);
         $this->assertStringContainsString('product_export_filter_4_', $job->file_name);
+    }
+
+    public function test_header_export_filter_scope_requires_confirmation(): void
+    {
+        $this->actingAsAiProductUser(['product.export']);
+        Product::factory()->count(4)->create(['ai_score' => 40]);
+
+        Livewire::test(ListProducts::class)
+            ->filterTable('seo_score_lt_70')
+            ->callAction('export_data', [
+                'file_type' => 'json',
+                'export_scope' => 'filter',
+                'field_groups' => [],
+            ]);
+
+        $this->assertNull(DataExportJob::first());
     }
 
     public function test_header_export_labels_are_valid_utf8_not_mojibake(): void

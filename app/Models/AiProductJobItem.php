@@ -14,6 +14,8 @@ class AiProductJobItem extends Model
         return [
             'warnings_json' => 'array',
             'generated_payload_json' => 'array',
+            'field_status_json' => 'array',
+            'token_usage_json' => 'array',
             'validation_errors' => 'array',
             'started_at' => 'datetime',
             'finished_at' => 'datetime',
@@ -28,6 +30,11 @@ class AiProductJobItem extends Model
     public function product(): BelongsTo
     {
         return $this->belongsTo(Product::class);
+    }
+
+    public function draft(): BelongsTo
+    {
+        return $this->belongsTo(AiProductDraft::class, 'draft_id');
     }
 
     public function technicalLogs()

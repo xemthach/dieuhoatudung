@@ -2,6 +2,34 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.23.0] - 2026-05-20
+
+### Added
+- Added product category technical schema storage, validation helpers, admin form controls, and status/summary columns for category management.
+- Added technical schema audit and import commands: `products:audit-category-technical-schema`, `products:audit-technical-specs`, `products:fix-technical-specs --dry-run`, and `products:import-category-technical-schema`.
+- Added bulk selection resolution for `selected`, `current_page`, and `filter` scopes used by product and AI actions.
+- Added AI product draft persistence and governance metadata to support draft retries and structured audit tracking.
+- Added a release and live-server update guide for deployment handoff.
+
+### Fixed
+- Fixed product import so technical specs outside the assigned category schema are rejected and missing category schema blocks import.
+- Fixed product create/edit UI so schema warnings render safely in Filament without crashing the page.
+- Fixed the compare page sticky spec-name column so it keeps an opaque background while horizontally scrolling.
+- Fixed AI product content flows so draft retries, job item updates, and AI detail rendering stay readable and traceable.
+
+### Changed
+- Changed product category and product admin tables to surface technical schema status, version, and coverage summaries.
+- Changed product AI bulk actions and header actions to use explicit selection-scope resolution and logging.
+- Changed AI governance and product import handling to carry `category_schema_missing` context through validation and processing.
+- Changed scheduled console tasks to run category technical schema and product technical spec audits daily.
+- Updated built frontend assets after the Vite production rebuild.
+
+### Removed
+- Nothing removed.
+
+### Security
+- Hardened source-of-truth enforcement so AI and import paths cannot write product technical specs without a category technical schema.
+
 ## [1.22.0] - 2026-05-19
 
 ### Added

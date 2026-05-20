@@ -11,6 +11,7 @@ use App\Models\AiTechnicalLog;
 use App\Models\Brand;
 use App\Models\Product;
 use App\Models\ProductCategory;
+use App\Services\Bulk\BulkSelectionResolver;
 use App\Services\Product\AIProductContentSystem;
 use App\Services\DataTransfer\DataExportService;
 use App\Services\DataTransfer\ModuleRegistry;
@@ -739,6 +740,33 @@ class ProductsTable
                 abort_unless(auth()->user()?->can('product.ai_generate'), 403);
 
                 $productIds = self::resolveProductIds($records, $data, $livewire);
+                $selection = app(BulkSelectionResolver::class)->resolvePayload([
+                    'scope' => $data['scope'] ?? 'selected',
+                    'selected_ids' => $records->pluck('id')->all(),
+                    'current_page_ids' => [],
+                    'confirm_filter_scope' => false,
+                    'selected_count_from_ui' => $records->count(),
+                ], 'product', Product::query());
+
+                if (! $selection->is_valid) {
+                    Log::warning('bulk_scope_mismatch_detected', [
+                        'module' => 'ai_product',
+                        'action' => $action,
+                        'errors' => $selection->errors,
+                        'record_count' => $records->count(),
+                        'resolved_total_count' => $selection->total_count,
+                    ]);
+
+                    Notification::make()
+                        ->title('Phạm vi AI không hợp lệ')
+                        ->body(implode(', ', $selection->errors))
+                        ->warning()
+                        ->send();
+
+                    return;
+                }
+
+                $productIds = $selection->ids;
                 Log::info('AI product bulk action payload', [
                     'source' => 'products_table_bulk_action',
                     'user_id' => auth()->id(),
@@ -861,10 +889,13 @@ class ProductsTable
             Select::make('apply_mode')
                 ->label('Apply mode')
                 ->options([
+                    'draft_only' => 'Draft only',
+                    'auto_apply_safe_fields' => 'Auto apply safe fields',
+                    'full_auto_if_passed' => 'Full auto if passed',
                     'needs_review' => 'Generate draft only / needs review',
                     'auto_apply' => 'Auto apply',
                 ])
-                ->default('needs_review')
+                ->default('draft_only')
                 ->required(),
             Select::make('batch_size')
                 ->label('Batch size')
@@ -1015,18 +1046,41 @@ class ProductsTable
             'last_error_message' => $item?->last_error_message,
             'exception' => $item?->exception_class ? $item->exception_class.($item->exception_line ? ':'.$item->exception_line : '') : null,
             'provider/model' => trim(($item?->provider ?? '').' / '.($item?->model ?? ''), ' /'),
-            'fact_check' => is_array($factCheck) ? json_encode($factCheck, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) : null,
-            'blocked_claims' => is_array($blocked) ? implode(', ', $blocked) : null,
-            'blocked_fields' => is_array($blockedFields) ? implode(', ', $blockedFields) : null,
         ];
 
-        $html = '<div class="space-y-2 text-sm">';
+        $html = '<div class="max-h-[70vh] space-y-3 overflow-auto pr-2 text-sm">';
         foreach ($rows as $label => $value) {
             if (blank($value) && $value !== '0') {
                 continue;
             }
-            $html .= '<div><strong>'.e($label).':</strong> '.e((string) $value).'</div>';
+
+            $html .= '<div class="space-y-1">';
+            $html .= '<div class="font-semibold text-slate-700">'.e($label).'</div>';
+            $html .= '<div class="break-words rounded bg-slate-50 px-3 py-2 text-slate-900">'.e((string) $value).'</div>';
+            $html .= '</div>';
         }
+
+        if (is_array($factCheck) && $factCheck !== []) {
+            $html .= '<div class="space-y-1">';
+            $html .= '<div class="font-semibold text-slate-700">fact_check</div>';
+            $html .= '<pre class="max-h-64 overflow-auto rounded bg-slate-50 px-3 py-2 text-xs leading-5 whitespace-pre-wrap break-words">'.e(json_encode($factCheck, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT)).'</pre>';
+            $html .= '</div>';
+        }
+
+        if (is_array($blocked) && $blocked !== []) {
+            $html .= '<div class="space-y-1">';
+            $html .= '<div class="font-semibold text-slate-700">blocked_claims</div>';
+            $html .= '<div class="rounded bg-slate-50 px-3 py-2 text-slate-900">'.e(implode(', ', $blocked)).'</div>';
+            $html .= '</div>';
+        }
+
+        if (is_array($blockedFields) && $blockedFields !== []) {
+            $html .= '<div class="space-y-1">';
+            $html .= '<div class="font-semibold text-slate-700">blocked_fields</div>';
+            $html .= '<div class="rounded bg-slate-50 px-3 py-2 text-slate-900">'.e(implode(', ', $blockedFields)).'</div>';
+            $html .= '</div>';
+        }
+
         $html .= '</div>';
 
         return $html;

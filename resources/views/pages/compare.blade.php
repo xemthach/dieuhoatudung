@@ -16,10 +16,21 @@
             position: sticky;
             left: 0;
             z-index: 10;
-            background-color: inherit;
+            background-color: #ffffff !important;
+            background-clip: padding-box;
+            isolation: isolate;
+            box-shadow: 10px 0 18px -18px rgba(15, 23, 42, 0.45);
         }
         .compare-table thead .sticky-col {
             z-index: 20;
+            background-color: #f8fafc !important;
+            box-shadow: 10px 0 18px -18px rgba(15, 23, 42, 0.25);
+        }
+        .compare-table tbody .sticky-col {
+            background-color: #ffffff !important;
+        }
+        .compare-table tbody tr:hover .sticky-col {
+            background-color: #f8fafc !important;
         }
         .compare-table .sticky-col::after {
             content: '';

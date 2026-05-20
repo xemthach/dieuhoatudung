@@ -10,6 +10,7 @@ use App\Jobs\AiProductContentBatchJob;
 use App\Models\AiProductJob;
 use App\Models\AiProductJobItem;
 use App\Models\Product;
+use App\Services\Bulk\BulkSelectionResolver;
 use App\Services\AI\AIQueueMonitor;
 use App\Support\SchemaColumns;
 use Filament\Actions\Action;
@@ -147,7 +148,36 @@ class ListProducts extends ListRecords
         }
 
         $productIds = $this->resolveAiProductIds($scope);
+        $currentPageIds = $scope === 'current_page' ? $productIds : $this->resolveAiProductIds('current_page');
+        $resolver = app(BulkSelectionResolver::class);
+        $selection = $resolver->resolvePayload([
+            'scope' => $scope === 'all_filtered' ? 'filter' : $scope,
+            'selected_ids' => [],
+            'current_page_ids' => $currentPageIds,
+            'filters' => [
+                'table_filters' => $this->tableFilters ?? [],
+                'table_search' => $this->tableSearch ?? null,
+            ],
+            'confirm_filter_scope' => in_array($scope, ['filter', 'all_filtered'], true) && ! empty($data['confirm_filter_scope']),
+            'current_page_count_from_ui' => $scope === 'current_page' ? count($currentPageIds) : null,
+        ], 'product', in_array($scope, ['filter', 'all_filtered'], true) ? $this->getFilteredTableQuery() : Product::query());
+
+        if (! $selection->is_valid) {
+            Notification::make()
+                ->title('Phạm vi AI không hợp lệ')
+                ->body(implode(', ', $selection->errors))
+                ->warning()
+                ->send();
+
+            return;
+        }
+
+        $productIds = $selection->ids;
         $this->logAiSelectionPayload($scope, $productIds, $data);
+        $resolver->logAction('ai_product', 'generate_ai_content', $selection, [
+            'batch_size' => $data['batch_size'] ?? null,
+            'apply_mode' => $data['apply_mode'] ?? null,
+        ]);
 
         if ($productIds === []) {
             $this->logAiEmptySelection($scope, $data);

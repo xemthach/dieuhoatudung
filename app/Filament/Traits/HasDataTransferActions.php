@@ -5,7 +5,9 @@ namespace App\Filament\Traits;
 use App\Services\DataTransfer\DataExportService;
 use App\Services\DataTransfer\DataImportService;
 use App\Services\DataTransfer\ModuleRegistry;
+use App\Services\Bulk\BulkSelectionResolver;
 use Filament\Actions\Action;
+use Filament\Forms\Components\Checkbox;
 use Filament\Forms\Components\CheckboxList;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Placeholder;
@@ -67,6 +69,11 @@ trait HasDataTransferActions
                     ->label('Tóm tắt phạm vi')
                     ->content(fn ($get): string => $this->exportScopeSummary((string) $get('export_scope'))),
 
+                Checkbox::make('confirm_filter_scope')
+                    ->label('Tôi xác nhận export toàn bộ sản phẩm khớp filter hiện tại.')
+                    ->visible(fn ($get): bool => $get('export_scope') === 'filter')
+                    ->accepted(fn ($get): bool => $get('export_scope') === 'filter'),
+
                 CheckboxList::make('field_groups')
                     ->label('Nhóm dữ liệu (bỏ trống = tất cả)')
                     ->options(function () use ($module) {
@@ -82,10 +89,10 @@ trait HasDataTransferActions
                 $service = app(DataExportService::class);
 
                 try {
-                    $filters = [];
-                    $selectedIds = [];
-                    $currentPageIds = [];
                     $scope = $data['export_scope'] ?? 'selected';
+                    $selectedIds = $this->resolveExportSelectedIds();
+                    $currentPageIds = $this->resolveExportCurrentPageIds();
+                    $filters = [];
 
                     if ($scope === 'selected') {
                         $selectedIds = $this->resolveExportSelectedIds();
@@ -104,6 +111,24 @@ trait HasDataTransferActions
                     if ($scope === 'current_page') {
                         $currentPageIds = $this->resolveExportCurrentPageIds();
                         $selectedIds = $currentPageIds;
+                    }
+
+                    if ($scope === 'filter' && empty($data['confirm_filter_scope'])) {
+                        app(BulkSelectionResolver::class)->resolvePayload([
+                            'scope' => 'filter',
+                            'selected_ids' => $selectedIds,
+                            'current_page_ids' => $currentPageIds,
+                            'filters' => $this->exportFilterSummary(),
+                            'confirm_filter_scope' => false,
+                        ], $module, method_exists($this, 'getFilteredTableQuery') ? $this->getFilteredTableQuery() : (ModuleRegistry::modelClass($module))::query());
+
+                        Notification::make()
+                            ->title('Cần xác nhận phạm vi filter')
+                            ->body('Export theo filter phải được xác nhận rõ ràng.')
+                            ->warning()
+                            ->send();
+
+                        return;
                     }
 
                     if ($scope === 'filter' && method_exists($this, 'getFilteredTableQuery')) {
@@ -130,6 +155,37 @@ trait HasDataTransferActions
                         'user_id' => auth()->id(),
                         'route' => request()?->route()?->getName(),
                     ]);
+
+                    $baseQuery = $scope === 'filter' && method_exists($this, 'getFilteredTableQuery')
+                        ? $this->getFilteredTableQuery()
+                        : (ModuleRegistry::modelClass($module))::query();
+                    $selection = app(BulkSelectionResolver::class)->resolvePayload([
+                        'scope' => $scope,
+                        'selected_ids' => $scope === 'selected' ? $selectedIds : $this->resolveExportSelectedIds(),
+                        'current_page_ids' => $currentPageIds,
+                        'filters' => $this->exportFilterSummary(),
+                        'confirm_filter_scope' => (bool) ($data['confirm_filter_scope'] ?? false),
+                        'selected_count_from_ui' => $scope === 'selected' ? count($selectedIds) : null,
+                        'current_page_count_from_ui' => $scope === 'current_page' ? count($currentPageIds) : null,
+                    ], $module, $baseQuery);
+
+                    if (! $selection->is_valid) {
+                        Notification::make()
+                            ->title($this->bulkSelectionErrorTitle($selection->errors))
+                            ->body(implode(', ', $selection->errors))
+                            ->warning()
+                            ->send();
+
+                        return;
+                    }
+
+                    app(BulkSelectionResolver::class)->logAction('product_export', 'export', $selection, [
+                        'fields' => $data['field_groups'] ?? [],
+                        'format' => $data['file_type'] ?? null,
+                        'route' => request()?->route()?->getName(),
+                    ]);
+                    $selectedIds = $selection->ids;
+                    $filters = [];
 
                     $job = $service->export(
                         module: $module,
@@ -332,6 +388,27 @@ trait HasDataTransferActions
             'current_page' => 'Xuất các sản phẩm đang hiển thị trên trang hiện tại, không dùng checkbox đã tick.',
             'filter' => 'Xuất toàn bộ sản phẩm theo filter hiện tại, không dùng checkbox đã tick.',
             default => 'Chọn phạm vi export.',
+        };
+    }
+
+    protected function exportFilterSummary(): array
+    {
+        return [
+            'table_filters' => $this->tableFilters ?? [],
+            'table_search' => $this->tableSearch ?? null,
+            'table_sort_column' => $this->tableSortColumn ?? null,
+            'table_sort_direction' => $this->tableSortDirection ?? null,
+        ];
+    }
+
+    protected function bulkSelectionErrorTitle(array $errors): string
+    {
+        return match (true) {
+            in_array('bulk_selected_ids_missing', $errors, true) => 'Chưa chọn sản phẩm',
+            in_array('bulk_filter_not_confirmed', $errors, true) => 'Cần xác nhận phạm vi filter',
+            in_array('bulk_current_page_ids_missing', $errors, true) => 'Không xác định được trang hiện tại',
+            in_array('bulk_scope_mismatch', $errors, true) => 'Phạm vi bulk bị lệch dữ liệu',
+            default => 'Phạm vi bulk không hợp lệ',
         };
     }
 }
