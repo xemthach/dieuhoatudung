@@ -37,7 +37,7 @@ class UploadSettingService
         $this->settings = $settings;
     }
 
-    /* ── Size limits (KB) ────────────────────────────────────── */
+    /*  Size limits (KB)  */
 
     public function imageMaxSizeKb(): int
     {
@@ -92,7 +92,7 @@ class UploadSettingService
         );
     }
 
-    /* ── Type lists ──────────────────────────────────────────── */
+    /*  Type lists  */
 
     public function allowedImageTypes(): array
     {
@@ -115,14 +115,14 @@ class UploadSettingService
         return $this->csvSetting('upload.allowed_file_types', self::DEFAULT_ALLOWED_FILE_TYPES);
     }
 
-    /* ── Quantity limits ─────────────────────────────────────── */
+    /*  Quantity limits  */
 
     public function maxImagesPerUpload(): int
     {
         return $this->integerSetting('upload.max_images_per_upload', self::DEFAULT_MAX_IMAGES_PER_UPLOAD);
     }
 
-    /* ── Human-readable helpers (for helperText) ─────────────── */
+    /*  Human-readable helpers (for helperText)  */
 
     public function formatMb(int $kb): string
     {

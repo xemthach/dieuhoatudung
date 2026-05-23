@@ -101,6 +101,10 @@ class AIContentGovernance
         $this->addFact($allowedFacts, 'product.vat_enabled', (bool) $product->price_includes_vat, 'products.price_includes_vat');
 
         foreach ($this->flattenSpecs($product->specs_json ?? []) as $index => $spec) {
+            if (! $this->schemaAllowsAiFact($product, $spec['key'])) {
+                continue;
+            }
+
             $this->addFact(
                 $allowedFacts,
                 'product.technical_specs_json.'.$index,
@@ -117,6 +121,8 @@ class AIContentGovernance
                 ]
             );
         }
+
+        $allowedFacts = $this->filterSchemaAiFacts($product, $allowedFacts);
 
         $verifiedFactRegistry = $this->factRegistry->buildForProduct($product, $allowedFacts);
         $missingFacts = $this->missingProductFacts($product);
@@ -413,6 +419,60 @@ class AIContentGovernance
             'unit' => $meta['unit'] ?? null,
             'aliases' => $meta['aliases'] ?? null,
         ], fn ($item) => $item !== null && $item !== []);
+    }
+
+    private function filterSchemaAiFacts(Product $product, array $facts): array
+    {
+        if (! $product->category?->hasTechnicalSchema()) {
+            return $facts;
+        }
+
+        $allowedSchemaKeys = array_map(
+            fn (array $field): string => $field['key'],
+            $product->category->technicalSchemaFieldsFor('ai')
+        );
+
+        $factToSchemaKey = [
+            'product.capacity_btu' => 'capacity_btu',
+            'product.capacity_kw' => 'capacity_kw',
+            'product.hp' => 'hp',
+            'product.cooling_type' => 'cooling_type',
+            'product.inverter' => 'inverter',
+            'product.phase' => 'voltage',
+            'product.refrigerant' => 'refrigerant',
+            'product.airflow' => 'airflow',
+            'product.noise_level' => 'noise_level',
+            'product.indoor_dimensions' => 'indoor_dimensions',
+            'product.outdoor_dimensions' => 'outdoor_dimensions',
+            'product.weight' => 'weight',
+            'product.recommended_area' => 'recommended_area',
+            'product.warranty_info' => 'warranty',
+        ];
+
+        return array_filter($facts, function (array $fact, string $factKey) use ($allowedSchemaKeys, $factToSchemaKey): bool {
+            if (! str_starts_with($factKey, 'product.technical_specs_json.') && ! isset($factToSchemaKey[$factKey])) {
+                return true;
+            }
+
+            $schemaKey = $factToSchemaKey[$factKey] ?? null;
+
+            return $schemaKey !== null && in_array($schemaKey, $allowedSchemaKeys, true);
+        }, ARRAY_FILTER_USE_BOTH);
+    }
+
+    private function schemaAllowsAiFact(Product $product, string $key): bool
+    {
+        if (! $product->category?->hasTechnicalSchema()) {
+            return true;
+        }
+
+        $schemaKey = $product->category->normalizeTechnicalSchemaKey($key);
+
+        return in_array(
+            $schemaKey,
+            array_map(fn (array $field): string => $field['key'], $product->category->technicalSchemaFieldsFor('ai')),
+            true
+        );
     }
 
     private function missingProductFacts(Product $product): array

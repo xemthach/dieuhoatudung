@@ -2,34 +2,31 @@
 
 namespace App\Console\Commands;
 
+use App\Services\Encoding\UTF8RepairService;
 use App\Support\EncodingGuard;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 
-/**
- * php artisan encoding:repair --dry-run (safe preview)
- * php artisan encoding:repair --apply (write to DB, logs backup)
- *
- * Strategy: tries mb_convert_encoding($value, 'UTF-8', 'ISO-8859-1')
- * and only replaces if the result looks more like valid UTF-8 Vietnamese.
- */
 class EncodingRepairCommand extends Command
 {
     protected $signature = 'encoding:repair
                                 {--dry-run : Preview what would be fixed without writing}
-                                {--apply : Apply fixes and write backup to log}
-                                {--table= : Limit to one table}';
+                                {--apply : Apply fixes and write backup logs}
+                                {--table= : Limit to one table}
+                                {--min-confidence=0.85 : Minimum confidence to apply}
+                                {--report-dir= : Output report directory under storage/app/private/reports}
+                                {--limit=0 : Limit number of rows per column scan (0 = no limit)}';
 
-    protected $description = 'Repair UTF-8 mojibake in DB (dry-run or apply)';
+    protected $description = 'Repair UTF-8 mojibake in DB with confidence scoring (dry-run/apply)';
 
     protected array $targets = [
         'site_settings' => ['value'],
         'mail_templates' => ['name', 'subject', 'body_html', 'body_text'],
-        'products' => ['name', 'description', 'short_description', 'meta_title', 'meta_description'],
-        'product_categories' => ['name', 'description', 'meta_title', 'meta_description'],
+        'products' => ['name', 'short_description', 'long_description', 'seo_title', 'seo_description', 'og_title', 'og_description', 'warranty_info', 'installation_note'],
+        'product_categories' => ['name', 'intro', 'content', 'seo_title', 'seo_description', 'og_title', 'og_description'],
         'brands' => ['name', 'description'],
-        'posts' => ['title', 'excerpt', 'content', 'meta_title', 'meta_description'],
+        'posts' => ['title', 'excerpt', 'content', 'seo_title', 'seo_description'],
         'post_categories' => ['name', 'description'],
         'tags' => ['name', 'description'],
         'policy_pages' => ['title', 'content'],
@@ -39,128 +36,250 @@ class EncodingRepairCommand extends Command
         'case_studies' => ['title', 'description', 'content'],
         'product_reviews' => ['content', 'author_name'],
         'product_questions' => ['question', 'answer'],
+        'leads' => ['name', 'message'],
+        'quote_requests' => ['customer_name', 'message'],
     ];
 
-    protected array $patterns = [
-        'MÃ', 'Ã¢', 'Ã´', 'Ã ', 'Ã¡', 'Ã©', 'Ã', 'á»', 'áº', 'Ä', 'Æ°', 'Æ', 'â€',
-    ];
+    public function __construct(private readonly UTF8RepairService $repairService)
+    {
+        parent::__construct();
+    }
 
     public function handle(): int
     {
-        $dryRun = $this->option('dry-run');
-        $apply = $this->option('apply');
+        $dryRun = (bool) $this->option('dry-run');
+        $apply = (bool) $this->option('apply');
         $onlyTable = $this->option('table');
+        $minConfidence = (float) $this->option('min-confidence');
+        $limit = max(0, (int) $this->option('limit'));
 
-        if (!$dryRun && !$apply) {
+        if (! $dryRun && ! $apply) {
             $this->error('Specify --dry-run or --apply');
-            return 1;
+            return self::FAILURE;
         }
 
-        $logFile = storage_path('logs/encoding-repair-' . date('Y-m-d') . '.log');
+        $timestamp = now()->format('Ymd_His');
+        $reportDir = $this->resolveReportDir((string) $this->option('report-dir'), $timestamp);
+        $logFile = $reportDir."/encoding-repair-backup-{$timestamp}.jsonl";
+        $csvReport = $reportDir."/encoding-repair-{$timestamp}.csv";
+        $jsonReport = $reportDir."/encoding-repair-{$timestamp}.json";
+
         $targets = $onlyTable
             ? array_intersect_key($this->targets, [$onlyTable => []])
             : $this->targets;
 
-        $existing = collect(DB::select("SHOW TABLES"))
-            ->map(fn ($r) => array_values((array) $r)[0])
-            ->flip();
+        $existing = $this->buildTableLookup();
 
-        $repairRows = [];
-        $totalFixed = 0;
+        $summaryRows = [];
+        $reportRows = [];
+        $appliedCount = 0;
+        $scannedCount = 0;
+        $tableScanStats = [];
 
         foreach ($targets as $table => $columns) {
-            if (!isset($existing[$table])) continue;
+            if (! isset($existing[$table])) {
+                continue;
+            }
 
-            $tableColumns = collect(DB::select("SHOW COLUMNS FROM `{$table}`"))
-                ->pluck('Field')->toArray();
-            $cols = array_intersect($columns, $tableColumns);
-            if (empty($cols)) continue;
+            $tableColumns = Schema::getColumnListing($table);
+            $cols = array_values(array_intersect($columns, $tableColumns));
+            if ($cols === []) {
+                continue;
+            }
 
             foreach ($cols as $col) {
-                $wheres = [];
-                $bindings = [];
-                foreach ($this->patterns as $p) {
-                    $wheres[] = "BINARY `{$col}` LIKE ?";
-                    $bindings[] = '%' . $p . '%';
+                $tableKey = "{$table}.{$col}";
+                $tableScanStats[$tableKey] = [
+                    'scanned' => 0,
+                    'candidates' => 0,
+                ];
+
+                $query = DB::table($table)
+                    ->select('id', $col)
+                    ->whereNotNull($col)
+                    ->where($col, '<>', '');
+
+                if ($limit > 0) {
+                    $query->limit($limit);
                 }
 
-                $sql = "SELECT id, `{$col}` FROM `{$table}` WHERE " . implode(' OR ', $wheres);
-                $results = DB::select($sql, $bindings);
+                foreach ($query->cursor() as $row) {
+                    $value = $row->$col;
+                    if (! is_string($value) || $value === '') {
+                        continue;
+                    }
 
-                foreach ($results as $r) {
-                    $original = $r->$col ?? '';
-                    $fixed = $this->attemptFix($original);
+                    $scannedCount++;
+                    $tableScanStats[$tableKey]['scanned']++;
+                    $analysis = $this->repairService->analyze($value);
+                    if ($analysis['classification'] === 'clean_utf8') {
+                        continue;
+                    }
+                    $tableScanStats[$tableKey]['candidates']++;
 
-                    if ($fixed === null || $fixed === $original) continue;
+                    $canApply = $analysis['improved']
+                        && $analysis['classification'] === 'mojibake_recoverable'
+                        && $analysis['confidence'] >= $minConfidence;
 
-                    $totalFixed++;
+                    $action = 'skip';
+                    if ($canApply) {
+                        $action = $apply ? 'update' : 'preview_update';
+                    } elseif ($analysis['classification'] === 'low_confidence') {
+                        $action = 'manual_review';
+                    } elseif ($analysis['classification'] === 'permanently_corrupted') {
+                        $action = 'unsafe_skip';
+                    }
 
-                    $repairRows[] = [
-                        $table,
-                        $r->id ?? '?',
-                        $col,
-                        mb_substr($original, 0, 50),
-                        mb_substr($fixed, 0, 50),
+                    $reportRows[] = [
+                        'table' => $table,
+                        'id' => (int) ($row->id ?? 0),
+                        'field' => $col,
+                        'current_text' => $analysis['original'],
+                        'repaired_text' => $analysis['repaired'],
+                        'confidence' => $analysis['confidence'],
+                        'classification' => $analysis['classification'],
+                        'original_score' => $analysis['original_score'],
+                        'repaired_score' => $analysis['repaired_score'],
+                        'action' => $action,
                     ];
 
-                    if ($apply) {
-                        // Write backup log first
-                        $backupLine = EncodingGuard::jsonEncode([
+                    $summaryRows[] = [
+                        $table,
+                        $row->id ?? '?',
+                        $col,
+                        mb_substr($analysis['original'], 0, 40),
+                        mb_substr($analysis['repaired'], 0, 40),
+                        number_format((float) $analysis['confidence'], 2),
+                        $analysis['classification'],
+                        $action,
+                    ];
+
+                    if ($apply && $canApply) {
+                        file_put_contents($logFile, EncodingGuard::jsonEncode([
                             'table' => $table,
-                            'id' => $r->id ?? null,
-                            'column' => $col,
-                            'old' => $original,
-                            'new' => $fixed,
-                            'time' => now()->toIso8601String(),
-                        ]) . "\n";
-                        file_put_contents($logFile, $backupLine, FILE_APPEND);
+                            'id' => $row->id ?? null,
+                            'field' => $col,
+                            'old' => $analysis['original'],
+                            'new' => $analysis['repaired'],
+                            'confidence' => $analysis['confidence'],
+                            'classification' => $analysis['classification'],
+                            'updated_at' => now()->toIso8601String(),
+                        ])."\n", FILE_APPEND);
 
                         DB::table($table)
-                            ->where('id', $r->id)
-                            ->update([$col => $fixed]);
+                            ->where('id', $row->id)
+                            ->update([$col => $analysis['repaired']]);
+                        $appliedCount++;
                     }
                 }
             }
         }
 
-        if (empty($repairRows)) {
-            $this->info('No repairable mojibake found.');
-            return 0;
+        $this->writeReports($csvReport, $jsonReport, $reportRows);
+
+        if ($summaryRows === []) {
+            foreach ($tableScanStats as $tableCol => $stats) {
+                $this->line(sprintf(
+                    '%s => scanned: %d, candidates: %d',
+                    $tableCol,
+                    $stats['scanned'],
+                    $stats['candidates']
+                ));
+            }
+            $this->info('No mojibake candidate found.');
+            $this->line("JSON report: {$jsonReport}");
+            return self::SUCCESS;
         }
 
-        $label = $dryRun ? '[DRY-RUN]' : '[APPLIED]';
-        $this->warn("{$label} {$totalFixed} values to fix:");
-        $this->table(['Table', 'ID', 'Column', 'Old (50c)', 'New (50c)'], $repairRows);
+        $this->warn(($dryRun ? '[DRY-RUN]' : '[APPLY]')." scanned {$scannedCount} rows, candidates: ".count($summaryRows));
+        $this->table(
+            ['Table', 'ID', 'Field', 'Old (40c)', 'New (40c)', 'Conf', 'Class', 'Action'],
+            $summaryRows
+        );
 
         if ($apply) {
-            $this->info(" Applied {$totalFixed} fixes. Backup saved to: {$logFile}");
+            $this->info("Applied {$appliedCount} high-confidence fixes.");
+            $this->line("Backup JSONL: {$logFile}");
         } else {
-            $this->line("Run with <fg=red>--apply</> to write these changes.");
+            $this->line('Use --apply to commit only high-confidence recoverable rows.');
+        }
+        $this->line("CSV report: {$csvReport}");
+        $this->line("JSON report: {$jsonReport}");
+
+        return self::SUCCESS;
+    }
+
+    private function resolveReportDir(string $customDir, string $timestamp): string
+    {
+        $relativeDir = trim($customDir) !== ''
+            ? trim(str_replace('\\', '/', $customDir), '/')
+            : "private/reports/utf8-repair-{$timestamp}";
+
+        $absoluteDir = storage_path('app/'.$relativeDir);
+        if (! is_dir($absoluteDir)) {
+            @mkdir($absoluteDir, 0777, true);
         }
 
-        return 0;
+        return $absoluteDir;
     }
 
     /**
-     * Attempt to fix a mojibake string.
-     * Returns the fixed string, or null if fix is not better.
+     * @return array<string, true>
      */
-    protected function attemptFix(string $value): ?string
+    private function buildTableLookup(): array
     {
-        if (empty($value)) return null;
+        $lookup = [];
 
-        $fixed = EncodingGuard::repairMojibake(
-            EncodingGuard::ensureUtf8($value, autoFixMojibake: false, rejectBroken: true, context: 'database value')
-        );
+        foreach (Schema::getTableListing() as $tableName) {
+            $raw = (string) $tableName;
+            if ($raw === '') {
+                continue;
+            }
 
-        if (! EncodingGuard::isValidUtf8($fixed)) return null;
-        if ($fixed === $value) return null;
+            $lookup[$raw] = true;
+            if (str_contains($raw, '.')) {
+                $parts = explode('.', $raw);
+                $short = (string) end($parts);
+                if ($short !== '') {
+                    $lookup[$short] = true;
+                }
+            }
+        }
 
-        $mojibakeCount = EncodingGuard::mojibakeScore($value);
-        $fixedCount = EncodingGuard::mojibakeScore($fixed);
+        return $lookup;
+    }
 
-        if ($fixedCount >= $mojibakeCount) return null; // not better
+    /**
+     * @param array<int, array<string, mixed>> $rows
+     */
+    private function writeReports(string $csvPath, string $jsonPath, array $rows): void
+    {
+        file_put_contents($jsonPath, EncodingGuard::jsonEncode([
+            'generated_at' => now()->toIso8601String(),
+            'rows' => $rows,
+        ], JSON_PRETTY_PRINT));
 
-        return $fixed;
+        $handle = fopen($csvPath, 'wb');
+        if (! $handle) {
+            return;
+        }
+
+        fwrite($handle, "\xEF\xBB\xBF");
+        fputcsv($handle, ['table', 'id', 'field', 'current_text', 'repaired_text', 'confidence', 'classification', 'original_score', 'repaired_score', 'action']);
+        foreach ($rows as $row) {
+            fputcsv($handle, [
+                $row['table'] ?? '',
+                $row['id'] ?? '',
+                $row['field'] ?? '',
+                $row['current_text'] ?? '',
+                $row['repaired_text'] ?? '',
+                $row['confidence'] ?? '',
+                $row['classification'] ?? '',
+                $row['original_score'] ?? '',
+                $row['repaired_score'] ?? '',
+                $row['action'] ?? '',
+            ]);
+        }
+        fclose($handle);
     }
 }

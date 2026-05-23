@@ -14,7 +14,7 @@ use App\Enums\LandingSectionType;
 use Illuminate\Database\Seeder;
 
 /**
- * Demo data seeder — creates sample brands, products, posts, FAQs, landing sections.
+ * Demo data seeder: creates sample brands, products, posts, FAQs, landing sections.
  *
  * NOT for production unless explicitly called:
  *   php artisan db:seed --class=DemoDataSeeder --force
@@ -25,7 +25,7 @@ class DemoDataSeeder extends Seeder
     {
         $this->command->info('Seeding demo data...');
 
-        // ── Brands ────────────────────────────────────────────────────
+        // Brands.
         $brands = [
             Brand::factory()->create(['name' => 'Daikin', 'slug' => 'daikin']),
             Brand::factory()->create(['name' => 'LG', 'slug' => 'lg']),
@@ -33,7 +33,7 @@ class DemoDataSeeder extends Seeder
             Brand::factory()->create(['name' => 'Gree', 'slug' => 'gree']),
         ];
 
-        // ── Product Categories ────────────────────────────────────────
+        // Product categories.
         $mainCat = ProductCategory::factory()->create(['name' => 'Điều hòa tủ đứng', 'slug' => 'dieu-hoa-tu-dung']);
         $subCats = [
             ProductCategory::factory()->create(['name' => 'Inverter', 'slug' => 'dieu-hoa-tu-dung-inverter', 'parent_id' => $mainCat->id]),
@@ -42,7 +42,7 @@ class DemoDataSeeder extends Seeder
             ProductCategory::factory()->create(['name' => '2 Chieu', 'slug' => 'dieu-hoa-tu-dung-2-chieu', 'parent_id' => $mainCat->id]),
         ];
 
-        // ── Products (3 per brand) ────────────────────────────────────
+        // Products (3 per brand).
         foreach ($brands as $brand) {
             Product::factory(3)->create([
                 'brand_id' => $brand->id,
@@ -50,7 +50,7 @@ class DemoDataSeeder extends Seeder
             ]);
         }
 
-        // ── Posts ──────────────────────────────────────────────────────
+        // Posts.
         $postCat = PostCategory::factory()->create(['name' => 'Kien thuc', 'slug' => 'kien-thuc']);
         $author  = Author::factory()->create(['name' => 'Admin', 'slug' => 'admin']);
 
@@ -59,10 +59,10 @@ class DemoDataSeeder extends Seeder
             'author_id' => $author->id,
         ]);
 
-        // ── FAQs ──────────────────────────────────────────────────────
+        // FAQs.
         Faq::factory(5)->create();
 
-        // ── Landing Sections ──────────────────────────────────────────
+        // Landing sections.
         LandingSection::factory()->create([
             'page_key'     => 'home',
             'section_type' => LandingSectionType::Hero,

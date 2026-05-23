@@ -17,7 +17,7 @@ class AdminUserSeeder extends Seeder
 
         $isProduction = app()->environment('production');
 
-        // ── Ensure super_admin role exists ────────────────────────────
+        // Ensure super_admin role exists.
         $superAdminRole = Role::firstOrCreate(
             ['name' => 'super_admin', 'guard_name' => 'web']
         );
@@ -25,7 +25,7 @@ class AdminUserSeeder extends Seeder
             ['name' => 'staff', 'guard_name' => 'web']
         );
 
-        // ── Super Admin ──────────────────────────────────────────────
+        // Super admin.
         $adminName     = env('ADMIN_NAME', 'Super Admin');
         $adminEmail    = env('ADMIN_EMAIL', 'admin@dieuhoa.vn');
         $adminPassword = env('ADMIN_PASSWORD');
@@ -35,12 +35,12 @@ class AdminUserSeeder extends Seeder
                 $this->command->error('!! ADMIN_PASSWORD is not set in .env !!');
                 $this->command->error('   Set ADMIN_PASSWORD in .env before deploying to production.');
                 Log::critical('AdminUserSeeder: ADMIN_PASSWORD not set in production environment.');
-                // Use a random password — admin must reset via .env
+                // Use a random password, then reset via .env.
                 $adminPassword = \Illuminate\Support\Str::random(32);
                 $this->command->warn("   A random password was generated. You MUST set ADMIN_PASSWORD in .env and re-seed.");
             } else {
                 $adminPassword = 'ChangeMe!2024';
-                $this->command->warn("Using fallback admin password 'ChangeMe!2024' — set ADMIN_PASSWORD in .env for production.");
+                $this->command->warn("Using fallback admin password 'ChangeMe!2024'. Set ADMIN_PASSWORD in .env for production.");
             }
         }
 
@@ -57,7 +57,7 @@ class AdminUserSeeder extends Seeder
 
         $this->command->info("Admin user created: {$adminEmail}");
 
-        // ── Sample Staff (optional, for dev/staging) ─────────────────
+        // Sample staff (optional, for dev/staging).
         $staffEmail    = env('STAFF_EMAIL');
         $staffPassword = env('STAFF_PASSWORD');
 

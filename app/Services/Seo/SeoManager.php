@@ -5,9 +5,9 @@ namespace App\Services\Seo;
 use Illuminate\Support\Str;
 
 /**
- * Centralized SEO Manager — single source of truth for all page-level SEO data.
+ * Centralized SEO Manager  single source of truth for all page-level SEO data.
  *
- * Fallback chain: Explicit set → Record data → Setting defaults → Config fallback
+ * Fallback chain: Explicit set  Record data  Setting defaults  Config fallback
  */
 class SeoManager
 {
@@ -117,7 +117,7 @@ class SeoManager
         return $this;
     }
 
-    // ─── Getters ───
+    //  Getters 
 
     public function getTitle(): string
     {

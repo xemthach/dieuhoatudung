@@ -14,7 +14,7 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // ── 1. Production-safe base seeders (always run) ──────────────
+        // 1) Production-safe base seeders (always run)
         $this->call([
             RolePermissionSeeder::class,
             AdminUserSeeder::class,
@@ -22,12 +22,15 @@ class DatabaseSeeder extends Seeder
             MailTemplateSeeder::class,
         ]);
 
-        // ── 2. Demo data (only in local/testing environment) ──────────
+        // 2) Demo data (only in local/testing environment)
         if (app()->environment('local', 'testing')) {
-            $this->command->warn('Local/testing environment detected — seeding demo data...');
+            $this->command->warn('Local/testing environment detected - seeding demo data...');
             $this->call(DemoDataSeeder::class);
         } else {
-            $this->command->info('Production environment — skipping demo data. Run manually: php artisan db:seed --class=DemoDataSeeder');
+            $this->command->info('Production environment - skipping demo data. Run manually: php artisan db:seed --class=DemoDataSeeder');
         }
+
+        $this->call(ProductCategoryTechnicalSchemaSeeder::class);
     }
 }
+

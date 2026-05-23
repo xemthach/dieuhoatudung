@@ -20,6 +20,8 @@
 /storage/app/private/*
 /storage/app/mpdf-tmp
 /storage/pail
+/storage/backups/
+/storage/catalogs/
 
 # Keep storage directories via .gitkeep
 !storage/logs/.gitkeep

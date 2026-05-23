@@ -6,6 +6,7 @@ use App\Enums\StockStatus;
 use App\Filament\Traits\HasSEOFields;
 use App\Models\Brand;
 use App\Models\ProductCategory;
+use App\Services\Catalog\CategoryTechnicalSchemaService;
 use App\Services\Media\MediaDiskService;
 use App\Services\Product\ProductAIContentService;
 use App\Services\Settings\UploadSettingService;
@@ -49,21 +50,21 @@ class ProductForm
                                             ->columnSpanFull(),
 
                                         Grid::make(['default' => 1, 'md' => 2])->schema([
-                                                TextInput::make('name')
-                                                    ->label('Tên sản phẩm')
-                                                    ->required()
-                                                    ->live(onBlur: true)
-                                                    ->afterStateUpdated(fn ($set, ?string $state) => $set('slug', Str::slug($state))),
-                                                TextInput::make('slug')
-                                                    ->label('Đường dẫn (Slug)')
-                                                    ->required()
-                                                    ->unique(ignoreRecord: true),
-                                                TextInput::make('sku')
-                                                    ->label('Mã SKU')
-                                                    ->unique(ignoreRecord: true),
-                                                TextInput::make('model_code')
-                                                    ->label('Mã Model'),
-                                            ]),
+                                            TextInput::make('name')
+                                                ->label('Tên sản phẩm')
+                                                ->required()
+                                                ->live(onBlur: true)
+                                                ->afterStateUpdated(fn ($set, ?string $state) => $set('slug', Str::slug($state))),
+                                            TextInput::make('slug')
+                                                ->label('Đường dẫn (Slug)')
+                                                ->required()
+                                                ->unique(ignoreRecord: true),
+                                            TextInput::make('sku')
+                                                ->label('Mã SKU')
+                                                ->unique(ignoreRecord: true),
+                                            TextInput::make('model_code')
+                                                ->label('Mã Model'),
+                                        ]),
 
                                         Section::make('Giá và Tồn kho')
                                             ->schema([
@@ -161,7 +162,7 @@ class ProductForm
                                                 TextInput::make('key')
                                                     ->label('Tên thông số')
                                                     ->required()
-                                                    ->datalist(array_keys(ProductSpecLabel::MAP))
+                                                    ->datalist(fn (Get $get): array => self::schemaFieldKeys($get('product_category_id')))
                                                     ->hint(fn ($state) => $state ? ProductSpecLabel::label($state) : '')
                                                     ->live(debounce: 500),
                                                 TextInput::make('value')->label('Giá trị')->required(),
@@ -500,5 +501,23 @@ class ProductForm
         }
 
         return 'Schema category hợp lệ. Extra specs chỉ nên dùng cho field chưa có trong schema.';
+    }
+
+    private static function schemaFieldKeys(mixed $categoryId): array
+    {
+        if (! is_numeric($categoryId)) {
+            return [];
+        }
+
+        $category = ProductCategory::query()->find((int) $categoryId);
+
+        if (! $category?->hasTechnicalSchema()) {
+            return [];
+        }
+
+        return array_values(array_map(
+            fn (array $field): string => $field['key'],
+            app(CategoryTechnicalSchemaService::class)->fieldsFor($category)
+        ));
     }
 }

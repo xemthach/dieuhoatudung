@@ -60,6 +60,7 @@ class Product extends Model
             'price_includes_vat' => 'boolean',
             'promotion_start_at' => 'datetime',
             'promotion_end_at' => 'datetime',
+            'technical_specs_overridden_at' => 'datetime',
         ];
     }
 
@@ -95,6 +96,16 @@ class Product extends Model
     public function category(): BelongsTo
     {
         return $this->belongsTo(ProductCategory::class, 'product_category_id');
+    }
+
+    public function catalogSource(): BelongsTo
+    {
+        return $this->belongsTo(CatalogSource::class);
+    }
+
+    public function catalogModel(): BelongsTo
+    {
+        return $this->belongsTo(CatalogModel::class);
     }
 
     public function tags(): MorphToMany

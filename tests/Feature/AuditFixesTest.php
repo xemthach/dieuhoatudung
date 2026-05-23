@@ -20,18 +20,16 @@ class AuditFixesTest extends TestCase
 
     public function test_encoding_commands_join_like_clauses_with_spaces(): void
     {
-        $files = [
-            app_path('Console/Commands/EncodingAuditCommand.php'),
-            app_path('Console/Commands/EncodingRepairCommand.php'),
-        ];
+        $auditContents = file_get_contents(app_path('Console/Commands/EncodingAuditCommand.php'));
+        $repairContents = file_get_contents(app_path('Console/Commands/EncodingRepairCommand.php'));
 
-        foreach ($files as $file) {
-            $contents = file_get_contents($file);
+        $this->assertStringContainsString("implode(' OR ', \$wheres)", $auditContents);
+        $this->assertStringContainsString('BINARY `{$col}` LIKE ?', $auditContents);
+        $this->assertStringNotContainsString("implode('OR ', \$wheres)", $auditContents);
 
-            $this->assertStringContainsString("implode(' OR ', \$wheres)", $contents);
-            $this->assertStringContainsString('BINARY `{$col}` LIKE ?', $contents);
-            $this->assertStringNotContainsString("implode('OR ', \$wheres)", $contents);
-        }
+        // The repair command moved away from LIKE-clause string building;
+        // guard only against the old malformed join fragment.
+        $this->assertStringNotContainsString("implode('OR ', \$wheres)", $repairContents);
     }
 
     public function test_quote_controller_does_not_log_full_mail_payloads(): void

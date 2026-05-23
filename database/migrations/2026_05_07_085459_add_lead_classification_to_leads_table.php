@@ -9,11 +9,11 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('leads', function (Blueprint $table) {
-            // ── Lead classification ──
+            //  Lead classification 
             $table->string('lead_type', 20)->default('general')->after('id')
                   ->comment('product|consultation|general');
 
-            // ── Denormalized product metadata ──
+            //  Denormalized product metadata 
             $table->string('product_name')->nullable()->after('interested_product_id');
             $table->string('product_sku', 50)->nullable()->after('product_name');
             $table->string('product_url')->nullable()->after('product_sku');
@@ -21,28 +21,28 @@ return new class extends Migration
             $table->string('category_name', 100)->nullable()->after('brand_name');
             $table->unsignedInteger('capacity_btu')->nullable()->after('category_name');
 
-            // ── Scoring ──
+            //  Scoring 
             $table->unsignedSmallInteger('intent_score')->default(40)->after('capacity_btu');
 
-            // ── CRM fields ──
+            //  CRM fields 
             $table->string('usage_type', 50)->nullable()->after('area')
                   ->comment('nha_hang, van_phong, showroom, etc');
             $table->string('region', 100)->nullable()->after('usage_type');
 
-            // ── Link to quote_request ──
+            //  Link to quote_request 
             $table->unsignedBigInteger('quote_request_id')->nullable()->after('source_page');
             $table->foreign('quote_request_id')
                   ->references('id')->on('quote_requests')
                   ->nullOnDelete();
 
-            // ── Indexes for CRM queries ──
+            //  Indexes for CRM queries 
             $table->index('lead_type');
             $table->index('intent_score');
             $table->index(['lead_type', 'intent_score']);
             $table->index('created_at');
         });
 
-        // ── Backfill existing leads (MySQL only — uses JOIN UPDATE syntax) ──
+        //  Backfill existing leads (MySQL only  uses JOIN UPDATE syntax) 
         if (\Illuminate\Support\Facades\DB::connection()->getDriverName() === 'mysql') {
             // Quote-derived leads
             \Illuminate\Support\Facades\DB::statement("

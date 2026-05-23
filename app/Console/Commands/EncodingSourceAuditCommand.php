@@ -52,6 +52,7 @@ class EncodingSourceAuditCommand extends Command
         'app/Support/EncodingGuard.php',
         'app/Console/Commands/EncodingAuditCommand.php',
         'app/Console/Commands/EncodingRepairCommand.php',
+        'app/Services/Encoding/UTF8RepairService.php',
         'app/Services/Product/AIProductContentSanitizer.php',
         'tests/Feature/AIProductContentSystemTest.php',
     ];
@@ -79,7 +80,8 @@ class EncodingSourceAuditCommand extends Command
             $hasBom = EncodingGuard::hasBom($content);
             $validUtf8 = EncodingGuard::isValidUtf8(EncodingGuard::stripBom($content));
             $fixturePattern = in_array($relativePath, self::INTENTIONAL_PATTERN_FILES, true);
-            $mojibake = $validUtf8 && EncodingGuard::hasMojibake(EncodingGuard::stripBom($content));
+            $mojibakeScore = EncodingGuard::mojibakeScore(EncodingGuard::stripBom($content));
+            $mojibake = $validUtf8 && $mojibakeScore >= 2;
             $status = 'ok';
             $action = '';
 
@@ -124,7 +126,7 @@ class EncodingSourceAuditCommand extends Command
             }
 
             if ($status !== 'ok') {
-                $rows[] = [$relativePath, $status, $hasBom ? 'yes' : 'no', EncodingGuard::mojibakeScore(EncodingGuard::stripBom($content)), $action];
+                $rows[] = [$relativePath, $status, $hasBom ? 'yes' : 'no', $mojibakeScore, $action];
             }
         }
 

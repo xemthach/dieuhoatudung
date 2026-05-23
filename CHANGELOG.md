@@ -2,6 +2,35 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.24.0] - 2026-05-23
+
+### Added
+- Added shared admin content automation layer for Product Category, Brand, and Promotion forms via `SlugGeneratorService`, `AISeoContentGenerator`, `AIContentFieldPipeline`, and reusable Filament form actions.
+- Added full catalog-spec governance stack: new catalog models/tables, matcher/resolver/auditor/extractor services, and operational commands (`catalog:scan`, `catalog:extract-specs`, `catalog:match-products`, `products:audit-specs-from-catalog`, `products:sync-specs-from-catalog`, rollback tooling).
+- Added Product Category technical schema builder workflow (preset generation, schema validation trait, seeder presets, and frontend-aware schema rendering path).
+- Added UTF-8 governance runtime components including `encoding:governance-audit`, `UTF8RepairService`, and forced UTF-8 response middleware.
+- Added regression tests for admin content automation, catalog spec governance, technical schema builder, and encoding governance audit.
+
+### Fixed
+- Fixed slug generation and uniqueness flows for Product Category / Brand / Promotion to prevent duplicate-key failures during create/update.
+- Fixed catalog import/mapping integrity by tightening `ProductImportMapper` + import handler behavior and preventing uncontrolled unknown spec fields.
+- Fixed product technical spec display fallback to prioritize category schema-mapped specs when available.
+- Fixed source encoding audit/repair behavior to reduce mojibake false positives and stabilize UTF-8 detection in code audit pipeline.
+- Fixed release/runtime docs with explicit queue and scheduler operations for AI + catalog audit jobs.
+
+### Changed
+- Changed AI governance verification registry and content governance checks to rely on verified fact pathways for technical claims.
+- Changed seed/bootstrap flow to include technical schema seeding in base setup.
+- Changed multiple operational audit commands (LG/Panasonic/media/encoding) to the new UTF-8 safe output/logging style.
+- Changed app bootstrap to register UTF-8 response protection middleware.
+
+### Removed
+- Removed no functional module; only replaced deprecated command logic paths with governance-safe implementations.
+
+### Security
+- Hardened technical-claim integrity by enforcing verified catalog/source pathways before applying product specs.
+- Hardened Unicode handling to block malformed UTF-8/mojibake payload persistence in governance and repair paths.
+
 ## [1.23.0] - 2026-05-20
 
 ### Added

@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\DiscountType;
+use App\Services\SlugGeneratorService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -15,6 +16,23 @@ class Promotion extends Model
     use HasFactory, SoftDeletes;
 
     protected $guarded = [];
+
+    protected static function booted(): void
+    {
+        static::saving(function (Promotion $promotion): void {
+            $slugger = app(SlugGeneratorService::class);
+
+            if (blank($promotion->slug)) {
+                $promotion->slug = $slugger->unique(static::class, $promotion->title, $promotion->getKey(), fallback: 'promotion');
+
+                return;
+            }
+
+            if ($promotion->isDirty('slug')) {
+                $promotion->slug = $slugger->unique(static::class, $promotion->slug, $promotion->getKey(), fallback: 'promotion');
+            }
+        });
+    }
 
     protected function casts(): array
     {

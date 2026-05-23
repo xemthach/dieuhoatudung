@@ -40,7 +40,7 @@ class Faq extends Model
         return Str::ascii(Str::lower($text));
     }
 
-    // ─── Inverse polymorphic relations ─────────────────────────────────────
+    //  Inverse polymorphic relations 
 
     public function products(): MorphToMany
     {

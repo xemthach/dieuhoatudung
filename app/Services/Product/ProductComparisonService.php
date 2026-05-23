@@ -2,11 +2,16 @@
 
 namespace App\Services\Product;
 
+use App\Exports\ProductComparisonExport;
 use App\Models\Product;
+use App\Services\Catalog\CategoryTechnicalSchemaService;
 use App\Support\ProductSpecLabel;
 use Illuminate\Support\Collection;
 use Maatwebsite\Excel\Facades\Excel;
 use Mpdf\Mpdf;
+use Mpdf\Output\Destination;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
+use Symfony\Component\HttpFoundation\Response;
 
 /**
  * Central service for the product comparison module.
@@ -82,26 +87,26 @@ class ProductComparisonService
      * Vietnamese labels for standard DB column fields (not in ProductSpecLabel::MAP).
      */
     private const DB_FIELD_LABELS = [
-        'brand'              => 'Thương hiệu',
-        'model_code'         => 'Model',
-        'sku'                => 'Mã SKU',
-        'category'           => 'Danh mục',
-        'stock_status'       => 'Tình trạng kho',
-        'warranty'           => 'Bảo hành',
-        'btu'                => 'Công suất (BTU)',
-        'capacity_kw'        => 'Công suất (kW)',
-        'hp'                 => 'Mã lực (HP)',
-        'inverter'           => 'Công nghệ Inverter',
-        'cooling_type'       => 'Loại máy',
-        'voltage'            => 'Điện áp',
-        'power_consumption'  => 'Công suất điện tiêu thụ',
-        'refrigerant_gas'    => 'Loại Gas',
-        'airflow'            => 'Lưu lượng gió',
-        'noise_level'        => 'Độ ồn dàn lạnh',
-        'indoor_dimensions'  => 'Kích thước dàn lạnh',
+        'brand' => 'Thương hiệu',
+        'model_code' => 'Model',
+        'sku' => 'Mã SKU',
+        'category' => 'Danh mục',
+        'stock_status' => 'Tình trạng kho',
+        'warranty' => 'Bảo hành',
+        'btu' => 'Công suất (BTU)',
+        'capacity_kw' => 'Công suất (kW)',
+        'hp' => 'Mã lực (HP)',
+        'inverter' => 'Công nghệ Inverter',
+        'cooling_type' => 'Loại máy',
+        'voltage' => 'Điện áp',
+        'power_consumption' => 'Công suất điện tiêu thụ',
+        'refrigerant_gas' => 'Loại Gas',
+        'airflow' => 'Lưu lượng gió',
+        'noise_level' => 'Độ ồn dàn lạnh',
+        'indoor_dimensions' => 'Kích thước dàn lạnh',
         'outdoor_dimensions' => 'Kích thước dàn nóng',
-        'weight'             => 'Trọng lượng',
-        'recommended_area'   => 'Diện tích đề nghị',
+        'weight' => 'Trọng lượng',
+        'recommended_area' => 'Diện tích đề nghị',
     ];
 
     /**
@@ -150,6 +155,11 @@ class ProductComparisonService
             return [];
         }
 
+        $schemaGrouped = $this->buildSchemaGroupedSpecs($products);
+        if ($schemaGrouped !== []) {
+            return $schemaGrouped;
+        }
+
         // 1. Extract all spec data per product
         $productSpecs = [];
         foreach ($products as $product) {
@@ -178,16 +188,16 @@ class ProductComparisonService
                 // Only include row if at least one product has a value
                 if ($hasAnyValue) {
                     $rows[] = [
-                        'key'     => $key,
-                        'label'   => $this->getLabel($key),
-                        'values'  => $values,
+                        'key' => $key,
+                        'label' => $this->getLabel($key),
+                        'values' => $values,
                         'differs' => $this->valuesDiffer($values),
                     ];
                     $usedKeys[] = $key;
                 }
             }
 
-            if (!empty($rows)) {
+            if (! empty($rows)) {
                 $grouped[$groupLabel] = $rows;
             }
         }
@@ -222,19 +232,62 @@ class ProductComparisonService
 
             if ($hasAnyValue) {
                 $ungroupedRows[] = [
-                    'key'     => $key,
-                    'label'   => $this->getLabel($key),
-                    'values'  => $values,
+                    'key' => $key,
+                    'label' => $this->getLabel($key),
+                    'values' => $values,
                     'differs' => $this->valuesDiffer($values),
                 ];
             }
         }
 
-        if (!empty($ungroupedRows)) {
+        if (! empty($ungroupedRows)) {
             $grouped['Thông số khác'] = $ungroupedRows;
         }
 
         return $grouped;
+    }
+
+    private function buildSchemaGroupedSpecs(Collection $products): array
+    {
+        $category = $products->first()?->category;
+        if (! $category?->hasTechnicalSchema()) {
+            return [];
+        }
+
+        $schema = app(CategoryTechnicalSchemaService::class);
+        $fields = $schema->fieldsFor($category, 'compare');
+        if ($fields === []) {
+            return [];
+        }
+
+        $flatByProduct = [];
+        foreach ($products as $product) {
+            $flatByProduct[$product->id] = $schema->flatProductSpecs($product);
+        }
+
+        $rows = [];
+        foreach ($fields as $field) {
+            $values = [];
+            $hasAnyValue = false;
+
+            foreach ($products as $product) {
+                $value = $flatByProduct[$product->id][$field['key']] ?? null;
+                $formatted = $value === null || $value === '' ? '—' : (string) $value;
+                $values[] = $formatted;
+                $hasAnyValue = $hasAnyValue || $formatted !== '—';
+            }
+
+            if ($hasAnyValue) {
+                $rows[] = [
+                    'key' => $field['key'],
+                    'label' => $field['label'],
+                    'values' => $values,
+                    'differs' => $this->valuesDiffer($values),
+                ];
+            }
+        }
+
+        return $rows === [] ? [] : ['Thông số kỹ thuật' => $rows];
     }
 
     /**
@@ -245,32 +298,32 @@ class ProductComparisonService
         $specs = [];
 
         // Standard DB columns
-        $specs['brand']              = $product->brand?->name;
-        $specs['model_code']         = $product->model_code;
-        $specs['sku']                = $product->sku;
-        $specs['category']           = $product->category?->name;
-        $specs['stock_status']       = $product->stock_status?->label() ?? null;
-        $specs['warranty']           = $product->warranty_info ? strip_tags($product->warranty_info) : null;
-        $specs['btu']                = $product->btu;
-        $specs['capacity_kw']        = $product->capacity_kw;
-        $specs['hp']                 = $product->hp;
-        $specs['inverter']           = $product->inverter;
-        $specs['cooling_type']       = $product->cooling_type;
-        $specs['voltage']            = $product->voltage;
-        $specs['power_consumption']  = $product->power_consumption;
-        $specs['refrigerant_gas']    = $product->refrigerant_gas;
-        $specs['airflow']            = $product->airflow;
-        $specs['noise_level']        = $product->noise_level;
-        $specs['indoor_dimensions']  = $product->indoor_dimensions;
+        $specs['brand'] = $product->brand?->name;
+        $specs['model_code'] = $product->model_code;
+        $specs['sku'] = $product->sku;
+        $specs['category'] = $product->category?->name;
+        $specs['stock_status'] = $product->stock_status?->label() ?? null;
+        $specs['warranty'] = $product->warranty_info ? strip_tags($product->warranty_info) : null;
+        $specs['btu'] = $product->btu;
+        $specs['capacity_kw'] = $product->capacity_kw;
+        $specs['hp'] = $product->hp;
+        $specs['inverter'] = $product->inverter;
+        $specs['cooling_type'] = $product->cooling_type;
+        $specs['voltage'] = $product->voltage;
+        $specs['power_consumption'] = $product->power_consumption;
+        $specs['refrigerant_gas'] = $product->refrigerant_gas;
+        $specs['airflow'] = $product->airflow;
+        $specs['noise_level'] = $product->noise_level;
+        $specs['indoor_dimensions'] = $product->indoor_dimensions;
         $specs['outdoor_dimensions'] = $product->outdoor_dimensions;
-        $specs['weight']             = $product->weight;
-        $specs['recommended_area']   = $product->recommended_area;
+        $specs['weight'] = $product->weight;
+        $specs['recommended_area'] = $product->recommended_area;
 
         // Flatten specs_json (extra_specs)
         $extraSpecs = $this->flattenSpecsJson($product->specs_json);
         foreach ($extraSpecs as $key => $value) {
             // Don't overwrite DB column values with empty extra_specs
-            if (!isset($specs[$key]) || empty($specs[$key])) {
+            if (! isset($specs[$key]) || empty($specs[$key])) {
                 $specs[$key] = $value;
             }
         }
@@ -288,7 +341,7 @@ class ProductComparisonService
         }
 
         $specs = is_string($raw) ? json_decode($raw, true) : $raw;
-        if (!is_array($specs)) {
+        if (! is_array($specs)) {
             return [];
         }
 
@@ -299,9 +352,10 @@ class ProductComparisonService
                 $k = $item['key'] ?? null;
                 $v = $item['value'] ?? null;
                 if ($k !== null && $v !== null && $v !== '') {
-                    $flat[$k] = (string)$v;
+                    $flat[$k] = (string) $v;
                 }
             }
+
             return $flat;
         }
 
@@ -309,9 +363,10 @@ class ProductComparisonService
         $flat = [];
         foreach ($specs as $k => $v) {
             if ($v !== null && $v !== '') {
-                $flat[$k] = is_string($v) ? $v : (string)$v;
+                $flat[$k] = is_string($v) ? $v : (string) $v;
             }
         }
+
         return $flat;
     }
 
@@ -345,16 +400,16 @@ class ProductComparisonService
 
         // Special formatting
         return match ($key) {
-            'btu'          => number_format((int)$val) . ' BTU',
-            'capacity_kw'  => (float)$val > 0 ? $val . ' kW' : '—',
-            'hp'           => (float)$val > 0 ? $val . ' HP' : '—',
-            'inverter'     => $val ? 'Có' : 'Không',
+            'btu' => number_format((int) $val).' BTU',
+            'capacity_kw' => (float) $val > 0 ? $val.' kW' : '—',
+            'hp' => (float) $val > 0 ? $val.' HP' : '—',
+            'inverter' => $val ? 'Có' : 'Không',
             'cooling_type' => match ($val) {
-                '2_chieu'   => '2 chiều (lạnh/sưởi)',
-                '1_chieu'   => '1 chiều (chỉ làm lạnh)',
-                default     => (string)$val,
+                '2_chieu' => '2 chiều (lạnh/sưởi)',
+                '1_chieu' => '1 chiều (chỉ làm lạnh)',
+                default => (string) $val,
             },
-            default => ProductSpecLabel::formatValue($key, (string)$val),
+            default => ProductSpecLabel::formatValue($key, (string) $val),
         };
     }
 
@@ -363,10 +418,11 @@ class ProductComparisonService
      */
     private function valuesDiffer(array $values): bool
     {
-        $nonEmpty = array_filter($values, fn($v) => $v !== '—');
+        $nonEmpty = array_filter($values, fn ($v) => $v !== '—');
         if (count($nonEmpty) <= 1) {
             return false;
         }
+
         return count(array_unique($nonEmpty)) > 1;
     }
 
@@ -381,15 +437,15 @@ class ProductComparisonService
         foreach ($grouped as $groupLabel => $rows) {
             // Group header row
             $matrix[] = [
-                'type'   => 'group_header',
-                'label'  => $groupLabel,
+                'type' => 'group_header',
+                'label' => $groupLabel,
                 'values' => array_fill(0, $products->count(), ''),
             ];
 
             foreach ($rows as $row) {
                 $matrix[] = [
-                    'type'   => 'spec',
-                    'label'  => $row['label'],
+                    'type' => 'spec',
+                    'label' => $row['label'],
                     'values' => $row['values'],
                 ];
             }
@@ -405,53 +461,53 @@ class ProductComparisonService
     /**
      * Export comparison to PDF.
      */
-    public function exportPdf(Collection $products): \Symfony\Component\HttpFoundation\Response
+    public function exportPdf(Collection $products): Response
     {
         $grouped = $this->buildGroupedSpecs($products);
         $siteName = setting('site.name', 'Điều Hòa Tủ Đứng');
-        $siteUrl  = config('app.url', url('/'));
-        $date     = now()->format('d/m/Y H:i');
+        $siteUrl = config('app.url', url('/'));
+        $date = now()->format('d/m/Y H:i');
 
         // Build HTML
         $html = $this->buildPdfHtml($products, $grouped, $siteName, $siteUrl, $date);
 
         // Ensure temp directory exists and is writable
         $tempDir = storage_path('app/mpdf-tmp');
-        if (!is_dir($tempDir)) {
+        if (! is_dir($tempDir)) {
             @mkdir($tempDir, 0775, true);
         }
-        if (!is_dir($tempDir) || !is_writable($tempDir)) {
+        if (! is_dir($tempDir) || ! is_writable($tempDir)) {
             // Fallback to system temp directory if storage is not writable
-            $tempDir = sys_get_temp_dir() . '/mpdf-tmp';
-            if (!is_dir($tempDir)) {
+            $tempDir = sys_get_temp_dir().'/mpdf-tmp';
+            if (! is_dir($tempDir)) {
                 @mkdir($tempDir, 0775, true);
             }
         }
 
         $mpdf = new Mpdf([
-            'mode'            => 'utf-8',
-            'format'          => 'A4-L', // Landscape
-            'margin_left'     => 10,
-            'margin_right'    => 10,
-            'margin_top'      => 15,
-            'margin_bottom'   => 15,
-            'margin_header'   => 5,
-            'margin_footer'   => 5,
-            'default_font'    => 'dejavusans',
-            'tempDir'         => $tempDir,
+            'mode' => 'utf-8',
+            'format' => 'A4-L', // Landscape
+            'margin_left' => 10,
+            'margin_right' => 10,
+            'margin_top' => 15,
+            'margin_bottom' => 15,
+            'margin_header' => 5,
+            'margin_footer' => 5,
+            'default_font' => 'dejavusans',
+            'tempDir' => $tempDir,
         ]);
 
-        $mpdf->SetTitle('Bảng so sánh sản phẩm - ' . $siteName);
+        $mpdf->SetTitle('Bảng so sánh sản phẩm - '.$siteName);
         $mpdf->SetAuthor($siteName);
-        $mpdf->SetFooter('{DATE j/m/Y} | ' . $siteUrl . ' | Trang {PAGENO}/{nbpg}');
+        $mpdf->SetFooter('{DATE j/m/Y} | '.$siteUrl.' | Trang {PAGENO}/{nbpg}');
 
         $mpdf->WriteHTML($html);
 
-        $filename = 'so-sanh-san-pham-' . now()->format('Ymd-His') . '.pdf';
+        $filename = 'so-sanh-san-pham-'.now()->format('Ymd-His').'.pdf';
 
-        return response($mpdf->Output($filename, \Mpdf\Output\Destination::STRING_RETURN), 200, [
-            'Content-Type'        => 'application/pdf',
-            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+        return response($mpdf->Output($filename, Destination::STRING_RETURN), 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'attachment; filename="'.$filename.'"',
         ]);
     }
 
@@ -486,19 +542,19 @@ class ProductComparisonService
 
         foreach ($products as $product) {
             $name = e(mb_substr($product->name, 0, 60));
-            $html .= '<th class="product-name" style="width:' . $colWidth . '%">' . $name . '</th>';
+            $html .= '<th class="product-name" style="width:'.$colWidth.'%">'.$name.'</th>';
         }
         $html .= '</tr></thead><tbody>';
 
         foreach ($grouped as $groupLabel => $rows) {
             $colspan = $productCount + 1;
-            $html .= '<tr class="group-header"><td colspan="' . $colspan . '">' . e($groupLabel) . '</td></tr>';
+            $html .= '<tr class="group-header"><td colspan="'.$colspan.'">'.e($groupLabel).'</td></tr>';
 
             foreach ($rows as $row) {
                 $diffClass = $row['differs'] ? ' class="differs"' : '';
-                $html .= '<tr><td class="label-col">' . e($row['label']) . '</td>';
+                $html .= '<tr><td class="label-col">'.e($row['label']).'</td>';
                 foreach ($row['values'] as $val) {
-                    $html .= '<td' . $diffClass . '>' . e($val) . '</td>';
+                    $html .= '<td'.$diffClass.'>'.e($val).'</td>';
                 }
                 $html .= '</tr>';
             }
@@ -516,15 +572,15 @@ class ProductComparisonService
     /**
      * Export comparison to Excel XLSX.
      */
-    public function exportExcel(Collection $products): \Symfony\Component\HttpFoundation\BinaryFileResponse
+    public function exportExcel(Collection $products): BinaryFileResponse
     {
         $matrix = $this->buildComparisonMatrix($products);
         $productNames = $products->pluck('name')->toArray();
 
-        $filename = 'so-sanh-san-pham-' . now()->format('Ymd-His') . '.xlsx';
+        $filename = 'so-sanh-san-pham-'.now()->format('Ymd-His').'.xlsx';
 
         return Excel::download(
-            new \App\Exports\ProductComparisonExport($matrix, $productNames),
+            new ProductComparisonExport($matrix, $productNames),
             $filename
         );
     }
@@ -536,7 +592,7 @@ class ProductComparisonService
     /**
      * Export comparison to CSV with UTF-8 BOM.
      */
-    public function exportCsv(Collection $products): \Symfony\Component\HttpFoundation\Response
+    public function exportCsv(Collection $products): Response
     {
         $matrix = $this->buildComparisonMatrix($products);
         $productNames = $products->pluck('name')->toArray();
@@ -551,18 +607,18 @@ class ProductComparisonService
         // Data
         foreach ($matrix as $row) {
             if ($row['type'] === 'group_header') {
-                $line = array_merge(['[' . $row['label'] . ']'], array_fill(0, count($productNames), ''));
+                $line = array_merge(['['.$row['label'].']'], array_fill(0, count($productNames), ''));
             } else {
                 $line = array_merge([$row['label']], $row['values']);
             }
             $csv .= $this->csvLine($line);
         }
 
-        $filename = 'so-sanh-san-pham-' . now()->format('Ymd-His') . '.csv';
+        $filename = 'so-sanh-san-pham-'.now()->format('Ymd-His').'.csv';
 
         return response($csv, 200, [
-            'Content-Type'        => 'text/csv; charset=UTF-8',
-            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+            'Content-Type' => 'text/csv; charset=UTF-8',
+            'Content-Disposition' => 'attachment; filename="'.$filename.'"',
         ]);
     }
 
@@ -572,10 +628,11 @@ class ProductComparisonService
     private function csvLine(array $fields): string
     {
         $escaped = array_map(function ($field) {
-            $field = str_replace('"', '""', (string)$field);
-            return '"' . $field . '"';
+            $field = str_replace('"', '""', (string) $field);
+
+            return '"'.$field.'"';
         }, $fields);
 
-        return implode(',', $escaped) . "\r\n";
+        return implode(',', $escaped)."\r\n";
     }
 }

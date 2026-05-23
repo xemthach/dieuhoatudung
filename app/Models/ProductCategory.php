@@ -3,20 +3,46 @@
 namespace App\Models;
 
 use App\Enums\ProductCategoryType;
+use App\Services\Catalog\CategoryTechnicalSchemaService;
+use App\Services\SlugGeneratorService;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Support\Arr;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphToMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class ProductCategory extends Model
 {
     use HasFactory, SoftDeletes;
 
     protected $guarded = [];
+
+    protected static function booted(): void
+    {
+        static::saving(function (ProductCategory $category): void {
+            $slugger = app(SlugGeneratorService::class);
+
+            if (blank($category->slug)) {
+                $category->slug = $slugger->unique(static::class, $category->name, $category->getKey(), fallback: 'category');
+
+                return;
+            }
+
+            if ($category->isDirty('slug')) {
+                $category->slug = $slugger->unique(static::class, $category->slug, $category->getKey(), fallback: 'category');
+            }
+
+            if (is_array($category->technical_schema_json)) {
+                $category->technical_schema_json = app(CategoryTechnicalSchemaService::class)->normalize(
+                    $category->technical_schema_json,
+                    (string) ($category->technical_schema_version ?: 'v1'),
+                    (string) ($category->technical_schema_status ?: 'draft'),
+                );
+            }
+        });
+    }
 
     protected function casts(): array
     {
@@ -64,7 +90,11 @@ class ProductCategory extends Model
 
     public function technicalSchema(): array
     {
-        return is_array($this->technical_schema_json) ? $this->technical_schema_json : [];
+        return app(CategoryTechnicalSchemaService::class)->normalize(
+            is_array($this->technical_schema_json) ? $this->technical_schema_json : [],
+            (string) ($this->technical_schema_version ?: 'v1'),
+            $this->technicalSchemaStatus(),
+        );
     }
 
     public function technicalSchemaStatus(): string
@@ -74,7 +104,7 @@ class ProductCategory extends Model
 
     public function hasTechnicalSchema(): bool
     {
-        if ($this->technicalSchemaStatus() !== 'active' && $this->technicalSchemaStatus() !== 'locked') {
+        if ($this->technicalSchemaStatus() !== 'active') {
             return false;
         }
 
@@ -89,110 +119,76 @@ class ProductCategory extends Model
 
     public function technicalSchemaAllowedFields(): array
     {
-        return array_values(array_filter(array_map(
-            fn ($value) => is_string($value) ? mb_strtolower(trim($value)) : null,
-            (array) Arr::get($this->technicalSchema(), 'allowed_fields', [])
-        )));
+        return array_values(array_map(
+            fn (array $field): string => $field['key'],
+            $this->technicalSchemaFieldDefinitions()
+        ));
     }
 
     public function technicalSchemaPermittedFields(): array
     {
-        $fields = array_merge(
-            $this->technicalSchemaAllowedFields(),
-            array_map(
-                fn (array $definition) => $definition['key'] ?? null,
-                $this->technicalSchemaFieldDefinitions()
-            )
-        );
-
-        return array_values(array_unique(array_filter($fields)));
+        return $this->technicalSchemaAllowedFields();
     }
 
     public function technicalSchemaRequiredFields(): array
     {
-        return array_values(array_filter(array_map(
-            fn ($value) => is_string($value) ? mb_strtolower(trim($value)) : null,
-            (array) Arr::get($this->technicalSchema(), 'required_fields', [])
-        )));
+        return array_values(array_map(
+            fn (array $field): string => $field['key'],
+            array_filter($this->technicalSchemaFieldDefinitions(), fn (array $field): bool => (bool) ($field['required'] ?? false))
+        ));
     }
 
     public function technicalSchemaAllowedUnits(): array
     {
-        return array_values(array_filter(array_map(
-            fn ($value) => is_string($value) ? mb_strtolower(trim($value)) : null,
-            (array) Arr::get($this->technicalSchema(), 'allowed_units', [])
-        )));
+        return array_values(array_unique(array_filter(array_map(
+            fn (array $field): ?string => ($field['unit'] ?? 'none') !== 'none' ? (string) $field['unit'] : null,
+            $this->technicalSchemaFieldDefinitions()
+        ))));
     }
 
     public function technicalSchemaFieldAliases(): array
     {
-        $aliases = Arr::get($this->technicalSchema(), 'field_aliases', []);
+        $aliases = [];
 
-        if (! is_array($aliases)) {
-            return [];
+        foreach ($this->technicalSchemaFieldDefinitions() as $field) {
+            foreach ((array) ($field['aliases'] ?? []) as $alias) {
+                if (is_string($alias) && $alias !== '') {
+                    $aliases[mb_strtolower(trim($alias))] = $field['key'];
+                }
+            }
         }
 
-        return collect($aliases)
-            ->filter(fn ($value, $key) => is_string($key) && is_string($value))
-            ->mapWithKeys(fn (string $value, string $key) => [mb_strtolower(trim($key)) => mb_strtolower(trim($value))])
-            ->all();
+        $legacyAliases = is_array($this->technical_schema_json)
+            ? ($this->technical_schema_json['field_aliases'] ?? [])
+            : [];
+
+        foreach ((array) $legacyAliases as $alias => $key) {
+            if (is_string($alias) && is_string($key)) {
+                $aliases[mb_strtolower(trim($alias))] = mb_strtolower(trim($key));
+            }
+        }
+
+        return $aliases;
     }
 
     public function normalizeTechnicalSchemaKey(string $key): string
     {
-        $key = trim(mb_strtolower($key));
-        $aliases = $this->technicalSchemaFieldAliases();
-
-        if (isset($aliases[$key]) && is_string($aliases[$key])) {
-            return trim(mb_strtolower($aliases[$key]));
-        }
-
-        return $key;
+        return app(CategoryTechnicalSchemaService::class)->normalizeSchemaKey($this, $key);
     }
 
     public function technicalSchemaFieldDefinitions(): array
     {
-        $fields = Arr::get($this->technicalSchema(), 'fields', []);
+        return $this->technicalSchema()['fields'] ?? [];
+    }
 
-        if (! is_array($fields)) {
-            return [];
-        }
-
-        $definitions = [];
-
-        foreach ($fields as $key => $definition) {
-            if (is_string($key) && is_array($definition)) {
-                $definition['key'] = $key;
-                $definitions[] = $definition;
-                continue;
-            }
-
-            if (is_array($definition)) {
-                $definitions[] = $definition;
-            }
-        }
-
-        return array_values(array_filter(array_map(function (array $definition): ?array {
-            $key = $definition['key'] ?? $definition['name'] ?? null;
-
-            if (! is_string($key) || trim($key) === '') {
-                return null;
-            }
-
-            return [
-                'key' => mb_strtolower(trim($key)),
-                'label' => is_string($definition['label'] ?? null) ? trim((string) $definition['label']) : null,
-                'required' => filter_var($definition['required'] ?? false, FILTER_VALIDATE_BOOL),
-                'unit' => is_string($definition['unit'] ?? null) ? mb_strtolower(trim((string) $definition['unit'])) : null,
-                'type' => is_string($definition['type'] ?? null) ? mb_strtolower(trim((string) $definition['type'])) : null,
-            ];
-        }, $definitions)));
+    public function technicalSchemaFieldsFor(string $purpose): array
+    {
+        return app(CategoryTechnicalSchemaService::class)->fieldsFor($this, $purpose);
     }
 
     public function technicalSchemaIsLocked(): bool
     {
-        return in_array($this->technicalSchemaStatus(), ['locked', 'active'], true)
-            && $this->hasTechnicalSchema();
+        return $this->technicalSchemaStatus() === 'active' && $this->hasTechnicalSchema();
     }
 
     public function technicalSchemaFieldCount(): int
@@ -223,7 +219,11 @@ class ProductCategory extends Model
         $status = $this->technicalSchemaStatus();
         $schema = $this->technicalSchema();
 
-        if (in_array($status, ['active', 'locked'], true) && $schema === []) {
+        foreach (app(CategoryTechnicalSchemaService::class)->validate($schema) as $error) {
+            $issues[] = 'schema_validation:'.$error;
+        }
+
+        if ($status === 'active' && $schema === []) {
             $issues[] = 'schema_payload_missing';
         }
 
@@ -231,23 +231,12 @@ class ProductCategory extends Model
             $issues[] = 'schema_status_missing';
         }
 
-        if (in_array($status, ['active', 'locked'], true) && ! $this->hasTechnicalSchema()) {
+        if ($status === 'active' && ! $this->hasTechnicalSchema()) {
             $issues[] = 'schema_inactive_or_empty';
         }
 
         if ($this->technicalSchemaFieldCount() === 0) {
             $issues[] = 'schema_field_definition_missing';
-        }
-
-        if ($this->technicalSchemaRequiredFields() !== [] && $this->technicalSchemaAllowedFields() === [] && $this->technicalSchemaFieldDefinitions() === []) {
-            $issues[] = 'required_fields_without_allowed_fields';
-        }
-
-        if ($this->technicalSchemaRequiredFields() !== [] && $this->technicalSchemaAllowedFields() !== []) {
-            $missingInAllowed = array_diff($this->technicalSchemaRequiredFields(), $this->technicalSchemaAllowedFields());
-            if ($missingInAllowed !== []) {
-                $issues[] = 'required_fields_not_in_allowed_fields';
-            }
         }
 
         return array_values(array_unique($issues));

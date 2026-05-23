@@ -56,7 +56,7 @@ class AuditPanasonicSpecs extends Command
             ])->toArray();
             File::put($auditDir . '/panasonic-backup-' . date('Ymd-His') . '.json',
                 json_encode($backup, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
-            $this->info("✓ Backup saved.\n");
+            $this->info(" Backup saved.\n");
         }
 
         $stats = [
@@ -79,7 +79,7 @@ class AuditPanasonicSpecs extends Command
             $productChanges = [];
             $dirty = false;
 
-            // ── Parse and clean specs_json ──
+            //  Parse and clean specs_json 
             $specsRaw = $product->specs_json;
             $cleanedSpecs = [];
             $removedEmpty = 0;
@@ -111,7 +111,7 @@ class AuditPanasonicSpecs extends Command
             if ($removedEmpty > 0) { $stats['json_empty_removed'] += $removedEmpty; $dirty = true; }
             if ($removedDuplicate > 0) { $stats['json_duplicate_removed'] += $removedDuplicate; $dirty = true; }
 
-            // ── Ensure indoor/outdoor model ──
+            //  Ensure indoor/outdoor model 
             $parts = explode('/', $product->model_code);
             $indoor = trim($parts[0] ?? '');
             $outdoor = trim($parts[1] ?? '');
@@ -128,15 +128,15 @@ class AuditPanasonicSpecs extends Command
             if (!empty($outdoor)) $outdoorModels[$outdoor] = true;
             $stats['combination_count']++;
 
-            // ── Add source_catalogue if missing ──
+            //  Add source_catalogue if missing 
             if (!isset($cleanedSpecs['source_catalogue'])) {
                 $cleanedSpecs['source_catalogue'] = 'Panasonic Commercial AC Catalogue 2025';
             }
 
-            // ── Order specs logically ──
+            //  Order specs logically 
             $ordered = $this->orderSpecs($cleanedSpecs);
 
-            // ── Convert to repeater format ──
+            //  Convert to repeater format 
             $repeaterSpecs = [];
             foreach ($ordered as $k => $v) {
                 $repeaterSpecs[] = ['key' => $k, 'value' => (string) $v];
@@ -149,7 +149,7 @@ class AuditPanasonicSpecs extends Command
                 $stats['specs_cleaned']++;
                 $dirty = true;
                 if (empty($productChanges)) {
-                    $productChanges[] = 'Converted flat JSON → repeater format';
+                    $productChanges[] = 'Converted flat JSON  repeater format';
                 }
             }
 
@@ -159,7 +159,7 @@ class AuditPanasonicSpecs extends Command
                 $changes[$product->model_code] = $productChanges;
             }
 
-            // ── Missing fields ──
+            //  Missing fields 
             $mf = [];
             foreach (['power_consumption','airflow','noise_level','indoor_dimensions','outdoor_dimensions','weight','recommended_area'] as $f) {
                 if (empty($product->$f)) $mf[] = $f;
@@ -172,11 +172,11 @@ class AuditPanasonicSpecs extends Command
         $stats['indoor_count'] = count($indoorModels);
         $stats['outdoor_count'] = count($outdoorModels);
 
-        // ── Output ──
+        //  Output 
         $this->newLine();
-        $this->info('═══════════════════════════════════════════');
+        $this->info('');
         $this->info('  PANASONIC PRODUCT SPECS AUDIT REPORT');
-        $this->info('═══════════════════════════════════════════');
+        $this->info('');
         $this->table(['Metric', 'Count'],
             collect($stats)->map(fn ($v, $k) => [str_replace('_', ' ', ucfirst($k)), $v])->values()->toArray());
 
@@ -187,7 +187,7 @@ class AuditPanasonicSpecs extends Command
                 array_map(fn ($m) => [$m['model_code'], implode(', ', $m['missing'])], array_slice($missing, 0, 10)));
         }
 
-        // ── Save files ──
+        //  Save files 
         $report = [
             'timestamp' => now()->toIso8601String(),
             'mode' => $fix ? 'FIX' : ($dryRun ? 'DRY_RUN' : 'AUDIT'),
@@ -209,8 +209,8 @@ class AuditPanasonicSpecs extends Command
         }
 
         $this->newLine();
-        $this->info("✓ Report: storage/app/audit/panasonic-products-clean.json");
-        if (!empty($missing)) $this->info("✓ Missing: storage/app/audit/panasonic-products-missing.csv");
+        $this->info(" Report: storage/app/audit/panasonic-products-clean.json");
+        if (!empty($missing)) $this->info(" Missing: storage/app/audit/panasonic-products-missing.csv");
         if (!$fix && !$dryRun) { $this->newLine(); $this->warn('Run with --fix to apply changes.'); }
 
         return 0;

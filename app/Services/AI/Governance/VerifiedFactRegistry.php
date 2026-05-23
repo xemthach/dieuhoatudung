@@ -14,10 +14,11 @@ class VerifiedFactRegistry
 
     public function buildForProduct(Product $product, array $allowedFacts = []): array
     {
-        $product->loadMissing(['brand', 'category']);
+        $product->loadMissing(['brand', 'category', 'catalogModel.fields']);
+        $hasCatalogFacts = $product->catalogModel?->fields?->isNotEmpty() === true;
 
         $facts = [];
-        foreach ($this->productFactDefinitions($product) as $key => $definition) {
+        foreach ($this->productFactDefinitions($product, includeTechnical: ! $hasCatalogFacts) as $key => $definition) {
             $this->addFact(
                 $facts,
                 $key,
@@ -29,8 +30,33 @@ class VerifiedFactRegistry
             );
         }
 
-        $flattenedSpecs = $this->flattenSpecs($product->specs_json ?? []);
+        if ($hasCatalogFacts) {
+            foreach ($product->catalogModel->fields as $field) {
+                $key = 'catalog.technical_specs.'.$field->field_key;
+                $this->addFact(
+                    $facts,
+                    $key,
+                    $field->field_value,
+                    'catalog_model_fields',
+                    'catalog_model_fields.'.$field->id,
+                    $field->field_label ?: $field->field_key,
+                    (float) ($field->confidence_score ?? $product->catalogModel->confidence_score ?? 1.0),
+                    [
+                        'spec_key' => $field->field_key,
+                        'unit' => $field->unit,
+                        'source_page' => $field->source_page ?: $product->catalogModel->source_page,
+                    ]
+                );
+            }
+        }
+
+        $aiSchemaKeys = $this->aiSchemaKeys($product);
+        $flattenedSpecs = $hasCatalogFacts ? [] : $this->flattenSpecs($product->specs_json ?? []);
         foreach ($flattenedSpecs as $index => $spec) {
+            if ($aiSchemaKeys !== [] && ! in_array($product->category?->normalizeTechnicalSchemaKey((string) $spec['key']), $aiSchemaKeys, true)) {
+                continue;
+            }
+
             $key = 'product.technical_specs_json.'.$index;
             $value = trim(($spec['label'] ?: $spec['key']).' '.$spec['value']);
             $this->addFact(
@@ -160,9 +186,9 @@ class VerifiedFactRegistry
         return null;
     }
 
-    private function productFactDefinitions(Product $product): array
+    private function productFactDefinitions(Product $product, bool $includeTechnical = true): array
     {
-        return [
+        $identity = [
             'product.id' => ['value' => $product->id, 'source_field' => 'products.id', 'label' => 'product id'],
             'product.name' => ['value' => $product->name, 'source_field' => 'products.name', 'label' => 'ten san pham'],
             'product.slug' => ['value' => $product->slug, 'source_field' => 'products.slug', 'label' => 'slug'],
@@ -170,6 +196,17 @@ class VerifiedFactRegistry
             'product.sku' => ['value' => $product->sku, 'source_field' => 'products.sku', 'label' => 'sku'],
             'product.brand' => ['value' => $product->brand?->name, 'source_field' => 'brands.name', 'label' => 'brand'],
             'product.category' => ['value' => $product->category?->name, 'source_field' => 'product_categories.name', 'label' => 'category'],
+            'product.warranty_info' => ['value' => strip_tags((string) $product->warranty_info), 'source_field' => 'products.warranty_info', 'label' => 'warranty policy'],
+            'product.regular_price' => ['value' => $product->regular_price, 'source_field' => 'products.regular_price', 'label' => 'regular price'],
+            'product.sale_price' => ['value' => $product->sale_price, 'source_field' => 'products.sale_price', 'label' => 'sale price'],
+            'product.vat_enabled' => ['value' => (bool) $product->price_includes_vat, 'source_field' => 'products.price_includes_vat', 'label' => 'vat included'],
+        ];
+
+        if (! $includeTechnical) {
+            return $identity;
+        }
+
+        $technical = [
             'product.capacity_btu' => ['value' => $product->btu, 'source_field' => 'products.btu', 'label' => 'capacity btu'],
             'product.capacity_kw' => ['value' => $product->capacity_kw, 'source_field' => 'products.capacity_kw', 'label' => 'capacity kw'],
             'product.hp' => ['value' => $product->hp, 'source_field' => 'products.hp', 'label' => 'hp'],
@@ -183,11 +220,48 @@ class VerifiedFactRegistry
             'product.outdoor_dimensions' => ['value' => $product->outdoor_dimensions, 'source_field' => 'products.outdoor_dimensions', 'label' => 'outdoor dimensions'],
             'product.weight' => ['value' => $product->weight, 'source_field' => 'products.weight', 'label' => 'weight'],
             'product.recommended_area' => ['value' => $product->recommended_area, 'source_field' => 'products.recommended_area', 'label' => 'recommended area'],
-            'product.warranty_info' => ['value' => strip_tags((string) $product->warranty_info), 'source_field' => 'products.warranty_info', 'label' => 'warranty policy'],
-            'product.regular_price' => ['value' => $product->regular_price, 'source_field' => 'products.regular_price', 'label' => 'regular price'],
-            'product.sale_price' => ['value' => $product->sale_price, 'source_field' => 'products.sale_price', 'label' => 'sale price'],
-            'product.vat_enabled' => ['value' => (bool) $product->price_includes_vat, 'source_field' => 'products.price_includes_vat', 'label' => 'vat included'],
         ];
+
+        $aiSchemaKeys = $this->aiSchemaKeys($product);
+        if ($aiSchemaKeys !== []) {
+            $factToSchemaKey = [
+                'product.capacity_btu' => 'capacity_btu',
+                'product.capacity_kw' => 'capacity_kw',
+                'product.hp' => 'hp',
+                'product.cooling_type' => 'cooling_type',
+                'product.inverter' => 'inverter',
+                'product.phase' => 'voltage',
+                'product.refrigerant' => 'refrigerant',
+                'product.airflow' => 'airflow',
+                'product.noise_level' => 'noise_level',
+                'product.indoor_dimensions' => 'indoor_dimensions',
+                'product.outdoor_dimensions' => 'outdoor_dimensions',
+                'product.weight' => 'weight',
+                'product.recommended_area' => 'recommended_area',
+            ];
+
+            $technical = array_filter(
+                $technical,
+                fn (string $factKey): bool => in_array($factToSchemaKey[$factKey] ?? '', $aiSchemaKeys, true),
+                ARRAY_FILTER_USE_KEY
+            );
+        }
+
+        return $identity + $technical;
+    }
+
+    private function aiSchemaKeys(Product $product): array
+    {
+        $category = $product->category;
+
+        if (! $category?->hasTechnicalSchema()) {
+            return [];
+        }
+
+        return array_values(array_map(
+            fn (array $field): string => $field['key'],
+            $category->technicalSchemaFieldsFor('ai')
+        ));
     }
 
     private function addFact(

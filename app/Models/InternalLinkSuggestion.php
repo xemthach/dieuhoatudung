@@ -33,7 +33,7 @@ class InternalLinkSuggestion extends Model
         return $this->morphTo('target');
     }
 
-    // ─── Scopes ───────────────────────────────────────────
+    //  Scopes 
 
     public function scopeApproved($query)
     {
@@ -45,7 +45,7 @@ class InternalLinkSuggestion extends Model
         return $query->where('source_type', $type)->where('source_id', $id);
     }
 
-    // ─── Helpers ──────────────────────────────────────────
+    //  Helpers 
 
     public function getTargetUrlAttribute(): ?string
     {

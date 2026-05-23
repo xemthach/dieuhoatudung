@@ -65,7 +65,7 @@ HTML;
     private function templates(): array
     {
         return [
-            // ── 1. LEAD ADMIN ──────────────────────────────────────────
+            // 1. Lead admin.
             [
                 'key'     => 'lead_admin_notification',
                 'name'    => 'Thông báo admin — Lead mới',
@@ -95,7 +95,7 @@ HTML;
                 ],
             ],
 
-            // ── 2. LEAD CUSTOMER ───────────────────────────────────────
+            // 2. Lead customer.
             [
                 'key'     => 'lead_customer_confirmation',
                 'name'    => 'Xác nhận khách — Lead',
@@ -117,7 +117,7 @@ HTML;
                 ],
             ],
 
-            // ── 3. QUOTE ADMIN ─────────────────────────────────────────
+            // 3. Quote admin.
             [
                 'key'     => 'quote_admin_notification',
                 'name'    => 'Thông báo admin — Báo giá mới',
@@ -149,7 +149,7 @@ HTML;
                 ],
             ],
 
-            // ── 4. QUOTE CUSTOMER ──────────────────────────────────────
+            // 4. Quote customer.
             [
                 'key'     => 'quote_customer_confirmation',
                 'name'    => 'Xác nhận khách — Báo giá',
@@ -174,7 +174,7 @@ HTML;
                 ],
             ],
 
-            // ── 5. REVIEW ADMIN ────────────────────────────────────────
+            // 5. Review admin.
             [
                 'key'     => 'review_admin_notification',
                 'name'    => 'Thông báo admin — Đánh giá mới',
@@ -201,7 +201,7 @@ HTML;
                 ],
             ],
 
-            // ── 6. REVIEW CUSTOMER (approved) ──────────────────────────
+            // 6. Review customer (approved).
             [
                 'key'     => 'review_approved_customer',
                 'name'    => 'Thông báo khách — Đánh giá được duyệt',
@@ -218,7 +218,7 @@ HTML;
                 ],
             ],
 
-            // ── 7. QUESTION ADMIN ──────────────────────────────────────
+            // 7. Question admin.
             [
                 'key'     => 'question_admin_notification',
                 'name'    => 'Thông báo admin — Câu hỏi mới',
@@ -243,7 +243,7 @@ HTML;
                 ],
             ],
 
-            // ── 8. QUESTION CUSTOMER (answered) ───────────────────────
+            // 8. Question customer (answered).
             [
                 'key'     => 'question_answered_customer',
                 'name'    => 'Thông báo khách — Câu hỏi được trả lời',
@@ -269,7 +269,7 @@ HTML;
                 ],
             ],
 
-            // ── 9. SYSTEM ALERT ────────────────────────────────────────
+            // 9. System alert.
             [
                 'key'     => 'system_alert',
                 'name'    => 'Cảnh báo hệ thống',

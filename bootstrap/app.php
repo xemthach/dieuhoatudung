@@ -12,6 +12,7 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->web(prepend: [
+            \App\Http\Middleware\ForceUtf8ResponseHeaders::class,
             \App\Http\Middleware\HandleRedirects::class,
         ]);
     })

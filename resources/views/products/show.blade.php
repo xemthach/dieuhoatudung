@@ -229,6 +229,17 @@
                 <div class="overflow-hidden rounded-xl border border-surface-200">
                     <table class="w-full text-sm">
                         <tbody class="divide-y divide-surface-100">
+                            @php
+                                $schemaSpecs = app(\App\Services\Catalog\CategoryTechnicalSchemaService::class)->productSpecsFor($product, 'frontend');
+                            @endphp
+                            @if($schemaSpecs !== [])
+                                @foreach($schemaSpecs as $item)
+                                    <tr>
+                                        <td class="bg-surface-50 px-4 py-3 font-medium text-surface-700 w-1/3">{{ $item['label'] }}</td>
+                                        <td class="px-4 py-3 text-surface-600">{{ $item['value'] }}</td>
+                                    </tr>
+                                @endforeach
+                            @else
                             @if($product->btu)<tr><td class="bg-surface-50 px-4 py-3 font-medium text-surface-700 w-1/3">Công suất</td><td class="px-4 py-3 text-surface-600">{{ number_format($product->btu) }} BTU</td></tr>@endif
                             @if($product->inverter !== null)<tr><td class="bg-surface-50 px-4 py-3 font-medium text-surface-700">Inverter</td><td class="px-4 py-3 text-surface-600">{{ $product->inverter ? 'Có' : 'Không' }}</td></tr>@endif
                             @if($product->cooling_type)<tr><td class="bg-surface-50 px-4 py-3 font-medium text-surface-700">Kiểu</td><td class="px-4 py-3 text-surface-600">{{ $product->cooling_type === '2_chieu' ? '2 chiều (Nóng/Lạnh)' : '1 chiều (Lạnh)' }}</td></tr>@endif
@@ -258,6 +269,7 @@
                                         </tr>
                                     @endforeach
                                 @endforeach
+                            @endif
                             @endif
                         </tbody>
                     </table>

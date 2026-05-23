@@ -23,7 +23,7 @@ class MediaAudit extends Command
                             {--model= : Audit a specific model (e.g., Product, Brand)}
                             {--fix : Show repair suggestions}';
 
-    protected $description = 'Audit all media fields across the system — report DB paths, local existence, R2 sync status, and broken URLs.';
+    protected $description = 'Audit all media fields across the system  report DB paths, local existence, R2 sync status, and broken URLs.';
 
     private int $totalFields = 0;
     private int $okCount = 0;
@@ -80,14 +80,14 @@ class MediaAudit extends Command
     public function handle(): int
     {
         $this->info('');
-        $this->info('╔══════════════════════════════════════════════╗');
-        $this->info('║        MEDIA AUDIT — Full System Scan        ║');
-        $this->info('╚══════════════════════════════════════════════╝');
+        $this->info('');
+        $this->info('        MEDIA AUDIT  Full System Scan        ');
+        $this->info('');
         $this->info('');
 
         $r2Enabled = setting('r2_storage.r2_enabled', false);
         $publicUrl = setting('r2_storage.r2_public_url');
-        $this->info("R2 Status: " . ($r2Enabled ? '🟢 Enabled' : '🔴 Disabled'));
+        $this->info("R2 Status: " . ($r2Enabled ? ' Enabled' : ' Disabled'));
         $this->info("R2 Public URL: " . ($publicUrl ?: '(not set)'));
         $this->info("MediaFile records: " . MediaFile::count());
         $this->info("Synced to R2: " . MediaFile::where('is_synced_to_r2', true)->count());
@@ -109,7 +109,7 @@ class MediaAudit extends Command
                 continue;
             }
 
-            $this->info("── {$shortName} ──");
+            $this->info(" {$shortName} ");
             $records = $modelClass::all();
 
             if ($records->isEmpty()) {
@@ -142,7 +142,7 @@ class MediaAudit extends Command
 
     private function auditSiteSettings(array $config): void
     {
-        $this->info("── SiteSetting (Branding) ──");
+        $this->info(" SiteSetting (Branding) ");
 
         $filter = $config['_filter'];
         $field = $config['_field'];
@@ -212,15 +212,15 @@ class MediaAudit extends Command
                 $synced = MediaFile::where('path', $relativePath)->where('is_synced_to_r2', true)->exists();
                 if (!$synced) {
                     $this->fakeCdnUrls++;
-                    $rows[] = [$id, $field, $this->truncate($path), '-', '❌', '🔴 FAKE CDN URL'];
+                    $rows[] = [$id, $field, $this->truncate($path), '-', '', ' FAKE CDN URL'];
                     return;
                 }
                 $this->syncedToR2++;
-                $rows[] = [$id, $field, $this->truncate($path), '-', '✅', '✅ CDN URL (synced)'];
+                $rows[] = [$id, $field, $this->truncate($path), '-', '', ' CDN URL (synced)'];
                 return;
             }
 
-            $rows[] = [$id, $field, $this->truncate($path), '-', '-', '🔵 External URL'];
+            $rows[] = [$id, $field, $this->truncate($path), '-', '-', ' External URL'];
             return;
         }
 
@@ -237,56 +237,56 @@ class MediaAudit extends Command
 
         if ($localExists) {
             $this->okCount++;
-            $status = $synced ? '✅ OK (local + R2)' : '✅ OK (local only)';
+            $status = $synced ? ' OK (local + R2)' : ' OK (local only)';
         } else {
             $this->missingLocal++;
-            $status = $synced ? '⚠️ Local missing, R2 OK' : '🔴 MISSING everywhere';
+            $status = $synced ? ' Local missing, R2 OK' : ' MISSING everywhere';
         }
 
         $rows[] = [
             $id,
             $field,
             $this->truncate($relativePath),
-            $localExists ? '✅' : '❌',
-            $synced ? '✅' : '—',
+            $localExists ? '' : '',
+            $synced ? '' : '',
             $status,
         ];
     }
 
     private function printSummary(): void
     {
-        $this->info('╔══════════════════════════════════════════════╗');
-        $this->info('║              AUDIT SUMMARY                   ║');
-        $this->info('╚══════════════════════════════════════════════╝');
+        $this->info('');
+        $this->info('              AUDIT SUMMARY                   ');
+        $this->info('');
         $this->info('');
         $this->info("  Total fields scanned:   {$this->totalFields}");
         $this->info("  Empty/null paths:       {$this->emptyPaths}");
-        $this->info("  ✅ OK (local exists):   {$this->okCount}");
-        $this->info("  ✅ Synced to R2:        {$this->syncedToR2}");
-        $this->info("  🔵 External URLs:       {$this->fullUrls}");
-        $this->info("  ❌ Missing local:       {$this->missingLocal}");
-        $this->info("  🔴 Fake CDN URLs:       {$this->fakeCdnUrls}");
+        $this->info("   OK (local exists):   {$this->okCount}");
+        $this->info("   Synced to R2:        {$this->syncedToR2}");
+        $this->info("   External URLs:       {$this->fullUrls}");
+        $this->info("   Missing local:       {$this->missingLocal}");
+        $this->info("   Fake CDN URLs:       {$this->fakeCdnUrls}");
         $this->info('');
 
         if ($this->fakeCdnUrls > 0) {
-            $this->error("⚠ Found {$this->fakeCdnUrls} fake CDN URL(s) — files not synced to R2!");
+            $this->error(" Found {$this->fakeCdnUrls} fake CDN URL(s)  files not synced to R2!");
             if ($this->option('fix')) {
-                $this->warn("  → Run: php artisan media:repair-paths");
+                $this->warn("   Run: php artisan media:repair-paths");
             }
         }
 
         if ($this->missingLocal > 0) {
-            $this->warn("⚠ Found {$this->missingLocal} path(s) with missing local files.");
+            $this->warn(" Found {$this->missingLocal} path(s) with missing local files.");
         }
 
         if ($this->fakeCdnUrls === 0 && $this->missingLocal === 0) {
-            $this->info('🎉 All media paths are healthy!');
+            $this->info(' All media paths are healthy!');
         }
     }
 
     private function truncate(string $value, int $max = 60): string
     {
-        return strlen($value) > $max ? '…' . substr($value, -($max - 1)) : $value;
+        return strlen($value) > $max ? '' . substr($value, -($max - 1)) : $value;
     }
 
     private function isJson(mixed $value): bool

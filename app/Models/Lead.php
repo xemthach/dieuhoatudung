@@ -14,12 +14,12 @@ class Lead extends Model
 
     protected $guarded = [];
 
-    /* ── Lead types ── */
+    /*  Lead types  */
     public const TYPE_PRODUCT      = 'product';
     public const TYPE_CONSULTATION = 'consultation';
     public const TYPE_GENERAL      = 'general';
 
-    /* ── Intent scores ── */
+    /*  Intent scores  */
     public const SCORE_PRODUCT      = 100;
     public const SCORE_CONSULTATION = 70;
     public const SCORE_GENERAL      = 40;
@@ -33,7 +33,7 @@ class Lead extends Model
         ];
     }
 
-    /* ── Relationships ── */
+    /*  Relationships  */
 
     public function product(): BelongsTo
     {
@@ -45,13 +45,13 @@ class Lead extends Model
         return $this->belongsTo(QuoteRequest::class);
     }
 
-    /* ── Static helpers ── */
+    /*  Static helpers  */
 
     public static function leadTypeLabels(): array
     {
         return [
-            self::TYPE_PRODUCT      => 'Sản phẩm',
-            self::TYPE_CONSULTATION => 'Tư vấn',
+            self::TYPE_PRODUCT      => 'Sn phm',
+            self::TYPE_CONSULTATION => 'T vn',
             self::TYPE_GENERAL      => 'Chung',
         ];
     }
@@ -84,7 +84,7 @@ class Lead extends Model
     }
 
     /**
-     * Create a consultation lead (BTU calculator / tư vấn).
+     * Create a consultation lead (BTU calculator / t vn).
      */
     public static function createConsultationLead(array $contact, array $extra = []): self
     {

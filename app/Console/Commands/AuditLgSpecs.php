@@ -65,7 +65,7 @@ class AuditLgSpecs extends Command
             ])->toArray();
             File::put($auditDir . '/lg-backup-' . date('Ymd-His') . '.json',
                 json_encode($backup, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
-            $this->info("✓ Backup saved.\n");
+            $this->info(" Backup saved.\n");
         }
 
         $stats = [
@@ -84,7 +84,7 @@ class AuditLgSpecs extends Command
             $productChanges = [];
             $dirty = false;
 
-            // ── Step 1: Parse and clean specs_json ──
+            //  Step 1: Parse and clean specs_json 
             $specsRaw = $product->specs_json;
             $cleanedSpecs = [];
             $removedEmpty = 0;
@@ -102,7 +102,7 @@ class AuditLgSpecs extends Command
                         $cleanedSpecs[$key] = $val;
                     }
                 } else {
-                    // Flat format — convert to proper format
+                    // Flat format  convert to proper format
                     $stats['json_format_converted']++;
                     foreach ($specsRaw as $key => $val) {
                         $key = trim((string) $key);
@@ -125,7 +125,7 @@ class AuditLgSpecs extends Command
                 $dirty = true;
             }
 
-            // ── Step 2: Ensure indoor_model/outdoor_model in specs ──
+            //  Step 2: Ensure indoor_model/outdoor_model in specs 
             $parts = explode('/', $product->model_code);
             $indoor = trim($parts[0] ?? '');
             $outdoor = trim($parts[1] ?? '');
@@ -137,15 +137,15 @@ class AuditLgSpecs extends Command
                 $cleanedSpecs['outdoor_model'] = $outdoor;
             }
 
-            // ── Step 3: Add source_catalogue if missing ──
+            //  Step 3: Add source_catalogue if missing 
             if (!isset($cleanedSpecs['source_catalogue'])) {
                 $cleanedSpecs['source_catalogue'] = 'LG SCAC Catalogue R32 2025';
             }
 
-            // ── Step 4: Order specs logically ──
+            //  Step 4: Order specs logically 
             $orderedSpecs = $this->orderSpecs($cleanedSpecs);
 
-            // ── Step 5: Convert to repeater format ──
+            //  Step 5: Convert to repeater format 
             $repeaterSpecs = [];
             foreach ($orderedSpecs as $k => $v) {
                 $repeaterSpecs[] = ['key' => $k, 'value' => (string) $v];
@@ -159,11 +159,11 @@ class AuditLgSpecs extends Command
                 $stats['specs_cleaned']++;
                 $dirty = true;
                 if (empty($productChanges)) {
-                    $productChanges[] = 'Converted flat JSON → repeater format';
+                    $productChanges[] = 'Converted flat JSON  repeater format';
                 }
             }
 
-            // ── Save ──
+            //  Save 
             if ($dirty) {
                 $stats['updated']++;
                 if ($fix && !$dryRun) {
@@ -172,7 +172,7 @@ class AuditLgSpecs extends Command
                 $changes[$product->model_code] = $productChanges;
             }
 
-            // ── Track missing fields ──
+            //  Track missing fields 
             $missingFields = [];
             if (empty($product->power_consumption)) $missingFields[] = 'power_consumption';
             if (empty($product->airflow)) $missingFields[] = 'airflow';
@@ -191,11 +191,11 @@ class AuditLgSpecs extends Command
             }
         }
 
-        // ── Output ──
+        //  Output 
         $this->newLine();
-        $this->info('═══════════════════════════════════════');
+        $this->info('');
         $this->info('  LG PRODUCT SPECS AUDIT REPORT');
-        $this->info('═══════════════════════════════════════');
+        $this->info('');
         $this->table(
             ['Metric', 'Count'],
             collect($stats)->map(fn ($v, $k) => [str_replace('_', ' ', ucfirst($k)), $v])->values()->toArray()
@@ -210,7 +210,7 @@ class AuditLgSpecs extends Command
             );
         }
 
-        // ── Save audit files ──
+        //  Save audit files 
         $report = [
             'timestamp' => now()->toIso8601String(),
             'mode' => $fix ? 'FIX' : ($dryRun ? 'DRY_RUN' : 'AUDIT'),
@@ -231,9 +231,9 @@ class AuditLgSpecs extends Command
         }
 
         $this->newLine();
-        $this->info("✓ Audit report: storage/app/audit/lg-products-clean.json");
+        $this->info(" Audit report: storage/app/audit/lg-products-clean.json");
         if (!empty($missing)) {
-            $this->info("✓ Missing CSV:  storage/app/audit/lg-products-missing.csv");
+            $this->info(" Missing CSV:  storage/app/audit/lg-products-missing.csv");
         }
 
         if (!$fix && !$dryRun) {

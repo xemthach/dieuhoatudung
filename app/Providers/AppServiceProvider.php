@@ -33,6 +33,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        mb_internal_encoding('UTF-8');
+        mb_regex_encoding('UTF-8');
+        ini_set('default_charset', 'UTF-8');
         // ── RBAC: super_admin bypasses ALL permission checks ─────────────
         Gate::before(function (User $user, string $ability) {
             if ($user->hasRole('super_admin')) {

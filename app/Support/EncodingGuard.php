@@ -15,9 +15,9 @@ class EncodingGuard
         'CP1252',
         'ISO-8859-1',
         'ISO-8859-15',
+        'CP850',
+        'CP437',
     ];
-
-    private const MOJIBAKE_PATTERN = '/�|ï¿½|Ãƒ.|Ã„.|Ã†.|Ã¡Âº|Ã¡Â»|Ã¢â‚¬|Ã¢â‚¬â„¢|Ã¢â‚¬Å“|Ã¢â‚¬Â|Ã¢â‚¬â€œ|Ã¢â‚¬â€|Ã¡|Ã¢|Ã´|Ãª|Ã©|Ã¨|Ã³|Ã²|Ãº|Ã¹|Ãí|Ãì|Ã£|Ãµ|áº|á»|Ä|Ä‘|Æ°|Æ¡|Â²|Â°|Â |â€|â€™|â€œ|â€|â€“|â€”/u';
 
     public static function isValidUtf8(string $value): bool
     {
@@ -36,7 +36,11 @@ class EncodingGuard
 
     public static function hasMojibake(string $value): bool
     {
-        return self::isValidUtf8($value) && preg_match(self::MOJIBAKE_PATTERN, $value) === 1;
+        if (! self::isValidUtf8($value)) {
+            return true;
+        }
+
+        return self::mojibakeScore($value) > 0;
     }
 
     public static function mojibakeScore(string $value): int
@@ -45,9 +49,16 @@ class EncodingGuard
             return 1000;
         }
 
-        preg_match_all(self::MOJIBAKE_PATTERN, $value, $matches);
+        $score = 0;
+        foreach (self::mojibakePatterns() as $pattern) {
+            $matches = [];
+            $count = preg_match_all($pattern, $value, $matches);
+            if (is_int($count) && $count > 0) {
+                $score += $count;
+            }
+        }
 
-        return count($matches[0]);
+        return $score;
     }
 
     public static function ensureUtf8(
@@ -60,7 +71,6 @@ class EncodingGuard
 
         if (! self::isValidUtf8($value)) {
             $converted = self::convertLegacyBytes($value);
-
             if ($converted !== null) {
                 $value = self::stripBom($converted);
             } elseif ($rejectBroken) {
@@ -125,31 +135,50 @@ class EncodingGuard
         $best = $value;
         $bestScore = self::mojibakeScore($value);
 
-        foreach (['Windows-1252', 'ISO-8859-1'] as $encoding) {
-            $bytes = @mb_convert_encoding($value, $encoding, 'UTF-8');
-            if (! is_string($bytes) || $bytes === '') {
-                continue;
-            }
+        foreach (['Windows-1252', 'ISO-8859-1', 'Windows-1258', 'CP850', 'CP437'] as $encoding) {
+            $candidate = $value;
 
-            $fixed = @mb_convert_encoding($bytes, 'UTF-8', 'UTF-8');
-            if (! is_string($fixed) || ! self::isValidUtf8($fixed)) {
-                continue;
-            }
+            for ($i = 0; $i < 3; $i++) {
+                $candidate = self::reinterpret($candidate, $encoding);
+                if (! is_string($candidate) || $candidate === '' || ! self::isValidUtf8($candidate)) {
+                    break;
+                }
 
-            $score = self::mojibakeScore($fixed);
-            if ($score < $bestScore) {
-                $best = $fixed;
-                $bestScore = $score;
+                $score = self::mojibakeScore($candidate);
+                if ($score < $bestScore) {
+                    $best = $candidate;
+                    $bestScore = $score;
+                }
             }
         }
 
         return $best;
     }
 
+    private static function reinterpret(string $value, string $encoding): ?string
+    {
+        // "ChÃ­nh" (UTF-8 text mis-read as CP1252) => "Chính"
+        try {
+            $candidate = @mb_convert_encoding($value, $encoding, 'UTF-8');
+            if (is_string($candidate) && $candidate !== '' && mb_check_encoding($candidate, 'UTF-8')) {
+                return $candidate;
+            }
+        } catch (\ValueError) {
+            // Unsupported encoding in this runtime.
+        }
+
+        $bytes = @iconv('UTF-8', $encoding.'//IGNORE', $value);
+        if (! is_string($bytes) || $bytes === '' || ! mb_check_encoding($bytes, 'UTF-8')) {
+            return null;
+        }
+
+        return $bytes;
+    }
+
     private static function convertLegacyBytes(string $value): ?string
     {
         foreach (self::LEGACY_ENCODINGS as $encoding) {
-            $converted = @iconv($encoding, 'UTF-8', $value);
+            $converted = @iconv($encoding, 'UTF-8//IGNORE', $value);
             if (! is_string($converted) || $converted === '') {
                 continue;
             }
@@ -161,5 +190,22 @@ class EncodingGuard
         }
 
         return null;
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private static function mojibakePatterns(): array
+    {
+        return [
+            '/\x{00C3}(?=[\x{0080}-\x{00BF}])/u',
+            '/\x{00C2}(?=[\x{0080}-\x{00BF}])/u',
+            '/\x{00C4}(?=[\x{0080}-\x{00BF}])/u',
+            '/\x{00C6}(?=[\x{0080}-\x{00BF}])/u',
+            '/\x{00E1}\x{00BA}|\x{00E1}\x{00BB}/u',
+            '/\x{00E2}\x{20AC}/u',
+            '/[\x{0080}-\x{009F}]/u',
+            '/\x{FFFD}/u',
+        ];
     }
 }

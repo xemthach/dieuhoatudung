@@ -9,11 +9,11 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('quote_requests', function (Blueprint $table) {
-            // ── Lead classification ──
+            //  Lead classification 
             $table->string('lead_type', 20)->default('general')->after('id');
             $table->unsignedSmallInteger('intent_score')->default(40)->after('lead_type');
 
-            // ── Denormalized product metadata ──
+            //  Denormalized product metadata 
             $table->string('product_name')->nullable()->after('product_id');
             $table->string('product_sku', 80)->nullable()->after('product_name');
             $table->string('product_model', 80)->nullable()->after('product_sku');
@@ -23,11 +23,11 @@ return new class extends Migration
             $table->text('product_url')->nullable()->after('product_capacity_btu');
             $table->json('selected_product_snapshot')->nullable()->after('product_url');
 
-            // ── Space details (Step 1 enrichment) ──
+            //  Space details (Step 1 enrichment) 
             $table->text('usage_description')->nullable()->after('project_type');
             $table->unsignedSmallInteger('number_of_rooms')->default(1)->after('usage_description');
 
-            // ── Environmental conditions (Step 2 enrichment) ──
+            //  Environmental conditions (Step 2 enrichment) 
             $table->decimal('estimated_volume_m3', 10, 2)->nullable()->after('ceiling_height');
             $table->unsignedSmallInteger('number_of_people')->nullable()->after('estimated_volume_m3');
             $table->string('sun_exposure', 30)->nullable()->after('number_of_people');
@@ -36,7 +36,7 @@ return new class extends Migration
             $table->boolean('open_space')->nullable()->after('glass_area');
             $table->string('current_aircon_status', 40)->nullable()->after('open_space');
 
-            // ── Technical requirements (Step 3 enrichment) ──
+            //  Technical requirements (Step 3 enrichment) 
             $table->unsignedInteger('calculated_btu')->nullable()->after('preferred_btu');
             $table->string('suggested_capacity_range', 50)->nullable()->after('calculated_btu');
             $table->json('preferred_brands')->nullable()->after('preferred_brand');
@@ -47,19 +47,19 @@ return new class extends Migration
             $table->string('drainage_available', 20)->nullable()->after('outdoor_unit_location');
             $table->string('has_existing_piping', 20)->nullable()->after('drainage_available');
 
-            // ── Budget/timeline (Step 4 enrichment) ──
+            //  Budget/timeline (Step 4 enrichment) 
             $table->string('need_installation_service', 30)->nullable()->after('budget_range');
             $table->boolean('need_invoice')->nullable()->after('need_installation_service');
             $table->boolean('need_site_survey')->nullable()->after('need_invoice');
             $table->string('payment_method', 30)->nullable()->after('need_site_survey');
 
-            // ── Contact enrichment (Step 5) ──
+            //  Contact enrichment (Step 5) 
             $table->string('province_city', 100)->nullable()->after('address');
             $table->string('district', 100)->nullable()->after('province_city');
             $table->string('preferred_contact_method', 20)->nullable()->after('district');
             $table->string('preferred_contact_time', 30)->nullable()->after('preferred_contact_method');
 
-            // ── UTM tracking ──
+            //  UTM tracking 
             $table->string('utm_source', 100)->nullable()->after('source_page');
             $table->string('utm_medium', 100)->nullable()->after('utm_source');
             $table->string('utm_campaign', 100)->nullable()->after('utm_medium');
@@ -68,7 +68,7 @@ return new class extends Migration
             $table->text('landing_page')->nullable()->after('utm_content');
             $table->text('referrer')->nullable()->after('landing_page');
 
-            // ── Indexes ──
+            //  Indexes 
             $table->index('lead_type');
             $table->index('intent_score');
         });

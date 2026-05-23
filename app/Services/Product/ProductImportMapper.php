@@ -9,21 +9,21 @@ namespace App\Services\Product;
  *   1. Standard DB column fields (always fill these first)
  *   2. Extra specs in specs_json (only when NO column exists)
  *
- * Standard fields → go to dedicated DB columns.
- * Everything else → goes to specs_json as extra specs.
- * Metadata keys   → excluded entirely from specs_json.
+ * Standard fields  go to dedicated DB columns.
+ * Everything else  goes to specs_json as extra specs.
+ * Metadata keys    excluded entirely from specs_json.
  */
 class ProductImportMapper
 {
     /**
-     * Import key → DB column mapping.
+     * Import key  DB column mapping.
      *
      * ANY key from import data that matches a left-hand key
      * will be written to the right-hand DB column.
      * It will NEVER appear in specs_json.
      */
     public const FIELD_MAP = [
-        // ── Capacity ──
+        //  Capacity 
         'capacity_btu'          => 'btu',
         'btu'                   => 'btu',
         'capacity_kw'           => 'capacity_kw',
@@ -31,43 +31,43 @@ class ProductImportMapper
         'hp'                    => 'hp',
         'horsepower'            => 'hp',
 
-        // ── Inverter ──
+        //  Inverter 
         'inverter'              => 'inverter',
         'is_inverter'           => 'inverter',
 
-        // ── Cooling type ──
+        //  Cooling type 
         'cooling_type'          => 'cooling_type',
         'cooling_heating_type'  => 'cooling_type',
         'cooling_heating'       => 'cooling_type',
 
-        // ── Voltage / Phase ──
+        //  Voltage / Phase 
         'phase'                 => 'voltage',
         'voltage'               => 'voltage',
         'dien_ap'               => 'voltage',
 
-        // ── Gas ──
+        //  Gas 
         'refrigerant'           => 'refrigerant_gas',
         'refrigerant_gas'       => 'refrigerant_gas',
         'gas'                   => 'refrigerant_gas',
         'loai_gas'              => 'refrigerant_gas',
 
-        // ── Power ──
+        //  Power 
         'power_consumption'     => 'power_consumption',
         'power_input_kw'        => 'power_consumption',
         'dien_nang_tieu_thu'    => 'power_consumption',
 
-        // ── Airflow ──
+        //  Airflow 
         'airflow'               => 'airflow',
         'airflow_m3h'           => 'airflow',
         'luu_luong_gio'         => 'airflow',
 
-        // ── Noise ──
+        //  Noise 
         'noise_level'           => 'noise_level',
         'noise'                 => 'noise_level',
         'sound_level_db'        => 'noise_level',
         'do_on'                 => 'noise_level',
 
-        // ── Dimensions ──
+        //  Dimensions 
         'indoor_dimensions'     => 'indoor_dimensions',
         'dimensions_indoor'     => 'indoor_dimensions',
         'kich_thuoc_dan_lanh'   => 'indoor_dimensions',
@@ -75,17 +75,17 @@ class ProductImportMapper
         'dimensions_outdoor'    => 'outdoor_dimensions',
         'kich_thuoc_dan_nong'   => 'outdoor_dimensions',
 
-        // ── Weight ──
+        //  Weight 
         'weight'                => 'weight',
         'weight_indoor'         => 'weight',
         'trong_luong'           => 'weight',
 
-        // ── Area ──
+        //  Area 
         'recommended_area'      => 'recommended_area',
         'suitable_area_m2'      => 'recommended_area',
         'dien_tich_de_nghi'     => 'recommended_area',
 
-        // ── Series ──
+        //  Series 
         'series'                => 'series',
     ];
 
@@ -126,25 +126,67 @@ class ProductImportMapper
                 continue;
             }
 
-            // 1. Standard field → DB column (PRIORITY)
+            // 1. Standard field  DB column (PRIORITY)
             if (isset(self::FIELD_MAP[$key])) {
                 $dbCol = self::FIELD_MAP[$key];
                 $attributes[$dbCol] = $this->castValue($dbCol, $value);
                 continue;
             }
 
-            // 2. Excluded metadata → skip entirely
+            // 2. Excluded metadata  skip entirely
             if (in_array($key, self::EXCLUDED_FROM_SPECS, true)) {
                 continue;
             }
 
-            // 3. Unknown key → extra specs in JSON (flat key-value, no duplicates)
+            // 3. Unknown key  extra specs in JSON (flat key-value, no duplicates)
             $extraSpecs[$key] = (string) $value;
         }
 
         return [
             'attributes'  => $attributes,
             'extra_specs' => $extraSpecs,
+        ];
+    }
+
+    /**
+     * Catalog-governed mapping mode. Unknown technical fields are reported and
+     * can be rejected before they ever reach products.specs_json.
+     *
+     * @return array{attributes: array, extra_specs: array, warnings: array, rejected: array}
+     */
+    public function mapWithGovernance(array $raw, array $allowedCatalogFieldKeys = [], bool $rejectUnknown = true): array
+    {
+        $mapped = $this->map($raw);
+        $allowed = array_values(array_unique(array_map(
+            fn (string $key): string => mb_strtolower(trim($key)),
+            $allowedCatalogFieldKeys
+        )));
+
+        $warnings = [];
+        $rejected = [];
+        $extraSpecs = [];
+
+        foreach ($mapped['extra_specs'] as $key => $value) {
+            $normalizedKey = mb_strtolower(trim((string) $key));
+            if ($allowed !== [] && in_array($normalizedKey, $allowed, true)) {
+                $extraSpecs[$key] = $value;
+                continue;
+            }
+
+            $warnings[] = "unknown_catalog_field: {$key}";
+            if ($rejectUnknown) {
+                $rejected[$key] = $value;
+                continue;
+            }
+
+            $extraSpecs[$key] = $value;
+        }
+
+        return [
+            'attributes' => $mapped['attributes'],
+            'extra_specs' => $extraSpecs,
+            'warnings' => $warnings,
+            'rejected' => $rejected,
         ];
     }
 
@@ -173,7 +215,7 @@ class ProductImportMapper
                 continue;
             }
 
-            // If this key maps to a standard DB column → MOVE to column
+            // If this key maps to a standard DB column  MOVE to column
             if (isset(self::FIELD_MAP[$key])) {
                 $dbCol = self::FIELD_MAP[$key];
                 $currentVal = $product->getRawOriginal($dbCol);
@@ -187,7 +229,7 @@ class ProductImportMapper
                 continue;
             }
 
-            // If this is excluded metadata → remove from specs
+            // If this is excluded metadata  remove from specs
             if (in_array($key, self::EXCLUDED_FROM_SPECS, true)) {
                 continue;
             }
@@ -273,10 +315,10 @@ class ProductImportMapper
     {
         $v = mb_strtolower(trim((string) $value));
 
-        if (str_contains($v, '2 chiều') || str_contains($v, '2 chieu') || $v === '2_chieu') {
+        if (str_contains($v, '2 chiu') || str_contains($v, '2 chieu') || $v === '2_chieu') {
             return '2_chieu';
         }
-        if (str_contains($v, '1 chiều') || str_contains($v, '1 chieu') || $v === '1_chieu') {
+        if (str_contains($v, '1 chiu') || str_contains($v, '1 chieu') || $v === '1_chieu') {
             return '1_chieu';
         }
 

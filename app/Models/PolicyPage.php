@@ -22,7 +22,7 @@ class PolicyPage extends Model
         ];
     }
 
-    // ─── Scopes ────────────────────────────────────────────
+    //  Scopes 
     public function scopeActive(Builder $query): Builder
     {
         return $query->where('is_active', true);
@@ -34,14 +34,14 @@ class PolicyPage extends Model
     }
 
     /**
-     * Alias for displayedIn — used in user-facing code.
+     * Alias for displayedIn  used in user-facing code.
      */
     public function scopeVisibleIn(Builder $query, string $location): Builder
     {
         return $this->scopeDisplayedIn($query, $location);
     }
 
-    // ─── Accessors ─────────────────────────────────────────
+    //  Accessors 
     public function getPublicUrlAttribute(): string
     {
         return route('policy-pages.show', $this->slug);

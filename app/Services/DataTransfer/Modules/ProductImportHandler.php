@@ -2,10 +2,11 @@
 
 namespace App\Services\DataTransfer\Modules;
 
-use App\Models\Product;
 use App\Models\Brand;
+use App\Models\Product;
 use App\Models\ProductCategory;
 use App\Services\DataTransfer\Contracts\ImportHandlerInterface;
+use App\Services\Product\ProductImportMapper;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 
@@ -33,7 +34,7 @@ class ProductImportHandler implements ImportHandlerInterface
             }
 
             // Also check slug uniqueness if slug is provided (include soft-deleted)
-            if (!empty($row['slug'] ?? null)) {
+            if (! empty($row['slug'] ?? null)) {
                 $slugExists = Product::withTrashed()->where('slug', $row['slug'])->exists();
                 if ($slugExists) {
                     $errors[] = "Slug \"{$row['slug']}\" đã tồn tại. Slug sẽ được tự động tạo mới nếu bỏ trống cột slug.";
@@ -42,14 +43,14 @@ class ProductImportHandler implements ImportHandlerInterface
         }
 
         // ── Validate foreign keys exist in DB ──
-        if (!empty($row['brand_id'] ?? null) && is_numeric($row['brand_id'])) {
-            if (!Brand::find((int) $row['brand_id'])) {
+        if (! empty($row['brand_id'] ?? null) && is_numeric($row['brand_id'])) {
+            if (! Brand::find((int) $row['brand_id'])) {
                 $errors[] = "Brand ID {$row['brand_id']} không tồn tại trong hệ thống.";
             }
         }
 
-        if (!empty($row['product_category_id'] ?? null) && is_numeric($row['product_category_id'])) {
-            if (!ProductCategory::find((int) $row['product_category_id'])) {
+        if (! empty($row['product_category_id'] ?? null) && is_numeric($row['product_category_id'])) {
+            if (! ProductCategory::find((int) $row['product_category_id'])) {
                 $errors[] = "Category ID {$row['product_category_id']} không tồn tại trong hệ thống.";
             }
         }
@@ -60,30 +61,30 @@ class ProductImportHandler implements ImportHandlerInterface
 
         // Validate prices
         foreach (['regular_price', 'sale_price'] as $priceField) {
-            if (!empty($row[$priceField] ?? null) && !is_numeric($row[$priceField])) {
+            if (! empty($row[$priceField] ?? null) && ! is_numeric($row[$priceField])) {
                 $errors[] = "{$priceField} phải là số.";
             }
         }
 
         // Validate numeric fields
         foreach (['btu', 'discount_percent', 'sort_order'] as $numField) {
-            if (!empty($row[$numField] ?? null) && !is_numeric($row[$numField])) {
+            if (! empty($row[$numField] ?? null) && ! is_numeric($row[$numField])) {
                 $errors[] = "{$numField} phải là số nguyên.";
             }
         }
 
         // Validate brand_id exists (if provided as name, we'll resolve it)
-        if (!empty($row['brand_id'] ?? null) && !is_numeric($row['brand_id'])) {
+        if (! empty($row['brand_id'] ?? null) && ! is_numeric($row['brand_id'])) {
             $brand = Brand::where('name', $row['brand_id'])->first();
-            if (!$brand) {
+            if (! $brand) {
                 $errors[] = "Brand \"{$row['brand_id']}\" không tìm thấy.";
             }
         }
 
         // Validate category name resolution
-        if (!empty($row['product_category_id'] ?? null) && !is_numeric($row['product_category_id'])) {
+        if (! empty($row['product_category_id'] ?? null) && ! is_numeric($row['product_category_id'])) {
             $cat = ProductCategory::where('name', $row['product_category_id'])->first();
-            if (!$cat) {
+            if (! $cat) {
                 $errors[] = "Category \"{$row['product_category_id']}\" không tìm thấy.";
             }
         }
@@ -93,13 +94,13 @@ class ProductImportHandler implements ImportHandlerInterface
             $errors[] = "Category schema missing for {$category->name}. Product technical specs cannot be validated until the category schema is defined.";
         }
 
-        if ($category && $category->hasTechnicalSchema() && !empty($row['specs_json'] ?? null)) {
-            $errors = array_merge($errors, $this->validateSpecsAgainstCategorySchema($category, $row['specs_json']));
+        if ($category && $category->hasTechnicalSchema()) {
+            $errors = array_merge($errors, $this->validateSpecsAgainstCategorySchema($category, $row));
         }
 
         // Validate JSON fields
         foreach (['specs_json', 'gallery_json', 'documents_json'] as $jsonField) {
-            if (!empty($row[$jsonField] ?? null) && is_string($row[$jsonField])) {
+            if (! empty($row[$jsonField] ?? null) && is_string($row[$jsonField])) {
                 json_decode($row[$jsonField]);
                 if (json_last_error() !== JSON_ERROR_NONE) {
                     $errors[] = "{$jsonField} JSON không hợp lệ.";
@@ -114,9 +115,9 @@ class ProductImportHandler implements ImportHandlerInterface
     {
         // withTrashed: MySQL unique index includes soft-deleted rows
         return match ($matchingKey) {
-            'sku'  => !empty($row['sku']) ? Product::withTrashed()->where('sku', $row['sku'])->first() : null,
-            'slug' => !empty($row['slug']) ? Product::withTrashed()->where('slug', $row['slug'])->first() : null,
-            'id'   => !empty($row['id']) ? Product::withTrashed()->find($row['id']) : null,
+            'sku' => ! empty($row['sku']) ? Product::withTrashed()->where('sku', $row['sku'])->first() : null,
+            'slug' => ! empty($row['slug']) ? Product::withTrashed()->where('slug', $row['slug'])->first() : null,
+            'id' => ! empty($row['id']) ? Product::withTrashed()->find($row['id']) : null,
             default => null,
         };
     }
@@ -125,18 +126,25 @@ class ProductImportHandler implements ImportHandlerInterface
     {
         $data = $this->prepareData($row);
         $existing = $this->findExisting($row, $matchingKey);
+        $existingByUnique = $this->findExistingByUniqueIdentifiers($row, $data);
 
         // ── UPDATE mode ──
         if ($mode === 'update') {
-            if (!$existing) return 'skipped';
-            $existing->update($data);
+            $target = $existing ?: $existingByUnique;
+            if (! $target) {
+                return 'skipped';
+            }
+            $target->update($data);
+
             return 'updated';
         }
 
         // ── UPSERT mode ──
         if ($mode === 'upsert') {
-            if ($existing) {
-                $existing->update($data);
+            $target = $existing ?: $existingByUnique;
+            if ($target) {
+                $target->update($data);
+
                 return 'updated';
             }
             // Fall through to create
@@ -144,7 +152,7 @@ class ProductImportHandler implements ImportHandlerInterface
 
         // ── CREATE mode ──
         // Skip if record already exists (defensive — prevents duplicate errors)
-        if ($mode === 'create' && $existing) {
+        if ($mode === 'create' && ($existing || $existingByUnique)) {
             return 'skipped';
         }
 
@@ -155,7 +163,26 @@ class ProductImportHandler implements ImportHandlerInterface
         );
 
         Product::create($data);
+
         return 'created';
+    }
+
+    protected function findExistingByUniqueIdentifiers(array $row, array $preparedData = []): ?Product
+    {
+        $sku = $row['sku'] ?? $preparedData['sku'] ?? null;
+        if (filled($sku)) {
+            $product = Product::withTrashed()->where('sku', $sku)->first();
+            if ($product) {
+                return $product;
+            }
+        }
+
+        $slug = $row['slug'] ?? $preparedData['slug'] ?? null;
+        if (filled($slug)) {
+            return Product::withTrashed()->where('slug', $slug)->first();
+        }
+
+        return null;
     }
 
     /**
@@ -164,12 +191,12 @@ class ProductImportHandler implements ImportHandlerInterface
      */
     protected function ensureUniqueSlug(?string $slug, string $name): string
     {
-        if (empty($slug) && !empty($name)) {
+        if (empty($slug) && ! empty($name)) {
             $slug = Str::slug($name);
         }
 
         if (empty($slug)) {
-            $slug = Str::slug('product-' . Str::random(8));
+            $slug = Str::slug('product-'.Str::random(8));
         }
 
         // Truncate to 200 chars to prevent utf8mb4 index overflow
@@ -182,7 +209,7 @@ class ProductImportHandler implements ImportHandlerInterface
 
         // CRITICAL: withTrashed() — MySQL unique index includes soft-deleted rows
         while (Product::withTrashed()->where('slug', $slug)->exists()) {
-            $slug = mb_substr($baseSlug, 0, 200) . '-' . $counter++;
+            $slug = mb_substr($baseSlug, 0, 200).'-'.$counter++;
         }
 
         return $slug;
@@ -216,32 +243,32 @@ class ProductImportHandler implements ImportHandlerInterface
         }
 
         // Resolve brand_id from name if not numeric
-        if (!empty($data['brand_id']) && !is_numeric($data['brand_id'])) {
+        if (! empty($data['brand_id']) && ! is_numeric($data['brand_id'])) {
             $brand = Brand::where('name', $data['brand_id'])->first();
             $data['brand_id'] = $brand?->id;
         }
 
         // Resolve category from name if not numeric
-        if (!empty($data['product_category_id']) && !is_numeric($data['product_category_id'])) {
+        if (! empty($data['product_category_id']) && ! is_numeric($data['product_category_id'])) {
             $cat = ProductCategory::where('name', $data['product_category_id'])->first();
             $data['product_category_id'] = $cat?->id;
         }
 
         // Defensive: verify numeric FK IDs exist (prevent FK constraint violation)
-        if (!empty($data['brand_id']) && is_numeric($data['brand_id'])) {
-            if (!Brand::find((int) $data['brand_id'])) {
+        if (! empty($data['brand_id']) && is_numeric($data['brand_id'])) {
+            if (! Brand::find((int) $data['brand_id'])) {
                 $data['brand_id'] = null;
             }
         }
-        if (!empty($data['product_category_id']) && is_numeric($data['product_category_id'])) {
-            if (!ProductCategory::find((int) $data['product_category_id'])) {
+        if (! empty($data['product_category_id']) && is_numeric($data['product_category_id'])) {
+            if (! ProductCategory::find((int) $data['product_category_id'])) {
                 $data['product_category_id'] = null;
             }
         }
 
         // Parse JSON fields
         foreach (['specs_json', 'gallery_json', 'documents_json'] as $jsonField) {
-            if (!empty($row[$jsonField]) && is_string($row[$jsonField])) {
+            if (! empty($row[$jsonField]) && is_string($row[$jsonField])) {
                 $decoded = json_decode($row[$jsonField], true);
                 if ($decoded !== null) {
                     $data[$jsonField] = $decoded;
@@ -292,21 +319,39 @@ class ProductImportHandler implements ImportHandlerInterface
 
     private function validateSpecsAgainstCategorySchema(ProductCategory $category, mixed $specs): array
     {
+        $row = is_array($specs) ? $specs : [];
+        $rawSpecs = is_array($specs) && array_key_exists('specs_json', $specs)
+            ? $specs['specs_json']
+            : $specs;
+
         if (is_string($specs)) {
             $specs = json_decode($specs, true);
         }
 
-        if (! is_array($specs) || $specs === []) {
-            return [];
+        if (is_string($rawSpecs)) {
+            $rawSpecs = json_decode($rawSpecs, true);
         }
 
         $allowed = $category->technicalSchemaPermittedFields();
-        $flatSpecs = $this->flattenSpecs($specs);
+        $flatSpecs = is_array($rawSpecs) ? $this->flattenSpecs($rawSpecs) : [];
+        foreach ($row as $key => $value) {
+            if (
+                $value !== null
+                && $value !== ''
+                && is_string($key)
+                && $key !== 'specs_json'
+                && ! in_array($key, ProductImportMapper::EXCLUDED_FROM_SPECS, true)
+            ) {
+                $flatSpecs[$key] ??= $value;
+            }
+        }
         $errors = [];
 
         if ($allowed === []) {
             return ["Category schema for {$category->name} is incomplete: allowed fields are missing."];
         }
+
+        $normalizedSpecs = [];
 
         foreach ($flatSpecs as $key => $value) {
             $normalizedKey = $category->normalizeTechnicalSchemaKey((string) $key);
@@ -314,8 +359,16 @@ class ProductImportHandler implements ImportHandlerInterface
                 continue;
             }
 
+            $normalizedSpecs[$normalizedKey] = $value;
+
             if (! in_array($normalizedKey, $allowed, true)) {
                 $errors[] = "Spec key '{$key}' is outside the category schema for {$category->name}.";
+            }
+        }
+
+        foreach ($category->technicalSchemaRequiredFields() as $requiredKey) {
+            if (blank($normalizedSpecs[$requiredKey] ?? null)) {
+                $errors[] = "Required spec '{$requiredKey}' is missing for {$category->name}.";
             }
         }
 
