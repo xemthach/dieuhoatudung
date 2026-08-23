@@ -8,6 +8,7 @@ use App\Models\AiProductJob;
 use App\Models\AiProductJobItem;
 use App\Services\Product\AIProductContentSystem;
 use App\Services\Product\AIProductDraftApplyService;
+use App\Services\AI\AIWorkerReadinessService;
 use App\Services\Seo\InternalLinkSuggestionService;
 use App\Support\SchemaColumns;
 use Filament\Actions\Action;
@@ -42,7 +43,7 @@ class EditProduct extends EditRecord
     {
         return [
             Action::make('ai_product_generate')
-                ->label('Generate AI')
+                ->label(fn (): string => filled($this->record->long_description) ? 'Tạo lại nội dung AI' : 'Tạo nội dung AI')
                 ->icon('heroicon-o-sparkles')
                 ->color('primary')
                 ->modalDescription('AI chỉ tạo Nội dung, SEO, Google Merchant, Tags, FAQ và Internal links. AI không tạo hoặc sửa Thông tin cơ bản, giá, model/SKU, brand/category hay Thông số kỹ thuật.')
@@ -68,18 +69,22 @@ class EditProduct extends EditRecord
                         'queue_name' => config('ai.governed_queue', 'ai_governed'),
                     ])));
 
-                    $this->record->update(['ai_status' => 'queued', 'ai_error_message' => null]);
                     AiProductContentSingleJob::dispatch($this->record->id, $job->id, $item->id)->onQueue(config('ai.governed_queue', 'ai_governed'));
-
-                    Notification::make()
-                        ->title('Đã tạo AI Product Job')
-                        ->body("Job #{$job->id} đang chờ queue. Draft sẽ không ghi đè cho tới khi bạn bấm Apply.")
-                        ->success()
-                        ->persistent()
-                        ->send();
+                    $worker = app(AIWorkerReadinessService::class)->snapshot();
+                    $notification = Notification::make()
+                        ->title('Đã gửi yêu cầu tạo nội dung')
+                        ->body("Job #{$job->id} đang chờ xử lý. Draft không ghi đè Product cho tới khi được duyệt và Apply. {$worker['message']}")
+                        ->status($worker['ready'] ? 'success' : 'warning')
+                        ->persistent();
+                    if (! $worker['ready'] && auth()->user()?->can('ai_worker.manage')) {
+                        $notification->actions([
+                            Action::make('manage_ai_worker')->label('Bật AI Worker')->url(\App\Filament\Pages\AIQueueHealth::getUrl()),
+                        ]);
+                    }
+                    $notification->send();
                 }),
             Action::make('ai_approve_latest_draft')
-                ->label('Approve Draft')
+                ->label('Duyệt nội dung AI')
                 ->icon('heroicon-o-check-circle')
                 ->color('warning')
                 ->requiresConfirmation()
@@ -99,15 +104,15 @@ class EditProduct extends EditRecord
                     }
                 }),
             Action::make('ai_apply_latest_draft')
-                ->label('Apply approved draft')
+                ->label('Áp dụng nội dung đã duyệt')
                 ->icon('heroicon-o-eye')
                 ->color('gray')
-                ->modalHeading('Preview AI Product Draft')
+                ->modalHeading('Xem trước nội dung AI')
                 ->modalDescription('Chỉ các field thuộc Content Layer được apply. Thông tin cơ bản và Thông số kỹ thuật luôn bị bỏ qua nếu xuất hiện trong payload.')
                 ->modalContent(fn () => view('filament.product-ai-preview', [
                     'item' => $this->latestAiDraftItem(),
                 ]))
-                ->modalSubmitActionLabel('Apply latest draft')
+                ->modalSubmitActionLabel('Áp dụng nội dung đã duyệt')
                 ->action(function () {
                     $draft = $this->latestAiDraftItem();
 
@@ -129,7 +134,6 @@ class EditProduct extends EditRecord
                         return;
                     }
                     if (! in_array($draft->status, ['needs_review', 'completed', 'completed_verified', 'completed_with_warnings'], true)) {
-                        $this->record->update(['ai_status' => $draft->status ?: 'queued', 'ai_error_message' => 'Không thể áp dụng bản nháp AI vì job chưa hoàn tất hợp lệ.']);
                         Notification::make()->title('Chưa có AI draft để apply')->warning()->send();
                         return;
                     }

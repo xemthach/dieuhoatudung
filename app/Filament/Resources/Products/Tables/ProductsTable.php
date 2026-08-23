@@ -7,6 +7,8 @@ use App\Jobs\AiProductContentSingleJob;
 use App\Jobs\AiProductContentBatchJob;
 use App\Services\AI\ProductBulkGenerationManifest;
 use App\Services\AI\ProductBulkTargetResolver;
+use App\Services\AI\AiContentStatusPresenter;
+use App\Services\AI\AIWorkerReadinessService;
 use App\Models\AiProductJob;
 use App\Models\AiProductJobItem;
 use App\Models\AiTechnicalLog;
@@ -48,26 +50,23 @@ class ProductsTable
     public static function configure(Table $table): Table
     {
         return $table
+            ->modifyQueryUsing(fn (Builder $query): Builder => $query->with([
+                'latestAiProductJobItem.draft:id,field_status_json,approval_status,approved_at,approved_by,applied_at',
+            ]))
             ->columns([
                 TextColumn::make('name')
                     ->searchable(),
-                TextColumn::make('ai_status')
-                    ->label('AI Status')
+                TextColumn::make('ai_content_status')
+                    ->label('Nội dung AI')
+                    ->state(fn (Product $record): string => self::aiStatusView($record)['label'])
                     ->badge()
                     ->extraCellAttributes(fn (Product $record): array => [
                         'data-ai-product-id' => (string) $record->id,
                         'data-ai-field' => 'ai_status',
                     ])
-                    ->color(fn (?string $state): string => match ($state) {
-                        'completed', 'completed_verified', 'completed_with_warnings' => 'success',
-                        'processing', 'queued' => 'info',
-                        'needs_review' => 'warning',
-                        'failed', 'blocked', 'stuck' => 'danger',
-                        default => 'gray',
-                    })
-                    ->formatStateUsing(fn (?string $state, Product $record): string => self::formatAiStatus($state, $record))
+                    ->color(fn (Product $record): string => self::aiStatusView($record)['color'])
                     ->tooltip(fn (Product $record): ?string => self::aiStatusTooltip($record))
-                    ->sortable(),
+                    ->toggleable(),
                 TextColumn::make('ai_score')
                     ->label('SEO')
                     ->badge()
@@ -82,14 +81,16 @@ class ProductsTable
                         default => 'gray',
                     })
                     ->sortable(),
-                TextColumn::make('ai_last_run_at')
-                    ->label('Last AI Run')
+                TextColumn::make('ai_content_updated_at')
+                    ->label('Cập nhật AI')
+                    ->state(fn (Product $record) => $record->latestAiProductJobItem?->state_changed_at
+                        ?: $record->latestAiProductJobItem?->updated_at
+                        ?: $record->ai_last_run_at)
                     ->extraCellAttributes(fn (Product $record): array => [
                         'data-ai-product-id' => (string) $record->id,
                         'data-ai-field' => 'last_ai_run',
                     ])
                     ->since()
-                    ->sortable()
                     ->placeholder('-'),
                 TextColumn::make('ai_warning_count')
                     ->label('Warn')
@@ -306,12 +307,6 @@ class ProductsTable
                             ->latest('id')
                             ->get();
                         $count = self::retryAiProductItems($items);
-                        $record->update([
-                            'ai_status' => 'queued',
-                            'ai_error_message' => null,
-                            'ai_last_run_at' => now(),
-                        ]);
-
                         Notification::make()
                             ->title($count > 0 ? "Đã retry {$count} AI item" : 'Không có AI item lỗi để retry')
                             ->status($count > 0 ? 'success' : 'warning')
@@ -828,12 +823,18 @@ class ProductsTable
                 );
                 AiProductContentBatchJob::dispatch($job->id)->onQueue(config('ai.governed_queue', 'ai_governed'));
 
-                Notification::make()
+                $worker = app(AIWorkerReadinessService::class)->snapshot();
+                $notification = Notification::make()
                     ->title('Đã đưa AI Product Job vào queue')
-                    ->body("Job #{$job->id} sẽ xử lý ".count($productIds).' sản phẩm. Chạy queue worker để bắt đầu.')
-                    ->success()
-                    ->persistent()
-                    ->send();
+                    ->body("Job #{$job->id} sẽ xử lý ".count($productIds)." sản phẩm. {$worker['message']}")
+                    ->status($worker['ready'] ? 'success' : 'warning')
+                    ->persistent();
+                if (! $worker['ready'] && auth()->user()?->can('ai_worker.manage')) {
+                    $notification->actions([
+                        Action::make('manage_ai_worker')->label('Bật AI Worker')->url(\App\Filament\Pages\AIQueueHealth::getUrl()),
+                    ]);
+                }
+                $notification->send();
             })
             ->deselectRecordsAfterCompletion();
     }
@@ -977,6 +978,9 @@ class ProductsTable
 
             $item->update(SchemaColumns::existing('ai_product_job_items', [
                 'status' => 'queued',
+                'canonical_status' => 'QUEUED',
+                'status_reason' => 'AUTHORIZED_RETRY',
+                'state_changed_at' => now(),
                 'retry_count' => (int) ($item->retry_count ?? 0) + 1,
                 'error_message' => null,
                 'failed_reason' => null,
@@ -992,18 +996,15 @@ class ProductsTable
             if ($item->job) {
                 $item->job->update(SchemaColumns::existing('ai_product_jobs', [
                     'status' => 'processing',
+                    'canonical_status' => 'RUNNING',
+                    'status_reason' => 'AUTHORIZED_FIELD_RETRY',
+                    'state_changed_at' => now(),
                     'finished_at' => null,
                     'failed_reason' => null,
                     'last_error_code' => null,
                     'last_error_message' => null,
                 ]));
             }
-
-            Product::whereKey($item->product_id)->update([
-                'ai_status' => 'queued',
-                'ai_error_message' => null,
-                'ai_last_run_at' => now(),
-            ]);
 
             AiProductContentSingleJob::dispatch($item->product_id, $item->ai_product_job_id, $item->id)->onQueue(config('ai.governed_queue', 'ai_governed'));
             $count++;
@@ -1012,32 +1013,25 @@ class ProductsTable
         return $count;
     }
 
-    private static function formatAiStatus(?string $state, Product $record): string
+    private static function aiStatusView(Product $record): array
     {
-        return match ($state ?: 'not_generated') {
-            'completed', 'completed_verified' => 'Done',
-            'completed_with_warnings' => 'Done+',
-            'processing' => 'Run',
-            'queued' => 'Queue',
-            'retrying' => 'Retry',
-            'needs_review' => 'Review',
-            'failed' => 'Failed',
-            'blocked' => 'Blocked',
-            'stuck' => 'Stuck',
-            'cancelled' => 'Cancel',
-            default => 'New',
-        };
+        $item = $record->latestAiProductJobItem;
+        $status = $item?->canonical_status ?: $item?->status ?: $record->ai_status ?: 'not_generated';
+
+        return app(AiContentStatusPresenter::class)->present(
+            $status,
+            applied: (bool) $item?->draft?->applied_at,
+        );
     }
 
     private static function aiStatusTooltip(Product $record): ?string
     {
-        $item = $record->aiProductJobItems()->latest('id')->first();
+        $item = $record->latestAiProductJobItem;
+        $view = self::aiStatusView($record);
         $parts = array_filter([
-            $record->ai_error_message,
-            $item?->failed_reason ? 'failed_reason: '.$item->failed_reason : null,
-            $item?->last_error_code ? 'code: '.$item->last_error_code : null,
-            $item?->last_error_message,
-            $item?->exception_class ? 'exception: '.$item->exception_class.($item->exception_line ? ':'.$item->exception_line : '') : null,
+            $view['warning'],
+            app(AiContentStatusPresenter::class)->safeReason($item?->failed_reason ?: $item?->last_error_code),
+            $item?->updated_at ? 'Cập nhật '.$item->updated_at->diffForHumans() : null,
         ]);
 
         return $parts === [] ? null : implode("\n", $parts);
@@ -1045,21 +1039,16 @@ class ProductsTable
 
     private static function aiStatusDetailHtml(Product $record): string
     {
-        $item = $record->aiProductJobItems()->latest('id')->first();
+        $item = $record->latestAiProductJobItem;
         $factCheck = $item?->generated_payload_json['fact_check'] ?? [];
         $blocked = $item?->generated_payload_json['blocked_claims'] ?? [];
         $blockedFields = $item?->generated_payload_json['blocked_product_data_fields'] ?? [];
 
         $rows = [
-            'Product AI status' => $record->ai_status ?: 'not_generated',
+            'Trạng thái nội dung AI' => self::aiStatusView($record)['label'],
             'SEO score' => (string) ($record->ai_score ?? 0),
-            'Error' => $record->ai_error_message,
-            'Item status' => $item?->status,
-            'failed_reason' => $item?->failed_reason,
-            'last_error_code' => $item?->last_error_code,
-            'last_error_message' => $item?->last_error_message,
-            'exception' => $item?->exception_class ? $item->exception_class.($item->exception_line ? ':'.$item->exception_line : '') : null,
-            'provider/model' => trim(($item?->provider ?? '').' / '.($item?->model ?? ''), ' /'),
+            'Lý do' => app(AiContentStatusPresenter::class)->safeReason($item?->failed_reason ?: $item?->last_error_code),
+            'Cập nhật' => $item?->updated_at?->diffForHumans(),
         ];
 
         $html = '<div class="max-h-[70vh] space-y-3 overflow-auto pr-2 text-sm">';

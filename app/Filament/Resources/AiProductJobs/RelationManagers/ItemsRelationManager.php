@@ -9,6 +9,7 @@ use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use App\Services\AI\BulkRuntimeAuthorizationService;
+use App\Services\AI\AiContentStatusPresenter;
 
 class ItemsRelationManager extends RelationManager
 {
@@ -22,6 +23,7 @@ class ItemsRelationManager extends RelationManager
     public function table(Table $table): Table
     {
         return $table
+            ->poll('10s')
             ->modifyQueryUsing(function (Builder $query): void {
                 $actor = auth()->user();
                 $ids = $actor ? app(BulkRuntimeAuthorizationService::class)->viewableProductIds($actor) : [];
@@ -30,7 +32,12 @@ class ItemsRelationManager extends RelationManager
             ->recordTitleAttribute('product.name')
             ->columns([
                 TextColumn::make('product.name')->label('Sản phẩm')->searchable()->limit(45),
-                TextColumn::make('status')->badge()->sortable(),
+                TextColumn::make('status')
+                    ->label('Trạng thái')
+                    ->badge()
+                    ->formatStateUsing(fn (string $state): string => app(AiContentStatusPresenter::class)->present($state)['label'])
+                    ->color(fn (string $state): string => app(AiContentStatusPresenter::class)->present($state)['color'])
+                    ->sortable(),
                 TextColumn::make('seo_score_before')->label('Score trước')->sortable(),
                 TextColumn::make('seo_score_after')->label('Score sau')->sortable(),
                 TextColumn::make('generated_payload_json.governance_context.data_completeness.score')
@@ -65,13 +72,16 @@ class ItemsRelationManager extends RelationManager
                     ->formatStateUsing(fn ($state) => self::formatList($state))
                     ->limit(60)
                     ->tooltip(fn ($record) => self::formatList($record->warnings_json ?? [])),
-                TextColumn::make('error_message')->label('Lỗi')->limit(60)->color('danger'),
+                TextColumn::make('failed_reason')
+                    ->label('Lý do')
+                    ->formatStateUsing(fn (?string $state): ?string => app(AiContentStatusPresenter::class)->safeReason($state))
+                    ->color('warning')
+                    ->placeholder('-'),
                 TextColumn::make('provider')->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('model')->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('queue_name')->label('Queue')->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('attempts')->numeric()->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('retry_count')->numeric()->toggleable(isToggledHiddenByDefault: true),
-                TextColumn::make('failed_reason')->badge()->color('danger')->toggleable(),
                 TextColumn::make('exception_class')->limit(30)->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('exception_line')->numeric()->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('duration_ms')->numeric()->toggleable(isToggledHiddenByDefault: true),

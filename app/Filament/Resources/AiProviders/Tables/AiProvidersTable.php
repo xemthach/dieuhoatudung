@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\AiProviders\Tables;
 
 use App\Models\AiProvider;
+use App\Services\AI\AiProviderReadinessService;
 use App\Services\AI\Adapters\ClaudeAdapter;
 use App\Services\AI\Adapters\GeminiAdapter;
 use App\Services\AI\Adapters\OpenAIAdapter;
@@ -38,8 +39,21 @@ class AiProvidersTable
                     ->searchable(),
                 TextColumn::make('model')
                     ->label('Model')
-                    ->searchable()
-                    ->description(fn (AiProvider $record) => $record->api_key ? 'sk-...'.substr($record->api_key, -4) : 'No key'),
+                    ->searchable(),
+                TextColumn::make('credential_status')
+                    ->label('Cấu hình')
+                    ->state(fn (AiProvider $record): string => app(AiProviderReadinessService::class)->present($record)['configured'] ? 'Đã cấu hình' : 'Thiếu cấu hình')
+                    ->badge()
+                    ->color(fn (string $state): string => $state === 'Đã cấu hình' ? 'success' : 'warning'),
+                TextColumn::make('connection_status')
+                    ->label('Kết nối')
+                    ->state(fn (AiProvider $record): string => app(AiProviderReadinessService::class)->present($record)['connection_label'])
+                    ->badge()
+                    ->color(fn (AiProvider $record): string => match (app(AiProviderReadinessService::class)->present($record)['connection']) {
+                        'CONNECTED' => 'success',
+                        'FAILED' => 'danger',
+                        default => 'gray',
+                    }),
                 TextColumn::make('priority')
                     ->label('Priority')
                     ->badge()
@@ -88,15 +102,21 @@ class AiProvidersTable
                     ->dateTime('d/m/Y H:i')
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: false),
+                TextColumn::make('quota_status')
+                    ->label('Credit / Quota')
+                    ->state(fn (AiProvider $record): string => app(AiProviderReadinessService::class)->present($record)['quota_label'])
+                    ->toggleable(),
             ])
             ->filters([
                 TrashedFilter::make(),
             ])
             ->recordActions([
                 Action::make('test')
-                    ->label('Test')
+                    ->label('Kiểm tra kết nối')
                     ->icon('heroicon-o-bolt')
                     ->color('warning')
+                    ->requiresConfirmation()
+                    ->modalDescription('Provider không có health endpoint riêng; thao tác này gửi một yêu cầu mô hình tối thiểu. Không được gọi tự động khi polling.')
                     ->action(function (AiProvider $record) {
                         try {
                             $adapter = match ($record->provider) {

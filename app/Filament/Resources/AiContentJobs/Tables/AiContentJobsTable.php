@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\AiContentJobs\Tables;
 
 use App\Enums\AIContentJobStatus;
+use App\Services\AI\AiContentStatusPresenter;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
@@ -33,27 +34,13 @@ class AiContentJobsTable
                 TextColumn::make('status')
                     ->label('Trạng thái')
                     ->badge()
-                    ->color(fn ($state) => match ($state) {
-                        AIContentJobStatus::Draft => 'gray',
-                        AIContentJobStatus::Pending => 'gray',
-                        AIContentJobStatus::Queued => 'gray',
-                        AIContentJobStatus::Processing => 'info',
-                        AIContentJobStatus::Completed => 'success',
-                        AIContentJobStatus::CompletedVerified => 'success',
-                        AIContentJobStatus::CompletedWithWarnings => 'warning',
-                        AIContentJobStatus::NeedsReview => 'warning',
-                        AIContentJobStatus::Blocked => 'danger',
-                        AIContentJobStatus::Failed => 'danger',
-                        AIContentJobStatus::Cancelled => 'gray',
-                        AIContentJobStatus::Stuck => 'danger',
-                        AIContentJobStatus::Reviewed => 'primary',
-                        default => 'gray',
-                    })
-                    ->formatStateUsing(fn ($state) => $state instanceof AIContentJobStatus ? $state->label() : $state),
+                    ->color(fn ($state): string => app(AiContentStatusPresenter::class)->present($state)['color'])
+                    ->formatStateUsing(fn ($state): string => app(AiContentStatusPresenter::class)->present($state)['label']),
                 TextColumn::make('failed_reason')
-                    ->label('Failed reason')
+                    ->label('Lý do')
+                    ->formatStateUsing(fn (?string $state): ?string => app(AiContentStatusPresenter::class)->safeReason($state))
                     ->badge()
-                    ->color('danger')
+                    ->color('warning')
                     ->placeholder('-')
                     ->toggleable(),
                 TextColumn::make('attempts')

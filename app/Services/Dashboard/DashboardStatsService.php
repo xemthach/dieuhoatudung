@@ -6,6 +6,7 @@ use App\Enums\AIContentJobStatus;
 use App\Enums\LeadStatus;
 use App\Enums\PostStatus;
 use App\Models\AiContentJob;
+use App\Models\AiProductJobItem;
 use App\Models\AiProvider;
 use App\Models\Lead;
 use App\Models\MailLog;
@@ -17,6 +18,7 @@ use App\Services\Mail\MailProviderService;
 use App\Services\Media\R2ConnectionService;
 use App\Services\Seo\SeoAuditService;
 use App\Services\Settings\SettingService;
+use App\Services\AI\AIQueueMonitor;
 
 class DashboardStatsService
 {
@@ -257,6 +259,10 @@ class DashboardStatsService
                 'label' => 'Hidden',
                 'pending_jobs' => 0,
                 'failed_jobs' => 0,
+                'running_jobs' => 0,
+                'waiting_review' => 0,
+                'blocked_jobs' => 0,
+                'worker_label' => 'Ẩn',
             ];
         }
 
@@ -269,12 +275,28 @@ class DashboardStatsService
             $p->rate_limited_until && $p->rate_limited_until->isFuture()
         );
 
-        $pendingJobs = AiContentJob::whereIn('status', [
-            AIContentJobStatus::Pending,
-            AIContentJobStatus::Processing,
-        ])->count();
-
-        $failedJobs = AiContentJob::where('status', AIContentJobStatus::Failed)->count();
+        $contentCounts = AiContentJob::query()
+            ->selectRaw("SUM(CASE WHEN status IN ('pending', 'queued') THEN 1 ELSE 0 END) AS queued")
+            ->selectRaw("SUM(CASE WHEN status = 'processing' THEN 1 ELSE 0 END) AS running")
+            ->selectRaw("SUM(CASE WHEN status IN ('needs_review', 'reviewed') THEN 1 ELSE 0 END) AS review")
+            ->selectRaw("SUM(CASE WHEN status = 'blocked' THEN 1 ELSE 0 END) AS blocked")
+            ->selectRaw("SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END) AS failed")
+            ->toBase()->first();
+        $productCounts = AiProductJobItem::query()
+            ->selectRaw("SUM(CASE WHEN canonical_status = 'QUEUED' THEN 1 ELSE 0 END) AS queued")
+            ->selectRaw("SUM(CASE WHEN canonical_status IN ('RUNNING', 'VALIDATING', 'FACT_CHECKING') THEN 1 ELSE 0 END) AS running")
+            ->selectRaw("SUM(CASE WHEN canonical_status = 'REVIEW_REQUIRED' THEN 1 ELSE 0 END) AS review")
+            ->selectRaw("SUM(CASE WHEN canonical_status = 'BLOCKED' THEN 1 ELSE 0 END) AS blocked")
+            ->selectRaw("SUM(CASE WHEN canonical_status = 'FAILED' THEN 1 ELSE 0 END) AS failed")
+            ->toBase()->first();
+        $health = app(AIQueueMonitor::class)->liveStatusHealth();
+        $workerDesired = data_get($health, 'worker_desired_state', 'DISABLED');
+        $workerHealth = data_get($health, 'worker_heartbeat.health_status', 'UNKNOWN');
+        $pendingJobs = (int) ($contentCounts->queued ?? 0) + (int) ($productCounts->queued ?? 0);
+        $runningJobs = (int) ($contentCounts->running ?? 0) + (int) ($productCounts->running ?? 0);
+        $waitingReview = (int) ($contentCounts->review ?? 0) + (int) ($productCounts->review ?? 0);
+        $blockedJobs = (int) ($contentCounts->blocked ?? 0) + (int) ($productCounts->blocked ?? 0);
+        $failedJobs = (int) ($contentCounts->failed ?? 0) + (int) ($productCounts->failed ?? 0);
 
         if ($activeCount === 0) {
             $status = 'disabled';
@@ -294,6 +316,11 @@ class DashboardStatsService
             'label'            => $label,
             'pending_jobs'     => $pendingJobs,
             'failed_jobs'      => $failedJobs,
+            'running_jobs'     => $runningJobs,
+            'waiting_review'   => $waitingReview,
+            'blocked_jobs'     => $blockedJobs,
+            'worker_label'     => $workerDesired === 'DISABLED' ? 'Đang tắt' : ($workerHealth === 'ONLINE' ? 'Online' : 'Offline'),
+            'worker_disabled'  => $workerDesired === 'DISABLED',
         ];
     }
 

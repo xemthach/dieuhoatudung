@@ -5,7 +5,7 @@
     "scripts": {
         "build": "vite build",
         "dev": "vite",
-        "dev:full": "concurrently \"npm run dev\" \"php artisan queue:work --queue=ai,default --tries=3 --timeout=300\" \"php artisan schedule:work\""
+        "dev:full": "concurrently \"npm run dev\" \"php artisan ai:managed-worker --queue=ai_governed --sleep=3 --tries=3 --timeout=900\" \"php artisan schedule:work\""
     },
     "devDependencies": {
         "@tailwindcss/vite": "^4.2.4",

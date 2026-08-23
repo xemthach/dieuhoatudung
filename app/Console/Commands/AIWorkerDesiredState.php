@@ -3,7 +3,7 @@
 namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
-use Illuminate\Support\Facades\File;
+use App\Services\AI\AIWorkerDesiredStateService;
 
 class AIWorkerDesiredState extends Command
 {
@@ -11,7 +11,7 @@ class AIWorkerDesiredState extends Command
 
     protected $description = 'Set the explicit desired state for the governed AI worker.';
 
-    public function handle(): int
+    public function handle(AIWorkerDesiredStateService $desiredState): int
     {
         $state = strtoupper((string) $this->argument('state'));
         if (! in_array($state, ['ENABLED', 'DISABLED'], true)) {
@@ -19,13 +19,7 @@ class AIWorkerDesiredState extends Command
             return self::FAILURE;
         }
 
-        $path = storage_path('framework/cache/ai-worker-desired-state.json');
-        File::ensureDirectoryExists(dirname($path));
-        File::put($path, json_encode([
-            'desired_state' => $state,
-            'changed_at' => now()->toIso8601String(),
-            'changed_by' => get_current_user(),
-        ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+        $desiredState->set($state, get_current_user());
         $this->info($state);
         return self::SUCCESS;
     }

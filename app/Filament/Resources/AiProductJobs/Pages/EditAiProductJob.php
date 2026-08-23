@@ -52,7 +52,7 @@ class EditAiProductJob extends EditRecord
                             'last_error_code' => null,
                             'last_error_message' => null,
                         ]);
-                        AiProductContentSingleJob::dispatch($item->product_id, $this->record->id, $item->id)->onQueue('ai');
+                        AiProductContentSingleJob::dispatch($item->product_id, $this->record->id, $item->id)->onQueue(config('ai.governed_queue', 'ai_governed'));
                     }
 
                     $this->record->update(['status' => 'processing', 'finished_at' => null]);

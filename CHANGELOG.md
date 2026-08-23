@@ -2,6 +2,34 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.28.0] - 2026-08-23
+
+### Added
+- Added entity-centered AI assistance in Post and Product workflows with persisted live status, review/apply entry points, and bounded polling.
+- Added canonical AI status presentation across Product, AI history, provider readiness, dashboard, and operations surfaces.
+- Added permission-protected AI Worker desired-state controls, runtime identity diagnostics, version/build drift detection, and a non-provider cross-process worker self-test.
+- Added local Windows managed-worker restart tooling and environment/deployment runbooks for Windows and Linux process managers.
+
+### Changed
+- Repositioned AI job resources as history/operations views instead of primary content-creation entry points.
+- Changed the governed worker to consume only `ai_governed` through the configured queue connection and to preserve operator desired state across restarts.
+- Changed the database queue default `retry_after` to 960 seconds, above the governed worker timeout of 900 seconds.
+- Made worker drain/restart/version verification and scheduler health mandatory release gates for every live deployment.
+
+### Fixed
+- Fixed MySQL `ONLY_FULL_GROUP_BY` compatibility in the AI Product Jobs summary query.
+- Fixed stale or misleading AI progress states when the worker is disabled, offline, or running a different release.
+- Fixed legacy AI recovery redispatch paths so they target the governed queue rather than the isolated legacy `ai` queue.
+
+### Security and safety
+- Admin worker controls persist desired state only; HTTP actions never spawn or kill worker processes.
+- Worker self-tests do not call an AI provider and do not read or mutate Product/catalog data.
+- Existing review/apply authorization, provider-secret redaction, queue history, and legacy queue isolation remain intact.
+
+### Release note
+- Local cross-process proof used distinct dispatcher and worker PIDs and completed on `ai_governed` with zero provider calls.
+- Production deployment still requires a reviewed OS process manager and scheduler; web-only deployment is not accepted.
+
 ## [1.27.0] - 2026-08-23
 
 ### Added

@@ -70,12 +70,12 @@ class GenerateBlogDraft extends Command
                 GenerateBlogDraftJob::dispatchSync($job->id);
             } else {
                 $job->update(['status' => AIContentJobStatus::Queued]);
-                GenerateBlogDraftJob::dispatch($job->id)->onQueue('ai');
+                GenerateBlogDraftJob::dispatch($job->id)->onQueue(config('ai.governed_queue', 'ai_governed'));
             }
         }
 
         if (! $this->option('sync')) {
-            $this->line('Chạy worker: php artisan queue:work --queue=ai,default');
+            $this->line('Managed worker: php artisan ai:managed-worker --queue=ai_governed --sleep=3 --tries=3 --timeout=900');
         }
 
         $this->info('Hoàn tất tạo '.count($jobs).' job AI content.');

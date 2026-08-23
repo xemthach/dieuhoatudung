@@ -12,7 +12,7 @@ use App\Models\AiProductJobItem;
 use App\Models\Product;
 use App\Services\AI\ProductBulkGenerationManifest;
 use App\Services\AI\ProductBulkTargetResolver;
-use App\Services\AI\AIQueueMonitor;
+use App\Services\AI\AIWorkerReadinessService;
 use App\Support\SchemaColumns;
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
@@ -221,15 +221,18 @@ class ListProducts extends ListRecords
             , auth()->user()
         );
         AiProductContentBatchJob::dispatch($job->id)->onQueue(config('ai.governed_queue', 'ai_governed'));
-        $workerOffline = ! (bool) data_get(app(AIQueueMonitor::class)->health(), 'worker_heartbeat.is_running');
-
-        Notification::make()
+        $worker = app(AIWorkerReadinessService::class)->snapshot();
+        $notification = Notification::make()
             ->title('Đã tạo AI Product Job')
-            ->body("Job #{$job->id} sẽ xử lý ".count($productIds).' sản phẩm.'
-                .($workerOffline ? ' AI worker offline: job đã vào queue nhưng cần bật worker để xử lý.' : ''))
-            ->status($workerOffline ? 'warning' : 'success')
-            ->persistent()
-            ->send();
+            ->body("Job #{$job->id} sẽ xử lý ".count($productIds)." sản phẩm. {$worker['message']}")
+            ->status($worker['ready'] ? 'success' : 'warning')
+            ->persistent();
+        if (! $worker['ready'] && auth()->user()?->can('ai_worker.manage')) {
+            $notification->actions([
+                Action::make('manage_ai_worker')->label('Bật AI Worker')->url(\App\Filament\Pages\AIQueueHealth::getUrl()),
+            ]);
+        }
+        $notification->send();
     }
 
     private function aiRefreshStatusAction(): Action

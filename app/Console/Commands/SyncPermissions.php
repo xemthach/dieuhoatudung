@@ -40,7 +40,7 @@ class SyncPermissions extends Command
                 // Role (view only)
                 'role.view',
                 // AI
-                'ai_provider.*', 'ai_content_job.*',
+                'ai_provider.*', 'ai_content_job.*', 'ai_worker.*',
                 // SEO
                 'seo_audit.*', 'internal_link.*', 'redirect.*',
                 // Content

@@ -27,15 +27,20 @@ class AiContentJobResource extends Resource
     ];
 
     protected static ?string $model = AiContentJob::class;
-        public static function getNavigationGroup(): ?string { return 'Nội dung AI'; }
+        public static function getNavigationGroup(): ?string { return 'Vận hành'; }
 
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleStack;
 
-    protected static ?string $navigationLabel = 'Công việc AI bài viết';
+    protected static ?string $navigationLabel = 'Nhật ký AI bài viết';
     protected static ?int $navigationSort = 2;
 
     protected static ?string $recordTitleAttribute = 'topic';
+
+    public static function canCreate(): bool
+    {
+        return false;
+    }
 
     public static function form(Schema $schema): Schema
     {

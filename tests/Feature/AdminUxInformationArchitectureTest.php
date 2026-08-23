@@ -48,7 +48,7 @@ class AdminUxInformationArchitectureTest extends TestCase
         $this->assertSame('Bán hàng', LeadResource::getNavigationGroup());
         $this->assertSame('Sản phẩm', ProductResource::getNavigationGroup());
         $this->assertSame('Nội dung', PostResource::getNavigationGroup());
-        $this->assertSame('Nội dung AI', AiProductJobResource::getNavigationGroup());
+        $this->assertSame('Vận hành', AiProductJobResource::getNavigationGroup());
         $this->assertSame('Hệ thống', DataTransferPage::getNavigationGroup());
         $this->assertSame('Vận hành', AIQueueHealth::getNavigationGroup());
         $this->assertSame('Trang & Giao diện', LandingSectionResource::getNavigationGroup());
@@ -134,7 +134,10 @@ class AdminUxInformationArchitectureTest extends TestCase
 
     public function test_admin_version_uses_the_canonical_release_file(): void
     {
-        $this->assertSame('1.27.0', trim(File::get(base_path('VERSION'))));
+        $version = trim(File::get(base_path('VERSION')));
+
+        $this->assertMatchesRegularExpression('/^\d+\.\d+\.\d+$/', $version);
+        $this->assertStringContainsString("version-{$version}-blue", File::get(base_path('README.md')));
         $this->assertStringContainsString(
             'bootstrap="tests/bootstrap.php"',
             File::get(base_path('phpunit.xml')),
@@ -160,5 +163,22 @@ class AdminUxInformationArchitectureTest extends TestCase
         Livewire::test(ListAiProductJobs::class)->assertOk()->assertSee('Đang chờ')->assertSee('Chính sách vận hành AI');
         Livewire::test(MainDashboardWidget::class)->assertOk()->assertSee('Sản Phẩm')->assertSee('Cảnh Báo Cần Xử Lý');
         Livewire::test(SystemHealthWidget::class)->assertOk()->assertSee('Tình trạng hệ thống')->assertSee('AI Worker');
+    }
+
+    public function test_ai_product_job_summary_query_is_only_full_group_by_safe(): void
+    {
+        $user = UserFactory::new()->create(['is_active' => true]);
+        foreach (['bulk_ai_view', 'bulk_ai_view_all'] as $permission) {
+            Permission::firstOrCreate(['name' => $permission, 'guard_name' => 'web']);
+        }
+        $user->givePermissionTo(['bulk_ai_view', 'bulk_ai_view_all']);
+        $this->actingAs($user);
+
+        $sql = strtolower(AiProductJobResource::getSummaryQuery()->toSql());
+
+        $this->assertStringContainsString('sum(case when status', $sql);
+        $this->assertStringNotContainsString('ai_product_jobs.*', $sql);
+        $this->assertStringNotContainsString('select count(*)', $sql);
+        $this->assertNotNull(AiProductJobResource::getSummaryQuery()->toBase()->first());
     }
 }

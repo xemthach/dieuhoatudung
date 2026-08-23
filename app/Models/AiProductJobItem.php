@@ -19,6 +19,7 @@ class AiProductJobItem extends Model
             'validation_errors' => 'array',
             'started_at' => 'datetime',
             'finished_at' => 'datetime',
+            'state_changed_at' => 'datetime',
         ];
     }
 

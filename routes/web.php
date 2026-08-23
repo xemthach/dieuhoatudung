@@ -142,16 +142,17 @@ Route::middleware(['auth'])->prefix('admin')->group(function () {
 
     Route::get('/ai-content-jobs/{aiContentJob}/status', function (\App\Models\AiContentJob $aiContentJob) {
         abort_unless(auth()->user()?->can('ai_content_job.view'), 403);
+        $view = app(\App\Services\AI\AiContentStatusPresenter::class)->present($aiContentJob->status);
 
         return response()->json([
             'status' => $aiContentJob->status?->value ?? (string) $aiContentJob->status,
-            'progress_percent' => in_array($aiContentJob->status?->value, ['completed', 'completed_verified', 'completed_with_warnings', 'needs_review', 'failed', 'blocked', 'cancelled'], true) ? 100 : 0,
+            'display' => $view,
+            'progress_percent' => null,
             'processed' => in_array($aiContentJob->status?->value, ['completed', 'completed_verified', 'completed_with_warnings', 'needs_review', 'failed', 'blocked', 'cancelled'], true) ? 1 : 0,
             'total' => 1,
             'success' => in_array($aiContentJob->status?->value, ['completed', 'completed_verified', 'completed_with_warnings'], true) ? 1 : 0,
             'failed' => in_array($aiContentJob->status?->value, ['failed', 'blocked'], true) ? 1 : 0,
-            'last_error' => $aiContentJob->last_error_message ?: $aiContentJob->error_message,
-            'failed_reason' => $aiContentJob->failed_reason,
+            'safe_reason' => app(\App\Services\AI\AiContentStatusPresenter::class)->safeReason($aiContentJob->failed_reason),
             'updated_at' => $aiContentJob->updated_at?->toIso8601String(),
         ]);
     })->name('admin.ai-content-jobs.status');
@@ -161,16 +162,20 @@ Route::middleware(['auth'])->prefix('admin')->group(function () {
         abort_unless($actor?->can('bulk_ai_view'), 403);
         abort_unless(app(\App\Services\AI\BulkRuntimeAuthorizationService::class)->canViewJob($actor, $aiProductJob), 404);
         $total = max(1, (int) $aiProductJob->total);
+        $view = app(\App\Services\AI\AiContentStatusPresenter::class)->present($aiProductJob->status);
+        $reason = $aiProductJob->failed_reason ?: $aiProductJob->items()->whereNotNull('failed_reason')->latest('id')->value('failed_reason');
 
         return response()->json([
             'status' => $aiProductJob->status,
-            'progress_percent' => (int) round(((int) $aiProductJob->processed / $total) * 100),
+            'display' => $view,
+            'progress_percent' => (int) $aiProductJob->total > 1
+                ? (int) round(((int) $aiProductJob->processed / $total) * 100)
+                : null,
             'processed' => (int) $aiProductJob->processed,
             'total' => (int) $aiProductJob->total,
             'success' => (int) $aiProductJob->success,
             'failed' => (int) $aiProductJob->failed,
-            'last_error' => $aiProductJob->last_error_message ?: $aiProductJob->items()->whereNotNull('error_message')->latest('id')->value('error_message'),
-            'failed_reason' => $aiProductJob->failed_reason ?: $aiProductJob->items()->whereNotNull('failed_reason')->latest('id')->value('failed_reason'),
+            'safe_reason' => app(\App\Services\AI\AiContentStatusPresenter::class)->safeReason($reason),
             'updated_at' => $aiProductJob->updated_at?->toIso8601String(),
         ]);
     })->name('admin.ai-product-jobs.status');

@@ -6,6 +6,10 @@ use App\Enums\AIReviewStatus;
 use App\Enums\PostStatus;
 use App\Enums\SearchIntent;
 use App\Filament\Traits\HasSEOFields;
+use App\Models\Brand;
+use App\Models\Product;
+use App\Services\AI\HVACSeoContentEngine;
+use App\Services\AI\PostAiWorkflowService;
 use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Select;
@@ -17,6 +21,7 @@ use Filament\Schemas\Components\Tabs;
 use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Group;
 use Filament\Schemas\Components\Section;
+use Filament\Schemas\Components\View;
 use Filament\Schemas\Schema;
 use Illuminate\Support\Str;
 use App\Services\Media\MediaDiskService;
@@ -28,6 +33,13 @@ class PostForm
         return $schema
             ->columns(1)
             ->components([
+                View::make('filament.post-ai-workflow-host')
+                    ->viewData(function (): array {
+                        $record = request()->route()?->parameter('record');
+
+                        return ['postId' => is_object($record) ? (int) $record->getKey() : (int) $record];
+                    })
+                    ->columnSpanFull(),
                 Grid::make(['default' => 1, 'md' => 3])->schema([
                     Group::make()->schema([
                         Section::make('Nội dung chính')->schema([
@@ -63,6 +75,33 @@ class PostForm
                         ])->columns(2),
 
                         Section::make('AI & SEO Content')->schema([
+                            Grid::make(['default' => 1, 'md' => 2])->schema([
+                                Select::make('ai_content_category')
+                                    ->label('Chủ đề nội dung')
+                                    ->options(array_combine(HVACSeoContentEngine::CATEGORIES, HVACSeoContentEngine::CATEGORIES))
+                                    ->default('Kiến thức HVAC')
+                                    ->dehydrated(false),
+                                Select::make('ai_audience')
+                                    ->label('Đối tượng đọc')
+                                    ->options(array_combine(HVACSeoContentEngine::AUDIENCES, HVACSeoContentEngine::AUDIENCES))
+                                    ->dehydrated(false),
+                                Select::make('ai_related_product_id')
+                                    ->label('Sản phẩm liên quan')
+                                    ->options(fn () => Product::query()->orderBy('name')->limit(200)->pluck('name', 'id'))
+                                    ->searchable()
+                                    ->dehydrated(false),
+                                Select::make('ai_related_brand_id')
+                                    ->label('Thương hiệu liên quan')
+                                    ->options(fn () => Brand::query()->orderBy('name')->pluck('name', 'id'))
+                                    ->searchable()
+                                    ->dehydrated(false),
+                            ]),
+                            Select::make('ai_requested_fields')
+                                ->label('AI cần hỗ trợ')
+                                ->multiple()
+                                ->options(PostAiWorkflowService::OUTPUTS)
+                                ->default(array_keys(PostAiWorkflowService::OUTPUTS))
+                                ->dehydrated(false),
                             Grid::make(['default' => 1, 'md' => 2])->schema([
                                 TextInput::make('primary_keyword')
                                     ->label('Từ khoá chính'),

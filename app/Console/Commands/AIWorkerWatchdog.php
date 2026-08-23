@@ -2,6 +2,8 @@
 
 namespace App\Console\Commands;
 
+use App\Services\AI\AIWorkerDesiredStateService;
+use App\Services\AI\AIQueueMonitor;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\File;
 
@@ -11,13 +13,13 @@ class AIWorkerWatchdog extends Command
 
     protected $description = 'Recover the governed worker when enabled and absent; never consumes queue work.';
 
-    public function handle(): int
+    public function handle(AIWorkerDesiredStateService $desiredState, AIQueueMonitor $monitor): int
     {
-        $statePath = storage_path('framework/cache/ai-worker-desired-state.json');
         $recoveryPath = storage_path('framework/cache/ai-worker-watchdog.json');
-        $desired = File::exists($statePath) ? json_decode(File::get($statePath), true) : ['desired_state' => 'DISABLED'];
+        $desired = $desiredState->current();
         $state = File::exists($recoveryPath) ? (json_decode(File::get($recoveryPath), true) ?: []) : [];
         $state += ['recoveries' => [], 'status' => 'IDLE'];
+        $monitor->heartbeat('ai-worker-watchdog', config('ai.governed_queue', 'ai_governed'), 'running');
 
         if (($desired['desired_state'] ?? 'DISABLED') !== 'ENABLED') {
             $state['status'] = 'DISABLED_BY_OPERATOR';
@@ -25,7 +27,7 @@ class AIWorkerWatchdog extends Command
             return self::SUCCESS;
         }
 
-        $ownership = storage_path('framework/cache/ai-managed-worker.json');
+        $ownership = $desiredState->managedStatePath();
         $worker = File::exists($ownership) ? (json_decode(File::get($ownership), true) ?: []) : [];
         $supervisorPid = (int) ($worker['supervisor_pid'] ?? 0);
         if ($this->processExists($supervisorPid)) {

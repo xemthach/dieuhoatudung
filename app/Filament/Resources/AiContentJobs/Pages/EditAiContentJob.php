@@ -48,12 +48,7 @@ class EditAiContentJob extends EditRecord
                 ->modalHeading('Xác nhận chạy AI')
                 ->modalDescription(fn () => 'AI sẽ tạo nội dung HVAC SEO cho: "'.$this->record->topic.'". Thời gian khoảng 1-3 phút.')
                 ->modalSubmitActionLabel('Chạy ngay')
-                ->visible(fn () => in_array($this->record->status, [
-                    AIContentJobStatus::Pending,
-                    AIContentJobStatus::Queued,
-                    AIContentJobStatus::Failed,
-                    AIContentJobStatus::Stuck,
-                ]))
+                ->visible(false)
                 ->action(function () {
                     if (! app(AIProviderPool::class)->hasAvailableProviders()) {
                         Notification::make()
@@ -67,7 +62,7 @@ class EditAiContentJob extends EditRecord
                     }
 
                     $this->record->update(['status' => AIContentJobStatus::Queued]);
-                    GenerateBlogDraftJob::dispatch($this->record->id)->onQueue('ai');
+                    GenerateBlogDraftJob::dispatch($this->record->id)->onQueue(config('ai.governed_queue', 'ai_governed'));
 
                     Notification::make()
                         ->title('Job đã được đưa vào queue')
@@ -97,7 +92,7 @@ class EditAiContentJob extends EditRecord
                         'last_error_code' => null,
                         'last_error_message' => null,
                     ]);
-                    GenerateBlogDraftJob::dispatch($this->record->id)->onQueue('ai');
+                    GenerateBlogDraftJob::dispatch($this->record->id)->onQueue(config('ai.governed_queue', 'ai_governed'));
                     Notification::make()->title('Job đã được retry')->success()->send();
                     $this->refreshFormData(['status']);
                 }),
@@ -127,7 +122,7 @@ class EditAiContentJob extends EditRecord
                 }),
 
             Action::make('view_technical_log')
-                ->label('View technical log')
+                ->label('Chi tiết kỹ thuật')
                 ->icon('heroicon-o-bug-ant')
                 ->color('gray')
                 ->modalSubmitAction(false)
@@ -136,19 +131,22 @@ class EditAiContentJob extends EditRecord
                     .e($this->technicalLogText()).'</pre>')),
 
             Action::make('publish_to_post')
-                ->label('Publish thành bài viết')
+                ->label('Khôi phục draft cũ thành bài viết')
                 ->color('success')
                 ->icon('heroicon-o-document-plus')
                 ->requiresConfirmation()
                 ->modalHeading('Publish thành bài viết blog?')
                 ->modalDescription('Draft AI sẽ được tạo thành bài viết mới với trạng thái Draft. Bạn có thể chỉnh sửa trước khi đăng.')
                 ->modalSubmitActionLabel('Tạo bài viết')
-                ->visible(fn () => in_array($this->record->status, [
+                ->visible(fn () => empty(data_get($this->record->input_payload, 'target_post_id'))
+                    && (bool) auth()->user()?->can('post.create')
+                    && in_array($this->record->status, [
                     AIContentJobStatus::Completed,
                     AIContentJobStatus::CompletedVerified,
                     AIContentJobStatus::CompletedWithWarnings,
                 ], true) && ! empty($this->record->output_draft))
                 ->action(function () {
+                    abort_unless(auth()->user()?->can('post.create'), 403);
                     $record = $this->record;
                     $meta = is_array($record->output_meta) ? $record->output_meta : [];
                     $payload = is_array($record->input_payload) ? $record->input_payload : [];

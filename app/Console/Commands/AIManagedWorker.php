@@ -3,6 +3,8 @@
 namespace App\Console\Commands;
 
 use App\Services\AI\AIQueueMonitor;
+use App\Services\AI\AIWorkerDesiredStateService;
+use App\Services\AI\AIWorkerRuntimeIdentityService;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\File;
 
@@ -17,11 +19,15 @@ class AIManagedWorker extends Command
 
     protected $description = 'Run the governed AI worker with truthful heartbeat supervision.';
 
-    public function handle(AIQueueMonitor $monitor): int
+    public function handle(
+        AIQueueMonitor $monitor,
+        AIWorkerDesiredStateService $desiredState,
+        AIWorkerRuntimeIdentityService $runtimeIdentity,
+    ): int
     {
         $supervisorPid = getmypid();
         $queue = (string) ($this->option('queue') ?: config('ai.governed_queue', 'ai_governed'));
-        $statePath = $this->statePath($queue);
+        $statePath = $desiredState->managedStatePath($queue);
         File::ensureDirectoryExists(dirname($statePath));
         $existing = File::exists($statePath) ? json_decode(File::get($statePath), true) : null;
         if (is_array($existing) && (int) ($existing['supervisor_pid'] ?? 0) !== $supervisorPid
@@ -29,12 +35,21 @@ class AIManagedWorker extends Command
             $this->warn('ALREADY_RUNNING');
             return self::SUCCESS;
         }
-        $this->writeState($statePath, ['supervisor_pid' => $supervisorPid, 'child_pid' => null, 'queue' => $queue, 'started_at' => now()->toIso8601String()]);
+        $connection = (string) config('queue.default', 'database');
+        $this->writeState($statePath, [
+            'supervisor_pid' => $supervisorPid,
+            'child_pid' => null,
+            'queue' => $queue,
+            'connection' => $connection,
+            'runtime' => $runtimeIdentity->current(),
+            'started_at' => now()->toIso8601String(),
+        ]);
         $command = [
             PHP_BINARY,
             base_path('artisan'),
             'ai:managed-child-worker',
             '--parent-pid='.$supervisorPid,
+            '--connection='.$connection,
             '--queue='.$queue,
             '--sleep='.$this->option('sleep'),
             '--tries='.$this->option('tries'),
@@ -42,7 +57,7 @@ class AIManagedWorker extends Command
         ];
 
         do {
-            $monitor->heartbeat('queue-worker', $queue, 'running');
+            $monitor->heartbeat('queue-worker-supervisor', $queue, 'running');
             $process = proc_open($command, [
                 0 => ['pipe', 'r'],
                 1 => ['file', storage_path('logs/ai-worker.log'), 'ab'],
@@ -50,7 +65,7 @@ class AIManagedWorker extends Command
             ], $pipes, base_path(), null, ['bypass_shell' => true]);
 
             if (! is_resource($process)) {
-                $monitor->heartbeat('queue-worker', $queue, 'offline');
+                $monitor->heartbeat('queue-worker-supervisor', $queue, 'offline');
                 return self::FAILURE;
             }
 
@@ -59,12 +74,12 @@ class AIManagedWorker extends Command
 
             while (true) {
                 $status = proc_get_status($process);
-                $monitor->heartbeat('queue-worker', $queue, 'running');
+                $monitor->heartbeat('queue-worker-supervisor', $queue, 'running');
                 $this->writeState($statePath, ['supervisor_pid' => $supervisorPid, 'child_pid' => $childPid, 'queue' => $queue, 'heartbeat' => now()->toIso8601String()]);
                 if (! $status['running']) {
                     $exitCode = (int) $status['exitcode'];
                     proc_close($process);
-                    $monitor->heartbeat('queue-worker', $queue, $exitCode === 0 ? 'stopped' : 'offline');
+                    $monitor->heartbeat('queue-worker-supervisor', $queue, $exitCode === 0 ? 'stopped' : 'offline');
                     $this->writeState($statePath, ['supervisor_pid' => $supervisorPid, 'child_pid' => null, 'queue' => $queue, 'shutdown_requested_at' => now()->toIso8601String(), 'shutdown_result' => $exitCode === 0 ? 'child_exited' : 'child_failed']);
                     if ($this->option('once')) {
                         return $exitCode === 0 ? self::SUCCESS : self::FAILURE;
@@ -86,14 +101,6 @@ class AIManagedWorker extends Command
             unset($state['shutdown_requested_at'], $state['shutdown_result']);
         }
         file_put_contents($path, json_encode(array_merge($state, $values), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
-    }
-
-    private function statePath(string $queue): string
-    {
-        $database = (string) config('database.connections.'.config('database.default').'.database', 'unknown');
-        $scope = preg_replace('/[^A-Za-z0-9_.-]+/', '_', $database.'_'.$queue) ?: 'unknown';
-
-        return storage_path('framework/cache/ai-managed-worker-'.$scope.'.json');
     }
 
     private function processExists(int $pid): bool

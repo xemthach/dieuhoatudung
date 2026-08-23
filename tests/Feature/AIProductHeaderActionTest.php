@@ -274,7 +274,7 @@ class AIProductHeaderActionTest extends TestCase
         $this->assertSame(1, $count);
         $this->assertSame('queued', $item->refresh()->status);
         $this->assertNull($item->failed_reason);
-        $this->assertSame('queued', $product->refresh()->ai_status);
+        $this->assertSame('failed', $product->refresh()->ai_status);
         $this->assertSame('processing', $job->refresh()->status);
 
         Bus::assertDispatched(AiProductContentSingleJob::class, fn (AiProductContentSingleJob $singleJob): bool => $singleJob->aiProductJobItemId === $item->id);

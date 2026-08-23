@@ -4,18 +4,19 @@ namespace App\Http\Controllers\Admin;
 
 use App\Filament\Resources\Products\Tables\ProductsTable;
 use App\Http\Controllers\Controller;
-use App\Models\AiProductJobItem;
 use App\Models\Product;
 use App\Services\AI\AIQueueMonitor;
-use App\Services\Product\AIProductContentSystem;
+use App\Services\AI\AiProductLiveStatusService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class ProductAiStatusController extends Controller
 {
-    private const ACTIVE_STATUSES = ['queued', 'processing', 'retrying', 'stuck'];
-
-    public function index(Request $request, AIQueueMonitor $queueMonitor): JsonResponse
+    public function index(
+        Request $request,
+        AIQueueMonitor $queueMonitor,
+        AiProductLiveStatusService $liveStatus,
+    ): JsonResponse
     {
         abort_unless($request->user()?->can('product.view'), 403);
 
@@ -26,64 +27,33 @@ class ProductAiStatusController extends Controller
             ->take(100)
             ->values();
 
-        $latestItemIds = $ids->isEmpty()
-            ? collect()
-            : AiProductJobItem::query()
-                ->selectRaw('MAX(id) as id')
-                ->whereIn('product_id', $ids->all())
-                ->groupBy('product_id')
-                ->pluck('id');
+        // Product-table polling does not need article processing totals. Avoid
+        // paying for an unrelated aggregate every ten seconds.
+        $health = $queueMonitor->liveStatusHealth(includeContentProcessing: false);
+        $products = $liveStatus->forProductIds($ids->all(), $health)
+            ->map(function (array $status) use ($request): array {
+                $status['retry_url'] = $status['retry_allowed'] && $request->user()?->can('product.ai_generate')
+                    ? route('admin.products.ai-retry', $status['id'])
+                    : null;
 
-        $itemsByProduct = AiProductJobItem::query()
-            ->whereIn('id', $latestItemIds)
-            ->with('job:id,total,processed,success,failed,status')
-            ->get()
-            ->keyBy('product_id');
-
-        $products = Product::query()
-            ->whereKey($ids->all())
-            ->select(['id', 'ai_status', 'ai_score', 'ai_warning_count', 'ai_last_run_at', 'ai_error_message'])
-            ->latest('id')
-            ->get()
-            ->map(function (Product $product) use ($itemsByProduct): array {
-                $item = $itemsByProduct->get($product->id);
-                $job = $item?->job;
-                $total = max(1, (int) ($job?->total ?? 1));
-                $processed = (int) ($job?->processed ?? 0);
-
-                return [
-                    'id' => (int) $product->id,
-                    'ai_status' => $product->ai_status ?: 'not_generated',
-                    'ai_status_label' => $this->statusLabel($product->ai_status, $item?->failed_reason),
-                    'seo_score' => (int) ($product->ai_score ?? 0),
-                    'warnings_count' => (int) ($product->ai_warning_count ?? 0),
-                    'last_ai_run' => $product->ai_last_run_at?->diffForHumans() ?? '-',
-                    'last_ai_run_iso' => $product->ai_last_run_at?->toIso8601String(),
-                    'progress_percent' => in_array($product->ai_status, self::ACTIVE_STATUSES, true)
-                        ? (int) min(100, round(($processed / $total) * 100))
-                        : null,
-                    'failed_reason' => $item?->failed_reason ?: $product->ai_error_message,
-                    'last_error_message' => $item?->last_error_message ?: $item?->error_message ?: $product->ai_error_message,
-                    'retry_url' => route('admin.products.ai-retry', $product),
-                    'is_active' => in_array($product->ai_status, self::ACTIVE_STATUSES, true),
-                ];
+                return $status;
             })
             ->values();
-
-        $health = $queueMonitor->health();
 
         return response()->json([
             'products' => $products,
             'queue_health' => [
                 'worker_online' => (bool) data_get($health, 'worker_heartbeat.is_running'),
+                'worker_health' => data_get($health, 'worker_heartbeat.health_status', 'UNKNOWN'),
+                'desired_state' => data_get($health, 'worker_desired_state', 'DISABLED'),
                 'pending_jobs' => (int) (data_get($health, 'pending_jobs_count') ?? 0),
                 'processing_jobs' => (int) (data_get($health, 'ai_product_processing_count') ?? 0),
                 'failed_jobs' => (int) (data_get($health, 'failed_jobs_count') ?? 0),
                 'scheduler_online' => (bool) data_get($health, 'scheduler_is_running'),
             ],
             'auto_refresh' => [
-                'should_continue' => $products->contains(fn (array $product): bool => (bool) $product['is_active']),
-                'interval_ms' => 5000,
+                'should_continue' => $products->contains(fn (array $product): bool => (bool) $product['should_poll']),
+                'interval_ms' => 10000,
             ],
         ]);
     }
@@ -102,14 +72,7 @@ class ProductAiStatusController extends Controller
         return response()->json([
             'retried' => (int) $count,
             'product_id' => (int) $product->id,
-            'status' => $product->refresh()->ai_status,
+            'status' => $product->aiProductJobItems()->latest('id')->value('status') ?: 'not_generated',
         ]);
-    }
-
-    private function statusLabel(?string $status, ?string $failedReason = null): string
-    {
-        $label = AIProductContentSystem::AI_STATUSES[$status ?: 'not_generated'] ?? (string) $status;
-
-        return $status === 'failed' && filled($failedReason) ? "{$label}: {$failedReason}" : $label;
     }
 }

@@ -28,6 +28,9 @@ return [
 
     'env' => env('APP_ENV', 'production'),
 
+    /* Release identity injected by CI/deployment when the Git directory is absent. */
+    'build_id' => env('APP_BUILD_ID'),
+
     /*
     |--------------------------------------------------------------------------
     | Application Debug Mode

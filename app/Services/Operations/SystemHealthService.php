@@ -4,7 +4,6 @@ namespace App\Services\Operations;
 
 use App\Services\AI\AIQueueMonitor;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Schema;
 use Throwable;
 
@@ -115,17 +114,24 @@ final class SystemHealthService
 
     private function worker(?array $health): array
     {
-        $desiredPath = storage_path('framework/cache/ai-worker-desired-state.json');
-        $desired = 'DISABLED';
-        if (File::exists($desiredPath)) {
-            $payload = json_decode(File::get($desiredPath), true) ?: [];
-            $desired = strtoupper((string) ($payload['desired_state'] ?? 'DISABLED'));
-        }
+        $desired = (string) data_get($health, 'worker_desired_state', 'DISABLED');
         $actual = data_get($health, 'worker_heartbeat.health_status', 'OFFLINE');
+        $accepting = (bool) data_get($health, 'worker_heartbeat.accepting_new_jobs', false);
+        $deployment = (string) data_get($health, 'worker_deployment_status', 'UNKNOWN');
+        $details = [
+            'desired' => $desired,
+            'actual' => $actual,
+            'accepting_new_jobs' => $accepting,
+            'deployment_status' => $deployment,
+            'application_version' => data_get($health, 'application_runtime.app_version'),
+            'worker_version' => data_get($health, 'worker_runtime.app_version'),
+        ];
         if ($desired === 'DISABLED') {
-            return ['state' => 'DISABLED', 'desired' => $desired, 'actual' => $actual];
+            return array_merge($details, ['state' => $deployment === 'VERSION_MISMATCH' ? 'WARNING' : 'DISABLED', 'accepting_new_jobs' => false]);
         }
-        return ['state' => $actual === 'ONLINE' ? 'HEALTHY' : ($actual === 'STALE' ? 'WARNING' : 'CRITICAL'), 'desired' => $desired, 'actual' => $actual];
+        return array_merge($details, ['state' => $deployment === 'VERSION_MISMATCH'
+            ? 'CRITICAL'
+            : ($actual === 'ONLINE' && $accepting ? 'HEALTHY' : ($actual === 'STALE' ? 'WARNING' : 'CRITICAL'))]);
     }
 
     private function overall(array $components): string

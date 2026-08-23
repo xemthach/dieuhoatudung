@@ -52,11 +52,15 @@ class ProductAiStatusEndpointTest extends TestCase
             'ai_product_job_id' => $job->id,
             'product_id' => $visible->id,
             'status' => 'processing',
+            'canonical_status' => 'RUNNING',
+            'state_changed_at' => now(),
         ]);
         AiProductJobItem::create([
             'ai_product_job_id' => $job->id,
             'product_id' => $hidden->id,
             'status' => 'failed',
+            'canonical_status' => 'FAILED',
+            'state_changed_at' => now(),
             'failed_reason' => 'missing_api_key',
         ]);
         QueueWorkerHeartbeat::create([
@@ -75,7 +79,7 @@ class ProductAiStatusEndpointTest extends TestCase
             ->assertJsonPath('products.0.ai_status', 'processing')
             ->assertJsonPath('products.0.seo_score', 72)
             ->assertJsonPath('products.0.warnings_count', 3)
-            ->assertJsonPath('products.0.progress_percent', 40)
+            ->assertJsonPath('products.0.progress.percent', 40)
             ->assertJsonPath('queue_health.worker_online', true)
             ->assertJsonPath('auto_refresh.should_continue', true);
 
@@ -105,6 +109,8 @@ class ProductAiStatusEndpointTest extends TestCase
             'ai_product_job_id' => $job->id,
             'product_id' => $product->id,
             'status' => 'failed',
+            'canonical_status' => 'FAILED',
+            'state_changed_at' => now(),
             'failed_reason' => 'provider_timeout',
             'last_error_message' => 'Provider timeout.',
         ]);
@@ -113,9 +119,9 @@ class ProductAiStatusEndpointTest extends TestCase
 
         $response
             ->assertOk()
-            ->assertJsonPath('products.0.ai_status_label', 'Thất bại: provider_timeout')
-            ->assertJsonPath('products.0.failed_reason', 'provider_timeout')
-            ->assertJsonPath('products.0.last_error_message', 'Provider timeout.');
+            ->assertJsonPath('products.0.ai_status_label', 'Thất bại')
+            ->assertJsonPath('products.0.safe_reason', 'Nhà cung cấp AI tạm thời không phản hồi.')
+            ->assertJsonMissingPath('products.0.last_error_message');
 
         $this->assertStringContainsString("/admin/products/{$product->id}/ai-retry", $response->json('products.0.retry_url'));
     }
@@ -142,6 +148,8 @@ class ProductAiStatusEndpointTest extends TestCase
             'ai_product_job_id' => $job->id,
             'product_id' => $product->id,
             'status' => 'failed',
+            'canonical_status' => 'FAILED',
+            'state_changed_at' => now(),
             'failed_reason' => 'missing_api_key',
             'last_error_code' => 'missing_api_key',
             'last_error_message' => 'Missing API key.',
@@ -158,7 +166,7 @@ class ProductAiStatusEndpointTest extends TestCase
 
         $this->assertSame('queued', $item->refresh()->status);
         $this->assertNull($item->failed_reason);
-        $this->assertSame('queued', $product->refresh()->ai_status);
+        $this->assertSame('failed', $product->refresh()->ai_status);
         Bus::assertDispatched(AiProductContentSingleJob::class);
     }
 

@@ -8,9 +8,10 @@ use App\Filament\Resources\AiProductJobs\RelationManagers\ItemsRelationManager;
 use App\Filament\Traits\HasResourcePermissions;
 use App\Models\AiProductJob;
 use App\Models\AiBulkRuntimeBatch;
-use App\Services\AI\BulkRuntimeObservabilityService;
 use App\Services\AI\BulkRuntimeAuthorizationService;
 use App\Services\AI\AIRuntimePolicyService;
+use App\Services\AI\AIQueueMonitor;
+use App\Services\AI\AiContentStatusPresenter;
 use BackedEnum;
 use Filament\Actions\EditAction;
 use Filament\Actions\Action;
@@ -19,6 +20,7 @@ use Filament\Forms\Components\TextInput;
 use Filament\Resources\Resource;
 use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Section;
+use Filament\Schemas\Components\View;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
@@ -41,23 +43,42 @@ class AiProductJobResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedCpuChip;
 
-    protected static ?string $navigationLabel = 'Công việc nội dung AI';
+    protected static ?string $navigationLabel = 'Nhật ký AI sản phẩm';
 
     protected static ?int $navigationSort = 1;
 
     public static function getNavigationGroup(): ?string
     {
-        return 'Nội dung AI';
+        return 'Vận hành';
     }
 
     public static function getEloquentQuery(): Builder
+    {
+        return static::getAuthorizedBaseQuery()
+            ->with('runtimeBatch')
+            ->withCount([
+                'items as runtime_running_count' => fn (Builder $query) => $query->whereIn('canonical_status', ['RUNNING', 'VALIDATING', 'FACT_CHECKING']),
+            ]);
+    }
+
+    public static function getSummaryQuery(): Builder
+    {
+        return static::getAuthorizedBaseQuery()
+            ->selectRaw("SUM(CASE WHEN status = 'queued' THEN 1 ELSE 0 END) AS queued")
+            ->selectRaw("SUM(CASE WHEN status = 'processing' THEN 1 ELSE 0 END) AS processing")
+            ->selectRaw("SUM(CASE WHEN status = 'needs_review' THEN 1 ELSE 0 END) AS review")
+            ->selectRaw("SUM(CASE WHEN status IN ('completed', 'completed_with_errors') THEN 1 ELSE 0 END) AS completed")
+            ->selectRaw("SUM(CASE WHEN status IN ('failed', 'blocked', 'cancelled') THEN 1 ELSE 0 END) AS failed");
+    }
+
+    private static function getAuthorizedBaseQuery(): Builder
     {
         $query = parent::getEloquentQuery();
         $actor = auth()->user();
         if (! $actor || ! $actor->can('bulk_ai_view')) return $query->whereRaw('1 = 0');
         $ids = app(BulkRuntimeAuthorizationService::class)->visibleJobIds($actor);
-        $query = $ids === null ? $query : $query->whereIn('id', $ids ?: [-1]);
-        return $query->with('runtimeBatch');
+
+        return $ids === null ? $query : $query->whereIn('id', $ids ?: [-1]);
     }
 
     public static function canEdit($record): bool
@@ -69,7 +90,16 @@ class AiProductJobResource extends Resource
     public static function form(Schema $schema): Schema
     {
         return $schema->components([
-            Section::make('AI Product Job Report')
+            Section::make('Trạng thái công việc')
+                ->schema([
+                    View::make('filament.ai-product-job-live-status-host')
+                        ->viewData(function (): array {
+                            $record = request()->route()?->parameter('record');
+
+                            return ['jobId' => is_object($record) ? (int) $record->getKey() : (int) $record];
+                        }),
+                ]),
+            Section::make('Báo cáo công việc AI')
                 ->schema([
                     Grid::make(4)->schema([
                         TextInput::make('type')->disabled(),
@@ -86,7 +116,7 @@ class AiProductJobResource extends Resource
                         ->disabled()
                         ->columnSpanFull(),
                 ]),
-            Section::make('Technical debug')
+            Section::make('Chi tiết kỹ thuật')
                 ->collapsed()
                 ->schema([
                     Grid::make(3)->schema([
@@ -111,12 +141,7 @@ class AiProductJobResource extends Resource
         return $table
             ->poll('10s')
             ->header(function () {
-                $counts = (clone static::getEloquentQuery())
-                    ->selectRaw("SUM(CASE WHEN status = 'queued' THEN 1 ELSE 0 END) AS queued")
-                    ->selectRaw("SUM(CASE WHEN status = 'processing' THEN 1 ELSE 0 END) AS processing")
-                    ->selectRaw("SUM(CASE WHEN status = 'needs_review' THEN 1 ELSE 0 END) AS review")
-                    ->selectRaw("SUM(CASE WHEN status IN ('completed', 'completed_with_errors') THEN 1 ELSE 0 END) AS completed")
-                    ->selectRaw("SUM(CASE WHEN status IN ('failed', 'blocked', 'cancelled') THEN 1 ELSE 0 END) AS failed")
+                $counts = static::getSummaryQuery()
                     ->toBase()
                     ->first();
 
@@ -138,26 +163,16 @@ class AiProductJobResource extends Resource
                 TextColumn::make('status')
                     ->label('Trạng thái')
                     ->badge()
-                    ->formatStateUsing(fn (string $state): string => match ($state) {
-                        'queued' => 'Đang chờ',
-                        'processing' => 'Đang xử lý',
-                        'needs_review' => 'Cần duyệt',
-                        'completed' => 'Hoàn thành',
-                        'completed_with_errors' => 'Hoàn thành có lỗi',
-                        'failed' => 'Thất bại',
-                        'blocked' => 'Bị chặn',
-                        'cancelled' => 'Đã hủy',
-                        default => str($state)->replace('_', ' ')->title()->toString(),
-                    })
-                    ->color(fn (string $state): string => match ($state) {
-                        'completed' => 'success',
-                        'queued' => 'gray',
-                        'processing', 'needs_review', 'completed_with_errors' => 'warning',
-                        'failed', 'blocked', 'cancelled' => 'danger',
-                        default => 'gray',
-                    })
+                    ->formatStateUsing(fn (string $state): string => app(AiContentStatusPresenter::class)->present($state)['label'])
+                    ->color(fn (string $state): string => app(AiContentStatusPresenter::class)->present($state)['color'])
                     ->sortable(),
-                TextColumn::make('failed_reason')->label('Lý do lỗi')->badge()->color('danger')->placeholder('-')->toggleable(isToggledHiddenByDefault: true),
+                TextColumn::make('failed_reason')
+                    ->label('Lý do')
+                    ->formatStateUsing(fn (?string $state): ?string => app(AiContentStatusPresenter::class)->safeReason($state))
+                    ->badge()
+                    ->color(fn (AiProductJob $record): string => app(AiContentStatusPresenter::class)->present($record->status)['color'])
+                    ->placeholder('-')
+                    ->toggleable(),
                 TextColumn::make('queue_name')->label('Queue')->placeholder('-')->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('attempts')->label('Lần thử')->numeric()->sortable(),
                 TextColumn::make('progress')
@@ -165,9 +180,9 @@ class AiProductJobResource extends Resource
                     ->state(fn (AiProductJob $record): string => number_format((int) $record->processed).' / '.number_format((int) $record->total))
                     ->description(fn (AiProductJob $record): string => "Thành công {$record->success} · Lỗi {$record->failed} · Cần duyệt {$record->needs_review}"),
                 TextColumn::make('runtime_status')->label('Runtime')->state(fn (AiProductJob $record) => $record->runtimeBatch?->status ?: '-')->badge()->toggleable(isToggledHiddenByDefault: true),
-                TextColumn::make('runtime_running')->label('Đang chạy')->state(fn (AiProductJob $record) => $record->runtimeBatch ? app(BulkRuntimeObservabilityService::class)->snapshot($record->runtimeBatch)['running'] : 0)->numeric()->toggleable(isToggledHiddenByDefault: true),
-                TextColumn::make('runtime_tokens')->label('Tokens')->state(fn (AiProductJob $record) => $record->runtimeBatch ? app(BulkRuntimeObservabilityService::class)->snapshot($record->runtimeBatch)['tokens_consumed'] : 0)->numeric()->toggleable(isToggledHiddenByDefault: true),
-                TextColumn::make('runtime_worker')->label('Worker')->state(fn (AiProductJob $record) => $record->runtimeBatch ? app(BulkRuntimeObservabilityService::class)->snapshot($record->runtimeBatch)['worker_health'] : '-')->badge()->toggleable(isToggledHiddenByDefault: true),
+                TextColumn::make('runtime_running_count')->label('Đang chạy')->numeric()->toggleable(isToggledHiddenByDefault: true),
+                TextColumn::make('runtimeBatch.token_consumed')->label('Tokens đã dùng')->numeric()->toggleable(isToggledHiddenByDefault: true),
+                TextColumn::make('runtime_worker')->label('Worker')->state(fn (): string => self::workerHealth())->badge()->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('updated_at')->label('Cập nhật')->since()->dateTimeTooltip()->sortable(),
                 TextColumn::make('created_at')->label('Tạo lúc')->dateTime('d/m/Y H:i')->sortable()->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('finished_at')->label('Hoàn tất')->dateTime('d/m/Y H:i')->sortable()->placeholder('-')->toggleable(isToggledHiddenByDefault: true),
@@ -203,5 +218,12 @@ class AiProductJobResource extends Resource
             'index' => ListAiProductJobs::route('/'),
             'edit' => EditAiProductJob::route('/{record}/edit'),
         ];
+    }
+
+    private static function workerHealth(): string
+    {
+        static $health;
+
+        return $health ??= (string) data_get(app(AIQueueMonitor::class)->liveStatusHealth(), 'worker_heartbeat.health_status', 'DISABLED');
     }
 }

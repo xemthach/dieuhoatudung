@@ -15,7 +15,6 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Str;
 
 class GenerateBlogDraftJob implements ShouldQueue
 {
@@ -55,7 +54,7 @@ class GenerateBlogDraftJob implements ShouldQueue
                 'failed_reason' => 'missing_api_key',
                 'last_error_code' => 'missing_api_key',
                 'last_error_message' => 'No active AI provider.',
-                'queue_name' => $this->queue ?: 'ai',
+                'queue_name' => $this->queue ?: config('ai.governed_queue', 'ai_governed'),
                 'attempts' => $this->attempts(),
             ]);
             $technicalLogger->event('ai_blog', 'job_failed', 'No active AI provider.', ['failed_reason' => 'missing_api_key'], $job, 'error');
@@ -67,7 +66,7 @@ class GenerateBlogDraftJob implements ShouldQueue
         $job->update([
             'status' => AIContentJobStatus::Processing,
             'module' => 'ai_blog',
-            'queue_name' => $this->queue ?: 'ai',
+            'queue_name' => $this->queue ?: config('ai.governed_queue', 'ai_governed'),
             'attempts' => $this->attempts(),
             'started_at' => $job->started_at ?? $startedAt,
             'finished_at' => null,
@@ -76,12 +75,12 @@ class GenerateBlogDraftJob implements ShouldQueue
             'last_error_message' => null,
         ]);
         $technicalLogger->event('ai_blog', 'job_started', 'AI blog job started.', [
-            'queue' => $this->queue ?: 'ai',
+            'queue' => $this->queue ?: config('ai.governed_queue', 'ai_governed'),
             'attempts' => $this->attempts(),
             'topic' => $job->topic,
         ], $job);
 
-        $contextId = 'hvac_blog_'.$job->id.'_'.Str::random(8);
+        $contextId = (string) data_get($job->input_payload, 'context_id', 'hvac_blog_job_'.$job->id);
 
         try {
             Log::info('GenerateBlogDraftJob: Bắt đầu tạo nội dung HVAC SEO', [
@@ -155,7 +154,7 @@ class GenerateBlogDraftJob implements ShouldQueue
                 $technicalLogger->event('ai_blog', 'job_retried', 'Provider rate limit; job released for retry.', [
                     'failed_reason' => 'provider_rate_limit',
                     'attempts' => $this->attempts(),
-                    'queue' => $this->queue ?: 'ai',
+                    'queue' => $this->queue ?: config('ai.governed_queue', 'ai_governed'),
                 ], $job, 'warning');
                 $this->release(60 * $this->attempts());
 
@@ -163,7 +162,7 @@ class GenerateBlogDraftJob implements ShouldQueue
             }
 
             $technical = $technicalLogger->exception('ai_blog', $e, $job, [
-                'queue' => $this->queue ?: 'ai',
+                'queue' => $this->queue ?: config('ai.governed_queue', 'ai_governed'),
                 'attempts' => $this->attempts(),
             ]);
             Log::error('GenerateBlogDraftJob: Thất bại', [

@@ -3,7 +3,6 @@
 namespace App\Filament\Resources\AiContentJobs\Pages;
 
 use App\Filament\Resources\AiContentJobs\AiContentJobResource;
-use Filament\Actions\CreateAction;
 use Filament\Resources\Pages\ListRecords;
 
 class ListAiContentJobs extends ListRecords
@@ -12,8 +11,6 @@ class ListAiContentJobs extends ListRecords
 
     protected function getHeaderActions(): array
     {
-        return [
-            CreateAction::make(),
-        ];
+        return [];
     }
 }

@@ -2,7 +2,14 @@
 
 Use this guide after the release commit, tag, and GitHub release are published.
 
-Current release: `v1.20.0`
+Current release: `v1.28.0`
+
+> **Mandatory worker gate:** this historical deployment guide is supplemented by
+> `docs/operations/AI_WORKER_DEPLOYMENT_RUNBOOK.md`. Every live update must capture
+> the pre-deploy worker state, drain safely, restart the OS-managed worker after
+> code/cache changes, prove web/worker version + DB + `ai_governed` binding, verify
+> scheduler health, run the non-provider worker self-test, and intentionally restore
+> the operator's original desired state. Updating web code alone is not a passing deployment.
 
 Affected areas:
 
@@ -114,17 +121,19 @@ php artisan tinker --execute="dump([
 ]);"
 ```
 
-Restart workers after deploy:
+The legacy generic queue restart sequence below is superseded for AI processing. Use the reviewed process-manager command from `docs/operations/AI_WORKER_DEPLOYMENT_RUNBOOK.md` and the exact managed entrypoint:
 
 ```bash
-php artisan queue:restart
-sudo supervisorctl reread
-sudo supervisorctl update
-sudo supervisorctl restart dieuhoa-worker:* || true
-sudo supervisorctl status
+php artisan ai:managed-worker --queue=ai_governed --sleep=3 --tries=3 --timeout=900
+php artisan ai:queue-health --json
+php artisan ai:managed-health-check
 ```
 
-If Supervisor is not installed or the worker is not running, follow:
+Do not run that long-lived command directly during an automated deploy. It must be owned by systemd, Supervisor, Windows Service/NSSM, Task Scheduler, or the actual reviewed container manager. If the process manager is not installed or its target is unknown, deployment is blocked.
+
+The final deploy report must include application version and commit/tag; web status/version; worker desired/actual state, heartbeat, version, queue, DB and restart result; scheduler status/heartbeat; queue pending/processing/failed/stuck state; and worker self-test result.
+
+Additional historical Supervisor notes are in:
 
 - `docs/AI_MODULE_QUEUE_SUPERVISOR.md`
 

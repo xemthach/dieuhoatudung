@@ -32,7 +32,7 @@ class CreateAiContentJob extends CreateRecord
         $data['status'] = AIContentJobStatus::Pending->value;
         $data = array_merge($data, SchemaColumns::existing('ai_content_jobs', [
             'module' => 'ai_blog',
-            'queue_name' => 'ai',
+            'queue_name' => config('ai.governed_queue', 'ai_governed'),
         ]));
         $data['created_by'] = auth()->id();
 
@@ -43,7 +43,7 @@ class CreateAiContentJob extends CreateRecord
     {
         if (app(AIProviderPool::class)->hasAvailableProviders()) {
             $this->record->update(['status' => AIContentJobStatus::Queued]);
-            GenerateBlogDraftJob::dispatch($this->record->id)->onQueue('ai');
+            GenerateBlogDraftJob::dispatch($this->record->id)->onQueue(config('ai.governed_queue', 'ai_governed'));
 
             Notification::make()
                 ->title('AI đang xử lý')

@@ -24,6 +24,7 @@ class AiProductJob extends Model
             'started_at' => 'datetime',
             'finished_at' => 'datetime',
             'manifest_frozen_at' => 'datetime',
+            'state_changed_at' => 'datetime',
         ];
     }
 

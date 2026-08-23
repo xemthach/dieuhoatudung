@@ -2,9 +2,8 @@
 
 namespace App\Console\Commands;
 
-use App\Jobs\AIManagedWorkerHealthCheckJob;
+use App\Services\AI\AIWorkerSelfTestService;
 use Illuminate\Console\Command;
-use Illuminate\Support\Str;
 
 class AIManagedWorkerHealthCheck extends Command
 {
@@ -12,17 +11,14 @@ class AIManagedWorkerHealthCheck extends Command
 
     protected $description = 'Dispatch one non-provider governed worker health probe.';
 
-    public function handle(): int
+    public function handle(AIWorkerSelfTestService $selfTest): int
     {
-        $probe = (string) ($this->option('probe') ?: Str::uuid());
-        AIManagedWorkerHealthCheckJob::dispatch($probe)->onQueue(config('ai.governed_queue', 'ai_governed'));
-        $this->line(json_encode([
-            'probe_id' => $probe,
+        $result = $selfTest->dispatch(get_current_user(), $this->option('probe') ?: null);
+        $this->line(json_encode(array_merge($result, [
             'queue' => config('ai.governed_queue', 'ai_governed'),
-            'status' => 'QUEUED',
             'provider_call' => false,
             'product_mutation' => false,
-        ], JSON_UNESCAPED_SLASHES));
+        ]), JSON_UNESCAPED_SLASHES));
         return self::SUCCESS;
     }
 }

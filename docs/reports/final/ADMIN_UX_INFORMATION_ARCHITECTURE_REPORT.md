@@ -87,7 +87,7 @@ The six supplied screenshots were used as before-state evidence. No Playwright/D
 
 ## 17. Tests
 
-Focused coverage verifies workflow groups and labels, canonical version display, safe PHPUnit bootstrap, dashboard widget order/discovery, compact diagnostics, R2 permission hierarchy, and authorized rendering of Dashboard, System Health, R2/CDN, AI Queue, AI Jobs, and Marketing Integrations. Final result: 326 tests, 1,053 assertions, zero failures/errors, and one pre-existing skipped test. Composer validate/audit, npm audit, Vite build, config/route/view cache, PHP lint, and `git diff --check` passed.
+Focused coverage verifies workflow groups and labels, canonical version display, safe PHPUnit bootstrap, dashboard widget order/discovery, compact diagnostics, R2 permission hierarchy, authorized rendering, MySQL-safe summary SQL, and persisted AI live-status behavior. Final result: 336 tests, 1,124 assertions, zero failures/errors, and one pre-existing skipped test. Composer validate/audit, npm audit, Vite build, config/route/view cache, PHP lint, and `git diff --check` passed across the release and this focused follow-up.
 
 ## 18. Remaining UX Backlog
 
@@ -95,6 +95,35 @@ Focused coverage verifies workflow groups and labels, canonical version display,
 - A real authenticated browser screenshot pass remains desirable after deployment transport is available.
 - The Marketing Integrations health service is bounded but settings-heavy; cache changes were intentionally avoided without a separate invalidation requirement.
 
+## 19. AI CONTENT LIVE STATUS UX
+
+### Persisted state and presentation contract
+
+`AiContentStatusPresenter` is the single presentation authority for Product rows, Product edit, AI Content jobs, AI Product jobs, item rows, status endpoints, and dashboard summaries. It translates persisted legacy/canonical states without changing their database values: queued → `Đang chờ`; running/processing → `AI đang tạo nội dung`; validating/fact checking → `Đang kiểm tra nội dung`; review required → `Chờ duyệt`; completed/applied → success; blocked → amber `Bị chặn`; failed → red `Thất bại`; paused/cancelled → neutral. Safe error codes are translated to bounded operator messages; raw provider responses, prompts, stack traces, credentials, and exception messages are not returned by polling endpoints.
+
+### Polling and progress
+
+Product edit, AI Product job detail, AI job tables, item tables, and the dashboard AI card poll every 10 seconds. Polling reads persisted job/item/draft counters and heartbeat state only. `AIQueueMonitor::liveStatusHealth()` omits technical logs, stuck-job scans, and command diagnostics used by the full operations snapshot. A measured Product-status request for 20 rows executed 14 queries, with bulk loading of latest items, jobs, drafts, and Products; it does not issue a status query per Product.
+
+The AI Product Jobs header uses a dedicated authorization-scoped aggregate query. It excludes the table query's eager loads and `withCount` projection, keeping the five `SUM(CASE...)` expressions compatible with MySQL `ONLY_FULL_GROUP_BY`. The exact query executed successfully against the populated MySQL database and is protected by an SQL-shape regression test.
+
+Single-Product work uses step status only and returns no fabricated percentage. Bulk jobs show percentage only from persisted `processed / total`, plus persisted success, review-required, blocked, and failed counts. Per-field rows are shown only from persisted `field_status_json` or the explicitly requested field envelope. No current-target Product is displayed because the runtime does not persist a trustworthy current-target pointer.
+
+### Product, job, and dashboard UX
+
+- Product table: one `Nội dung AI` column resolves the latest runtime item rather than relying on the legacy Product status column. It is updated in place by the bounded status endpoint.
+- Product edit: a compact live panel shows status, last update, safe warning/reason, real batch progress when applicable, and persisted field states. Generate/regenerate immediately confirms request acceptance and explicitly warns when the desired worker state is disabled.
+- AI Product job detail: live aggregate panel shows processed/total, running, success, review-required, blocked, failed, optional real token budget counters, and last update. Job/item tables retain 10-second polling.
+- Dashboard: the AI card separately shows worker desired state, running, queued, review-required, and blocked work. An intentionally disabled worker is neutral `Đang tắt`, not a false critical state, and historical failed totals are not presented as active running work.
+
+### Worker, failures, review, and apply
+
+Queued work with desired worker state `DISABLED` displays `Đã tạo yêu cầu nhưng AI worker đang tắt.` Processing/validation/retry with stale, offline, or unknown heartbeat changes presentation to `Có thể bị gián đoạn` instead of showing an endless generating state. Blocked governance outcomes remain distinct from runtime/provider failures. Review-required work exposes the existing authorized job/review path; generate and retry still create/update job runtime records only. Product fields are not used as the live status store, and regenerate remains draft → review → approval → apply.
+
+### RBAC, tests, and browser evidence
+
+Polling components and endpoints enforce existing `product.view`, `product.ai_generate`, `bulk_ai_view`, Product scope, and bulk-job authorization server-side. Focused fixtures prove queued, processing, validating, review, completed/applied, blocked, failed, paused, cancelled, worker-disabled, stale-worker, per-field, bulk progress, no fake single-item percentage, status change on the next Livewire refresh, job aggregates, dashboard state separation, bounded query cost, and Product zero-write retry behavior. Provider calls remained zero and the worker remained disabled. No browser transport was available, so no browser live-update PASS is claimed; Livewire render/refresh tests provide server-component proof.
+
 ## Decision
 
-Admin UX / IA consolidation passes its code, test, build, security, performance, and data-safety gates. The existing `v1.25.0` tag remains immutable; operator authorization selected a new semantic minor release, `v1.26.0`, for this feature set.
+Admin UX / IA consolidation and the AI live-status follow-up pass their code, test, performance, RBAC, and data-safety gates. The canonical version remains `v1.27.0`; this audit did not change release versioning.

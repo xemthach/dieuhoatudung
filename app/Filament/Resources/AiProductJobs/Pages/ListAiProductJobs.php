@@ -11,6 +11,6 @@ class ListAiProductJobs extends ListRecords
 
     public function getTitle(): string
     {
-        return 'Công việc nội dung AI';
+        return 'Nhật ký AI sản phẩm';
     }
 }

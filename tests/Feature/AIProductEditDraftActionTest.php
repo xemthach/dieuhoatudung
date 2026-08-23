@@ -76,7 +76,7 @@ class AIProductEditDraftActionTest extends TestCase
 
         $product->refresh();
         $this->assertSame('queued', $product->ai_status);
-        $this->assertStringContainsString('chưa hoàn tất', $product->ai_error_message);
+        $this->assertNull($product->ai_error_message);
     }
 
     private function actingAsAiProductEditor(): void

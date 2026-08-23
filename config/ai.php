@@ -3,6 +3,10 @@
 return [
     // Legacy rows remain on `ai`; only governed work is consumed from this queue.
     'governed_queue' => env('AI_GOVERNED_QUEUE', 'ai_governed'),
+    // One canonical desired-state file. Tests override only this path so an
+    // isolated state transition can never wake a real managed worker.
+    'worker_desired_state_path' => storage_path('framework/cache/ai-worker-desired-state.json'),
+    'managed_state_directory' => storage_path('framework/cache'),
     // This is an explicit provider-side ceiling, not a token usage estimate.
     'hard_budget_default_max_output_tokens' => (int) env('AI_HARD_BUDGET_MAX_OUTPUT_TOKENS', 12000),
     'token_estimator_bytes_per_token' => 4,

@@ -112,6 +112,15 @@ return [
         ],
     ],
 
+    'ai_worker' => [
+        'label' => 'Vận hành AI Worker',
+        'icon' => 'heroicon-o-power',
+        'permissions' => [
+            'view' => 'Xem trạng thái AI Worker',
+            'manage' => 'Bật hoặc tắt xử lý AI',
+        ],
+    ],
+
     // ── SEO & AI: AI Content Job ───────────────────────────────────────
     'ai_content_job' => [
         'label' => 'AI Content Jobs',

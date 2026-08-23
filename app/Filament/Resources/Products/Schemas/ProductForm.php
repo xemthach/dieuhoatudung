@@ -27,6 +27,7 @@ use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Group;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Tabs;
+use Filament\Schemas\Components\View;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
@@ -39,6 +40,13 @@ class ProductForm
         return $schema
             ->columns(1)
             ->components([
+                View::make('filament.product-ai-live-status-host')
+                    ->viewData(function (): array {
+                        $record = request()->route()?->parameter('record');
+
+                        return ['productId' => is_object($record) ? (int) $record->getKey() : (int) $record];
+                    })
+                    ->columnSpanFull(),
                 Grid::make(['default' => 1, 'md' => 3])->schema([
                     Group::make()->schema([
                         Tabs::make('Product Tabs')

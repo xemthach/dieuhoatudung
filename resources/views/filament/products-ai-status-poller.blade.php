@@ -124,8 +124,7 @@
 
             const endpoint = @json(route('admin.products.ai-status'));
             const csrf = () => document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
-            const activeStatuses = new Set(['queued', 'processing', 'retrying', 'stuck']);
-            const terminalStatuses = new Set(['completed', 'completed_verified', 'completed_with_warnings', 'needs_review', 'failed', 'blocked', 'cancelled', 'not_generated']);
+            const activeStatuses = new Set(['queued', 'processing', 'validating', 'retrying', 'interrupted']);
             let timer = null;
             let inflight = false;
 
@@ -133,14 +132,6 @@
                 .map((cell) => cell.getAttribute('data-ai-product-id'))
                 .filter(Boolean)
                 .filter((id, index, ids) => ids.indexOf(id) === index);
-
-            const textColor = (status) => {
-                if (['completed', 'completed_verified', 'completed_with_warnings'].includes(status)) return 'success';
-                if (['queued', 'processing', 'retrying'].includes(status)) return 'info';
-                if (status === 'needs_review') return 'warning';
-                if (['failed', 'blocked', 'stuck', 'cancelled'].includes(status)) return 'danger';
-                return 'gray';
-            };
 
             const badgeClass = (tone) => ({
                 success: 'background:#dcfce7;color:#15803d;border:1px solid #bbf7d0',
@@ -163,22 +154,23 @@
                 if (! widget || ! health) return;
 
                 const label = widget.querySelector('.fi-btn-label') || widget;
+                const disabled = health.desired_state === 'DISABLED';
                 const online = !!health.worker_online;
                 const failed = Number(health.failed_jobs || 0);
                 const pending = Number(health.pending_jobs || 0);
                 const processing = Number(health.processing_jobs || 0);
-                const warning = online && (failed > 0 || pending > 0 || processing > 0);
-                label.textContent = 'AI Queue';
+                const warning = online && (pending > 0 || processing > 0);
+                label.textContent = disabled ? 'AI worker: Đang tắt' : (online ? 'AI worker: Online' : 'AI worker: Offline');
                 widget.dataset.aiQueueOnline = online ? '1' : '0';
                 widget.title = [
-                    online ? 'AI queue worker online' : 'AI queue worker offline',
+                    disabled ? 'Worker được operator chủ động tắt' : (online ? 'AI queue worker online' : 'AI queue worker offline'),
                     `Pending: ${pending}`,
                     `Running: ${processing}`,
                     `Failed: ${failed}`,
                 ].join('\n');
-                widget.style.borderColor = !online ? 'rgb(254, 202, 202)' : warning ? 'rgb(253, 230, 138)' : 'rgb(187, 247, 208)';
-                widget.style.backgroundColor = !online ? 'rgb(254, 242, 242)' : warning ? 'rgb(255, 251, 235)' : 'rgb(240, 253, 244)';
-                widget.style.color = !online ? 'rgb(185, 28, 28)' : warning ? 'rgb(180, 83, 9)' : 'rgb(22, 101, 52)';
+                widget.style.borderColor = disabled ? 'rgb(229, 231, 235)' : !online ? 'rgb(254, 202, 202)' : warning ? 'rgb(253, 230, 138)' : 'rgb(187, 247, 208)';
+                widget.style.backgroundColor = disabled ? 'rgb(249, 250, 251)' : !online ? 'rgb(254, 242, 242)' : warning ? 'rgb(255, 251, 235)' : 'rgb(240, 253, 244)';
+                widget.style.color = disabled ? 'rgb(75, 85, 99)' : !online ? 'rgb(185, 28, 28)' : warning ? 'rgb(180, 83, 9)' : 'rgb(22, 101, 52)';
             };
 
             const updateCell = (productId, field, html, title = '') => {
@@ -193,38 +185,24 @@
             };
 
             const renderStatus = (product) => {
-                const tone = textColor(product.ai_status);
+                const tone = product.status?.color || 'gray';
                 const pulse = activeStatuses.has(product.ai_status) ? ' ai-status-pulse' : '';
-                const failedTitle = [product.failed_reason, product.last_error_message].filter(Boolean).join('\n');
-                const retry = ['failed', 'stuck', 'cancelled'].includes(product.ai_status)
-                    ? `<button class="ai-inline-retry" type="button" title="Retry AI" aria-label="Retry AI" data-ai-retry-url="${product.retry_url}" data-ai-retry-product="${product.id}">&#8635;</button>`
+                const statusTitle = [product.warning, product.safe_reason, `Cập nhật: ${product.updated_human}`].filter(Boolean).join('\n');
+                const retry = product.retry_allowed && product.retry_url
+                    ? `<button class="ai-inline-retry" type="button" title="Thử lại" aria-label="Thử lại" data-ai-retry-url="${product.retry_url}" data-ai-retry-product="${product.id}">&#8635;</button>`
                     : '';
-                const progress = product.progress_percent !== null && product.progress_percent !== undefined
-                    ? `<div class="ai-status-progress"><span style="width:${Math.max(0, Math.min(100, product.progress_percent))}%"></span></div>`
+                const progress = product.progress
+                    ? `<div class="ai-status-progress" title="${product.progress.processed} / ${product.progress.total} sản phẩm"><span style="width:${Math.max(0, Math.min(100, product.progress.percent))}%"></span></div>`
                     : '';
-                const compactLabel = ({
-                    completed: 'Done',
-                    completed_verified: 'Done',
-                    completed_with_warnings: 'Done+',
-                    processing: 'Run',
-                    queued: 'Queue',
-                    retrying: 'Retry',
-                    needs_review: 'Review',
-                    failed: 'Failed',
-                    blocked: 'Blocked',
-                    stuck: 'Stuck',
-                    cancelled: 'Cancel',
-                    not_generated: 'New',
-                }[product.ai_status] || product.ai_status_label || product.ai_status);
 
                 updateCell(product.id, 'ai_status',
-                    `<span class="${pulse}" style="display:inline-flex;align-items:center;border-radius:999px;padding:2px 7px;font-size:12px;font-weight:500;${badgeClass(tone)}"><span class="ai-status-dot"></span>${compactLabel}</span>${retry}${progress}`,
-                    failedTitle
+                    `<span class="${pulse}" style="display:inline-flex;align-items:center;border-radius:999px;padding:2px 7px;font-size:12px;font-weight:500;${badgeClass(tone)}"><span class="ai-status-dot"></span>${product.ai_status_label}</span>${retry}${progress}`,
+                    statusTitle
                 );
                 updateCell(product.id, 'seo_score',
                     `<span style="display:inline-flex;border-radius:6px;padding:2px 6px;font-size:12px;font-weight:500;${badgeClass(product.seo_score >= 85 ? 'success' : product.seo_score >= 70 ? 'info' : product.seo_score > 0 ? 'warning' : 'gray')}">${product.seo_score}</span>`
                 );
-                updateCell(product.id, 'last_ai_run', product.last_ai_run || '-');
+                updateCell(product.id, 'last_ai_run', product.updated_human || '-');
                 updateCell(product.id, 'warnings_count',
                     `<span style="display:inline-flex;border-radius:6px;padding:2px 6px;font-size:12px;font-weight:500;${badgeClass(product.warnings_count > 0 ? 'warning' : 'success')}">${product.warnings_count}</span>`,
                     product.warnings_count > 0 ? 'Click AI details để xem warnings' : ''
@@ -260,7 +238,7 @@
                 clearTimeout(timer);
                 timer = null;
                 if (shouldContinue) {
-                    timer = setTimeout(() => window.ProductAiStatusPoller.refreshNow(), 5000);
+                    timer = setTimeout(() => window.ProductAiStatusPoller.refreshNow(), 10000);
                 }
             };
 

@@ -6,7 +6,9 @@
 2. Confirm `VERSION` and `CHANGELOG.md` are updated together.
 3. Run the full test suite.
 4. Run the frontend build.
-5. Commit, tag, push, and publish the GitHub release notes.
+5. Capture the AI worker desired/actual state and drain active work safely.
+6. Commit, tag, push, and publish the GitHub release notes.
+7. Restart the OS-managed worker after deployment and prove web/worker version, DB and queue match.
 
 ## Manual release flow (step-by-step)
 
@@ -75,8 +77,9 @@ php artisan route:cache
 php artisan view:cache
 ```
 
-7. Restart queue workers and scheduler processes.
-8. Run a quick smoke check:
+7. Follow the mandatory worker deployment gate in `docs/operations/AI_WORKER_DEPLOYMENT_RUNBOOK.md`. A web-only update is not a complete deployment.
+8. Restart/reload the scheduler integration and verify its heartbeat.
+9. Run a quick smoke check:
    - homepage
    - product detail
    - add to compare
@@ -86,22 +89,22 @@ php artisan view:cache
 
 ## Queue and AI runtime
 
-This project uses the `database` queue connection by default and sends AI product jobs to the `ai` queue.
+This project uses the configured queue connection and sends governed AI work only to `ai_governed`. The legacy `ai` queue is isolated and must not be consumed by the managed worker.
 
 Recommended worker command:
 
 ```bash
-php artisan queue:work --queue=ai,default --sleep=3 --tries=3 --timeout=900
+php artisan ai:managed-worker --queue=ai_governed --sleep=3 --tries=3 --timeout=900
 ```
 
-If you run multiple workers, keep one worker available for `ai` so product content jobs do not wait behind unrelated work.
+Run this command under the reviewed OS process manager. Admin controls persisted desired state; the OS controls process lifecycle. Never spawn the worker from HTTP.
 
 Useful AI maintenance commands:
 
 ```bash
-php artisan ai:queue-health --record
+php artisan ai:queue-health --json
+php artisan ai:managed-health-check
 php artisan ai:jobs-recover-stuck
-php artisan ai:jobs-cancel-current --flush-queue
 ```
 
 Scheduler options:
@@ -109,7 +112,9 @@ Scheduler options:
 - Cron-based server: run `php artisan schedule:run` every minute through cron.
 - Long-running server: run `php artisan schedule:work`.
 
-The scheduled jobs in this release include:
+Before every deploy, record desired state, heartbeat, version, DB/queue binding, pending/processing counts, leases, slots and reservations. After code/cache deployment, restart the managed worker, require a fresh heartbeat and matching web/worker release, run the non-provider self-test, verify scheduler health, then intentionally restore the original desired state.
+
+The scheduled jobs include:
 
 - `ai:jobs-recover-stuck`
 - `ai:queue-health --record`
