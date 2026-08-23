@@ -1,0 +1,11 @@
+Field,PII,Purpose,Storage,Visibility,Logging,Retention status
+full_name,yes,Sales greeting,"quote_requests; leads",Authorized Sales/Admin and mail recipient,Not logged by quote controller,Uses existing application retention
+phone,yes,Primary contact,"quote_requests; leads",Authorized Sales/Admin and mail recipient,Not logged by quote controller,Uses existing application retention
+email,yes,Optional written response,"quote_requests; leads",Authorized Sales/Admin and mail recipient,Not logged by quote controller,Uses existing application retention
+province_city,yes-low,Service area,"quote_requests",Authorized Sales/Admin and notification,Not logged by quote controller,Uses existing application retention
+address,yes,Legacy deferred field,"quote_requests",Admin only when supplied,Not collected by canonical form,Uses existing application retention
+message,potential,Customer context,"quote_requests; leads summary",Authorized Sales/Admin and notification,Not logged by quote controller,Uses existing application retention
+ip_address,yes-technical,Spam/audit,"quote_requests; leads",Admin tracking,Not emitted in quote payload logs,Uses existing application retention
+user_agent,yes-technical,Operational audit,quote_requests,Admin tracking,Not emitted in quote payload logs,Uses existing application retention
+UTM/click ids,no direct PII,Attribution,"quote_requests; conversion imports",Marketing/Admin,Identifiers may be hashed by conversion service,Uses existing marketing retention
+calculator_context,no,Sizing provenance,quote_requests,Sales/Admin,Not logged,Quote retention

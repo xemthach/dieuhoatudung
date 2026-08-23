@@ -17,13 +17,16 @@ use App\Models\PolicyPage;
 use App\Models\Post;
 use App\Models\Product;
 use App\Models\ProductCategory;
+use App\Models\QuoteRequest;
 use App\Services\Mail\MailDispatchService;
+use App\Services\Quote\QuoteSubmissionService;
 use Illuminate\Support\Facades\Log;
 
 class LandingController extends Controller
 {
     public function __construct(
-        private readonly MailDispatchService $mailService
+        private readonly MailDispatchService $mailService,
+        private readonly QuoteSubmissionService $submissions,
     ) {}
 
     /**
@@ -141,7 +144,7 @@ class LandingController extends Controller
             new LandingSection(['section_type' => LandingSectionType::Comparison, 'title' => 'Bảng Giá Điều Hòa Tủ Đứng', 'subtitle' => 'So sánh giá & thông số kỹ thuật các model phổ biến', 'sort_order' => 4, 'is_active' => true]),
             new LandingSection(['section_type' => LandingSectionType::AdvisoryContent, 'title' => 'Hướng Dẫn Chọn Mua Điều Hòa Tủ Đứng', 'content' => $this->defaultAdvisoryContent(), 'sort_order' => 5, 'is_active' => true]),
             new LandingSection(['section_type' => LandingSectionType::CaseStudies, 'title' => 'Dự Án Thực Tế', 'subtitle' => 'Các công trình lắp đặt điều hòa tủ đứng đã hoàn thành', 'sort_order' => 6, 'is_active' => true]),
-            new LandingSection(['section_type' => LandingSectionType::LeadForm, 'title' => 'Nhận Báo Giá Miễn Phí', 'subtitle' => 'Đội ngũ tư vấn phản hồi trong 30 phút', 'sort_order' => 7, 'is_active' => true]),
+            new LandingSection(['section_type' => LandingSectionType::LeadForm, 'title' => 'Nhận Báo Giá Miễn Phí', 'subtitle' => 'Để lại thông tin để đội ngũ tư vấn liên hệ', 'sort_order' => 7, 'is_active' => true]),
             new LandingSection(['section_type' => LandingSectionType::Faq, 'title' => 'Câu Hỏi Thường Gặp Về Điều Hòa Tủ Đứng', 'sort_order' => 8, 'is_active' => true]),
             new LandingSection(['section_type' => LandingSectionType::Policies, 'title' => 'Cam Kết Dịch Vụ', 'sort_order' => 9, 'is_active' => true]),
             new LandingSection(['section_type' => LandingSectionType::RelatedPosts, 'title' => 'Bài Viết Hữu Ích', 'subtitle' => 'Kiến thức giúp bạn sử dụng điều hòa hiệu quả', 'sort_order' => 10, 'is_active' => true]),
@@ -184,17 +187,47 @@ class LandingController extends Controller
         }
         RateLimiter::hit($key, 3600);
 
-        $lead = Lead::createGeneralLead([
-            'full_name'   => $request->name,
-            'phone'       => $request->phone,
-            'email'       => $request->email,
-            'source_page' => $request->source_page ?? url()->current(),
+        $validated = $request->validated();
+        $intentScore = QuoteRequest::calculateIntentScore([
+            'phone' => $validated['phone'],
+            'area_m2' => $validated['room_area'] ?? null,
+        ]);
+
+        $submission = $this->submissions->create([
+            'submission_token' => $validated['submission_token'],
+            'entry_context' => 'direct',
+            'provided_fields' => array_values(array_keys($validated)),
+            'lead_type' => 'general',
+            'intent_score' => $intentScore,
+            'area_m2' => $validated['room_area'] ?? null,
+            'full_name' => $validated['name'],
+            'phone' => $validated['phone'],
+            'email' => $validated['email'] ?? null,
+            'message' => $validated['note'] ?? null,
+            'source_page' => $validated['source_page'] ?? url()->current(),
+            'status' => 'new',
+            'ip_address' => $request->ip(),
+            'user_agent' => $request->userAgent(),
+        ], [
+            'full_name'   => $validated['name'],
+            'phone'       => $validated['phone'],
+            'email'       => $validated['email'] ?? null,
+            'source_page' => $validated['source_page'] ?? url()->current(),
             'status'      => LeadStatus::New,
             'ip_address'  => $request->ip(),
         ], [
-            'area'    => $request->room_area ?? null,
-            'message' => trim(($request->room_area ? 'Diện tích: ' . $request->room_area . 'm². ' : '') . ($request->note ?? '')),
+            'need_type' => 'landing_quote',
+            'area' => $validated['room_area'] ?? null,
+            'message' => trim((! empty($validated['room_area']) ? 'Diện tích: '.$validated['room_area'].'m². ' : '').($validated['note'] ?? '')),
         ]);
+
+        /** @var QuoteRequest $quote */
+        $quote = $submission['quote'];
+        $lead = Lead::query()->where('quote_request_id', $quote->id)->firstOrFail();
+
+        if (! $submission['created']) {
+            return redirect()->route('landing')->with('lead_success', 'Yêu cầu đã được ghi nhận.');
+        }
 
         // ── Gửi mail thông báo admin (via MailDispatchService) ────
         try {
@@ -235,6 +268,6 @@ class LandingController extends Controller
             }
         }
 
-        return redirect()->route('landing')->with('lead_success', setting('lead.lead_success_message', 'Cảm ơn bạn! Chúng tôi sẽ liên hệ trong vòng 30 phút.'));
+        return redirect()->route('landing')->with('lead_success', 'Yêu cầu đã được ghi nhận và chuyển tới bộ phận tư vấn.');
     }
 }

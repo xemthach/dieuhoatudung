@@ -1,0 +1,12 @@
+{
+  "rule_version": "volume-consumer-estimate-v1",
+  "cases": [
+    {"name":"normal bedroom","area_m2":20,"height_m":3,"space_type":"nha_o","people":2,"sun":false,"equipment":false,"raw_btu":8189,"market_tier_btu":9000},
+    {"name":"office","area_m2":50,"height_m":3,"space_type":"van_phong","people":8,"sun":false,"equipment":false,"raw_btu":29002,"market_tier_btu":30000},
+    {"name":"high ceiling","area_m2":30,"height_m":4.5,"space_type":"nha_o","people":4,"sun":false,"equipment":false,"raw_btu":18425,"market_tier_btu":24000},
+    {"name":"direct sun","area_m2":30,"height_m":3,"space_type":"nha_o","people":4,"sun":true,"equipment":false,"raw_btu":13511,"market_tier_btu":18000},
+    {"name":"many people","area_m2":30,"height_m":3,"space_type":"nha_o","people":15,"sun":false,"equipment":false,"raw_btu":14283,"market_tier_btu":18000},
+    {"name":"equipment load","area_m2":30,"height_m":3,"space_type":"nha_o","people":4,"sun":false,"equipment":true,"raw_btu":13511,"market_tier_btu":18000},
+    {"name":"combined","area_m2":30,"height_m":3,"space_type":"nha_o","people":12,"sun":true,"equipment":true,"raw_btu":15662,"market_tier_btu":18000}
+  ]
+}

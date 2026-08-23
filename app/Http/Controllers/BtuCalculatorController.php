@@ -5,7 +5,9 @@ namespace App\Http\Controllers;
 use App\Models\BtuCalculation;
 use App\Models\Lead;
 use App\Services\Calculator\BtuCalculatorService;
+use App\Services\Calculator\EquipmentTypeRecommendationService;
 use App\Services\Mail\MailDispatchService;
+use App\Services\Product\ProductMarketingCapacityQueryAdapter;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\RateLimiter;
@@ -14,7 +16,9 @@ class BtuCalculatorController extends Controller
 {
     public function __construct(
         private readonly BtuCalculatorService $calculator,
-        private readonly MailDispatchService  $mailService
+        private readonly EquipmentTypeRecommendationService $equipmentRecommendations,
+        private readonly MailDispatchService $mailService,
+        private readonly ProductMarketingCapacityQueryAdapter $capacityQuery,
     ) {}
 
     /**
@@ -34,12 +38,13 @@ class BtuCalculatorController extends Controller
         }
 
         $seoTitle       = 'Công Cụ Tính Công Suất Điều Hòa Tủ Đứng - Chọn BTU Phù Hợp';
-        $seoDescription = 'Tính toán công suất BTU điều hòa tủ đứng phù hợp với diện tích phòng, loại không gian. Gợi ý sản phẩm phù hợp ngay.';
+        $seoDescription = 'Ước tính tham khảo công suất BTU theo diện tích hoặc thể tích không gian, sau đó gợi ý sản phẩm RAC có công suất không thấp hơn nhu cầu đã tính.';
         $canonical      = route('btu-calculator.index');
+        $calculatorFaqs = config('hvac.btu.faq', []);
 
         return view('pages.btu-calculator', compact(
             'result', 'products', 'calc',
-            'seoTitle', 'seoDescription', 'canonical'
+            'seoTitle', 'seoDescription', 'canonical', 'calculatorFaqs'
         ));
     }
 
@@ -62,13 +67,17 @@ class BtuCalculatorController extends Controller
         RateLimiter::hit($key, 3600);
 
         $validated = $request->validate([
+            'method'         => ['required', 'in:area,volume'],
             'area_m2'        => ['required', 'numeric', 'min:5', 'max:5000'],
-            'ceiling_height' => ['nullable', 'numeric', 'min:2', 'max:15'],
+            'ceiling_height' => ['required_if:method,volume', 'nullable', 'numeric', 'min:2', 'max:15'],
             'space_type'     => ['required', 'in:' . implode(',', array_keys(\App\Services\Calculator\BtuCalculatorService::spaceTypeLabels()))],
             'people_count'   => ['nullable', 'integer', 'min:0', 'max:5000'],
             'direct_sunlight'=> ['nullable', 'boolean'],
             'heat_equipment' => ['nullable', 'boolean'],
-            'priority'       => ['nullable', 'in:tiet_kiem_dien,gia_tot,van_hanh_ben_bi,thuong_hieu_cao_cap'],
+            'priority'       => ['nullable', 'in:gia_tot'],
+            'equipment_type' => ['nullable', 'in:' . implode(',', array_keys($this->equipmentRecommendations->options()))],
+            'cassette_ceiling_clearance' => ['nullable', 'in:yes,no,unknown'],
+            'duct_space' => ['nullable', 'in:yes,no,unknown'],
             // Contact optional
             'full_name'      => ['nullable', 'string', 'max:100'],
             'phone'          => ['nullable', 'string', 'regex:/^(0|\+84)[0-9]{8,10}$/'],
@@ -90,24 +99,66 @@ class BtuCalculatorController extends Controller
         ]);
 
         $areaMq    = (float) $validated['area_m2'];
+        $method    = $validated['method'];
         $ceilingH  = (float) ($validated['ceiling_height'] ?? 3.0);
         $spaceType = $validated['space_type'];
         $people    = (int) ($validated['people_count'] ?? 0);
         $sunlight  = (bool) ($validated['direct_sunlight'] ?? false);
         $heatEquip = (bool) ($validated['heat_equipment'] ?? false);
         $priority  = $validated['priority'] ?? '';
+        $equipmentType = $validated['equipment_type'] ?? 'unsure';
 
         // Tính BTU
         $result = $this->calculator->calculate(
-            $areaMq, $ceilingH, $spaceType, $people, $sunlight, $heatEquip
+            $areaMq, $ceilingH, $spaceType, $people, $sunlight, $heatEquip, $method
         );
+        $factorDescription = ($result['factor_value'] ?? '—').' '.($result['factor_unit'] ?? '');
 
-        // Tìm sản phẩm phù hợp
-        $products     = $this->calculator->matchProducts($result['recommended_btu'], $priority);
+        // Đánh giá type sau bước tính. Công thức BTU không phụ thuộc Product,
+        // brand hoặc AI; lớp này chỉ lọc catalog theo type/capacity đã xác minh.
+        $typeRecommendation = $this->equipmentRecommendations->recommend(
+            $result['recommended_btu'],
+            $equipmentType,
+            [
+                'cassette_ceiling_clearance' => $validated['cassette_ceiling_clearance'] ?? 'unknown',
+                'duct_space' => $validated['duct_space'] ?? 'unknown',
+            ],
+            $priority,
+        );
+        $products = $typeRecommendation['products'];
+        $result['equipment_recommendation'] = $typeRecommendation['summary'];
         $productIds   = $products->pluck('id')->take(8)->toArray();
+        $nearestAvailableBtu = $products
+            ->map(fn ($product): ?int => $this->capacityQuery->value($product))
+            ->filter(fn (?int $capacity): bool => $capacity !== null && $capacity >= $result['recommended_btu'])
+            ->min();
+        $result['nearest_available_product_btu'] = $nearestAvailableBtu;
+        $result['catalog_gap_btu'] = $nearestAvailableBtu === null
+            ? null
+            : $nearestAvailableBtu - $result['recommended_btu'];
 
-        // Lưu lịch sử tính toán
-        $calc = BtuCalculation::create([
+        // Non-PII bridge for Calculator -> Quote. The quote endpoint reads this
+        // server-side, so technical values do not need to be trusted from a URL.
+        $request->session()->put('quote_calculator_context', [
+            'method' => $result['method'],
+            'rule_version' => $result['rule_version'],
+            'area_m2' => $areaMq,
+            'ceiling_height' => $ceilingH,
+            'space_type' => $spaceType,
+            'people_count' => $people,
+            'direct_sunlight' => $sunlight,
+            'heat_equipment' => $heatEquip,
+            'calculated_btu' => $result['calculated_btu'] ?? $result['raw_btu'],
+            'recommended_btu' => $result['recommended_btu'],
+            'requested_equipment_type' => $equipmentType,
+            'requested_equipment_type_label' => $typeRecommendation['summary']['requested_type_label'],
+            'recommendation_status' => $typeRecommendation['summary']['status'],
+            'created_at' => now()->toISOString(),
+        ]);
+
+        // Chỉ lưu lịch sử khi người dùng chủ động để lại kênh liên hệ.
+        $hasContact = ! empty($validated['phone']) || ! empty($validated['email']);
+        $calc = $hasContact ? BtuCalculation::create([
             'area_m2'             => $areaMq,
             'ceiling_height'      => $ceilingH,
             'space_type'          => $spaceType,
@@ -118,15 +169,17 @@ class BtuCalculatorController extends Controller
             'recommended_btu'     => $result['recommended_btu'],
             'calculated_btu'      => $result['calculated_btu'] ?? $result['raw_btu'],
             'cooling_w_per_m2'    => $result['cooling_w_per_m2'] ?? null,
+            'rule_version'        => $result['rule_version'],
+            'calculation_method'  => $result['method'],
             'matched_product_ids' => $productIds,
             'full_name'           => $validated['full_name'] ?? null,
             'phone'               => $validated['phone'] ?? null,
             'email'               => $validated['email'] ?? null,
             'note'                => $validated['note'] ?? null,
-            'source_page'         => $request->header('referer') ?? url()->current(),
-            'ip_address'          => $request->ip(),
-            'user_agent'          => $request->userAgent(),
-        ]);
+            'source_page'         => route('btu-calculator.index'),
+            'ip_address'          => null,
+            'user_agent'          => null,
+        ]) : null;
 
         // Tạo lead nếu user nhập phone
         if (! empty($validated['phone'])) {
@@ -146,7 +199,7 @@ class BtuCalculatorController extends Controller
                     'capacity_btu' => $result['recommended_btu'],
                     'message'      => "BTU Calculator: " . number_format($result['recommended_btu']) . " BTU (~{$result['recommended_hp']} HP) | " .
                                      "Diện tích: {$areaMq}m² | " .
-                                     "Loại: {$spaceLabel} ({$result['cooling_w_per_m2']} W/m²) | " .
+                                     "Loại: {$spaceLabel} ({$factorDescription}) | " .
                                      ($validated['note'] ?? ''),
                 ]);
             } catch (\Throwable $e) {
@@ -154,32 +207,34 @@ class BtuCalculatorController extends Controller
             }
         }
 
-        // ── Admin mail — ALWAYS send (not dependent on phone) ────
-        try {
-            $spaceLabel = $spaceLabel ?? (\App\Services\Calculator\BtuCalculatorService::spaceTypeLabels()[$spaceType] ?? $spaceType);
-            $adminVars = array_filter([
-                'customer_name'  => $validated['full_name'] ?? null,
-                'customer_phone' => $validated['phone'] ?? null,
-                'customer_email' => $validated['email'] ?? null,
-                'need_type'      => 'BTU Calculator',
-                'area'           => $areaMq . 'm²',
-                'btu'            => number_format($result['recommended_btu']) . ' BTU (~' . $result['recommended_hp'] . ' HP)',
-                'message'        => "Loại: {$spaceLabel} ({$result['cooling_w_per_m2']} W/m²) | " .
-                                   "Tính toán: " . number_format($result['calculated_btu']) . " BTU | " .
-                                   "Đề xuất: " . number_format($result['recommended_btu']) . " BTU" .
-                                   (!empty($validated['note']) ? ' | ' . $validated['note'] : ''),
-                'source'         => url()->current(),
-            ], fn ($v) => $v !== null && $v !== '');
+        // Chỉ gửi thông báo tư vấn khi người dùng đã cung cấp kênh liên hệ.
+        if ($hasContact && $calc) {
+            try {
+                $spaceLabel = $spaceLabel ?? (\App\Services\Calculator\BtuCalculatorService::spaceTypeLabels()[$spaceType] ?? $spaceType);
+                $adminVars = array_filter([
+                    'customer_name'  => $validated['full_name'] ?? null,
+                    'customer_phone' => $validated['phone'] ?? null,
+                    'customer_email' => $validated['email'] ?? null,
+                    'need_type'      => 'BTU Calculator',
+                    'area'           => $areaMq . 'm²',
+                    'btu'            => number_format($result['recommended_btu']) . ' BTU (~' . $result['recommended_hp'] . ' HP)',
+                    'message'        => "Loại: {$spaceLabel} ({$factorDescription}) | " .
+                                       "Tính toán: " . number_format($result['calculated_btu']) . " BTU | " .
+                                       "Đề xuất: " . number_format($result['recommended_btu']) . " BTU" .
+                                       (!empty($validated['note']) ? ' | ' . $validated['note'] : ''),
+                    'source'         => url()->current(),
+                ], fn ($v) => $v !== null && $v !== '');
 
-            $this->mailService->sendEvent(
-                event:       'lead_admin',
-                vars:        $adminVars,
-                adminEmail:  setting('lead.lead_notify_email', ''),
-                relatedType: 'BtuCalculation',
-                relatedId:   $calc->id
-            );
-        } catch (\Throwable $e) {
-            Log::error('BTU admin mail failed: ' . $e->getMessage());
+                $this->mailService->sendEvent(
+                    event:       'lead_admin',
+                    vars:        $adminVars,
+                    adminEmail:  setting('lead.lead_notify_email', ''),
+                    relatedType: 'BtuCalculation',
+                    relatedId:   $calc->id
+                );
+            } catch (\Throwable $e) {
+                Log::error('BTU admin mail failed: ' . $e->getMessage());
+            }
         }
 
         // ── Customer mail — only if email provided ────
@@ -197,7 +252,7 @@ class BtuCalculatorController extends Controller
                         'message'        => $result['explanation'] ?? ('Đề xuất: ' . number_format($result['recommended_btu']) . ' BTU cho ' . $areaMq . 'm²'),
                     ], fn ($v) => $v !== null && $v !== ''),
                     relatedType: 'BtuCalculation',
-                    relatedId:   $calc->id
+                    relatedId:   $calc?->id
                 );
             } catch (\Throwable $e) {
                 Log::error('BTU customer mail failed: ' . $e->getMessage());
@@ -213,16 +268,22 @@ class BtuCalculatorController extends Controller
                 'name'          => $p->name,
                 'slug'          => $p->slug,
                 'btu'           => app(\App\Services\Product\ProductTechnicalFactResolver::class)->getDisplay($p, 'marketing_capacity_btu')['value'] ?? null,
+                'brand'         => $p->brand?->name,
+                'equipment_type'=> app(\App\Services\Product\ProductEquipmentTypeResolver::class)->resolve($p)['type']?->value,
+                'equipment_type_label' => app(\App\Services\Product\ProductEquipmentTypeResolver::class)->resolve($p)['type']?->label(),
                 'sale_price'    => $p->sale_price,
                 'regular_price' => $p->regular_price,
                 'main_image'    => $p->main_image,
             ])->values()->toArray())
             ->with('btu_calc', [   // plain array thay vì Eloquent Model
-                'id'             => $calc->id,
-                'area_m2'        => $calc->area_m2,
-                'space_type'     => $calc->space_type,
-                'ceiling_height' => $calc->ceiling_height,
-                'recommended_btu'=> $calc->recommended_btu,
+                'id'             => $calc?->id,
+                'method'         => $result['method'],
+                'area_m2'        => $areaMq,
+                'space_type'     => $spaceType,
+                'ceiling_height' => $ceilingH,
+                'recommended_btu'=> $result['recommended_btu'],
+                'rule_version'   => $result['rule_version'],
+                'equipment_type' => $equipmentType,
             ]);
     }
 }

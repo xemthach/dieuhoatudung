@@ -1,0 +1,6 @@
+Context,Code evidence,Server-resolved input,Prefill,User re-entry,Stored source
+DIRECT,/bao-gia without recognized query,None,None,Optional need plus contact,entry_context=direct
+PRODUCT,product slug query and Product modal,Active Product by slug/id,"product id; name; model; brand; category; capacity snapshot",No product re-selection,entry_context=product
+CALCULATOR,quote_calculator_context session,"method; rule; area; height; space; people; sun; equipment; raw/tier BTU","summary and quote fields",No calculator input re-entry,entry_context=calculator plus calculator_context JSON
+CATEGORY,category or brand slug query,Existing ProductCategory/Brand,Brand/category context card,No repeated brand selection,entry_context=category
+CAMPAIGN,UTM/click identifiers,Validated hidden tracking fields,No visible customer field,No tracking re-entry,entry_context=campaign plus existing UTM fields

@@ -1,0 +1,3 @@
+method,label,purpose,formula,factor_unit,rule_version,authority,height_semantics,recommendation_contract
+area,Theo diện tích,Ước tính nhanh,area_m2 * w_per_m2,W/m²,consumer-estimate-v1,Project historical table not independently verified,"Height > 3m applies H/3 multiplier",Shared fail-closed RAC matcher
+volume,Theo thể tích,Ước tính có chiều cao trực tiếp,area_m2 * height_m * w_per_m3,W/m³,volume-consumer-estimate-v1,Project-derived at 3m not independently verified,Height appears only in volume,Shared fail-closed RAC matcher

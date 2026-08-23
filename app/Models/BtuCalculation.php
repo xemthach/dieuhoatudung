@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\BtuCalculationMethod;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 
@@ -20,6 +21,7 @@ class BtuCalculation extends Model
             'direct_sunlight'   => 'boolean',
             'heat_equipment'    => 'boolean',
             'recommended_btu'   => 'integer',
+            'calculated_btu'    => 'integer',
             'matched_product_ids' => 'array',
         ];
     }
@@ -30,10 +32,19 @@ class BtuCalculation extends Model
         return \App\Services\Calculator\BtuCalculatorService::spaceTypeLabels();
     }
 
+    /** @return array<string, string> */
+    public static function methodLabels(): array
+    {
+        return collect(BtuCalculationMethod::cases())
+            ->mapWithKeys(fn (BtuCalculationMethod $method): array => [$method->value => $method->label()])
+            ->all();
+    }
+
     /** Priority labels */
     public static function priorityLabels(): array
     {
         return [
+            ''                    => 'Gần công suất yêu cầu nhất',
             'tiet_kiem_dien'    => 'Tiết kiệm điện',
             'gia_tot'           => 'Giá tốt nhất',
             'van_hanh_ben_bi'   => 'Vận hành bền bỉ',

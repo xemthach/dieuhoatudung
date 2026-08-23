@@ -1,0 +1,9 @@
+type,level,manufacturer,observed_range,source_url,claim_scope
+wall_mounted,A,Panasonic Vietnam,8700-20800 BTU/h rated,https://www.panasonic.com/vn/air-solutions/products/air-conditioner/single-split-wall-mount-air-conditioner/inverter-cooling-only/aero-elite-inveter-xu-series-zkh-8.html,MARKET_REFERENCE
+wall_mounted,A,LG Vietnam,24000 BTU/h,https://www.lg.com/vn/dieu-hoa/f24ce/,MARKET_REFERENCE
+cassette,A,Panasonic Vietnam,11600-48500 BTU/h,https://www.panasonic.com/vn/air-solutions/product-top/air-conditioner/cassette.html,MARKET_REFERENCE
+ducted,A,Panasonic Vietnam,17100-47800 BTU/h,https://www.panasonic.com/vn/air-solutions/product-top/air-conditioner/ducted.html,MARKET_REFERENCE
+ceiling_exposed,A,Panasonic Vietnam,20500-60000 BTU/h,https://www.panasonic.com/vn/air-solutions/product-top/air-conditioner/ceiling-exposed.html,MARKET_REFERENCE
+floor_standing,A,Panasonic Vietnam,20500-47750 BTU/h,https://www.panasonic.com/vn/air-solutions/product-top/air-conditioner/floor-standing.html,MARKET_REFERENCE
+cassette,B,Current Product DB,18000-48000 BTU / 7 eligible models,local database read-only,SITE_CATALOG_ENVELOPE
+ducted,B,Current Product DB,48000-55000 BTU / 2 eligible models,local database read-only,SITE_CATALOG_ENVELOPE

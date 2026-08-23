@@ -1,0 +1,18 @@
+{
+  "flow": [
+    "public form, landing quote, or product quick form",
+    "StoreQuoteRequest or StoreQuickQuoteRequest",
+    "QuoteSubmissionService database transaction",
+    "QuoteRequest",
+    "linked Lead",
+    "offline conversion record when eligible",
+    "admin and optional customer email after commit",
+    "Filament Quote Requests and Leads"
+  ],
+  "atomic_unit": ["quote_requests", "leads"],
+  "idempotency": "quote_requests.submission_token unique",
+  "email_failure_policy": "persisted request remains available; failure is logged without customer PII payload",
+  "admin_list_priority": ["created_at", "customer", "phone", "lead_type", "product", "project", "area", "calculated_btu", "budget", "source", "status"],
+  "admin_detail_groups": ["overview", "customer", "product", "calculator result", "HVAC need", "budget and time", "notes", "tracking"],
+  "unsupported": ["sales assignment is not present in the current QuoteRequest schema", "contact merge/deduplication policy is not implemented"]
+}

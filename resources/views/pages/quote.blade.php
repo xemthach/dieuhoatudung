@@ -39,11 +39,11 @@
         </div>
 
         <h1 class="mb-3 text-2xl font-extrabold text-surface-900">
-            {{ setting('lead.lead_success_message', 'Yêu cầu báo giá của bạn đã được ghi nhận!') }}
+            Yêu cầu báo giá của bạn đã được ghi nhận!
         </h1>
 
         <p class="mb-6 text-surface-600">
-            Xin chào <strong>{{ $thanks['full_name'] }}</strong>! Chúng tôi sẽ liên hệ lại trong <strong>1–2 giờ làm việc</strong>.
+            Xin chào <strong>{{ $thanks['full_name'] }}</strong>! Yêu cầu đã được lưu và chuyển tới bộ phận tư vấn.
             Nếu cần hỗ trợ ngay, gọi hotline:
         </p>
 
@@ -147,10 +147,17 @@
 
             <div class="overflow-hidden rounded-2xl border border-surface-200 bg-white shadow-lg">
                 <div class="bg-gradient-to-r from-primary-600 to-primary-800 px-6 py-4 text-white">
-                    <p class="text-sm text-primary-100">Quy trình 5 bước — chỉ mất 2 phút</p>
+                    <p class="text-sm text-primary-100">3 bước ngắn — chỉ tên và số điện thoại là bắt buộc</p>
                 </div>
                 <div class="p-6">
-                    <x-quote-form :product="$product" />
+                    <x-quote-form
+                        :product="$product"
+                        :calculator-context="$calculatorContext"
+                        :brand-context="$brandContext"
+                        :category-context="$categoryContext"
+                        :entry-context="$entryContext"
+                        :submission-token="$submissionToken"
+                    />
                 </div>
             </div>
         </div>

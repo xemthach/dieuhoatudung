@@ -1,0 +1,53 @@
+key,label,area_m2,height_m,v1_raw_btu,v2_raw_btu,v1_market_tier,v2_market_tier,tier_delta,hp_equivalent_delta,large_jump_review,review_reason
+nha_o,"Căn hộ, nhà ở",15,3,6142,9000,9000,9000,0,0,NOT_REQUIRED,
+nha_o,"Căn hộ, nhà ở",20,3,8189,12000,9000,12000,1,0.33,NOT_REQUIRED,
+nha_o,"Căn hộ, nhà ở",30,3,12283,17999,18000,18000,0,0,NOT_REQUIRED,
+nha_o,"Căn hộ, nhà ở",40,3,16378,23999,18000,24000,1,0.67,NOT_REQUIRED,
+phong_khach,"Phòng khách (nhà ở)",15,3,6142,10500,9000,12000,1,0.33,NOT_REQUIRED,
+phong_khach,"Phòng khách (nhà ở)",20,3,8189,13999,9000,18000,2,1,MANUALLY_REVIEWED_ACCEPTED,"Explained by approved category factor plus non-uniform market-tier grid; formula remains fail-closed"
+phong_khach,"Phòng khách (nhà ở)",30,3,12283,20999,18000,24000,1,0.67,NOT_REQUIRED,
+phong_khach,"Phòng khách (nhà ở)",40,3,16378,27999,18000,28000,2,1.11,MANUALLY_REVIEWED_ACCEPTED,"Explained by approved category factor plus non-uniform market-tier grid; formula remains fail-closed"
+khach_san,"Khách sạn, nhà nghỉ",15,3,6142,11250,9000,12000,1,0.33,NOT_REQUIRED,
+khach_san,"Khách sạn, nhà nghỉ",20,3,8189,14999,9000,18000,2,1,MANUALLY_REVIEWED_ACCEPTED,"Explained by approved category factor plus non-uniform market-tier grid; formula remains fail-closed"
+khach_san,"Khách sạn, nhà nghỉ",30,3,12283,22499,18000,24000,1,0.67,NOT_REQUIRED,
+khach_san,"Khách sạn, nhà nghỉ",40,3,16378,29999,18000,30000,3,1.33,MANUALLY_REVIEWED_ACCEPTED,"Explained by approved category factor plus non-uniform market-tier grid; formula remains fail-closed"
+van_phong,"Văn phòng (viền ngoài)",15,3,8701,11250,9000,12000,1,0.33,NOT_REQUIRED,
+van_phong,"Văn phòng (viền ngoài)",20,3,11601,14999,12000,18000,1,0.67,NOT_REQUIRED,
+van_phong,"Văn phòng (viền ngoài)",30,3,17401,22499,18000,24000,1,0.67,NOT_REQUIRED,
+van_phong,"Văn phòng (viền ngoài)",40,3,23202,29999,24000,30000,2,0.67,MANUALLY_REVIEWED_ACCEPTED,"Explained by approved category factor plus non-uniform market-tier grid; formula remains fail-closed"
+van_phong_interior,"Văn phòng (bên trong)",15,3,5118,10500,9000,12000,1,0.33,NOT_REQUIRED,
+van_phong_interior,"Văn phòng (bên trong)",20,3,6824,13999,9000,18000,2,1,MANUALLY_REVIEWED_ACCEPTED,"Explained by approved category factor plus non-uniform market-tier grid; formula remains fail-closed"
+van_phong_interior,"Văn phòng (bên trong)",30,3,10236,20999,12000,24000,2,1.33,MANUALLY_REVIEWED_ACCEPTED,"Explained by approved category factor plus non-uniform market-tier grid; formula remains fail-closed"
+van_phong_interior,"Văn phòng (bên trong)",40,3,13648,27999,18000,28000,2,1.11,MANUALLY_REVIEWED_ACCEPTED,"Explained by approved category factor plus non-uniform market-tier grid; formula remains fail-closed"
+van_phong_private,"Văn phòng cá nhân",15,3,9212,11250,12000,12000,0,0,NOT_REQUIRED,
+van_phong_private,"Văn phòng cá nhân",20,3,12283,14999,18000,18000,0,0,NOT_REQUIRED,
+van_phong_private,"Văn phòng cá nhân",30,3,18425,22499,24000,24000,0,0,NOT_REQUIRED,
+van_phong_private,"Văn phòng cá nhân",40,3,24566,29999,28000,30000,1,0.22,NOT_REQUIRED,
+cua_hang,"Cửa hàng",15,3,8445,12000,9000,12000,1,0.33,NOT_REQUIRED,
+cua_hang,"Cửa hàng",20,3,11260,15999,12000,18000,1,0.67,NOT_REQUIRED,
+cua_hang,"Cửa hàng",30,3,16889,23999,18000,24000,1,0.67,NOT_REQUIRED,
+cua_hang,"Cửa hàng",40,3,22519,31999,24000,36000,3,1.33,MANUALLY_REVIEWED_ACCEPTED,"Explained by approved category factor plus non-uniform market-tier grid; formula remains fail-closed"
+ngan_hang,"Ngân hàng",15,3,8957,12749,9000,18000,2,1,MANUALLY_REVIEWED_ACCEPTED,"Explained by approved category factor plus non-uniform market-tier grid; formula remains fail-closed"
+ngan_hang,"Ngân hàng",20,3,11942,16999,12000,18000,1,0.67,NOT_REQUIRED,
+ngan_hang,"Ngân hàng",30,3,17913,25499,18000,28000,2,1.11,MANUALLY_REVIEWED_ACCEPTED,"Explained by approved category factor plus non-uniform market-tier grid; formula remains fail-closed"
+ngan_hang,"Ngân hàng",40,3,23884,33999,24000,36000,3,1.33,MANUALLY_REVIEWED_ACCEPTED,"Explained by approved category factor plus non-uniform market-tier grid; formula remains fail-closed"
+nha_hang,"Nhà hàng",15,3,16889,14249,18000,18000,0,0,NOT_REQUIRED,
+nha_hang,"Nhà hàng",20,3,22519,18999,24000,24000,0,0,NOT_REQUIRED,
+nha_hang,"Nhà hàng",30,3,33779,28499,36000,30000,-1,-0.67,NOT_REQUIRED,
+nha_hang,"Nhà hàng",40,3,45038,37998,48000,42000,-2,-0.67,MANUALLY_REVIEWED_ACCEPTED,"Explained by approved category factor plus non-uniform market-tier grid; formula remains fail-closed"
+cafe,"Quán cà phê",15,3,17913,14249,18000,18000,0,0,NOT_REQUIRED,
+cafe,"Quán cà phê",20,3,23884,18999,24000,24000,0,0,NOT_REQUIRED,
+cafe,"Quán cà phê",30,3,35826,28499,36000,30000,-1,-0.67,NOT_REQUIRED,
+cafe,"Quán cà phê",40,3,47768,37998,48000,42000,-2,-0.67,MANUALLY_REVIEWED_ACCEPTED,"Explained by approved category factor plus non-uniform market-tier grid; formula remains fail-closed"
+fastfood,"Thức ăn nhanh, giải khát",15,3,13819,14999,18000,18000,0,0,NOT_REQUIRED,
+fastfood,"Thức ăn nhanh, giải khát",20,3,18425,19999,24000,24000,0,0,NOT_REQUIRED,
+fastfood,"Thức ăn nhanh, giải khát",30,3,27637,29999,28000,30000,1,0.22,NOT_REQUIRED,
+fastfood,"Thức ăn nhanh, giải khát",40,3,36850,39998,42000,42000,0,0,NOT_REQUIRED,
+hoi_truong,"Hội trường, giảng đường",15,3,14330,14249,18000,18000,0,0,NOT_REQUIRED,
+hoi_truong,"Hội trường, giảng đường",20,3,19107,18999,24000,24000,0,0,NOT_REQUIRED,
+hoi_truong,"Hội trường, giảng đường",30,3,28661,28499,30000,30000,0,0,NOT_REQUIRED,
+hoi_truong,"Hội trường, giảng đường",40,3,38214,37998,42000,42000,0,0,NOT_REQUIRED,
+thu_vien,"Thư viện",15,3,7677,12749,9000,18000,2,1,MANUALLY_REVIEWED_ACCEPTED,"Explained by approved category factor plus non-uniform market-tier grid; formula remains fail-closed"
+thu_vien,"Thư viện",20,3,10236,16999,12000,18000,1,0.67,NOT_REQUIRED,
+thu_vien,"Thư viện",30,3,15354,25499,18000,28000,2,1.11,MANUALLY_REVIEWED_ACCEPTED,"Explained by approved category factor plus non-uniform market-tier grid; formula remains fail-closed"
+thu_vien,"Thư viện",40,3,20472,33999,24000,36000,3,1.33,MANUALLY_REVIEWED_ACCEPTED,"Explained by approved category factor plus non-uniform market-tier grid; formula remains fail-closed"

@@ -1,0 +1,16 @@
+input,label,unit,required,default,min,max,used_in_formula,other_effect,validation
+area_m2,Diện tích phòng,m2,yes,,5,5000,yes,,numeric server validation
+ceiling_height,Chiều cao trần,m,no,3,2,15,yes,,numeric server validation
+space_type,Loại không gian,W/m2 factor,yes,van_phong,,,yes,,canonical allowlist
+people_count,Số người thường xuyên,people,no,0,0,5000,yes,,integer server validation
+direct_sunlight,Có nắng trực tiếp,boolean,no,false,,,yes,,boolean server validation
+heat_equipment,Nhiều thiết bị sinh nhiệt,boolean,no,false,,,yes,,boolean server validation
+priority,Sắp xếp sản phẩm,enum,no,capacity distance,,,no,recommendation ranking only,"blank|gia_tot"
+full_name,Họ và tên,text,no,,,,no,contact context only,max 100
+phone,Số điện thoại,text,no,,,,no,"persist consultation, create lead, notify admin",Vietnam phone regex
+email,Email,email,no,,,,no,"persist consultation, customer mail",email max 150; accepted by API but not currently visible
+note,Ghi chú,text,no,,,,no,contact context only,max 1000; accepted by API but not currently visible
+utm_source,UTM source,text,no,,,,no,validated but not persisted,LOW dead API input
+utm_medium,UTM medium,text,no,,,,no,validated but not persisted,LOW dead API input
+utm_campaign,UTM campaign,text,no,,,,no,validated but not persisted,LOW dead API input
+website_url,Honeypot,text,no,,,,no,spam rejection,max 0

@@ -1,0 +1,21 @@
+{
+    "decision": "V2_PROPOSAL_READY_NOT_ACTIVATED",
+    "current_v1": "REVIEW_REQUIRED",
+    "method_a": "V1_RUNTIME_PRESERVED_CALIBRATION_REVIEW_REQUIRED",
+    "method_b": "USEFUL_HEIGHT_AWARE_DERIVATION_NOT_INDEPENDENTLY_CALIBRATED",
+    "activation_authorized": false,
+    "comparable_space_types": 15,
+    "lower_than_reference": 11,
+    "within_reference": 2,
+    "higher_than_reference": 2,
+    "median_delta_vs_typical_percent": -29.62,
+    "global_multiplier_recommended": false,
+    "architecture_recommendation": "HYBRID_CATEGORY_FACTORS_WITH_EXPLICIT_ADJUSTMENT_SCOPE",
+    "required_before_activation": [
+        "operator approval",
+        "confirm base-factor occupancy/equipment scope",
+        "resolve low-confidence space types",
+        "preserve v1 replay",
+        "add v2 golden tests and release version"
+    ]
+}

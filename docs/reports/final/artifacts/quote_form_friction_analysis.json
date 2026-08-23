@@ -1,0 +1,27 @@
+{
+  "measurement_basis": "visible canonical /bao-gia form controls; a radio group counts as one decision",
+  "before": {
+    "steps": 4,
+    "visible_fields": 15,
+    "required_markers": 5,
+    "server_required_fields": 2,
+    "typing_fields": 9,
+    "decision_groups": 6,
+    "optional_fields_progressively_disclosed": 0,
+    "false_defaults": ["number_of_rooms=1", "ceiling_height=3", "need_installation_service=tron_goi"],
+    "friction_score": 68
+  },
+  "after": {
+    "steps": 3,
+    "visible_fields": 15,
+    "required_markers": 2,
+    "server_required_fields": 2,
+    "typing_fields": 9,
+    "decision_groups": 6,
+    "optional_fields_progressively_disclosed": 5,
+    "false_defaults": [],
+    "calculator_reentered_fields": 0,
+    "friction_score": 38
+  },
+  "scoring_note": "Project-owned comparative score, not an industry benchmark. It weights steps, mandatory appearance, typing, decisions, false defaults, and duplicate entry."
+}

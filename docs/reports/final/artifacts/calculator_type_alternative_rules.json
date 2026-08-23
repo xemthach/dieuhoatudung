@@ -1,0 +1,13 @@
+{
+  "source": "verified type envelopes plus current eligible Product catalog",
+  "exclude_requested_type": true,
+  "requires_actual_site_model": true,
+  "requires_capacity_at_or_above_target": true,
+  "ranking": [
+    "nearest capacity delta",
+    "stable configured type sort"
+  ],
+  "brand_filter_default": "all brands",
+  "multi_unit_design": "not implemented",
+  "vrf_auto_recommendation": false
+}

@@ -1,6 +1,6 @@
 # Live Server Update Guide
 
-Current release: `v1.28.2`
+Current release: `v1.29.0`
 
 This guide is mandatory for every deployment. Updating only the web files is not a complete release because the AI worker is a long-running PHP process.
 
@@ -19,17 +19,25 @@ This guide is mandatory for every deployment. Updating only the web files is not
 4. Record `DESIRED_STATE_BEFORE_DEPLOY`, actual worker state, heartbeat, web/worker version and build, queue connection/name, pending/processing/failed/stuck counts, leases, slots and reservations.
 5. If an operation is processing, do not restart or kill it blindly. Stop new claims through the canonical desired-state contract when needed and allow the active operation to settle.
 
-## 2. Deploy v1.28.2
+## 2. Controlled maintenance choice
+
+The current live checkout is updated in place, so use Laravel maintenance mode after the backup and worker drain have been verified:
+
+```bash
+php artisan down --retry=60
+```
+
+An atomic release-directory/symlink deployment may omit maintenance mode only when that mechanism is already proven on the host.
+
+## 3. Deploy v1.29.0
 
 ```bash
 cd /path/to/dieuhoa-tudung
 git fetch origin --tags
-git checkout main
-git pull --ff-only origin main
-git checkout v1.28.2
-composer install --no-dev --prefer-dist --optimize-autoloader
-npm ci
-npm run build
+git status --short
+git checkout v1.29.0
+cat VERSION
+composer install --no-dev --prefer-dist --optimize-autoloader --no-interaction
 php artisan migrate:status
 php artisan migrate --force
 php artisan config:cache
@@ -37,9 +45,17 @@ php artisan route:cache
 php artisan view:cache
 ```
 
-Inspect pending migrations before running `migrate --force`. v1.28.2 repairs the existing AI bulk-runtime migration so a MariaDB deployment that stopped after creating the first two empty tables can resume without dropping them.
+The tag contains reviewed `public/build` assets, so live does not need Node merely to serve this release. If deployment policy rebuilds assets on the host, first verify a Node/npm version compatible with the lock file, then run `npm ci` and `npm run build`; a failed build blocks deployment.
 
-## 3. Mandatory managed-worker restart
+Inspect pending migrations before running `migrate --force`. v1.29.0 adds exactly:
+
+- `2026_08_23_120000_add_rule_version_to_btu_calculations_table.php`;
+- `2026_08_23_130000_add_calculation_method_to_btu_calculations_table.php`;
+- `2026_08_24_000000_add_workflow_context_to_quote_requests_table.php`.
+
+Expected final migration count is 93. Do not use `migrate:fresh` or broad rollback.
+
+## 4. Mandatory managed-worker restart
 
 The application worker command is:
 
@@ -67,7 +83,7 @@ Restarting the process must not change operator intent:
 - pre-deploy `DISABLED` -> remain `DISABLED`;
 - pre-deploy `ENABLED` -> restore only after post-deploy health is green.
 
-## 4. Worker and scheduler verification
+## 5. Worker and scheduler verification
 
 ```bash
 php artisan ai:queue-health --json
@@ -78,7 +94,7 @@ php artisan schedule:list
 Require:
 
 - fresh worker heartbeat and expected process identity;
-- web and worker both report v1.28.2/the deployed build;
+- web and worker both report v1.29.0/the deployed build;
 - correct project, PHP runtime, `APP_ENV`, authoritative DB and queue connection;
 - queue exactly `ai_governed`, never legacy `ai`;
 - no duplicate process, unexpected processing, orphan lease or stale reservation;
@@ -87,11 +103,13 @@ Require:
 
 Keep AI processing disabled and block deployment on any worker version, DB, queue or scheduler mismatch.
 
-## 5. Application smoke
+## 6. Application smoke
 
 Public:
 
-- homepage, Product listing/detail, search, filters and calculator;
+- homepage, Product listing/detail, search and filters;
+- Calculator Area and Volume methods, raw need versus market tier, catalog gap and at least one equipment-type result;
+- direct Quote, Calculator -> Quote and Product -> Quote prefill without creating an uncontrolled production Lead;
 - representative Product main image, gallery, thumbnails, related cards and fallback;
 - sitemap and Merchant feed.
 
@@ -104,7 +122,7 @@ Admin:
 
 Confirm no Product shows **Chờ duyệt** unless its edit page has a real reviewable draft. Do not call the AI provider solely for deployment smoke.
 
-## 6. Restore desired state and enable traffic
+## 7. Restore desired state and enable traffic
 
 After web, DB, worker, scheduler, queue and smoke checks pass, restore `DESIRED_STATE_BEFORE_DEPLOY` intentionally. Then return the site from maintenance mode if the deployment used it:
 
@@ -112,7 +130,7 @@ After web, DB, worker, scheduler, queue and smoke checks pass, restore `DESIRED_
 php artisan up
 ```
 
-## 7. Deployment evidence
+## 8. Deployment evidence
 
 Record:
 
@@ -129,12 +147,12 @@ PUBLIC/ADMIN/MEDIA SMOKE: PASS / BLOCKED
 FINAL: DEPLOYMENT PASS / BLOCKED
 ```
 
-## 8. Rollback
+## 9. Rollback
 
 1. Stop new AI claims safely and record queue state.
 2. Let active work settle under the governed lease/recovery contract.
-3. Check out the reviewed rollback tag only with a database-aware rollback plan. Do not roll back to v1.28.1 on MariaDB before resolving the failed AI runtime migration.
-4. Reinstall matching dependencies/assets and restore DB only if migration/data rollback requires it.
+3. Check out reviewed rollback tag `v1.28.2` with a database-aware rollback plan.
+4. Reinstall matching dependencies/assets. The three v1.29.0 columns are additive and can normally remain; restore or roll back DB only if a reviewed migration/data decision requires it.
 5. Rebuild config, route and view caches.
 6. Restart the OS-managed worker again so it loads rollback code.
 7. Verify worker/web version, DB, `ai_governed`, scheduler and non-provider self-test.

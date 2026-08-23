@@ -23,6 +23,12 @@ class ViewBtuCalculation extends ViewRecord
             Section::make('Kết quả tính BTU')->schema([
                 Grid::make(['default' => 2, 'md' => 4])->schema([
 
+                    TextEntry::make('calculation_method')
+                        ->label('Phương pháp')
+                        ->formatStateUsing(fn ($state) => BtuCalculation::methodLabels()[$state] ?? $state)
+                        ->badge()
+                        ->color(fn ($state) => $state === 'volume' ? 'info' : 'gray'),
+
                     TextEntry::make('recommended_btu')
                         ->label('BTU đề xuất')
                         ->formatStateUsing(fn ($state) => number_format($state) . ' BTU')
@@ -48,6 +54,12 @@ class ViewBtuCalculation extends ViewRecord
                     TextEntry::make('created_at')
                         ->label('Thời gian')
                         ->dateTime('d/m/Y H:i'),
+
+                    TextEntry::make('rule_version')
+                        ->label('Phiên bản quy tắc')
+                        ->placeholder('Lịch sử cũ chưa ghi nhận')
+                        ->badge()
+                        ->color('gray'),
                 ]),
             ]),
 

@@ -41,6 +41,7 @@
             "
             novalidate>
             @csrf
+            <input type="hidden" name="submission_token" value="{{ (string) Str::uuid() }}">
             <input type="hidden" name="lead_type"    value="product">
             <input type="hidden" name="intent_score" value="100">
             @if($product)

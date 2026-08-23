@@ -1,0 +1,8 @@
+Version,Step,Title,Visible core fields,Optional disclosure,Required,Purpose
+Before,1,Công trình,"project_type; usage_description; number_of_rooms",none,none,Need segmentation
+Before,2,Diện tích,"area_m2; ceiling_height; sun_exposure; current_aircon_status",none,"UI marked area; backend optional",Sizing context
+Before,3,Ngân sách,"budget_range; installation_time; need_installation_service",none,"UI marked budget; backend optional",Commercial context
+Before,4,Liên hệ,"full_name; phone; email; province_city; message",none,"UI marked name; phone; province; backend name/phone",Contact
+After,1,Nhu cầu,"project_type; usage_description; number_of_rooms",Entry context summary,none,Understand need without technical prerequisites
+After,2,Thông tin hữu ích,"area_m2; ceiling_height","sun_exposure; current_aircon_status; budget_range; installation_time; need_installation_service",none,Optional sizing and commercial enrichment
+After,3,Liên hệ,"full_name; phone; email; province_city; message",Request summary,"full_name; phone",Create actionable contact

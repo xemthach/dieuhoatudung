@@ -1,0 +1,9 @@
+{
+  "cooling_load_table": {"owner":"BtuCalculatorService","classification":"CODE_CONSTANT","authority":"historical Excel reference named in old comment; source document absent","admin_editable":false},
+  "conversion_and_adjustments": {"owner":"config/hvac.php","classification":"SYSTEM_CONFIG","authority":"project rule; no independent standard evidence in repository","admin_editable":false},
+  "tiers": {"owner":"config/hvac.php","classification":"BUSINESS_RULE_IN_CODE","authority":"project marketing tier list","admin_editable":false},
+  "product_capacity": {"owner":"ProductMarketingCapacityQueryAdapter","classification":"DOMAIN_CONTRACT","authority":"products.marketing_capacity_btu","admin_editable":false},
+  "product_class": {"owner":"ProductHvacClassResolver","classification":"DOMAIN_CONTRACT","authority":"category/product_type classification","admin_editable":false},
+  "faq": {"owner":"config/hvac.php","classification":"CONTENT_CONFIG","authority":"same source for visible FAQ and FAQPage schema","admin_editable":false},
+  "change_contract": ["approved source","increment rule_version","update golden tests","update CALCULATION_METHOD.md","release note","deploy migration/config cache"]
+}

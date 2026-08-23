@@ -1,0 +1,6 @@
+type,market_min_btu,market_common_max_btu,market_verified_max_btu,site_min_btu,site_max_btu,eligible_models,confidence
+wall_mounted,8700,24000,24000,,,0,MEDIUM
+cassette,11600,47800,48500,18000,48000,7,HIGH
+ducted,17100,47800,47800,48000,55000,2,MEDIUM
+ceiling_exposed,20500,47800,60000,,,0,HIGH
+floor_standing,20500,47750,47750,,,0,HIGH

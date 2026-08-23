@@ -1,0 +1,15 @@
+scenario,target_btu,requested_type,installation_answer,expected_status,model_behavior
+wall_valid_with_model,18000,wall_mounted,n/a,SUITABLE_FOR_CONSIDERATION,matching wall model only
+wall_site_gap,18000,wall_mounted,n/a,NO_MATCHING_PRODUCT,no false model
+wall_above_range,42000,wall_mounted,n/a,NOT_RECOMMENDED_FOR_THIS_LOAD,show verified catalog alternatives
+cassette_unknown,24000,cassette,unknown,POSSIBLE_BUT_REVIEW_REQUIRED,cassette models only
+cassette_ready,24000,cassette,yes,SUITABLE_FOR_CONSIDERATION,cassette models only
+cassette_no_ceiling,24000,cassette,no,NOT_RECOMMENDED_FOR_THIS_LOAD,no cassette model suggestion
+ducted_ready,48000,ducted,yes,POSSIBLE_BUT_REVIEW_REQUIRED,ducted models only
+ducted_unknown,48000,ducted,unknown,POSSIBLE_BUT_REVIEW_REQUIRED,ducted models only
+type_unsure,24000,unsure,n/a,INSUFFICIENT_DATA,show eligible catalog types/models without final suitability claim
+catalog_gap,28000,cassette,yes,SUITABLE_FOR_CONSIDERATION,nearest model must be at least 28000 and gap remains visible
+type_catalog_gap,24000,floor_standing,n/a,NO_MATCHING_PRODUCT,market and site envelopes shown separately
+large_load,100000,unsure,n/a,TECHNICAL_CONSULTATION_REQUIRED,no single-unit or VRF auto recommendation
+vrf_present,100000,unsure,n/a,TECHNICAL_CONSULTATION_REQUIRED,VRF remains excluded
+taxonomy_conflict,42000,floor_standing,n/a,NO_MATCHING_PRODUCT,conflicting Product fails closed

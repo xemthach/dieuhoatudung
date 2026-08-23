@@ -3,12 +3,13 @@
     <div class="container-main">
         <div class="mx-auto max-w-2xl text-center text-white">
             <h2 class="text-2xl font-bold sm:text-3xl">{{ $section->title ?? 'Nhận Báo Giá Miễn Phí' }}</h2>
-            <p class="mt-2 text-primary-100">{{ $section->subtitle ?? 'Đội ngũ tư vấn phản hồi trong 30 phút' }}</p>
+            <p class="mt-2 text-primary-100">{{ $section->subtitle ?? 'Để lại thông tin để đội ngũ tư vấn liên hệ' }}</p>
         </div>
 
         <div class="mx-auto mt-8 max-w-xl rounded-2xl bg-white p-6 shadow-2xl sm:p-8">
             <form action="{{ route('landing.lead') }}" method="POST" id="landing-lead-form-element">
                 @csrf
+                <input type="hidden" name="submission_token" value="{{ (string) Str::uuid() }}">
 
                 @error('__global')
                     <div class="mb-4 rounded-lg bg-danger-50 p-3 text-sm text-danger-700">{{ $message }}</div>
@@ -23,7 +24,7 @@
                         </div>
                         <div>
                             <label for="lead-phone" class="mb-1 block text-sm font-medium text-surface-700">Số điện thoại *</label>
-                            <input type="tel" id="lead-phone" name="phone" required value="{{ old('phone') }}" class="w-full rounded-lg border border-surface-300 px-4 py-2.5 text-sm transition-colors focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-200" placeholder="0912 345 678">
+                            <input type="tel" id="lead-phone" name="phone" required inputmode="tel" value="{{ old('phone') }}" class="w-full rounded-lg border border-surface-300 px-4 py-2.5 text-sm transition-colors focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-200" placeholder="0912 345 678">
                             @error('phone') <p class="mt-1 text-xs text-danger-600">{{ $message }}</p> @enderror
                         </div>
                     </div>
@@ -33,7 +34,7 @@
                     </div>
                     <div>
                         <label for="lead-area" class="mb-1 block text-sm font-medium text-surface-700">Diện tích phòng (m²)</label>
-                        <input type="text" id="lead-area" name="room_area" value="{{ old('room_area') }}" class="w-full rounded-lg border border-surface-300 px-4 py-2.5 text-sm transition-colors focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-200" placeholder="50">
+                        <input type="number" id="lead-area" name="room_area" min="1" max="50000" step="0.5" inputmode="decimal" value="{{ old('room_area') }}" class="w-full rounded-lg border border-surface-300 px-4 py-2.5 text-sm transition-colors focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-200" placeholder="50">
                     </div>
                     <div>
                         <label for="lead-note" class="mb-1 block text-sm font-medium text-surface-700">Ghi chú / Yêu cầu cụ thể</label>

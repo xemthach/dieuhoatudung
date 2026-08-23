@@ -1,0 +1,29 @@
+{
+  "engine": "EquipmentTypeRecommendationService",
+  "ai_required": false,
+  "product_capacity_rule": "capacity_btu >= target_market_tier_btu",
+  "statuses": [
+    "SUITABLE_FOR_CONSIDERATION",
+    "POSSIBLE_BUT_REVIEW_REQUIRED",
+    "NOT_RECOMMENDED_FOR_THIS_LOAD",
+    "INSUFFICIENT_DATA",
+    "NO_MATCHING_PRODUCT",
+    "TECHNICAL_CONSULTATION_REQUIRED"
+  ],
+  "rules": {
+    "unsure": "show eligible type/model options without claiming final suitability",
+    "wall_mounted": "capacity envelope gate; current site catalog gap reported separately",
+    "cassette": "capacity gate plus ceiling-clearance answer; unknown requires review",
+    "ducted": "capacity gate plus duct-space answer; always requires technical design review",
+    "ceiling_exposed": "capacity gate; site model only when canonical capacity exists",
+    "floor_standing": "capacity gate; site model only when canonical capacity exists",
+    "large_load": "escalate when target exceeds all verified normal single-unit envelopes"
+  },
+  "prohibited": [
+    "brand-first ranking",
+    "under-sized products",
+    "UNKNOWN or VRF normal recommendations",
+    "automatic multi-unit quantity",
+    "AI capacity or suitability decisions"
+  ]
+}

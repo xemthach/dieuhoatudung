@@ -1,0 +1,56 @@
+Field,Current UI,Required,Default,Validation,Destination,Sales purpose,Priority,Cognitive load,Derived or delayed,Final action
+submission_token,hidden,yes,UUID,uuid,quote_requests.submission_token,Idempotency,P0,LOW,system-derived,KEEP
+entry_context,hidden,yes,detected,allowlist,quote_requests.entry_context,Attribution and workflow context,P1,LOW,system-derived,PREFILL
+lead_type,hidden,no,context,allowlist,quote_requests/leads.lead_type,Lead classification,P1,LOW,system-derived,PREFILL
+product_id,hidden conditional,no,selected Product,exists products,quote_requests/leads,Exact product interest,P1,LOW,server-resolved,PREFILL
+project_type,step 1 radio,no,none,allowlist,quote_requests.project_type,Segment solution and calculator space type,P1,LOW,can be unknown,KEEP OPTIONAL
+usage_description,step 1 text,no,none,string max 500,quote_requests.usage_description,Clarify unusual need,P2,MEDIUM,Sales can ask,KEEP OPTIONAL
+number_of_rooms,step 1 number,no,none,integer 1..500,quote_requests.number_of_rooms,Project scale,P1,LOW,Sales can ask,KEEP OPTIONAL
+area_m2,step 2 number,no,none,numeric 1..50000,quote_requests/leads,Initial sizing,P1,MEDIUM,calculator/server context,PREFILL OR OPTIONAL
+ceiling_height,step 2 conditional,no,none,numeric 1..20,quote_requests/calculator_context,Volume context,P2,HIGH,calculator context or Sales,CONDITIONAL
+number_of_people,not in canonical form,no,none,integer 0..5000,quote_requests/calculator_context,Load context,P2,MEDIUM,calculator context,DEFER
+sun_exposure,optional details,no,none,allowlist,quote_requests/calculator_context,Sizing adjustment,P2,LOW,calculator context,CONDITIONAL
+insulation_quality,not in canonical form,no,none,allowlist,quote_requests,Advanced sizing context,P2,HIGH,Sales/survey,DEFER
+glass_area,not in canonical form,no,none,allowlist,quote_requests,Advanced load context,P2,HIGH,Sales/survey,DEFER
+open_space,not in canonical form,no,legacy false,boolean,quote_requests,Advanced load context,P2,MEDIUM,Sales/survey,DEFER
+current_aircon_status,optional details,no,none,allowlist plus unknown,quote_requests,Replace/add/new intent,P1,LOW,customer-known,CONDITIONAL
+preferred_btu,not in canonical form,no,none,integer min 9000,quote_requests,Customer-stated capacity,P2,HIGH,calculator-derived,DEFER
+calculated_btu,not posted,no,none,service result,quote_requests,Sales sizing context,P1,LOW,server-derived,PREFILL
+suggested_capacity_range,not posted,no,none,service result,quote_requests,Sales sizing context,P2,LOW,server-derived,PREFILL
+preferred_brand,hidden for brand entry,no,none,string max 255,quote_requests,Brand preference,P2,LOW,brand context,PREFILL
+preferred_brands,not in canonical form,no,none,array max 10,quote_requests,Brand shortlist,P2,MEDIUM,Sales can ask,DEFER
+need_inverter,not in canonical form,no,legacy false,boolean,quote_requests,Efficiency preference,P2,MEDIUM,Sales can ask,DEFER
+need_three_phase,not in canonical form,no,legacy false,boolean,quote_requests,Electrical compatibility,P3,HIGH,Survey,DEFER
+power_supply,not in canonical form,no,none,allowlist,quote_requests,Electrical compatibility,P3,HIGH,Survey,DEFER
+installation_type,not in canonical form,no,none,allowlist,quote_requests,Scope of work,P2,MEDIUM,Can derive from current AC/ask later,DEFER
+pipe_distance_m,not in canonical form,no,none,numeric 0..200,quote_requests,Installation material estimate,P3,HIGH,Survey,DEFER
+outdoor_unit_location,not in canonical form,no,none,allowlist,quote_requests,Installation feasibility,P3,HIGH,Survey,DEFER
+drainage_available,not in canonical form,no,none,allowlist,quote_requests,Installation feasibility,P3,HIGH,Survey,DEFER
+has_existing_piping,not in canonical form,no,none,allowlist,quote_requests,Installation reuse,P3,HIGH,Survey,DEFER
+budget_range,optional details,no,none,allowlist plus unknown,quote_requests,Commercial fit and intent score,P2,MEDIUM,Sales can ask,CONDITIONAL
+installation_time,optional details,no,none,allowlist plus unknown,quote_requests/leads summary,Urgency and prioritization,P1,LOW,customer-known,CONDITIONAL
+need_installation_service,optional details,no,none,allowlist plus unknown,quote_requests,Machine-only vs turnkey scope,P1,LOW,customer-known,CONDITIONAL
+need_invoice,not in canonical form,no,legacy false,boolean,quote_requests,Tax paperwork,P2,LOW,Sales can ask,DEFER
+need_site_survey,not in canonical form,no,legacy false,boolean,quote_requests,Survey preference,P2,LOW,Sales can decide,DEFER
+full_name,step 3 text,yes,none,string max 100,quote_requests/leads,Professional contact,P0,LOW,not derivable,KEEP REQUIRED
+phone,step 3 tel,yes,none,normalized Vietnamese phone,quote_requests/leads,Primary response channel,P0,LOW,not derivable,KEEP REQUIRED
+email,step 3 email,no,none,email max 150,quote_requests/leads,Optional written response,P1,LOW,Sales can ask,KEEP OPTIONAL
+province_city,step 3 text,no,none,string max 100,quote_requests,Serviceability context,P1,LOW,Sales can ask,KEEP OPTIONAL
+address,not in canonical form,no,none,string max 255,quote_requests,Exact installation address,P2,HIGH,Survey/follow-up,DEFER
+preferred_contact_method,not in canonical form,no,none,allowlist,quote_requests,Channel preference,P2,LOW,Can infer phone default/ask later,DEFER
+preferred_contact_time,not in canonical form,no,none,allowlist,quote_requests,Contact scheduling,P2,LOW,Can be in message,DEFER
+message,step 3 textarea,no,none,string max 2000,quote_requests/customer notification,Open context,P2,MEDIUM,Sales can ask,KEEP OPTIONAL
+calculator_context,server-only,no,session bridge,server-shaped JSON,quote_requests.calculator_context,Method/rule/input/result provenance,P1,LOW,server-derived,PREFILL
+source_page,hidden,no,current page,string max 500,quote_requests/leads,Source attribution,P1,LOW,system-derived,PREFILL
+landing_page,hidden,no,current page,string max 500,quote_requests,Attribution,P2,LOW,system-derived,PREFILL
+referrer,hidden,no,request header,string max 500,quote_requests,Attribution,P2,LOW,system-derived,PREFILL
+utm_source,hidden,no,query,string max 100,quote_requests,Campaign attribution,P1,LOW,system-derived,PREFILL
+utm_medium,hidden,no,query,string max 100,quote_requests,Campaign attribution,P1,LOW,system-derived,PREFILL
+utm_campaign,hidden,no,query,string max 100,quote_requests,Campaign attribution,P1,LOW,system-derived,PREFILL
+utm_term,hidden,no,query,string max 100,quote_requests,Campaign attribution,P2,LOW,system-derived,PREFILL
+utm_content,hidden,no,query,string max 100,quote_requests,Campaign attribution,P2,LOW,system-derived,PREFILL
+gclid/gbraid/wbraid,hidden,no,query,string max 255,quote_requests/conversion imports,Offline conversion attribution,P1,LOW,system-derived,PREFILL
+website_url,honeypot,no,empty,max length 0,not persisted,Spam detection,P0,LOW,system-derived,KEEP
+ip_address,server-only,no,request IP,max 45 schema,quote_requests/leads,Abuse/audit,P1,LOW,system-derived,KEEP
+user_agent,server-only,no,request header,max 512 schema,quote_requests,Operational diagnostics,P2,LOW,system-derived,KEEP
+provided_fields,server-only,no,validated key list,JSON cast,quote_requests,Distinguish customer input from legacy defaults,P1,LOW,server-derived,KEEP

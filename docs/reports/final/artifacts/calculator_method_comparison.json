@@ -1,0 +1,6 @@
+{
+  "same_input": {"area_m2":30,"height_m":4,"space_type":"nha_o","people":12,"sun":true,"equipment":true},
+  "area": {"rule_version":"consumer-estimate-v1","raw_btu":20567,"market_tier_btu":24000,"height_contract":"H/3 multiplier above 3m"},
+  "volume": {"rule_version":"volume-consumer-estimate-v1","raw_btu":20618,"market_tier_btu":24000,"height_contract":"area * height volume only"},
+  "shared_contract": {"recommendation":"verified RAC only","under_sizing":false,"vrf_unknown_allowed":false}
+}

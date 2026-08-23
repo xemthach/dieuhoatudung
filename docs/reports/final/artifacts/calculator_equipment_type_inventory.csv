@@ -1,0 +1,9 @@
+type,label,domain_class,public_selectable,current_product_rows,canonical_capacity_eligible,current_site_state
+wall_mounted,Điều hòa treo tường,RAC_SPLIT,yes,0,0,MARKET_REFERENCE_ONLY
+cassette,Điều hòa âm trần cassette,RAC_CASSETTE,yes,14,7,ACTIVE
+ducted,Điều hòa giấu trần nối ống gió,RAC_DUCTED,yes,5,2,ACTIVE_REVIEW_REQUIRED
+ceiling_exposed,Điều hòa áp trần,RAC_FLOOR_CEILING,yes,7,0,CANONICAL_CAPACITY_GAP
+floor_standing,Điều hòa tủ đứng,RAC_FLOOR_STANDING,yes,7,0,CANONICAL_CAPACITY_GAP
+vrf,Điều hòa trung tâm VRF/GMV,VRF_OUTDOOR,no,28,0,EXCLUDED_FROM_CONSUMER_RAC_RECOMMENDATION
+unknown,Không xác định,UNKNOWN,no,17,0,FAIL_CLOSED
+conflict,Xung đột taxonomy/label,UNKNOWN,no,3,0,FAIL_CLOSED

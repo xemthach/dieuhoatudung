@@ -1,0 +1,28 @@
+key,label,area_factor_w_m2,area_factor_btu_m2,volume_factor_w_m3,volume_factor_btu_m3,derived,area_rule_version,volume_rule_version,base_factor_scope,double_count_risk
+nha_o,"Căn hộ, nhà ở",120,409.457,40,136.486,YES_AREA_DIVIDED_BY_3M,consumer-estimate-v1,volume-consumer-estimate-v1,UNKNOWN,UNKNOWN
+phong_khach,"Phòng khách (nhà ở)",120,409.457,40,136.486,YES_AREA_DIVIDED_BY_3M,consumer-estimate-v1,volume-consumer-estimate-v1,UNKNOWN,UNKNOWN
+khach_san,"Khách sạn, nhà nghỉ",120,409.457,40,136.486,YES_AREA_DIVIDED_BY_3M,consumer-estimate-v1,volume-consumer-estimate-v1,UNKNOWN,UNKNOWN
+van_phong,"Văn phòng (viền ngoài)",170,580.064,56.666667,193.355,YES_AREA_DIVIDED_BY_3M,consumer-estimate-v1,volume-consumer-estimate-v1,UNKNOWN,MEDIUM_REVIEW
+van_phong_interior,"Văn phòng (bên trong)",100,341.214,33.333333,113.738,YES_AREA_DIVIDED_BY_3M,consumer-estimate-v1,volume-consumer-estimate-v1,UNKNOWN,MEDIUM_REVIEW
+van_phong_private,"Văn phòng cá nhân",180,614.185,60,204.728,YES_AREA_DIVIDED_BY_3M,consumer-estimate-v1,volume-consumer-estimate-v1,UNKNOWN,MEDIUM_REVIEW
+cua_hang,"Cửa hàng",165,563.003,55,187.668,YES_AREA_DIVIDED_BY_3M,consumer-estimate-v1,volume-consumer-estimate-v1,UNKNOWN,MEDIUM_REVIEW
+sieu_thi,"Siêu thị",160,545.943,53.333333,181.981,YES_AREA_DIVIDED_BY_3M,consumer-estimate-v1,volume-consumer-estimate-v1,UNKNOWN,MEDIUM_REVIEW
+showroom,Showroom,300,1023.642,100,341.214,YES_AREA_DIVIDED_BY_3M,consumer-estimate-v1,volume-consumer-estimate-v1,UNKNOWN,UNKNOWN
+ngan_hang,"Ngân hàng",175,597.125,58.333333,199.042,YES_AREA_DIVIDED_BY_3M,consumer-estimate-v1,volume-consumer-estimate-v1,UNKNOWN,UNKNOWN
+nha_hang,"Nhà hàng",330,1126.007,110,375.336,YES_AREA_DIVIDED_BY_3M,consumer-estimate-v1,volume-consumer-estimate-v1,UNKNOWN,HIGH_REVIEW
+cafe,"Quán cà phê",350,1194.25,116.666667,398.083,YES_AREA_DIVIDED_BY_3M,consumer-estimate-v1,volume-consumer-estimate-v1,UNKNOWN,HIGH_REVIEW
+fastfood,"Thức ăn nhanh, giải khát",270,921.278,90,307.093,YES_AREA_DIVIDED_BY_3M,consumer-estimate-v1,volume-consumer-estimate-v1,UNKNOWN,HIGH_REVIEW
+hoi_truong,"Hội trường, giảng đường",280,955.4,93.333333,318.467,YES_AREA_DIVIDED_BY_3M,consumer-estimate-v1,volume-consumer-estimate-v1,UNKNOWN,MEDIUM_REVIEW
+phong_hop,"Phòng họp",275,938.339,91.666667,312.78,YES_AREA_DIVIDED_BY_3M,consumer-estimate-v1,volume-consumer-estimate-v1,UNKNOWN,MEDIUM_REVIEW
+phong_hoc,"Phòng học",95,324.153,31.666667,108.051,YES_AREA_DIVIDED_BY_3M,consumer-estimate-v1,volume-consumer-estimate-v1,UNKNOWN,MEDIUM_REVIEW
+thu_vien,"Thư viện",150,511.821,50,170.607,YES_AREA_DIVIDED_BY_3M,consumer-estimate-v1,volume-consumer-estimate-v1,UNKNOWN,UNKNOWN
+rap_hat,"Rạp hát",280,955.4,93.333333,318.467,YES_AREA_DIVIDED_BY_3M,consumer-estimate-v1,volume-consumer-estimate-v1,UNKNOWN,UNKNOWN
+benh_vien,"Bệnh viện, phòng khám",190,648.307,63.333333,216.102,YES_AREA_DIVIDED_BY_3M,consumer-estimate-v1,volume-consumer-estimate-v1,UNKNOWN,UNKNOWN
+phong_duoc,"Văn phòng dược",185,631.246,61.666667,210.415,YES_AREA_DIVIDED_BY_3M,consumer-estimate-v1,volume-consumer-estimate-v1,UNKNOWN,UNKNOWN
+nha_xuong,"Nhà xưởng (CN nhẹ)",275,938.339,91.666667,312.78,YES_AREA_DIVIDED_BY_3M,consumer-estimate-v1,volume-consumer-estimate-v1,UNKNOWN,HIGH_REVIEW
+nha_xuong_nang,"Nhà xưởng (CN nặng)",490,1671.949,163.333333,557.316,YES_AREA_DIVIDED_BY_3M,consumer-estimate-v1,volume-consumer-estimate-v1,UNKNOWN,HIGH_REVIEW
+phong_may_tinh,"Phòng máy tính / Server",480,1637.828,160,545.943,YES_AREA_DIVIDED_BY_3M,consumer-estimate-v1,volume-consumer-estimate-v1,UNKNOWN,HIGH_REVIEW
+phong_thi_nghiem,"Phòng thí nghiệm",230,784.793,76.666667,261.598,YES_AREA_DIVIDED_BY_3M,consumer-estimate-v1,volume-consumer-estimate-v1,UNKNOWN,HIGH_REVIEW
+tham_my_vien,"Thẩm mỹ viện",260,887.157,86.666667,295.719,YES_AREA_DIVIDED_BY_3M,consumer-estimate-v1,volume-consumer-estimate-v1,UNKNOWN,UNKNOWN
+sanh_hanh_lang,"Sảnh, hành lang",135,460.639,45,153.546,YES_AREA_DIVIDED_BY_3M,consumer-estimate-v1,volume-consumer-estimate-v1,UNKNOWN,UNKNOWN
+tang_ham,"Tầng hầm",125,426.518,41.666667,142.173,YES_AREA_DIVIDED_BY_3M,consumer-estimate-v1,volume-consumer-estimate-v1,UNKNOWN,UNKNOWN

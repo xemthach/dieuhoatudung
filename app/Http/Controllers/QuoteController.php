@@ -2,21 +2,28 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\StoreQuickQuoteRequest;
+use App\Http\Requests\StoreQuoteRequest;
+use App\Models\Brand;
 use App\Models\Lead;
 use App\Models\Product;
+use App\Models\ProductCategory;
 use App\Models\QuoteRequest;
 use App\Services\Calculator\BtuCalculatorService;
 use App\Services\Mail\MailDispatchService;
 use App\Services\Marketing\GoogleAdsOfflineConversionService;
+use App\Services\Quote\QuoteSubmissionService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Str;
 
 class QuoteController extends Controller
 {
     public function __construct(
         private readonly BtuCalculatorService $calculator,
-        private readonly MailDispatchService  $mailService
+        private readonly MailDispatchService $mailService,
+        private readonly QuoteSubmissionService $submissions,
     ) {}
 
     /**
@@ -24,7 +31,6 @@ class QuoteController extends Controller
      */
     public function index(Request $request)
     {
-        // Nếu có product slug được pass qua query string
         $product = null;
         if ($request->query('product')) {
             $product = Product::where('slug', $request->query('product'))
@@ -32,10 +38,35 @@ class QuoteController extends Controller
                 ->first();
         }
 
+        $calculatorContext = $request->query('source') === 'calculator'
+            ? $request->session()->get('quote_calculator_context')
+            : null;
+        $calculatorContext = is_array($calculatorContext) ? $calculatorContext : null;
+
+        $brand = $request->query('brand')
+            ? Brand::query()->where('slug', $request->query('brand'))->first()
+            : null;
+        $category = $request->query('category')
+            ? ProductCategory::query()->where('slug', $request->query('category'))->first()
+            : null;
+
+        $entryContext = $product
+            ? 'product'
+            : ($calculatorContext
+                ? 'calculator'
+                : (($brand || $category)
+                    ? 'category'
+                    : ($request->hasAny(['utm_source', 'utm_campaign', 'gclid', 'gbraid', 'wbraid']) ? 'campaign' : 'direct')));
+
         $thanks = $request->session()->get('quote_thanks');
 
         return view('pages.quote', [
             'product'          => $product,
+            'calculatorContext'=> $calculatorContext,
+            'brandContext'     => $brand?->only(['id', 'name', 'slug']),
+            'categoryContext'  => $category?->only(['id', 'name', 'slug']),
+            'entryContext'     => $entryContext,
+            'submissionToken'  => old('submission_token', (string) Str::uuid()),
             'thanks'           => $thanks,
             'seoTitle'         => setting('cta.quote_cta_text', 'Báo Giá') . ' Điều Hòa Tủ Đứng',
             'seoDescription'   => 'Điền form nhận báo giá điều hòa tủ đứng. Tư vấn chọn công suất BTU theo dữ liệu khảo sát và điều kiện công trình.',
@@ -48,7 +79,7 @@ class QuoteController extends Controller
      * POST /bao-gia/nhanh  (AJAX — Quick Quote from product pages)
      * Only requires: full_name + phone. Product context in hidden fields.
      */
-    public function storeQuick(Request $request)
+    public function storeQuick(StoreQuickQuoteRequest $request)
     {
         // Honeypot
         if ($request->filled('website_url')) {
@@ -62,31 +93,7 @@ class QuoteController extends Controller
         }
         RateLimiter::hit($key, 3600);
 
-        $validated = $request->validate([
-            'full_name'              => ['required', 'string', 'max:100'],
-            'phone'                  => ['required', 'string', 'regex:/^(0|\+84)[0-9]{8,10}$/'],
-            'email'                  => ['nullable', 'email', 'max:150'],
-            'province_city'          => ['nullable', 'string', 'max:100'],
-            'message'                => ['nullable', 'string', 'max:1000'],
-            'product_id'             => ['nullable', 'integer', 'exists:products,id'],
-            'product_name'           => ['nullable', 'string', 'max:255'],
-            'product_sku'            => ['nullable', 'string', 'max:100'],
-            'product_url'            => ['nullable', 'url', 'max:500'],
-            'product_brand'          => ['nullable', 'string', 'max:100'],
-            'product_category'       => ['nullable', 'string', 'max:100'],
-            'product_capacity_btu'   => ['nullable', 'integer'],
-            'source_page'            => ['nullable', 'url', 'max:500'],
-            'utm_source'             => ['nullable', 'string', 'max:100'],
-            'utm_medium'             => ['nullable', 'string', 'max:100'],
-            'utm_campaign'           => ['nullable', 'string', 'max:100'],
-            'gclid'                  => ['nullable', 'string', 'max:255'],
-            'gbraid'                 => ['nullable', 'string', 'max:255'],
-            'wbraid'                 => ['nullable', 'string', 'max:255'],
-        ], [
-            'full_name.required' => 'Vui lòng nhập họ tên.',
-            'phone.required'     => 'Vui lòng nhập số điện thoại.',
-            'phone.regex'        => 'Số điện thoại không hợp lệ.',
-        ]);
+        $validated = $request->validated();
 
         $productModel = ! empty($validated['product_id'])
             ? Product::with(['brand', 'category'])->find($validated['product_id'])
@@ -107,7 +114,10 @@ class QuoteController extends Controller
             ];
         }
 
-        $quote = QuoteRequest::create([
+        $submission = $this->submissions->create([
+            'submission_token'           => $validated['submission_token'],
+            'entry_context'              => 'product',
+            'provided_fields'            => array_values(array_keys($validated)),
             'lead_type'                  => 'product',
             'intent_score'               => 100,
             'full_name'                  => $validated['full_name'],
@@ -134,7 +144,24 @@ class QuoteController extends Controller
             'status'                     => 'new',
             'ip_address'                 => $request->ip(),
             'user_agent'                 => $request->userAgent(),
-        ]);
+        ], [
+            'full_name' => $validated['full_name'],
+            'phone' => $validated['phone'],
+            'email' => $validated['email'] ?? null,
+            'source_page' => $validated['source_page'] ?? url()->current(),
+            'status' => 'new',
+            'ip_address' => $request->ip(),
+        ], [
+            'need_type' => 'quick_product_quote',
+            'message' => 'Quick quote | '.($productModel?->name ?? ''),
+        ], $productModel);
+
+        /** @var QuoteRequest $quote */
+        $quote = $submission['quote'];
+
+        if (! $submission['created']) {
+            return response()->json(['success' => true, 'quote_id' => $quote->id, 'duplicate' => true]);
+        }
 
         $this->recordGoogleAdsOfflineConversion($quote, $request, 'quick_quote');
 
@@ -185,19 +212,6 @@ class QuoteController extends Controller
             Log::error('QuickQuote admin mail failed', ['quote_id' => $quote->id, 'error' => $e->getMessage()]);
         }
 
-        // Create Lead
-        try {
-            $contactData = ['full_name' => $quote->full_name, 'phone' => $quote->phone, 'source_page' => $quote->source_page, 'status' => 'new', 'ip_address' => $request->ip()];
-            $extraData   = ['quote_request_id' => $quote->id, 'need_type' => 'quick_product_quote', 'message' => 'Quick quote | ' . ($quote->product_name ?? '')];
-            if ($productModel) {
-                Lead::createProductLead($contactData, $productModel, $extraData);
-            } else {
-                Lead::createGeneralLead($contactData, $extraData);
-            }
-        } catch (\Throwable $e) {
-            Log::error('QuickQuote Lead creation: ' . $e->getMessage());
-        }
-
         // Customer mail — only if email provided
         if (! empty($quote->email)) {
             try {
@@ -232,7 +246,7 @@ class QuoteController extends Controller
     /**
      * POST /bao-gia
      */
-    public function store(Request $request)
+    public function store(StoreQuoteRequest $request)
     {
         // ── Spam protection ──────────────────────────────────────────
         // Rate limiting: max 5 submissions per IP per hour
@@ -251,77 +265,21 @@ class QuoteController extends Controller
 
         RateLimiter::hit($rateLimitKey, 3600);
 
-        $requirePhone = setting('lead.lead_required_phone', true);
-        $requireEmail = setting('lead.lead_required_email', false);
-
-        $validated = $request->validate([
-            // Step 1 — Project
-            'lead_type'                => ['nullable','in:product,general,consultation'],
-            'project_type'             => ['nullable','in:nha_o,can_ho,van_phong,cua_hang,showroom,nha_hang,hoi_truong,nha_xuong,truong_hoc,khach_san,khac'],
-            'usage_description'        => ['nullable','string','max:500'],
-            'number_of_rooms'          => ['nullable','integer','min:1','max:500'],
-            // Step 2 — Space
-            'area_m2'                  => ['nullable','numeric','min:1','max:50000'],
-            'ceiling_height'           => ['nullable','numeric','min:1','max:20'],
-            'number_of_people'         => ['nullable','integer','min:0','max:5000'],
-            'sun_exposure'             => ['nullable','in:it_nang,nang_vua,nang_nhieu'],
-            'insulation_quality'       => ['nullable','in:tot,trung_binh,kem,chua_ro'],
-            'glass_area'               => ['nullable','in:it_kinh,nhieu_kinh,vach_kinh'],
-            'open_space'               => ['nullable','boolean'],
-            'current_aircon_status'    => ['nullable','in:chua_co,co_nhung_yeu,thay_cu,can_them'],
-            // Step 3 — Technical
-            'preferred_btu'            => ['nullable','integer','min:9000'],
-            'preferred_brands'         => ['nullable','array'],
-            'preferred_brands.*'       => ['nullable','string','max:50'],
-            'preferred_brand'          => ['nullable','string','max:255'],
-            'need_inverter'            => ['nullable','boolean'],
-            'need_three_phase'         => ['nullable','boolean'],
-            'power_supply'             => ['nullable','in:1_pha,3_pha,chua_ro'],
-            'installation_type'        => ['nullable','in:lap_moi,thay_cu,di_doi,bao_tri'],
-            'pipe_distance_m'          => ['nullable','numeric','min:0','max:200'],
-            'outdoor_unit_location'    => ['nullable','in:ban_cong,mai_nha,tuong_ngoai,san_thuong,chua_ro'],
-            'drainage_available'       => ['nullable','in:co,khong,chua_ro'],
-            'has_existing_piping'      => ['nullable','in:co,khong,chua_ro'],
-            // Step 4 — Budget
-            'budget_range'             => ['nullable','in:duoi_20_trieu,20_40_trieu,40_70_trieu,tren_70_trieu,chua_ro'],
-            'installation_time'        => ['nullable','in:ngay,3_ngay,1_tuan,1_thang,chua_ro'],
-            'need_installation_service'=> ['nullable','in:tron_goi,chi_may,chua_ro'],
-            'need_invoice'             => ['nullable','boolean'],
-            'need_site_survey'         => ['nullable','boolean'],
-            // Step 5 — Contact
-            'full_name'                => ['required','string','max:100'],
-            'phone'                    => [$requirePhone ? 'required' : 'nullable','string','regex:/^(0|\+84)[0-9]{8,10}$/'],
-            'email'                    => [$requireEmail ? 'required' : 'nullable','nullable','email','max:150'],
-            'province_city'            => ['nullable','string','max:100'],
-            'address'                  => ['nullable','string','max:255'],
-            'preferred_contact_method' => ['nullable','in:phone,zalo,email'],
-            'preferred_contact_time'   => ['nullable','in:ngay,hanh_chinh,buoi_toi,khac'],
-            'message'                  => ['nullable','string','max:2000'],
-            // Hidden meta
-            'product_id'               => ['nullable','integer','exists:products,id'],
-            'source_page'              => ['nullable','string','max:500'],
-            'landing_page'             => ['nullable','string','max:500'],
-            'referrer'                 => ['nullable','string','max:500'],
-            'utm_source'               => ['nullable','string','max:100'],
-            'utm_medium'               => ['nullable','string','max:100'],
-            'utm_campaign'             => ['nullable','string','max:100'],
-            'utm_term'                 => ['nullable','string','max:100'],
-            'utm_content'              => ['nullable','string','max:100'],
-            'gclid'                    => ['nullable','string','max:255'],
-            'gbraid'                   => ['nullable','string','max:255'],
-            'wbraid'                   => ['nullable','string','max:255'],
-            'website_url'              => ['nullable','max:0'],
-        ], [
-            'full_name.required' => 'Vui lòng nhập họ tên.',
-            'phone.required'     => 'Vui lòng nhập số điện thoại.',
-            'email.email'        => 'Email không đúng định dạng.',
-        ]);
+        $validated = $request->validated();
 
         // ── Calculate BTU using BtuCalculatorService (single source of truth) ──
-        $calculatedBtu = $validated['preferred_btu'] ?? null;
+        $calculatorContext = $request->calculatorContext();
+        $calculatedBtu = $calculatorContext['recommended_btu'] ?? $validated['preferred_btu'] ?? null;
         $suggestedRange = null;
         $recommendedProductIds = [];
-        if (! empty($validated['area_m2'])) {
+        if ($calculatorContext && $calculatedBtu) {
+            $suggestedRange = number_format((int) $calculatedBtu).' BTU';
+            $recommendedProductIds = $this->calculator
+                ->matchProducts((int) $calculatedBtu, '')
+                ->pluck('id')
+                ->take(6)
+                ->toArray();
+        } elseif (! empty($validated['area_m2']) && ! empty($validated['project_type'])) {
             try {
                 $areaMq   = (float) $validated['area_m2'];
                 $height   = (float) ($validated['ceiling_height'] ?? 3.0);
@@ -336,7 +294,10 @@ class QuoteController extends Controller
                     'hoi_truong' => 'hoi_truong', 'nha_xuong' => 'nha_xuong',
                     'truong_hoc' => 'phong_hoc', 'khach_san' => 'khach_san', 'khac' => 'van_phong',
                 ];
-                $spaceType = $spaceMap[$validated['project_type'] ?? ''] ?? 'van_phong';
+                if (! isset($spaceMap[$validated['project_type']])) {
+                    throw new \DomainException('Không đủ loại không gian để tính BTU tự động.');
+                }
+                $spaceType = $spaceMap[$validated['project_type']];
 
                 $result = $this->calculator->calculate($areaMq, $height, $spaceType, $people, $sunlight, $heatEquip);
                 $calculatedBtu = $result['recommended_btu'];
@@ -372,8 +333,14 @@ class QuoteController extends Controller
         ]));
         $leadType = $productModel ? 'product' : ($validated['lead_type'] ?? 'general');
 
-        // ── Tạo QuoteRequest ─────────────────────────────────────────
-        $quote = QuoteRequest::create([
+        $projectLabel = QuoteRequest::projectTypeLabels()[$validated['project_type'] ?? ''] ?? 'Chưa rõ';
+        $budgetLabel = QuoteRequest::budgetRangeLabels()[$validated['budget_range'] ?? ''] ?? 'Chưa rõ';
+
+        // QuoteRequest and its CRM Lead are one idempotent persistence unit.
+        $submission = $this->submissions->create([
+            'submission_token'          => $validated['submission_token'],
+            'entry_context'             => $validated['entry_context'],
+            'provided_fields'            => array_values(array_keys($validated)),
             'lead_type'                => $leadType,
             'intent_score'             => $intentScore,
             // Product metadata
@@ -386,6 +353,7 @@ class QuoteController extends Controller
             'product_capacity_btu'     => $productModel ? app(\App\Services\Product\ProductTechnicalFactResolver::class)->getDisplay($productModel, 'marketing_capacity_btu')['value'] : null,
             'product_url'              => $productModel ? route('product.show', $productModel->slug) : null,
             'selected_product_snapshot'=> $productSnapshot,
+            'calculator_context'       => $calculatorContext,
             // Step 1
             'project_type'             => $validated['project_type'] ?? null,
             'usage_description'        => $validated['usage_description'] ?? null,
@@ -446,13 +414,45 @@ class QuoteController extends Controller
             'status'                   => 'new',
             'ip_address'               => $request->ip(),
             'user_agent'               => $request->userAgent(),
-        ]);
+        ], [
+            'full_name' => $validated['full_name'],
+            'phone' => $validated['phone'],
+            'email' => $validated['email'] ?? null,
+            'source_page' => $validated['source_page'] ?? url()->current(),
+            'status' => 'new',
+            'ip_address' => $request->ip(),
+        ], [
+            'usage_type' => $validated['project_type'] ?? null,
+            'area' => $validated['area_m2'] ?? null,
+            'message' => "Báo giá | {$projectLabel} | {$budgetLabel}".
+                ($calculatedBtu ? ' | BTU: '.number_format((int) $calculatedBtu) : ''),
+            'need_type' => 'quote_request',
+        ], $productModel);
+
+        /** @var QuoteRequest $quote */
+        $quote = $submission['quote'];
+
+        if (! $submission['created']) {
+            return redirect()->route('quote.index')->with('quote_thanks', [
+                'quote_id' => $quote->id,
+                'full_name' => $quote->full_name,
+                'phone' => $quote->phone,
+                'recommended_btu' => $quote->calculated_btu,
+                'lead_type' => $quote->lead_type,
+                'product_id' => $quote->product_id,
+                'product_name' => $quote->product_name,
+                'intent_score' => $quote->intent_score,
+                'suggested_products' => [],
+            ]);
+        }
+
+        if ($validated['entry_context'] === 'calculator') {
+            $request->session()->forget('quote_calculator_context');
+        }
 
         $this->recordGoogleAdsOfflineConversion($quote, $request, 'submit_quote');
 
         // ── Build shared label map ─────────────────────────────────────
-        $projectLabel     = QuoteRequest::projectTypeLabels()[$validated['project_type'] ?? ''] ?? 'Chưa rõ';
-        $budgetLabel      = QuoteRequest::budgetRangeLabels()[$validated['budget_range'] ?? ''] ?? 'Chưa rõ';
         $timelineLabel    = QuoteRequest::installationTimeLabels()[$validated['installation_time'] ?? ''] ?? 'Chưa xác định';
         $sunLabel         = QuoteRequest::sunExposureLabels()[$validated['sun_exposure'] ?? ''] ?? '—';
         $insulationLabel  = QuoteRequest::insulationLabels()[$validated['insulation_quality'] ?? ''] ?? '—';
@@ -464,33 +464,6 @@ class QuoteController extends Controller
         $contactLabel     = QuoteRequest::contactMethodLabels()[$validated['preferred_contact_method'] ?? ''] ?? '—';
         $contactTimeLabel = QuoteRequest::contactTimeLabels()[$validated['preferred_contact_time'] ?? ''] ?? '—';
         $brandsStr        = implode(', ', $validated['preferred_brands'] ?? []) ?: '—';
-
-        // ── Also create typed Lead ───────────────────────────────────
-        try {
-            $contactData = [
-                'full_name'   => $validated['full_name'],
-                'phone'       => $validated['phone'] ?? null,
-                'email'       => $validated['email'] ?? null,
-                'source_page' => $quote->source_page,
-                'status'      => 'new',
-                'ip_address'  => $request->ip(),
-            ];
-            $extraData = [
-                'quote_request_id' => $quote->id,
-                'usage_type'       => $validated['project_type'] ?? null,
-                'area'             => $validated['area_m2'] ?? null,
-                'message'          => "Báo giá | {$projectLabel} | {$budgetLabel}" .
-                    ($calculatedBtu ? ' | BTU: '.number_format($calculatedBtu) : ''),
-                'need_type'        => 'quote_request',
-            ];
-            if ($productModel) {
-                Lead::createProductLead($contactData, $productModel, $extraData);
-            } else {
-                Lead::createGeneralLead($contactData, $extraData);
-            }
-        } catch (\Throwable $e) {
-            Log::error('QuoteRequest Lead creation failed', ['quote_id' => $quote->id, 'error' => $e->getMessage()]);
-        }
 
         // ── Build mail vars with fallbacks (never leave blanks) ─────
         $brandsArr = is_array($quote->preferred_brands) ? $quote->preferred_brands : [];

@@ -60,6 +60,12 @@ class BtuCalculationResource extends Resource
                     })
                     ->sortable(),
 
+                TextColumn::make('calculation_method')
+                    ->label('Phương pháp')
+                    ->formatStateUsing(fn ($state) => BtuCalculation::methodLabels()[$state] ?? $state)
+                    ->badge()
+                    ->color(fn ($state) => $state === 'volume' ? 'info' : 'gray'),
+
                 TextColumn::make('area_m2')
                     ->label('Diện tích')
                     ->formatStateUsing(fn($state) => $state . ' m²')
@@ -94,6 +100,12 @@ class BtuCalculationResource extends Resource
                     ->formatStateUsing(fn($state) => BtuCalculation::priorityLabels()[$state] ?? ($state ?? '—'))
                     ->placeholder('—'),
 
+                TextColumn::make('rule_version')
+                    ->label('Phiên bản quy tắc')
+                    ->badge()
+                    ->color('gray')
+                    ->toggleable(isToggledHiddenByDefault: true),
+
                 TextColumn::make('source_page')
                     ->label('Nguồn')
                     ->limit(30)
@@ -101,17 +113,15 @@ class BtuCalculationResource extends Resource
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
+                SelectFilter::make('calculation_method')
+                    ->label('Phương pháp')
+                    ->options(BtuCalculation::methodLabels()),
+
                 SelectFilter::make('recommended_btu')
                     ->label('BTU đề xuất')
-                    ->options([
-                        24000  => '24.000 BTU',
-                        28000  => '28.000 BTU',
-                        36000  => '36.000 BTU',
-                        48000  => '48.000 BTU',
-                        50000  => '50.000 BTU',
-                        60000  => '60.000 BTU',
-                        100000 => '100.000 BTU',
-                    ]),
+                    ->options(collect(app(\App\Services\Calculator\BtuCalculatorService::class)->standardTiers())
+                        ->mapWithKeys(fn (int $tier): array => [$tier => number_format($tier, 0, ',', '.') . ' BTU'])
+                        ->all()),
 
                 SelectFilter::make('space_type')
                     ->label('Loại không gian')

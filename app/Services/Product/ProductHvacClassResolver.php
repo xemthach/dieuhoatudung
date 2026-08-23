@@ -9,29 +9,61 @@ final class ProductHvacClassResolver
 {
     public function resolve(Product $product): array
     {
-        $category = mb_strtolower((string) ($product->category?->name ?? $product->product_type ?? ''));
+        $sources = array_filter([
+            'PRODUCT_CATEGORY' => (string) ($product->category?->name ?? ''),
+            'PRODUCT_TYPE' => (string) ($product->product_type ?? ''),
+        ], static fn (string $value): bool => trim($value) !== '');
         $model = mb_strtoupper((string) $product->model_code);
 
-        if ($category === '') {
+        if ($sources === []) {
             return ['class' => ProductHvacClass::UNKNOWN, 'source' => 'MISSING_CLASSIFICATION_SOURCE', 'verified' => false, 'reason' => 'fail_closed'];
         }
 
-        if (str_contains($category, 'vrf') || str_contains($category, 'gmv')) {
-            return ['class' => ProductHvacClass::VRF_OUTDOOR, 'source' => 'PRODUCT_CATEGORY_OR_PRODUCT_TYPE', 'verified' => true, 'reason' => 'vrf_category'];
-        }
-        if (str_contains($category, 'cassette')) {
-            return ['class' => ProductHvacClass::RAC_CASSETTE, 'source' => 'PRODUCT_CATEGORY_OR_PRODUCT_TYPE', 'verified' => true, 'reason' => 'cassette_category'];
-        }
-        if (str_contains($category, 'ống gió') || str_contains($category, 'giấu trần')) {
-            return ['class' => ProductHvacClass::RAC_DUCTED, 'source' => 'PRODUCT_CATEGORY_OR_PRODUCT_TYPE', 'verified' => true, 'reason' => 'ducted_category'];
-        }
-        if (str_contains($category, 'đặt sàn') || str_contains($category, 'áp trần')) {
-            return ['class' => ProductHvacClass::RAC_FLOOR_CEILING, 'source' => 'PRODUCT_CATEGORY_OR_PRODUCT_TYPE', 'verified' => true, 'reason' => 'floor_ceiling_category'];
-        }
-        if (str_contains($category, 'tủ đứng')) {
-            return ['class' => ProductHvacClass::RAC_FLOOR_STANDING, 'source' => 'PRODUCT_CATEGORY_OR_PRODUCT_TYPE', 'verified' => true, 'reason' => 'standing_category'];
+        $resolved = [];
+        foreach ($sources as $source => $value) {
+            $classification = $this->classify($value);
+            if ($classification !== null) {
+                $resolved[$source] = $classification;
+            }
         }
 
-        return ['class' => ProductHvacClass::UNKNOWN, 'source' => 'UNSUPPORTED_CATEGORY:'.($model !== '' ? 'MODEL_PRESENT' : 'MODEL_MISSING'), 'verified' => false, 'reason' => 'fail_closed'];
+        if ($resolved === []) {
+            return ['class' => ProductHvacClass::UNKNOWN, 'source' => 'UNSUPPORTED_CATEGORY:'.($model !== '' ? 'MODEL_PRESENT' : 'MODEL_MISSING'), 'verified' => false, 'reason' => 'fail_closed'];
+        }
+
+        if (count(array_unique(array_map(static fn (ProductHvacClass $class): string => $class->value, $resolved))) > 1) {
+            return ['class' => ProductHvacClass::UNKNOWN, 'source' => implode('+', array_keys($resolved)), 'verified' => false, 'reason' => 'CONFLICTING_CLASSIFICATION_SOURCES'];
+        }
+
+        $source = array_key_first($resolved);
+        $class = $resolved[$source];
+
+        return ['class' => $class, 'source' => $source, 'verified' => true, 'reason' => 'verified_taxonomy_mapping'];
+    }
+
+    private function classify(string $value): ?ProductHvacClass
+    {
+        $value = mb_strtolower($value);
+
+        if (str_contains($value, 'vrf') || str_contains($value, 'gmv')) {
+            return ProductHvacClass::VRF_OUTDOOR;
+        }
+        if (str_contains($value, 'treo tường') || str_contains($value, 'wall mounted') || str_contains($value, 'wall-mounted')) {
+            return ProductHvacClass::RAC_SPLIT;
+        }
+        if (str_contains($value, 'cassette')) {
+            return ProductHvacClass::RAC_CASSETTE;
+        }
+        if (str_contains($value, 'ống gió') || str_contains($value, 'giấu trần') || str_contains($value, 'ducted')) {
+            return ProductHvacClass::RAC_DUCTED;
+        }
+        if (str_contains($value, 'đặt sàn') || str_contains($value, 'áp trần') || str_contains($value, 'ceiling exposed')) {
+            return ProductHvacClass::RAC_FLOOR_CEILING;
+        }
+        if (str_contains($value, 'tủ đứng') || str_contains($value, 'floor standing')) {
+            return ProductHvacClass::RAC_FLOOR_STANDING;
+        }
+
+        return null;
     }
 }

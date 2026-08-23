@@ -1,0 +1,17 @@
+Field,Client,Server,Normalization,Conditional behavior,Failure UX
+submission_token,hidden UUID,required UUID,None,all submissions,Preserved through old input
+entry_context,hidden allowlist,required allowlist,None,all submissions,Rejected if forged outside allowlist
+full_name,required maxlength 100,required string max 100,trim handled by middleware,all submissions,Inline plus summary
+phone,"required; tel keyboard",required Vietnamese canonical format,"spaces dots hyphens parentheses +84 and 0084 normalized",all submissions,Inline actionable message
+email,email input nullable,nullable email max 150,None,optional,Inline plus summary
+project_type,radio optional,allowlist,None,optional explicit unknown supported,Preserved on redirect
+area_m2,decimal optional,numeric 1..50000,None,calculator context overrides from session,Inline
+ceiling_height,decimal shown after area,numeric 1..20,None,calculator context overrides from session,Summary
+sun_exposure,optional radio,allowlist,None,inside optional disclosure,Summary
+current_aircon_status,optional select,allowlist including chua_ro,None,inside optional disclosure,Summary
+budget_range,optional radio,allowlist including chua_ro,None,inside optional disclosure,Summary
+installation_time,optional select,allowlist including chua_ro,None,inside optional disclosure,Summary
+need_installation_service,optional select,allowlist including chua_ro,None,inside optional disclosure,Summary
+message,textarea maxlength 2000,string max 2000,None,optional,Summary
+product_id,hidden when server-resolved,exists products id,Product metadata reloaded from DB,Product entry only,Validation redirect
+tracking,hidden,max lengths and allowlists,None,not user-facing,Validation redirect

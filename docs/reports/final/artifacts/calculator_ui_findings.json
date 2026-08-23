@@ -1,0 +1,17 @@
+{
+  "fixed": [
+    {"severity":"HIGH","finding":"Page claimed exact calculation despite simplified unverified methodology","change":"reference-estimate copy and disclaimer"},
+    {"severity":"HIGH","finding":"Recommendation heading called under-sized products suitable","change":"matching forbids lower capacity and heading states capacity floor"},
+    {"severity":"MEDIUM","finding":"Priority options implied energy/durability/premium behavior without reliable fields","change":"reduced to capacity fit or deterministic price order"},
+    {"severity":"MEDIUM","finding":"FAQ 24k area claim could conflict with type-specific formula","change":"FAQ explains there is no universal area and shares config with schema"},
+    {"severity":"MEDIUM","finding":"Anonymous calculation generated persistent record and admin mail","change":"anonymous calculation is non-persistent and silent"},
+    {"severity":"LOW","finding":"Result mixed calculated need and market tier","change":"both remain separately labeled with rule version"}
+  ],
+  "current_strengths": ["visible units","server validation","CSRF","honeypot and IP rate limit","grouped space types","calculation breakdown","explicit no-result state","responsive Tailwind grid"],
+  "remaining": [
+    {"severity":"LOW","finding":"email/note/UTM are accepted by controller but not all are visible/persisted"},
+    {"severity":"LOW","finding":"product cards duplicate some catalog-card presentation"},
+    {"severity":"INFO","finding":"no Playwright/Dusk harness; mobile evidence is code/HTTP only"}
+  ],
+  "accessibility": {"labels":"present for core numeric inputs","keyboard":"native controls","errors":"summary and field styling","result_announcement":"no aria-live","status":"acceptable with LOW enhancement remaining"}
+}

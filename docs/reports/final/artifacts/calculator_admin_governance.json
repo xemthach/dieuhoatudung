@@ -1,0 +1,15 @@
+{
+  "admin_surface": "BtuCalculationResource",
+  "purpose": "contact-origin calculation history and operational review",
+  "permissions": {"view":"btu_calculator.view","mutation":"btu_calculator.edit"},
+  "rule_editing": false,
+  "rule_owner": "repository config/service",
+  "rule_version_persisted": true,
+  "calculation_method_persisted": true,
+  "method_filter": ["area", "volume"],
+  "history": "each new persisted contact calculation records rule_version",
+  "preview_without_lead": "public/domain calculation service and isolated tests; no dedicated Filament preview",
+  "change_audit": "Git/release history; no DB rule editor or duplicate source",
+  "classification": {"space_type_table":"CODE_CONSTANT","adjustments":"SYSTEM_CONFIG","tiers":"BUSINESS_RULE_IN_CODE","faq":"CONTENT_CONFIG"},
+  "decision": "Do not add admin-editable coefficients until an approved methodology, safe ranges, audit storage and rollback contract exist"
+}

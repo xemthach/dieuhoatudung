@@ -37,6 +37,8 @@ class QuoteRequest extends Model
             'recommended_product_ids'  => 'array',
             'preferred_brands'         => 'array',
             'selected_product_snapshot' => 'array',
+            'calculator_context'         => 'array',
+            'provided_fields'            => 'array',
         ];
     }
 
@@ -67,6 +69,7 @@ class QuoteRequest extends Model
             'nha_xuong'   => 'Nhà xưởng',
             'truong_hoc'  => 'Trường học',
             'khach_san'   => 'Khách sạn',
+            'chua_ro'     => 'Chưa rõ / Cần tư vấn',
             'khac'        => 'Khác',
         ];
     }
@@ -128,6 +131,7 @@ class QuoteRequest extends Model
             'co_nhung_yeu' => 'Đã có nhưng yếu',
             'thay_cu'    => 'Thay máy cũ',
             'can_them'   => 'Cần thêm máy',
+            'chua_ro'    => 'Chưa rõ',
         ];
     }
 

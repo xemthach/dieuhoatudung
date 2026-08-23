@@ -128,9 +128,16 @@ class QuoteRequestResource extends Resource
                 // ── Nguồn (ẩn mặc định) ────────────────────────────────────────
                 TextColumn::make('source_page')
                     ->label('Nguồn')
-                    ->limit(22)
+                    ->formatStateUsing(fn ($state, QuoteRequest $record) => match ($record->entry_context) {
+                        'product' => 'Trang sản phẩm',
+                        'calculator' => 'Công cụ BTU',
+                        'category' => 'Danh mục / Thương hiệu',
+                        'campaign' => 'Chiến dịch',
+                        default => 'Trực tiếp',
+                    })
                     ->placeholder('—')
-                    ->toggleable(isToggledHiddenByDefault: true),
+                    ->badge()
+                    ->toggleable(),
             ])
 
             ->filters([

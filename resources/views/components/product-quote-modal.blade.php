@@ -122,7 +122,7 @@
                     </svg>
                 </div>
                 <p class="pqm-success-title">Đã gửi thành công!</p>
-                <p class="pqm-success-sub">Chúng tôi sẽ liên hệ bạn trong vòng <strong>30 phút</strong>.</p>
+                <p class="pqm-success-sub">Yêu cầu đã được lưu. Chúng tôi sẽ liên hệ theo lịch tư vấn.</p>
                 <p class="pqm-success-sub" style="margin-top:.25rem">Cửa sổ tự động đóng sau 3 giây...</p>
             </div>
 
@@ -136,6 +136,7 @@
                 novalidate
             >
                 @csrf
+                <input type="hidden" name="submission_token" value="{{ (string) Str::uuid() }}">
                 <input type="hidden" name="lead_type"    value="product">
                 <input type="hidden" name="intent_score" value="100">
                 @if($product)
@@ -191,6 +192,7 @@
                             :class="errors.phone ? 'pqm-input pqm-input--err' : 'pqm-input'"
                             placeholder="09x xxx xxxx"
                             autocomplete="tel"
+                            inputmode="tel"
                         >
                         <p x-show="errors.phone" x-text="errors.phone" class="pqm-error"></p>
                     </div>

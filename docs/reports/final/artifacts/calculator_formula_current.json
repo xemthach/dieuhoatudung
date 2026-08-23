@@ -1,0 +1,15 @@
+{
+  "rule_version": "consumer-estimate-v1",
+  "classification": "SIMPLIFIED_CONSUMER_ESTIMATE",
+  "base_load_w": "area_m2 * space_type.w_per_m2",
+  "base_load_btu": "round(base_load_w * 3.412)",
+  "ceiling": {"condition":"height_m > 3.0","formula":"round(current_btu * round(height_m / 3.0, 2))","below_or_equal_baseline":"no reduction"},
+  "sunlight": {"condition":"direct_sunlight = true","formula":"round(current_btu * 1.10)"},
+  "heat_equipment": {"condition":"heat_equipment = true","formula":"round(current_btu * 1.10)"},
+  "people": {"included_in_base":10,"formula_above_base":"(people - 10) * 400 BTU/h"},
+  "adjustment_order": ["ceiling","sunlight","heat_equipment","people"],
+  "calculated_btu": "round(adjusted_btu)",
+  "recommended_btu": "first configured tier >= calculated_btu; above max tier => ceil(calculated_btu / 1000) * 1000",
+  "hp_display": "round(recommended_btu / 9000, 1)",
+  "authority_status": "PROJECT_HISTORICAL_REFERENCE_ONLY; ORIGINAL DOCUMENT NOT IN REPOSITORY"
+}

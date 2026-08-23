@@ -1,0 +1,28 @@
+key,label_vi,label_en,group,w_per_m2,source,enabled
+nha_o,"Căn hộ, nhà ở","Apartments, Residence","Nhà ở",120,BtuCalculatorService,true
+phong_khach,"Phòng khách (nhà ở)","Residence living room","Nhà ở",120,BtuCalculatorService,true
+khach_san,"Khách sạn, nhà nghỉ","Hotel, Motel Rooms","Nhà ở",120,BtuCalculatorService,true
+van_phong,"Văn phòng (viền ngoài)","Office - General (perimeter)","Văn phòng",170,BtuCalculatorService,true
+van_phong_interior,"Văn phòng (bên trong)","Office - General (interior)","Văn phòng",100,BtuCalculatorService,true
+van_phong_private,"Văn phòng cá nhân","Office - Private","Văn phòng",180,BtuCalculatorService,true
+cua_hang,"Cửa hàng","Clothing / Shoe Stores","Thương mại",165,BtuCalculatorService,true
+sieu_thi,"Siêu thị","Supermarkets","Thương mại",160,BtuCalculatorService,true
+showroom,"Showroom","Showroom (commercial)","Thương mại",300,BtuCalculatorService,true
+ngan_hang,"Ngân hàng","Banks","Thương mại",175,BtuCalculatorService,true
+nha_hang,"Nhà hàng","Restaurants",F&B,330,BtuCalculatorService,true
+cafe,"Quán cà phê","Cafeterias",F&B,350,BtuCalculatorService,true
+fastfood,"Thức ăn nhanh, giải khát","Milk Bars, Fast food",F&B,270,BtuCalculatorService,true
+hoi_truong,"Hội trường, giảng đường","Auditorium","Hội trường / Giáo dục",280,BtuCalculatorService,true
+phong_hop,"Phòng họp","Conference Rooms","Hội trường / Giáo dục",275,BtuCalculatorService,true
+phong_hoc,"Phòng học","Classroom","Hội trường / Giáo dục",95,BtuCalculatorService,true
+thu_vien,"Thư viện","Library","Hội trường / Giáo dục",150,BtuCalculatorService,true
+rap_hat,"Rạp hát","Theatres","Hội trường / Giáo dục",280,BtuCalculatorService,true
+benh_vien,"Bệnh viện, phòng khám","Clinics","Y tế",190,BtuCalculatorService,true
+phong_duoc,"Văn phòng dược","Medical Offices","Y tế",185,BtuCalculatorService,true
+nha_xuong,"Nhà xưởng (CN nhẹ)","Factory Light Manufacture","Công nghiệp",275,BtuCalculatorService,true
+nha_xuong_nang,"Nhà xưởng (CN nặng)","Factory Heavy Manufacture","Công nghiệp",490,BtuCalculatorService,true
+phong_may_tinh,"Phòng máy tính / Server","Computer Room","Đặc biệt",480,BtuCalculatorService,true
+phong_thi_nghiem,"Phòng thí nghiệm","Laboratory","Đặc biệt",230,BtuCalculatorService,true
+tham_my_vien,"Thẩm mỹ viện","Beauty shops","Đặc biệt",260,BtuCalculatorService,true
+sanh_hanh_lang,"Sảnh, hành lang","Mall","Đặc biệt",135,BtuCalculatorService,true
+tang_ham,"Tầng hầm","Basement","Đặc biệt",125,BtuCalculatorService,true

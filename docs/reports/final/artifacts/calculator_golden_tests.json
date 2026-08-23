@@ -1,0 +1,17 @@
+{
+  "rule_version": "consumer-estimate-v1",
+  "cases": {
+    "small_room": {"inputs":[5,3,"nha_o",0,false,false],"calculated_btu":2047,"recommended_btu":9000,"hp":1},
+    "bedroom_normal": {"inputs":[20,3,"nha_o",2,false,false],"calculated_btu":8189,"recommended_btu":9000,"hp":1},
+    "office": {"inputs":[40,3,"van_phong",10,false,false],"calculated_btu":23202,"recommended_btu":24000,"hp":2.7},
+    "high_ceiling": {"inputs":[30,4,"nha_o",10,false,false],"calculated_btu":16336,"recommended_btu":18000,"hp":2},
+    "many_people": {"inputs":[30,3,"nha_o",20,false,false],"calculated_btu":16283,"recommended_btu":18000,"hp":2},
+    "direct_sun": {"inputs":[30,3,"nha_o",10,true,false],"calculated_btu":13511,"recommended_btu":18000,"hp":2},
+    "heat_equipment": {"inputs":[30,3,"nha_o",10,false,true],"calculated_btu":13511,"recommended_btu":18000,"hp":2},
+    "combined": {"inputs":[30,4,"nha_o",12,true,true],"calculated_btu":20567,"recommended_btu":24000,"hp":2.7},
+    "boundary_area": {"inputs":[5000,3,"nha_o",0,false,false],"calculated_btu":2047200,"recommended_btu":2048000,"hp":227.6},
+    "large_room": {"inputs":[200,3,"van_phong",20,true,true],"calculated_btu":144370,"recommended_btu":145000,"hp":16.1},
+    "invalid_area": {"inputs":[0,3,"van_phong",0,false,false],"warning":"missing_btu_inputs:area_m2"}
+  },
+  "property_contracts": ["increasing area does not reduce calculated load","height above baseline does not reduce load","people above included baseline do not reduce load","sun/equipment flags do not reduce load","recommended tier is never below calculated load"]
+}

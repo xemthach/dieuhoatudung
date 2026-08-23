@@ -1,0 +1,28 @@
+key,label,current_w_m2,proposed_w_m2,delta_w_m2,delta_percent,proposed_btu_m2,derived_volume_w_m3,confidence,reason,activation_status
+nha_o,"Căn hộ, nhà ở",120,175.843,55.843,46.54,600,58.614333,HIGH,"600 BTU/m² Panasonic Vietnam baseline; precision prevents false tier crossing",PROPOSAL_NOT_ACTIVATED
+phong_khach,"Phòng khách (nhà ở)",120,205.15,85.15,70.96,700,68.383333,MEDIUM,"700 BTU/m² lower reference bound; avoid automatic 850 jump",PROPOSAL_NOT_ACTIVATED
+khach_san,"Khách sạn, nhà nghỉ",120,219.803,99.803,83.17,750,73.267667,HIGH,"750 BTU/m² midpoint of Panasonic hotel 700-800",PROPOSAL_NOT_ACTIVATED
+van_phong,"Văn phòng (viền ngoài)",170,219.803,49.803,29.3,750,73.267667,HIGH,"750 BTU/m² midpoint of Panasonic office 700-800",PROPOSAL_NOT_ACTIVATED
+van_phong_interior,"Văn phòng (bên trong)",100,205.15,105.15,105.15,700,68.383333,MEDIUM,"700 BTU/m² lower bound because source lacks interior distinction",PROPOSAL_NOT_ACTIVATED
+van_phong_private,"Văn phòng cá nhân",180,219.803,39.803,22.11,750,73.267667,MEDIUM,"750 BTU/m²; source lacks private-office distinction",PROPOSAL_NOT_ACTIVATED
+cua_hang,"Cửa hàng",165,234.457,69.457,42.1,800,78.152333,MEDIUM,"User retail 800 BTU/m²; provenance not independently proven",PROPOSAL_NOT_ACTIVATED
+sieu_thi,"Siêu thị",160,263.764,103.764,64.85,900,87.921333,LOW,"900 BTU/m² between retail and shopping-center references; semantic variation high",REVIEW_ONLY_KEEP_V1
+showroom,Showroom,300,300,0,0,1023.64,100,LOW,"Keep v1 pending a showroom-specific source",REVIEW_ONLY_KEEP_V1
+ngan_hang,"Ngân hàng",175,249.11,74.11,42.35,850,83.036667,MEDIUM,"User bank 850 BTU/m²",PROPOSAL_NOT_ACTIVATED
+nha_hang,"Nhà hàng",330,278.417,-51.583,-15.63,950,92.805667,HIGH,"950 BTU/m² midpoint of Panasonic restaurant 900-1000",PROPOSAL_NOT_ACTIVATED
+cafe,"Quán cà phê",350,278.417,-71.583,-20.45,950,92.805667,HIGH,"950 BTU/m² midpoint of Panasonic cafe 900-1000",PROPOSAL_NOT_ACTIVATED
+fastfood,"Thức ăn nhanh, giải khát",270,293.071,23.071,8.54,1000,97.690333,MEDIUM,"1000 BTU/m² upper Panasonic restaurant range for higher turnover",PROPOSAL_NOT_ACTIVATED
+hoi_truong,"Hội trường, giảng đường",280,278.417,-1.583,-0.57,950,92.805667,HIGH,"950 BTU/m² midpoint of Panasonic hall 900-1000",PROPOSAL_NOT_ACTIVATED
+phong_hop,"Phòng họp",275,275,0,0,938.34,91.666667,LOW,"Keep v1: user 1500 and Panasonic 900-1000 disagree materially",REVIEW_ONLY_KEEP_V1
+phong_hoc,"Phòng học",95,95,0,0,324.15,31.666667,LOW,"Keep v1 pending classroom-specific authority and occupancy scope",REVIEW_ONLY_KEEP_V1
+thu_vien,"Thư viện",150,249.11,99.11,66.07,850,83.036667,MEDIUM,"User library/museum 850 BTU/m²",PROPOSAL_NOT_ACTIVATED
+rap_hat,"Rạp hát",280,280,0,0,955.4,93.333333,LOW,"Keep v1; dance-hall reference is not theatre",REVIEW_ONLY_KEEP_V1
+benh_vien,"Bệnh viện, phòng khám",190,190,0,0,648.31,63.333333,LOW,"Keep v1 pending healthcare-specific authority",REVIEW_ONLY_KEEP_V1
+phong_duoc,"Văn phòng dược",185,185,0,0,631.25,61.666667,LOW,"Keep v1 pending medical-office authority",REVIEW_ONLY_KEEP_V1
+nha_xuong,"Nhà xưởng (CN nhẹ)",275,275,0,0,938.34,91.666667,LOW,"Keep v1 pending process-load authority",REVIEW_ONLY_KEEP_V1
+nha_xuong_nang,"Nhà xưởng (CN nặng)",490,490,0,0,1671.95,163.333333,LOW,"Keep v1 pending process-load authority",REVIEW_ONLY_KEEP_V1
+phong_may_tinh,"Phòng máy tính / Server",480,480,0,0,1637.83,160,LOW,"Keep v1; IT load requires equipment-specific sizing",REVIEW_ONLY_KEEP_V1
+phong_thi_nghiem,"Phòng thí nghiệm",230,230,0,0,784.79,76.666667,LOW,"Keep v1 pending laboratory-specific authority",REVIEW_ONLY_KEEP_V1
+tham_my_vien,"Thẩm mỹ viện",260,260,0,0,887.16,86.666667,LOW,"Keep v1 pending beauty-shop-specific authority",REVIEW_ONLY_KEEP_V1
+sanh_hanh_lang,"Sảnh, hành lang",135,135,0,0,460.64,45,LOW,"Keep v1; split lobby from corridor before calibration",REVIEW_ONLY_KEEP_V1
+tang_ham,"Tầng hầm",125,125,0,0,426.52,41.666667,LOW,"Keep v1 pending basement-specific authority",REVIEW_ONLY_KEEP_V1

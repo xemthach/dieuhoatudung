@@ -67,6 +67,17 @@ class ViewQuoteRequest extends ViewRecord
                     TextEntry::make('created_at')
                         ->label('Nhận lúc')
                         ->dateTime('d/m/Y H:i'),
+
+                    TextEntry::make('entry_context')
+                        ->label('Điểm vào')
+                        ->badge()
+                        ->formatStateUsing(fn ($state) => match ($state) {
+                            'product' => 'Trang sản phẩm',
+                            'calculator' => 'Công cụ BTU',
+                            'category' => 'Danh mục / Thương hiệu',
+                            'campaign' => 'Chiến dịch',
+                            default => 'Trực tiếp',
+                        }),
                 ]),
                 Grid::make(['default' => 1, 'md' => 3])->schema([
                     TextEntry::make('source_page')->label('Trang nguồn')->limit(60)
@@ -77,6 +88,25 @@ class ViewQuoteRequest extends ViewRecord
                         ->visible(fn ($record) => !empty($record->utm_campaign)),
                 ]),
             ]),
+
+            Section::make('Kết quả công cụ BTU')
+                ->visible(fn ($record) => ! empty($record->calculator_context))
+                ->schema([
+                    Grid::make(['default' => 2, 'md' => 4])->schema([
+                        TextEntry::make('calculator_context.method')
+                            ->label('Phương pháp')
+                            ->formatStateUsing(fn ($state) => $state === 'volume' ? 'Theo thể tích' : 'Theo diện tích'),
+                        TextEntry::make('calculator_context.rule_version')->label('Rule version'),
+                        TextEntry::make('calculator_context.calculated_btu')
+                            ->label('Nhu cầu ước tính')
+                            ->formatStateUsing(fn ($state) => $state ? number_format((int) $state).' BTU/h' : '—'),
+                        TextEntry::make('calculator_context.recommended_btu')
+                            ->label('Nhóm công suất')
+                            ->formatStateUsing(fn ($state) => $state ? number_format((int) $state).' BTU' : '—')
+                            ->badge()
+                            ->color('primary'),
+                    ]),
+                ]),
 
             // ══════════════════════════════════════════
             // Card 2: Khách hàng

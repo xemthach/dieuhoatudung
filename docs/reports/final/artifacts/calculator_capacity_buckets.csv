@@ -1,0 +1,15 @@
+tier_btu,configured_area_copy,current_catalog_count,verified_rac_count,semantics
+9000,10 - 15 m2,0,0,marketing tier
+12000,15 - 20 m2,1,0,marketing tier
+18000,20 - 30 m2,2,1,marketing tier
+24000,25 - 40 m2,4,3,marketing tier
+28000,35 - 48 m2,0,0,marketing tier
+30000,38 - 52 m2,0,0,marketing tier
+36000,45 - 62 m2,3,2,marketing tier
+42000,55 - 72 m2,3,3,marketing tier
+45000,58 - 78 m2,0,0,marketing tier
+48000,60 - 83 m2,2,2,marketing tier
+50000,65 - 86 m2,0,0,marketing tier
+60000,80 - 103 m2,0,0,marketing tier
+100000,100 m2 tro len,0,0,marketing tier
+55000,not configured,1,1,catalog-only marketing capacity

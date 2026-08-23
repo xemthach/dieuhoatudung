@@ -2,6 +2,31 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.29.0] - 2026-08-24
+
+### Added
+- Added separate area and volume consumer-estimate methods with explicit persisted method and rule-version lineage.
+- Activated the category-calibrated hybrid Calculator V2 rules while preserving V1 for historical replay and retaining V1 factors for low-confidence categories.
+- Added deterministic, brand-neutral equipment-type guidance for wall-mounted, cassette, ducted, ceiling-exposed and floor-standing preferences.
+- Added read-only calculator governance, calibration evidence, rule matrices and golden regression fixtures.
+- Added a three-step quote workflow with Calculator/Product context reuse, idempotent submission tokens and transactional Quote/Lead creation.
+
+### Changed
+- Calculator results now separate estimated cooling need, calculated market tier, catalog availability and type-specific Product matches.
+- Quote requests now keep validated entry context, supplied-field evidence and Calculator context without placing customer PII in URLs or generic analytics.
+- Product HVAC classification now evaluates category and explicit Product type together and fails closed when recognized sources conflict.
+- Large-load estimates now escalate to technical consultation without inventing a multi-unit or VRF design.
+
+### Fixed
+- Prevented under-sized, VRF, OTHER, UNKNOWN and unverified Product classes from entering RAC calculator recommendations.
+- Prevented Method B from applying the Method A ceiling-height multiplier after height was already included in room volume.
+- Prevented duplicate Quote/Lead creation when the same submission token is retried.
+
+### Security and operations
+- Calculator and equipment recommendations remain deterministic and independent of AI/provider availability.
+- Added three backward-compatible migrations for calculator lineage and Quote workflow context; no Product/catalog technical data migration is included.
+- Live deployment requires a managed-worker restart, web/worker release alignment, scheduler verification and intentional restoration of the pre-deploy worker desired state.
+
 ## [1.28.2] - 2026-08-23
 
 ### Fixed

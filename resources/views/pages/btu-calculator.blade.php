@@ -6,22 +6,36 @@
 >
 
 @push('schema')
+@php
+    $calculatorSchema = [
+        '@context' => 'https://schema.org',
+        '@graph' => [
+            [
+                '@type' => 'WebPage',
+                'name' => $seoTitle,
+                'description' => $seoDescription,
+                'url' => $canonical,
+                'breadcrumb' => [
+                    '@type' => 'BreadcrumbList',
+                    'itemListElement' => [
+                        ['@type' => 'ListItem', 'position' => 1, 'name' => 'Trang chủ', 'item' => url('/')],
+                        ['@type' => 'ListItem', 'position' => 2, 'name' => 'Công cụ chọn công suất'],
+                    ],
+                ],
+            ],
+            [
+                '@type' => 'FAQPage',
+                'mainEntity' => collect($calculatorFaqs)->map(fn (array $faq): array => [
+                    '@type' => 'Question',
+                    'name' => $faq['question'],
+                    'acceptedAnswer' => ['@type' => 'Answer', 'text' => $faq['answer']],
+                ])->values()->all(),
+            ],
+        ],
+    ];
+@endphp
 <script type="application/ld+json">
-{
-    "@@context": "https://schema.org",
-    "@@type": "WebPage",
-    "name": "{{ $seoTitle }}",
-    "description": "{{ $seoDescription }}",
-    "url": "{{ $canonical }}",
-    "breadcrumb": {
-        "@@type": "BreadcrumbList",
-        "itemListElement": [
-            { "@@type": "ListItem", "position": 1, "name": "Trang chủ", "item": "{{ url('/') }}" },
-            { "@@type": "ListItem", "position": 2, "name": "Công cụ", "item": "{{ url('/cong-cu') }}" },
-            { "@@type": "ListItem", "position": 3, "name": "Chọn công suất điều hòa" }
-        ]
-    }
-}
+{!! json_encode($calculatorSchema, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) !!}
 </script>
 @endpush
 
@@ -40,7 +54,7 @@
             Công Cụ Chọn Công Suất Điều Hòa Tủ Đứng
         </h1>
         <p class="mx-auto mt-3 max-w-2xl text-base text-surface-600">
-            Nhập diện tích và thông tin không gian — hệ thống tính chính xác số BTU phù hợp và gợi ý model điều hòa tủ đứng tốt nhất cho bạn.
+            Chọn tính theo diện tích hoặc thể tích để ước tính nhóm công suất BTU tham khảo và xem các sản phẩm RAC không thấp hơn nhu cầu đã tính.
         </p>
     </div>
 
@@ -56,31 +70,14 @@
         <h2 class="mb-6 text-xl font-bold text-surface-900">Câu Hỏi Thường Gặp Về BTU Điều Hòa Tủ Đứng</h2>
 
         <div class="space-y-3">
-            @foreach([
-                [
-                    'q' => 'BTU là gì? Tại sao phải chọn đúng BTU?',
-                    'a' => 'BTU (British Thermal Unit) là đơn vị đo công suất làm lạnh của điều hòa. Chọn BTU đúng giúp máy làm mát hiệu quả, tiết kiệm điện và tăng tuổi thọ thiết bị. BTU quá nhỏ máy chạy liên tục không lạnh đủ; BTU quá lớn lãng phí điện và gây ẩm ướt.',
-                ],
-                [
-                    'q' => 'Điều hòa 24000 BTU phù hợp với diện tích bao nhiêu?',
-                    'a' => 'Điều hòa tủ đứng 24000 BTU phù hợp cho không gian 25–40 m² với trần cao 3m, ít người, ít nắng. Với văn phòng có 20-30 người hoặc nhà hàng nên chọn 36000 BTU trở lên.',
-                ],
-                [
-                    'q' => 'Sự khác biệt giữa 1 HP, 1.5 HP và 2 HP?',
-                    'a' => '1 HP ≈ 9.000 BTU, 1.5 HP ≈ 12.000–14.000 BTU, 2 HP ≈ 18.000–20.000 BTU. Điều hòa tủ đứng thường bắt đầu từ 24.000 BTU (khoảng 2.5-3 HP) trở lên, phù hợp cho không gian thương mại lớn.',
-                ],
-                [
-                    'q' => 'Nên chọn inverter hay on/off cho điều hòa tủ đứng?',
-                    'a' => 'Inverter hỗ trợ máy nén điều chỉnh tải theo nhu cầu vận hành. Mức hiệu quả điện năng và độ ồn phải đối chiếu theo thông số từng model, điều kiện lắp đặt và thời gian sử dụng thực tế.',
-                ],
-            ] as $faq)
+            @foreach($calculatorFaqs as $faq)
             <details class="group rounded-xl border border-surface-200 bg-white">
                 <summary class="flex cursor-pointer items-center justify-between gap-4 p-4 font-medium text-surface-800 hover:text-primary-600">
-                    {{ $faq['q'] }}
+                    {{ $faq['question'] }}
                     <svg class="h-4 w-4 flex-shrink-0 transition-transform group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
                 </summary>
                 <div class="border-t border-surface-100 px-4 pb-4 pt-3 text-sm text-surface-600 leading-relaxed">
-                    {{ $faq['a'] }}
+                    {{ $faq['answer'] }}
                 </div>
             </details>
             @endforeach

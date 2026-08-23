@@ -1,0 +1,71 @@
+{
+    "analysis_conversion": {
+        "w_to_btu": 3.412141633,
+        "runtime_unchanged": 3.412
+    },
+    "sources": [
+        {
+            "id": "PANASONIC_VN_LARGE_SPACE_GUIDANCE",
+            "level": "A_MANUFACTURER_CONSUMER_GUIDANCE",
+            "url": "https://www.panasonic.com/vn/air-solutions/learn-more/huong-dan-chon-cac-loai-dieu-hoa-cong-suat-lon.html",
+            "scope": "Vietnam consumer/commercial rule-of-thumb",
+            "values": [
+                "600 BTU/h/m² baseline",
+                "office/hotel 700-800",
+                "hall/restaurant/cafe 900-1000"
+            ],
+            "limitations": "Marketing guidance, not an engineering load standard; assumptions not fully enumerated"
+        },
+        {
+            "id": "PANASONIC_VN_AREA_VOLUME_GUIDANCE",
+            "level": "A_MANUFACTURER_CONSUMER_GUIDANCE",
+            "url": "https://www.panasonic.com/vn/air-solutions/learn-more/dieu-hoa-am-tran-18000btu.html",
+            "scope": "Vietnam consumer cassette sizing",
+            "values": [
+                "600 BTU/h/m²",
+                "200 BTU/h/m³"
+            ],
+            "limitations": "Consumer guidance, not full heat-load calculation"
+        },
+        {
+            "id": "ENERGY_STAR_ROOM_AC",
+            "level": "A_GOVERNMENT_PROGRAM_GUIDANCE",
+            "url": "https://www.energystar.gov/products/room_air_conditioners",
+            "scope": "US room air conditioners, 8-foot ceiling",
+            "values": [
+                "capacity chart",
+                "sun +10%",
+                "600 BTU per person above two",
+                "kitchen +4000 BTU"
+            ],
+            "limitations": "US climate/building assumptions; not directly transferable to Vietnam commercial spaces"
+        },
+        {
+            "id": "US_DOE_HOME_HVAC_GUIDE",
+            "level": "A_GOVERNMENT_ENGINEERING_BOUNDARY",
+            "url": "https://www.energy.gov/sites/prod/files/guide_to_home_heating_cooling.pdf",
+            "scope": "US residential HVAC",
+            "values": [
+                "old estimate 1 ton per 400-500 ft²"
+            ],
+            "limitations": "Explicitly warns rule ignores climate/envelope and recommends Manual J"
+        },
+        {
+            "id": "USER_SUPPLIED_ROOM_TYPE_TABLE",
+            "level": "REFERENCE_EVIDENCE",
+            "url": null,
+            "scope": "Room-type screenshot/table supplied by operator",
+            "values": [
+                "residential 700",
+                "living/dining 850",
+                "retail/office 800",
+                "library/bank 850",
+                "shopping center 1000",
+                "meeting hall 1500",
+                "dance hall 2000"
+            ],
+            "limitations": "Provenance unknown; 0.235 kW/m² equals about 801.85 BTU/h/m², inconsistent with a displayed 850 value",
+            "status": "SOURCE_INTERNAL_INCONSISTENCY"
+        }
+    ]
+}

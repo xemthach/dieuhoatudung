@@ -1,0 +1,14 @@
+{
+  "capacity_source": "products.marketing_capacity_btu",
+  "legacy_fallback_mode": "adapter supports migration fallback, current schema uses canonical column",
+  "eligibility": ["is_active = true","marketing_capacity_btu > 0","stock_status is null or not out_of_stock","verified RAC class"],
+  "accepted_classes": ["RAC_SPLIT","RAC_CASSETTE","RAC_DUCTED","RAC_FLOOR_CEILING","RAC_FLOOR_STANDING"],
+  "excluded_classes": ["VRF_OUTDOOR","VRF_INDOOR","VRF_SYSTEM","OTHER","UNKNOWN"],
+  "primary_range": "recommended_btu .. next_tier(recommended_btu)",
+  "fallback_range": "recommended_btu .. recommended_btu + 12000 when fewer than 4 primary results",
+  "under_sizing": "FORBIDDEN",
+  "ranking": {"default":"absolute marketing-capacity delta","gia_tot":"effective sale/regular price then capacity delta"},
+  "no_result": "calculation succeeds and recommendation is empty",
+  "runtime_proof": {"target_28000":[{"product_id":1241,"capacity":36000,"class":"RAC_CASSETTE"},{"product_id":1248,"capacity":36000,"class":"RAC_CASSETTE"}],"target_60000":[]},
+  "fixed_previous_behavior": "previously target 28000 returned 24000 and target 60000 returned 55000/48000; UNKNOWN products also passed"
+}
