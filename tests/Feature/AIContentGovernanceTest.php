@@ -15,11 +15,11 @@ class AIContentGovernanceTest extends TestCase
 
     public function test_product_capacity_btu_from_database_is_allowed(): void
     {
-        $product = Product::factory()->create(['btu' => 24000]);
+        $product = Product::factory()->create(['btu' => 24000, 'technical_capacity_btu' => 24000, 'technical_capacity_status' => 'verified_candidate']);
         $governance = app(AIContentGovernance::class);
 
         $result = $governance->validateText(
-            '<p>San pham co cong suat 24.000 BTU.</p>',
+            '<p>San pham co cong suat ky thuat 24.000 BTU.</p>',
             $governance->buildProductContext($product)
         );
 
@@ -90,24 +90,17 @@ class AIContentGovernanceTest extends TestCase
 
     public function test_unverified_btu_number_is_warned(): void
     {
-        $product = Product::factory()->create(['btu' => 24000]);
+        $product = Product::factory()->create(['btu' => 24000, 'technical_capacity_btu' => 24000, 'technical_capacity_status' => 'verified_candidate']);
         $governance = app(AIContentGovernance::class);
 
         $result = $governance->validateText(
-            '<p>San pham nay co cong suat 30.000 BTU.</p>',
+            '<p>San pham nay co cong suat ky thuat 30.000 BTU.</p>',
             $governance->buildProductContext($product)
         );
 
-        // Unverified technical numeric claims are warnings, not blocks
-        $hasWarning = false;
-        foreach ($result['warnings'] as $w) {
-            if (str_contains($w, '30.000') || str_contains($w, 'unverified')) {
-                $hasWarning = true;
-                break;
-            }
-        }
-        $this->assertTrue($hasWarning);
-        $this->assertNotContains('unverified_numeric_claim:30.000 BTU', $result['blocked_claims']);
+        // A contradicted technical capacity is a hard governance block.
+        $this->assertSame('blocked', $result['status']);
+        $this->assertContains('contradicted_technical_capacity:30.000 BTU', $result['blocked_claims']);
     }
 
     public function test_refrigerant_code_is_not_treated_as_ampere_claim(): void
@@ -199,7 +192,7 @@ class AIContentGovernanceTest extends TestCase
 
     public function test_internal_service_or_variable_names_are_blocked(): void
     {
-        $product = Product::factory()->create(['btu' => 24000]);
+        $product = Product::factory()->create(['btu' => 24000, 'technical_capacity_btu' => 24000, 'technical_capacity_status' => 'verified_candidate']);
         $governance = app(AIContentGovernance::class);
 
         $result = $governance->validateText(
@@ -213,16 +206,16 @@ class AIContentGovernanceTest extends TestCase
 
     public function test_nested_used_facts_are_normalized_before_validation(): void
     {
-        $product = Product::factory()->create(['btu' => 24000]);
+        $product = Product::factory()->create(['btu' => 24000, 'technical_capacity_btu' => 24000, 'technical_capacity_status' => 'verified_candidate']);
         $governance = app(AIContentGovernance::class);
 
         $result = $governance->validateText(
-            '<p>San pham co cong suat 24.000 BTU.</p>',
+            '<p>San pham co cong suat ky thuat 24.000 BTU.</p>',
             $governance->buildProductContext($product),
-            [['name' => 'product.capacity_btu'], ['code' => 'unknown.fact']]
+            [['name' => 'product.rated_cooling_capacity_btu'], ['code' => 'unknown.fact']]
         );
 
-        $this->assertContains('product.capacity_btu', $result['used_facts']);
+        $this->assertContains('product.rated_cooling_capacity_btu', $result['used_facts']);
         $this->assertContains('unverified_used_fact:unknown.fact', $result['warnings']);
     }
 
@@ -230,9 +223,11 @@ class AIContentGovernanceTest extends TestCase
     {
         $product = Product::factory()->create([
             'btu' => 24000,
-            'refrigerant_gas' => 'R32',
+            'technical_capacity_btu' => 24000,
+            'technical_capacity_status' => 'verified_candidate',
             'specs_json' => [
-                ['key' => 'outdoor_noise_db', 'value' => '48'],
+                ['key' => 'refrigerant_gas', 'value' => 'R32', 'source_section' => 'TECHNICAL_APPENDIX', 'verification_status' => 'verified_candidate'],
+                ['key' => 'outdoor_noise_db', 'value' => '48', 'source_section' => 'TECHNICAL_APPENDIX', 'verification_status' => 'verified_candidate'],
             ],
         ]);
         $governance = app(AIContentGovernance::class);
@@ -241,15 +236,15 @@ class AIContentGovernanceTest extends TestCase
         $btuFactId = collect($publicFacts)->firstWhere('value', 24000)['id'];
 
         $result = $governance->validateText(
-            '<p>San pham co cong suat 24.000 BTU va gas R32.</p>',
+            '<p>San pham co cong suat ky thuat 24.000 BTU va gas R32.</p>',
             $context,
             [$btuFactId, 'R32', 'outdoor_noise_db']
         );
 
-        $this->assertContains('product.capacity_btu', $result['used_facts']);
+        $this->assertContains('product.rated_cooling_capacity_btu', $result['used_facts']);
         $this->assertContains('product.refrigerant', $result['used_facts']);
-        $this->assertContains('product.technical_specs_json.0', $result['used_facts']);
-        $this->assertSame([], array_values(array_filter(
+        $this->assertContains('unverified_used_fact:outdoor_noise_db', $result['warnings']);
+        $this->assertNotEmpty(array_values(array_filter(
             $result['warnings'],
             fn (string $warning): bool => str_starts_with($warning, 'unverified_used_fact:')
         )));
@@ -257,7 +252,7 @@ class AIContentGovernanceTest extends TestCase
 
     public function test_public_governance_context_does_not_expose_internal_fact_keys(): void
     {
-        $product = Product::factory()->create(['btu' => 24000]);
+        $product = Product::factory()->create(['btu' => 24000, 'technical_capacity_btu' => 24000, 'technical_capacity_status' => 'verified_candidate']);
         $governance = app(AIContentGovernance::class);
 
         $publicContext = json_encode(
@@ -267,6 +262,6 @@ class AIContentGovernanceTest extends TestCase
 
         $this->assertStringNotContainsString('product.capacity_btu', $publicContext);
         $this->assertStringNotContainsString('BtuCalculatorService', $publicContext);
-        $this->assertStringContainsString('công suất BTU', $publicContext);
+        $this->assertStringContainsString('capacity btu', $publicContext);
     }
 }

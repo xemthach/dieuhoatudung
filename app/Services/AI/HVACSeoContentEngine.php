@@ -5,6 +5,7 @@ namespace App\Services\AI;
 use App\Models\AiContentJob;
 use App\Models\Brand;
 use App\Models\Product;
+use App\Services\Product\ProductTechnicalFactResolver;
 use App\Support\EncodingGuard;
 use App\Support\IssueList;
 use Illuminate\Support\Arr;
@@ -28,10 +29,12 @@ class HVACSeoContentEngine
     ];
 
     private AIContentGovernance $governance;
+    private ProductTechnicalFactResolver $technicalFacts;
 
-    public function __construct(?AIContentGovernance $governance = null)
+    public function __construct(?AIContentGovernance $governance = null, ?ProductTechnicalFactResolver $technicalFacts = null)
     {
         $this->governance = $governance ?? app(AIContentGovernance::class);
+        $this->technicalFacts = $technicalFacts ?? app(ProductTechnicalFactResolver::class);
     }
 
     public function generate(AIManager $aiManager, AiContentJob $job, string $contextId): array
@@ -220,11 +223,7 @@ class HVACSeoContentEngine
             'brand' => $product->brand?->name,
             'category' => $product->category?->name,
             'model_code' => $product->model_code ?? null,
-            'btu' => $product->btu ?? null,
-            'capacity_kw' => $product->capacity_kw ?? null,
-            'hp' => $product->hp ?? null,
-            'inverter' => $product->inverter ?? null,
-            'refrigerant_gas' => $product->refrigerant_gas ?? null,
+            'technical_facts' => $this->technicalFacts->allVerified($product),
         ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) : 'null';
 
         $brandBlock = $brand ? json_encode([

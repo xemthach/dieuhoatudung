@@ -3,6 +3,7 @@
 namespace App\Services\AI\Governance;
 
 use App\Models\Product;
+use App\Services\Product\ProductTechnicalFactResolver;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
 
@@ -10,12 +11,13 @@ class VerifiedFactRegistry
 {
     public function __construct(
         private readonly HVACUnitNormalizer $normalizer,
+        private readonly ProductTechnicalFactResolver $technicalFacts,
     ) {}
 
     public function buildForProduct(Product $product, array $allowedFacts = []): array
     {
         $product->loadMissing(['brand', 'category', 'catalogModel.fields']);
-        $hasCatalogFacts = $product->catalogModel?->fields?->isNotEmpty() === true;
+        $hasCatalogFacts = $product->catalogModel?->fields?->contains(fn ($field) => in_array((string) $field->verification_status, ['verified', 'verified_candidate', 'approved'], true) && ($field->source_section ?? 'TECHNICAL_APPENDIX') === 'TECHNICAL_APPENDIX') === true;
 
         $facts = [];
         foreach ($this->productFactDefinitions($product, includeTechnical: ! $hasCatalogFacts) as $key => $definition) {
@@ -32,6 +34,7 @@ class VerifiedFactRegistry
 
         if ($hasCatalogFacts) {
             foreach ($product->catalogModel->fields as $field) {
+                if (! in_array((string) $field->verification_status, ['verified', 'verified_candidate', 'approved'], true) || ($field->source_section ?? 'TECHNICAL_APPENDIX') !== 'TECHNICAL_APPENDIX') continue;
                 $key = 'catalog.technical_specs.'.$field->field_key;
                 $this->addFact(
                     $facts,
@@ -51,8 +54,9 @@ class VerifiedFactRegistry
         }
 
         $aiSchemaKeys = $this->aiSchemaKeys($product);
-        $flattenedSpecs = $hasCatalogFacts ? [] : $this->flattenSpecs($product->specs_json ?? []);
-        foreach ($flattenedSpecs as $index => $spec) {
+        $verifiedSpecs = $this->technicalFacts->allVerified($product);
+        foreach ($verifiedSpecs as $index => $verifiedValue) {
+            $spec = ['key' => $index, 'label' => $index, 'value' => $verifiedValue];
             if ($aiSchemaKeys !== [] && ! in_array($product->category?->normalizeTechnicalSchemaKey((string) $spec['key']), $aiSchemaKeys, true)) {
                 continue;
             }
@@ -69,8 +73,8 @@ class VerifiedFactRegistry
                 1.0,
                 [
                     'spec_key' => $spec['key'],
-                    'unit' => $this->inferUnitFromSpec($spec, $flattenedSpecs, $index),
-                    'source_page' => $spec['source_page'] ?? null,
+                    'unit' => $this->inferUnitFromSpec($spec),
+                    'source_page' => null,
                 ]
             );
         }
@@ -206,26 +210,25 @@ class VerifiedFactRegistry
             return $identity;
         }
 
-        $technical = [
-            'product.capacity_btu' => ['value' => $product->btu, 'source_field' => 'products.btu', 'label' => 'capacity btu'],
-            'product.capacity_kw' => ['value' => $product->capacity_kw, 'source_field' => 'products.capacity_kw', 'label' => 'capacity kw'],
-            'product.hp' => ['value' => $product->hp, 'source_field' => 'products.hp', 'label' => 'hp'],
-            'product.cooling_type' => ['value' => $product->cooling_type, 'source_field' => 'products.cooling_type', 'label' => 'cooling type'],
-            'product.inverter' => ['value' => $product->inverter, 'source_field' => 'products.inverter', 'label' => 'inverter'],
-            'product.phase' => ['value' => $product->voltage, 'source_field' => 'products.voltage', 'label' => 'phase voltage'],
-            'product.refrigerant' => ['value' => $product->refrigerant_gas, 'source_field' => 'products.refrigerant_gas', 'label' => 'refrigerant'],
-            'product.airflow' => ['value' => $product->airflow, 'source_field' => 'products.airflow', 'label' => 'airflow'],
-            'product.noise_level' => ['value' => $product->noise_level, 'source_field' => 'products.noise_level', 'label' => 'noise db'],
-            'product.indoor_dimensions' => ['value' => $product->indoor_dimensions, 'source_field' => 'products.indoor_dimensions', 'label' => 'indoor dimensions'],
-            'product.outdoor_dimensions' => ['value' => $product->outdoor_dimensions, 'source_field' => 'products.outdoor_dimensions', 'label' => 'outdoor dimensions'],
-            'product.weight' => ['value' => $product->weight, 'source_field' => 'products.weight', 'label' => 'weight'],
-            'product.recommended_area' => ['value' => $product->recommended_area, 'source_field' => 'products.recommended_area', 'label' => 'recommended area'],
-        ];
+        $technical = [];
+        foreach ([
+            'rated_cooling_capacity_btu' => 'rated cooling capacity btu', 'capacity_kw' => 'capacity kw', 'hp' => 'hp',
+            'cooling_type' => 'cooling type', 'inverter' => 'inverter', 'voltage' => 'phase voltage',
+            'refrigerant_gas' => 'refrigerant', 'airflow' => 'airflow', 'noise_level' => 'noise db',
+            'indoor_dimensions' => 'indoor dimensions', 'outdoor_dimensions' => 'outdoor dimensions',
+            'weight' => 'weight', 'recommended_area' => 'recommended area',
+        ] as $field => $label) {
+            // AI registry is verified-only. Display/canonical fallback values are
+            // intentionally excluded when provenance is absent.
+            $verified = $this->technicalFacts->getVerified($product, $field === 'rated_cooling_capacity_btu' ? 'technical_capacity_btu' : $field);
+            $value = $verified['value'] ?? null;
+            $technical['product.'.$field] = ['value' => $value, 'source_field' => 'ProductTechnicalFactResolver::'.$field, 'label' => $label];
+        }
 
         $aiSchemaKeys = $this->aiSchemaKeys($product);
         if ($aiSchemaKeys !== []) {
             $factToSchemaKey = [
-                'product.capacity_btu' => 'capacity_btu',
+                'product.rated_cooling_capacity_btu' => 'capacity_btu',
                 'product.capacity_kw' => 'capacity_kw',
                 'product.hp' => 'hp',
                 'product.cooling_type' => 'cooling_type',

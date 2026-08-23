@@ -87,15 +87,20 @@ class ProductController extends Controller
      */
     public function show(string $slug)
     {
-        $product = Product::with(['brand', 'category', 'tags', 'activeFaqs', 'publicDocuments', 'activeTestimonials', 'relatedProducts.brand'])
+        $product = Product::with([
+            'brand',
+            'category',
+            'tags',
+            'activeFaqs',
+            'publicDocuments',
+            'activeTestimonials',
+            'relatedProducts' => fn ($query) => $query->where('is_active', true)->with('brand'),
+        ])
             ->where('slug', $slug)
             ->where('is_active', true)
             ->firstOrFail();
 
-        $relatedProducts = $product->relatedProducts()
-            ->where('is_active', true)
-            ->take(4)
-            ->get();
+        $relatedProducts = $product->relatedProducts->take(4);
 
         // Nếu không có related products thì lấy cùng category
         if ($relatedProducts->isEmpty()) {

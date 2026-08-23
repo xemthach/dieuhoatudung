@@ -17,7 +17,9 @@
 /storage/framework/cache/*
 /storage/framework/sessions/*
 /storage/framework/views/*
+/storage/framework/testing/*
 /storage/app/private/*
+/storage/app/private/reports/*
 /storage/app/mpdf-tmp
 /storage/pail
 /storage/backups/
@@ -63,6 +65,13 @@ Thumbs.db
 *.zip
 *.sql
 *.sqlite
+
+# Local browser and audit output
+/screenshots/
+/coverage/
+*.har
+*.out
+*.err
 
 # Auth
 /auth.json

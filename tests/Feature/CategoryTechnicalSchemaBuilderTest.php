@@ -100,12 +100,14 @@ class CategoryTechnicalSchemaBuilderTest extends TestCase
         $product = Product::factory()->create([
             'product_category_id' => $category->id,
             'btu' => 24000,
+            'technical_capacity_btu' => 24000,
+            'technical_capacity_status' => 'verified_candidate',
             'noise_level' => '45 dB',
         ]);
 
         $context = app(AIContentGovernance::class)->buildProductContext($product);
 
-        $this->assertArrayHasKey('product.capacity_btu', $context['allowed_facts']);
+        $this->assertArrayHasKey('product.rated_cooling_capacity_btu', $context['allowed_facts']);
         $this->assertArrayNotHasKey('product.noise_level', $context['allowed_facts']);
     }
 
@@ -118,6 +120,8 @@ class CategoryTechnicalSchemaBuilderTest extends TestCase
         $product = Product::factory()->create([
             'product_category_id' => $category->id,
             'btu' => 24000,
+            'technical_capacity_btu' => 24000,
+            'technical_capacity_status' => 'verified_candidate',
             'noise_level' => '45',
         ]);
 

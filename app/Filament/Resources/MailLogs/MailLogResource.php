@@ -302,7 +302,7 @@ class MailLogResource extends Resource
                 'customer_email' => $model->email ?? '—',
                 'project_type'   => $model->project_type ?? '—',
                 'budget_range'   => $model->budget_range ?? '—',
-                'btu'            => $model->btu ? number_format($model->btu) : '—',
+                'btu'            => ($capacity = app(\App\Services\Product\ProductTechnicalFactResolver::class)->getDisplay($model, 'marketing_capacity_btu')) ? number_format($capacity['value']) : '—',
                 'message'        => $model->message ?? '—',
                 'source'         => $model->source_page ?? '—',
             ]),
@@ -338,4 +338,3 @@ class MailLogResource extends Resource
         };
     }
 }
-

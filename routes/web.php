@@ -157,7 +157,9 @@ Route::middleware(['auth'])->prefix('admin')->group(function () {
     })->name('admin.ai-content-jobs.status');
 
     Route::get('/ai-product-jobs/{aiProductJob}/status', function (\App\Models\AiProductJob $aiProductJob) {
-        abort_unless(auth()->user()?->can('product.ai_generate'), 403);
+        $actor = auth()->user();
+        abort_unless($actor?->can('bulk_ai_view'), 403);
+        abort_unless(app(\App\Services\AI\BulkRuntimeAuthorizationService::class)->canViewJob($actor, $aiProductJob), 404);
         $total = max(1, (int) $aiProductJob->total);
 
         return response()->json([

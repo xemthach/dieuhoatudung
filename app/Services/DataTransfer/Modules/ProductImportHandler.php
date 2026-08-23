@@ -7,11 +7,14 @@ use App\Models\Product;
 use App\Models\ProductCategory;
 use App\Services\DataTransfer\Contracts\ImportHandlerInterface;
 use App\Services\Product\ProductImportMapper;
+use App\Services\Product\ProductTechnicalSpecWriter;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 
 class ProductImportHandler implements ImportHandlerInterface
 {
+    public function __construct(private readonly ProductTechnicalSpecWriter $technicalWriter) {}
+
     public function validateRow(array $row, string $mode, string $matchingKey): array
     {
         $errors = [];
@@ -73,6 +76,10 @@ class ProductImportHandler implements ImportHandlerInterface
             }
         }
 
+        if ($this->technicalInput($row) !== [] && ! $this->hasCatalogProvenance($row)) {
+            $errors[] = 'Technical catalog fields require complete appendix provenance; direct product-column import is blocked.';
+        }
+
         // Validate brand_id exists (if provided as name, we'll resolve it)
         if (! empty($row['brand_id'] ?? null) && ! is_numeric($row['brand_id'])) {
             $brand = Brand::where('name', $row['brand_id'])->first();
@@ -124,7 +131,8 @@ class ProductImportHandler implements ImportHandlerInterface
 
     public function importRow(array $row, string $mode, string $matchingKey): string
     {
-        $data = $this->prepareData($row);
+        $technical = $this->technicalInput($row);
+        $data = $this->prepareData(array_diff_key($row, $technical));
         $existing = $this->findExisting($row, $matchingKey);
         $existingByUnique = $this->findExistingByUniqueIdentifiers($row, $data);
 
@@ -135,6 +143,7 @@ class ProductImportHandler implements ImportHandlerInterface
                 return 'skipped';
             }
             $target->update($data);
+            $this->writeTechnical($target->fresh(), $technical, $row);
 
             return 'updated';
         }
@@ -144,6 +153,7 @@ class ProductImportHandler implements ImportHandlerInterface
             $target = $existing ?: $existingByUnique;
             if ($target) {
                 $target->update($data);
+                $this->writeTechnical($target->fresh(), $technical, $row);
 
                 return 'updated';
             }
@@ -162,7 +172,8 @@ class ProductImportHandler implements ImportHandlerInterface
             $data['name'] ?? ''
         );
 
-        Product::create($data);
+        $created = Product::create($data);
+        $this->writeTechnical($created, $technical, $row);
 
         return 'created';
     }
@@ -220,9 +231,7 @@ class ProductImportHandler implements ImportHandlerInterface
         $data = [];
         $fillableFields = [
             'name', 'slug', 'sku', 'model_code', 'brand_id', 'product_category_id',
-            'series', 'btu', 'capacity_kw', 'hp', 'inverter', 'cooling_type', 'voltage', 'refrigerant_gas',
-            'power_consumption', 'airflow', 'noise_level', 'indoor_dimensions',
-            'outdoor_dimensions', 'weight', 'recommended_area',
+            'series',
             'regular_price', 'sale_price', 'discount_percent',
             'promotion_start_at', 'promotion_end_at', 'stock_status',
             'short_description', 'long_description', 'warranty_info', 'installation_note',
@@ -289,6 +298,64 @@ class ProductImportHandler implements ImportHandlerInterface
         }
 
         return $data;
+    }
+
+    private function technicalInput(array $row): array
+    {
+        $keys = [
+            'marketing_capacity_btu', 'technical_capacity_btu', 'capacity_kw', 'power_input_kw',
+            'power_consumption', 'btu', 'hp', 'inverter', 'cooling_type', 'voltage',
+            'refrigerant', 'refrigerant_gas', 'airflow', 'noise_level', 'indoor_dimensions',
+            'outdoor_dimensions', 'weight', 'recommended_area',
+        ];
+
+        return array_filter(
+            array_intersect_key($row, array_flip($keys)),
+            fn ($value): bool => $value !== null && $value !== ''
+        );
+    }
+
+    private function hasCatalogProvenance(array $row): bool
+    {
+        $section = (string) ($row['source_section'] ?? '');
+        return in_array($section, ['TECHNICAL_APPENDIX', 'PRODUCT_LIST'], true)
+            && filled($row['source_pdf'] ?? null)
+            && filled($row['source_sha256'] ?? null)
+            && filled($row['source_page'] ?? null)
+            && filled($row['source_row'] ?? null)
+            && filled($row['source_column'] ?? null)
+            && filled($row['extraction_method'] ?? null);
+    }
+
+    private function writeTechnical(Product $product, array $technical, array $row): void
+    {
+        if ($technical === []) {
+            return;
+        }
+        if (! $this->hasCatalogProvenance($row)) {
+            throw new \InvalidArgumentException('Catalog technical import requires TECHNICAL_APPENDIX provenance.');
+        }
+
+        $map = [
+            'btu' => (($row['source_section'] ?? '') === 'PRODUCT_LIST' ? 'marketing_capacity_btu' : 'technical_capacity_btu'),
+            'capacity_kw' => 'capacity_kw',
+            'power_input_kw' => 'power_input_kw',
+            'power_consumption' => 'power_input_kw',
+            'refrigerant' => 'refrigerant_gas',
+        ];
+        $provenance = [
+            'source_pdf' => $row['source_pdf'],
+            'source_sha256' => $row['source_sha256'],
+            'source_page' => $row['source_page'],
+            'source_row' => $row['source_row'],
+            'source_column' => $row['source_column'],
+            'source_section' => $row['source_section'],
+            'extraction_method' => $row['extraction_method'],
+        ];
+        foreach ($technical as $key => $value) {
+            $field = $map[$key] ?? $key;
+            $this->technicalWriter->write($product, $field, $value, $provenance);
+        }
     }
 
     private function missingVerifiedSource(mixed $specs): bool

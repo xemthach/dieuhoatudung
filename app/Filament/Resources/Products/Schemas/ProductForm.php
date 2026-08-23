@@ -106,47 +106,47 @@ class ProductForm
                                     ->schema([
                                         Grid::make(['default' => 1, 'md' => 3])
                                             ->schema([
-                                                TextInput::make('btu')
+                                                TextInput::make('btu')->readOnly()->dehydrated(false)
                                                     ->label('Công suất BTU')
                                                     ->numeric(),
-                                                TextInput::make('capacity_kw')
+                                                TextInput::make('capacity_kw')->readOnly()->dehydrated(false)
                                                     ->label('Công suất kW')
                                                     ->numeric()
                                                     ->step(0.01),
-                                                TextInput::make('hp')
+                                                TextInput::make('hp')->readOnly()->dehydrated(false)
                                                     ->label('Mã lực (HP)')
                                                     ->numeric()
                                                     ->step(0.1),
-                                                Toggle::make('inverter')
+                                                Toggle::make('inverter')->disabled()->dehydrated(false)
                                                     ->label('Công nghệ Inverter')
                                                     ->default(false)
                                                     ->required(),
-                                                Select::make('cooling_type')
+                                                Select::make('cooling_type')->disabled()->dehydrated(false)
                                                     ->label('Kiểu làm lạnh')
                                                     ->options([
                                                         '1_chieu' => '1 chiều',
                                                         '2_chieu' => '2 chiều',
                                                     ]),
-                                                TextInput::make('voltage')
+                                                TextInput::make('voltage')->readOnly()->dehydrated(false)
                                                     ->label('Điện áp'),
-                                                TextInput::make('refrigerant_gas')
+                                                TextInput::make('refrigerant_gas')->readOnly()->dehydrated(false)
                                                     ->label('Loại Gas'),
-                                                TextInput::make('power_consumption')
+                                                TextInput::make('power_consumption')->readOnly()->dehydrated(false)
                                                     ->label('Điện năng tiêu thụ'),
-                                                TextInput::make('airflow')
+                                                TextInput::make('airflow')->readOnly()->dehydrated(false)
                                                     ->label('Lưu lượng gió'),
-                                                TextInput::make('noise_level')
+                                                TextInput::make('noise_level')->readOnly()->dehydrated(false)
                                                     ->label('Độ ồn'),
-                                                TextInput::make('recommended_area')
+                                                TextInput::make('recommended_area')->readOnly()->dehydrated(false)
                                                     ->label('Diện tích đề nghị'),
                                             ]),
                                         Grid::make(['default' => 1, 'md' => 3])
                                             ->schema([
-                                                TextInput::make('indoor_dimensions')
+                                                TextInput::make('indoor_dimensions')->readOnly()->dehydrated(false)
                                                     ->label('Kích thước dàn lạnh'),
-                                                TextInput::make('outdoor_dimensions')
+                                                TextInput::make('outdoor_dimensions')->readOnly()->dehydrated(false)
                                                     ->label('Kích thước dàn nóng'),
-                                                TextInput::make('weight')
+                                                TextInput::make('weight')->readOnly()->dehydrated(false)
                                                     ->label('Trọng lượng'),
                                             ]),
 
@@ -155,7 +155,7 @@ class ProductForm
                                             ->content(fn (Get $get): string => self::technicalSchemaNotice($get('product_category_id')))
                                             ->columnSpanFull(),
 
-                                        Repeater::make('specs_json')
+                                        Repeater::make('specs_json')->disabled()
                                             ->label('Thông số kỹ thuật mở rộng')
                                             ->helperText('Chỉ thêm thông số KHÔNG có field chuẩn ở trên.')
                                             ->schema([
@@ -178,6 +178,8 @@ class ProductForm
                                     ->schema([
                                         Actions::make([
                                             Action::make('generate_content')
+                                                // Legacy form generation is hidden; use the canonical draft/job workflow.
+                                                ->visible(false)
                                                 ->label('Generate nội dung bằng AI')
                                                 ->icon('heroicon-o-sparkles')
                                                 ->color('primary')
@@ -199,7 +201,6 @@ class ProductForm
                                                             'name' => $get('name'),
                                                             'model_code' => $get('model_code'),
                                                             'brand' => ['name' => Brand::find($get('brand_id'))?->name],
-                                                            'btu' => $get('btu'),
                                                             'inverter' => $get('inverter'),
                                                             'cooling_type' => $get('cooling_type'),
                                                             'refrigerant_gas' => $get('refrigerant_gas'),
@@ -277,6 +278,8 @@ class ProductForm
                                     ->schema([
                                         Actions::make([
                                             Action::make('generate_seo')
+                                                // Legacy form generation is hidden; use the canonical draft/job workflow.
+                                                ->visible(false)
                                                 ->label('Generate SEO bằng AI')
                                                 ->icon('heroicon-o-sparkles')
                                                 ->color('success')

@@ -7,11 +7,13 @@ use App\Models\InternalLinkSuggestion;
 use App\Models\Post;
 use App\Models\Product;
 use App\Models\ProductCategory;
+use App\Services\Product\ProductTechnicalFactResolver;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
 
 class InternalLinkSuggestionService
 {
+    public function __construct(private readonly ProductTechnicalFactResolver $technicalFacts) {}
     // Score weights
     protected const SCORE_SHARED_TAG     = 30;
     protected const SCORE_KEYWORD_MATCH  = 25;
@@ -226,7 +228,9 @@ class InternalLinkSuggestionService
 
     protected function getBtu(Model $model): ?int
     {
-        $btu = $model->btu ?? null;
+        $btu = $model instanceof Product
+            ? $this->technicalFacts->value($model, 'marketing_capacity_btu')
+            : null;
         if (! $btu) return null;
         return (int) preg_replace('/[^0-9]/', '', (string) $btu);
     }

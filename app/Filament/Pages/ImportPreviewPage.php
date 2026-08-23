@@ -10,6 +10,7 @@ use App\Services\DataTransfer\ModuleRegistry;
 use Filament\Actions\Action;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
+use Illuminate\Support\Facades\Auth;
 
 class ImportPreviewPage extends Page
 {
@@ -18,6 +19,12 @@ class ImportPreviewPage extends Page
 
     public ?int $jobId = null;
     public ?DataImportJob $job = null;
+
+    public static function canAccess(): bool
+    {
+        $user = Auth::user();
+        return (bool) ($user && ($user->isSuperAdmin() || collect(ModuleRegistry::modules())->keys()->some(fn ($module) => $user->can($module.'.import'))));
+    }
 
     /**
      * Lookup maps for resolving foreign-key IDs to human-readable names.
@@ -48,7 +55,7 @@ class ImportPreviewPage extends Page
 
         $this->job = DataImportJob::find($this->jobId);
 
-        if (!$this->job || $this->job->status !== 'previewing') {
+        if (!$this->job || ! $this->canAccessJob($this->job) || $this->job->status !== 'previewing') {
             Notification::make()
                 ->warning()
                 ->title('Import job không hợp lệ hoặc đã được xử lý.')
@@ -297,6 +304,7 @@ class ImportPreviewPage extends Page
                 ->modalDescription(fn () => $this->getConfirmDescription())
                 ->modalSubmitActionLabel('Xác nhận và Import')
                 ->action(function () {
+                    abort_unless($this->job && $this->canAccessJob($this->job), 403);
                     $service = app(DataImportService::class);
                     $result = $service->confirmImport($this->job);
 
@@ -329,6 +337,7 @@ class ImportPreviewPage extends Page
                 ->modalSubmitActionLabel('Xác nhận hủy')
                 ->modalCancelActionLabel('Quay lại')
                 ->action(function () {
+                    abort_unless($this->job && $this->canAccessJob($this->job), 403);
                     $this->job?->update(['status' => 'failed', 'finished_at' => now()]);
                     Notification::make()
                         ->info()
@@ -360,5 +369,15 @@ class ImportPreviewPage extends Page
         $parts[] = "⚠ Hành động này không thể hoàn tác.";
 
         return implode("\n", $parts);
+    }
+
+    protected function canAccessJob(DataImportJob $job): bool
+    {
+        $user = Auth::user();
+        if (! $user) return false;
+        if ($user->isSuperAdmin()) return true;
+
+        return (int) $job->created_by === (int) $user->getAuthIdentifier()
+            && $user->can($job->module.'.import');
     }
 }

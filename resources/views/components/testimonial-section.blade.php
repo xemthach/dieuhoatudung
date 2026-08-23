@@ -2,7 +2,8 @@
     'testimonials',
     'title' => 'Khách Hàng Đánh Giá',
     'subtitle' => 'Những phản hồi chân thực từ các đối tác, nhà thầu và khách hàng đã sử dụng sản phẩm dịch vụ của chúng tôi.',
-    'product' => null // Optional: For AggregateRating schema
+    'product' => null,
+    'skipSchema' => false
 ])
 
 @if($testimonials->isNotEmpty())
@@ -24,7 +25,7 @@
     </section>
 
     {{-- Review Schema for Product --}}
-    @if($product && $testimonials->whereNotNull('rating')->count() > 0)
+    @if(!$skipSchema && $product && $testimonials->whereNotNull('rating')->count() > 0)
         @php
             $reviewCount = $testimonials->whereNotNull('rating')->count();
             $ratingValue = round($testimonials->whereNotNull('rating')->avg('rating'), 1);

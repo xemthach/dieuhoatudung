@@ -8,6 +8,7 @@ use App\Models\AiRequestLog;
 use App\Services\AI\Adapters\AIAdapterInterface;
 use App\Services\AI\Adapters\ClaudeAdapter;
 use App\Services\AI\Adapters\GeminiAdapter;
+use App\Services\AI\Adapters\FakeBulkAdapter;
 use App\Services\AI\Adapters\OpenAIAdapter;
 use App\Support\EncodingGuard;
 
@@ -27,8 +28,8 @@ class AIManager
     {
         $taskType = $options['task_type'] ?? 'general';
         $contextId = $options['context_id'] ?? null;
-        $allowFallback = $options['allow_fallback'] ?? true;
-        $maxAttempts = $options['max_attempts'] ?? 3;
+        $allowFallback = $options['allow_fallback'] ?? ($taskType === 'product_content' ? (bool) config('ai.production.allow_fallback', false) : true);
+        $maxAttempts = $options['max_attempts'] ?? (int) config('ai.production.max_attempts', 3);
 
         $session = null;
         $provider = null;
@@ -106,6 +107,11 @@ class AIManager
                     'tokens_used' => $result['tokens_used'] ?? 0,
                     'latency_ms' => $result['latency_ms'] ?? 0,
                     'json_keys' => array_keys($result['json'] ?? []),
+                    'finish_reason' => $result['finish_reason'] ?? null,
+                    'raw_response_length' => $result['raw_response_length'] ?? null,
+                    'response_fingerprint' => $result['response_fingerprint'] ?? null,
+                    'provider_request_id' => $result['provider_request_id'] ?? null,
+                    'schema_version' => config('ai_product_allowed_fields.schema_version', 'content-layer-runtime-contract-v1'),
                 ]);
 
                 return [
@@ -117,6 +123,10 @@ class AIManager
                     'json' => $result['json'] ?? [],
                     'tokens_used' => $result['tokens_used'] ?? 0,
                     'latency_ms' => $result['latency_ms'] ?? 0,
+                    'finish_reason' => $result['finish_reason'] ?? null,
+                    'raw_response_length' => $result['raw_response_length'] ?? null,
+                    'response_fingerprint' => $result['response_fingerprint'] ?? null,
+                    'provider_request_id' => $result['provider_request_id'] ?? null,
                 ];
 
             } catch (\Throwable $e) {
@@ -173,9 +183,11 @@ class AIManager
     private function getAdapter(AiProvider $provider): AIAdapterInterface
     {
         return match ($provider->provider) {
+            'fake' => new FakeBulkAdapter,
             'gemini' => new GeminiAdapter,
             'claude' => new ClaudeAdapter,
-            'openai', 'groq', 'ollama', 'custom' => new OpenAIAdapter,
+            'openai', 'groq', 'ollama' => new OpenAIAdapter,
+            'custom' => str_starts_with((string) $provider->model, 'fake-') ? new FakeBulkAdapter : new OpenAIAdapter,
             default => throw new \InvalidArgumentException("Unsupported provider: {$provider->provider}")
         };
     }

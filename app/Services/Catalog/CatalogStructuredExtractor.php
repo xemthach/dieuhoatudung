@@ -2,6 +2,7 @@
 
 namespace App\Services\Catalog;
 
+use App\Enums\CatalogSectionType;
 use App\Models\CatalogModel;
 use App\Models\CatalogModelField;
 use App\Models\CatalogSource;
@@ -24,6 +25,7 @@ class CatalogStructuredExtractor
     {
         $ext = strtolower((string) ($fileMeta['extension'] ?? pathinfo((string) $fileMeta['path'], PATHINFO_EXTENSION)));
         $path = (string) $fileMeta['path'];
+        $defaultSection = $this->sectionType($fileMeta['section_type'] ?? null);
 
         if (! in_array($ext, ['json', 'csv', 'xlsx', 'xls'], true)) {
             return ['source' => null, 'models' => 0, 'fields' => 0, 'status' => 'skipped', 'reason' => 'unsupported_extension'];
@@ -47,6 +49,9 @@ class CatalogStructuredExtractor
                 [
                     'source_name' => basename($path),
                     'source_type' => $ext,
+                    'section_type' => $defaultSection->value,
+                    'authority' => $fileMeta['authority'] ?? null,
+                    'source_status' => $fileMeta['source_status'] ?? 'unverified',
                     'version' => date('Y-m-d'),
                     'brand_id' => $brandId,
                     'parsed_status' => 'parsed',
@@ -68,7 +73,8 @@ class CatalogStructuredExtractor
                 continue;
             }
 
-            $fieldPayloads = $this->extractFieldPayloads($row, $path, $index + 2);
+            $section = $this->sectionType($row['section_type'] ?? $row['source_section'] ?? $defaultSection->value);
+            $fieldPayloads = $this->extractFieldPayloads($row, $path, $index + 2, $section);
             if ($fieldPayloads === []) {
                 continue;
             }
@@ -88,8 +94,10 @@ class CatalogStructuredExtractor
                 'normalized_sku' => $this->normalizer->normalizeSku($identity['sku']),
                 'technical_data_json' => collect($fieldPayloads)->mapWithKeys(fn (array $item): array => [$item['field_key'] => $item['field_value']])->all(),
                 'source_page' => null,
+                'section_type' => $section->value,
                 'confidence_score' => 0.95,
                 'import_status' => 'parsed',
+                'verification_status' => $section->isTechnicalAuthority() ? 'pending_verification' : 'not_technical',
             ]);
 
             foreach ($fieldPayloads as $payload) {
@@ -102,6 +110,12 @@ class CatalogStructuredExtractor
                     'unit' => $payload['unit'],
                     'source_text' => $payload['source_text'],
                     'source_page' => null,
+                    'source_section' => $payload['source_section'],
+                    'source_table_title' => $payload['source_table_title'],
+                    'source_row_label' => $payload['source_row_label'],
+                    'source_column_model' => $payload['source_column_model'],
+                    'extraction_method' => 'structured_row',
+                    'verification_status' => $payload['verification_status'],
                     'confidence_score' => $payload['confidence_score'],
                 ]);
             }
@@ -160,7 +174,7 @@ class CatalogStructuredExtractor
     /**
      * @return array<int,array<string,mixed>>
      */
-    private function extractFieldPayloads(array $row, string $path, int $rowNumber): array
+    private function extractFieldPayloads(array $row, string $path, int $rowNumber, CatalogSectionType $section): array
     {
         $payloads = [];
 
@@ -170,7 +184,11 @@ class CatalogStructuredExtractor
             }
 
             $normalizedKey = $this->normalizer->normalizeFieldKey((string) $key);
-            if ($normalizedKey === '' || in_array($normalizedKey, ['name', 'slug', 'model', 'model_code', 'sku', 'brand', 'category'], true)) {
+            if ($normalizedKey === '' || in_array($normalizedKey, [
+                'name', 'slug', 'model', 'model_code', 'sku', 'brand', 'category',
+                'section_type', 'source_section', 'source_page', 'source_table_title',
+                'source_row_label', 'source_column_model', 'authority', 'source_status',
+            ], true)) {
                 continue;
             }
 
@@ -182,11 +200,23 @@ class CatalogStructuredExtractor
                 'normalized_value' => $normalized['value'],
                 'unit' => $normalized['unit'] ?: null,
                 'source_text' => sprintf('file=%s;row=%d;col=%s;value=%s', $path, $rowNumber, (string) $key, trim((string) $value)),
+                'source_section' => $section->value,
+                'source_table_title' => isset($row['source_table_title']) ? (string) $row['source_table_title'] : null,
+                'source_row_label' => isset($row['source_row_label']) ? (string) $row['source_row_label'] : (string) $key,
+                'source_column_model' => isset($row['source_column_model']) ? (string) $row['source_column_model'] : null,
+                'verification_status' => $section->isTechnicalAuthority() ? 'pending_verification' : 'not_technical',
                 'confidence_score' => 0.95,
             ];
         }
 
         return $payloads;
+    }
+
+    private function sectionType(mixed $value): CatalogSectionType
+    {
+        $normalized = strtolower(trim((string) $value));
+
+        return CatalogSectionType::tryFrom($normalized) ?? CatalogSectionType::UNKNOWN;
     }
 
     /**

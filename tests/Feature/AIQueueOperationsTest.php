@@ -88,7 +88,7 @@ class AIQueueOperationsTest extends TestCase
             'created_at' => now()->timestamp,
         ]);
 
-        $this->artisan('ai:jobs-cancel-current --flush-queue')->assertSuccessful();
+        $this->artisan('ai:jobs-cancel-current --force --flush-queue')->assertSuccessful();
 
         $this->assertSame(AIContentJobStatus::Cancelled, AiContentJob::first()->status);
         $this->assertSame('cancelled', $job->refresh()->status);

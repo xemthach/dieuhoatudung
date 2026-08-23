@@ -14,6 +14,9 @@ class ImportPanasonicProducts extends Command
 
     public function handle(): int
     {
+        $this->error('Legacy technical write path disabled. Use governed correction/import workflow.');
+        return self::FAILURE;
+
         $jsonPath = base_path('data dieu hoa/import_output/panasonic_products_import.json');
         if (!file_exists($jsonPath)) {
             $this->error("File not found: {$jsonPath}");

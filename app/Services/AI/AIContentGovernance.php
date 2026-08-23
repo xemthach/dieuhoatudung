@@ -12,6 +12,7 @@ use App\Services\AI\Governance\HVACTechnicalFactValidator;
 use App\Services\AI\Governance\UTF8ContentValidator;
 use App\Services\AI\Governance\VerifiedFactRegistry;
 use App\Services\Calculator\BtuCalculatorService;
+use App\Services\Product\ProductTechnicalFactResolver;
 use App\Support\IssueList;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
@@ -28,6 +29,7 @@ class AIContentGovernance
         private readonly ForbiddenClaimEngine $claimEngine,
         private readonly AICodeLeakDetector $codeLeakDetector,
         private readonly UTF8ContentValidator $utf8Validator,
+        private readonly ProductTechnicalFactResolver $technicalFacts,
     ) {}
 
     private const NUMERIC_UNITS = [
@@ -82,45 +84,37 @@ class AIContentGovernance
         $this->addFact($allowedFacts, 'product.sku', $product->sku, 'products.sku');
         $this->addFact($allowedFacts, 'product.brand', $product->brand?->name, 'brands.name');
         $this->addFact($allowedFacts, 'product.category', $product->category?->name, 'product_categories.name');
-        $this->addFact($allowedFacts, 'product.capacity_btu', $product->btu, 'products.btu');
-        $this->addFact($allowedFacts, 'product.capacity_kw', $product->capacity_kw, 'products.capacity_kw');
-        $this->addFact($allowedFacts, 'product.hp', $product->hp, 'products.hp');
-        $this->addFact($allowedFacts, 'product.cooling_type', $product->cooling_type, 'products.cooling_type');
-        $this->addFact($allowedFacts, 'product.inverter', $product->inverter, 'products.inverter');
-        $this->addFact($allowedFacts, 'product.phase', $product->voltage, 'products.voltage');
-        $this->addFact($allowedFacts, 'product.refrigerant', $product->refrigerant_gas, 'products.refrigerant_gas');
-        $this->addFact($allowedFacts, 'product.airflow', $product->airflow, 'products.airflow');
-        $this->addFact($allowedFacts, 'product.noise_level', $product->noise_level, 'products.noise_level');
-        $this->addFact($allowedFacts, 'product.indoor_dimensions', $product->indoor_dimensions, 'products.indoor_dimensions');
-        $this->addFact($allowedFacts, 'product.outdoor_dimensions', $product->outdoor_dimensions, 'products.outdoor_dimensions');
-        $this->addFact($allowedFacts, 'product.weight', $product->weight, 'products.weight');
-        $this->addFact($allowedFacts, 'product.recommended_area', $product->recommended_area, 'products.recommended_area');
+        $technicalLabels = [
+            'technical_capacity_btu' => ['key' => 'product.rated_cooling_capacity_btu', 'label' => 'rated cooling capacity btu'],
+            'capacity_kw' => ['key' => 'product.capacity_kw', 'label' => 'capacity kw'],
+            'hp' => ['key' => 'product.hp', 'label' => 'hp'],
+            'cooling_type' => ['key' => 'product.cooling_type', 'label' => 'cooling type'],
+            'inverter' => ['key' => 'product.inverter', 'label' => 'inverter'],
+            'voltage' => ['key' => 'product.phase', 'label' => 'phase voltage'],
+            'refrigerant_gas' => ['key' => 'product.refrigerant', 'label' => 'refrigerant'],
+            'airflow' => ['key' => 'product.airflow', 'label' => 'airflow'],
+            'noise_level' => ['key' => 'product.noise_level', 'label' => 'noise db'],
+            'indoor_dimensions' => ['key' => 'product.indoor_dimensions', 'label' => 'indoor dimensions'],
+            'outdoor_dimensions' => ['key' => 'product.outdoor_dimensions', 'label' => 'outdoor dimensions'],
+            'weight' => ['key' => 'product.weight', 'label' => 'weight'],
+            'recommended_area' => ['key' => 'product.recommended_area', 'label' => 'recommended area'],
+        ];
+        foreach ($technicalLabels as $resolverKey => $definition) {
+            $verified = $this->technicalFacts->getVerified($product, $resolverKey);
+            $this->addFact($allowedFacts, $definition['key'], $verified['value'] ?? null, 'ProductTechnicalFactResolver::'.$resolverKey, [
+                'label' => $definition['label'],
+                'unit' => $resolverKey,
+            ]);
+        }
+        $marketingCapacity = $this->technicalFacts->get($product, 'marketing_capacity_btu');
+        $this->addFact($allowedFacts, 'product.marketing_capacity_btu', $marketingCapacity['value'] ?? null, 'ProductTechnicalFactResolver::marketing_capacity_btu', [
+            'label' => 'marketing capacity btu (business grouping only)',
+            'unit' => 'marketing_btu',
+        ]);
         $this->addFact($allowedFacts, 'product.warranty_info', strip_tags((string) $product->warranty_info), 'products.warranty_info');
         $this->addFact($allowedFacts, 'product.regular_price', $product->regular_price, 'products.regular_price');
         $this->addFact($allowedFacts, 'product.sale_price', $product->sale_price, 'products.sale_price');
         $this->addFact($allowedFacts, 'product.vat_enabled', (bool) $product->price_includes_vat, 'products.price_includes_vat');
-
-        foreach ($this->flattenSpecs($product->specs_json ?? []) as $index => $spec) {
-            if (! $this->schemaAllowsAiFact($product, $spec['key'])) {
-                continue;
-            }
-
-            $this->addFact(
-                $allowedFacts,
-                'product.technical_specs_json.'.$index,
-                trim($spec['label'].' '.$spec['value']),
-                'products.specs_json',
-                [
-                    'label' => $spec['label'],
-                    'unit' => $this->inferUnitFromSpec($spec),
-                    'aliases' => array_values(array_unique(array_filter([
-                        $spec['key'],
-                        $spec['label'],
-                        trim($spec['label'].' '.$spec['value']),
-                    ]))),
-                ]
-            );
-        }
 
         $allowedFacts = $this->filterSchemaAiFacts($product, $allowedFacts);
 
@@ -133,10 +127,57 @@ class AIContentGovernance
             $missingFacts[] = 'no_verified_source_page';
         }
 
+        $technicalCapacity = $this->technicalFacts->getVerified($product, 'technical_capacity_btu');
+        $contentEligibility = app(\App\Services\Product\ProductContentEligibilityPolicy::class)->evaluate(
+            $product,
+            $this->requestedContentScopes($contentTask)
+        );
+        $technicalContextKeys = [
+            'product.rated_cooling_capacity_btu', 'product.capacity_kw', 'product.hp',
+            'product.cooling_type', 'product.inverter', 'product.phase', 'product.refrigerant',
+            'product.airflow', 'product.noise_level', 'product.indoor_dimensions',
+            'product.outdoor_dimensions', 'product.weight', 'product.recommended_area',
+        ];
+        $usableFactKeys = array_keys($allowedFacts);
+        $omittedFactKeys = array_values(array_diff($technicalContextKeys, $usableFactKeys));
+        $conflictedFactKeys = [];
+        if (in_array(strtolower((string) ($product->technical_capacity_status ?? '')), ['ambiguous', 'conflicted'], true)) {
+            foreach (['product.rated_cooling_capacity_btu', 'product.capacity_kw'] as $key) {
+                unset($allowedFacts[$key]);
+                $conflictedFactKeys[] = $key;
+            }
+            $usableFactKeys = array_keys($allowedFacts);
+            $omittedFactKeys = array_values(array_diff($technicalContextKeys, $usableFactKeys));
+        }
+
         return [
             'prompt_version' => self::PROMPT_VERSION,
             'allowed_facts' => $allowedFacts,
+            'marketing_identity_facts' => [
+                'capacity_group_btu' => $marketingCapacity['value'] ?? null,
+            ],
+            'verified_technical_facts' => [
+                'rated_cooling_capacity_btu' => $technicalCapacity['value'] ?? null,
+            ],
+            'capacity_semantics' => [
+                'marketing_capacity_btu' => [
+                    'value' => $marketingCapacity['value'] ?? null,
+                    'meaning' => 'COMMERCIAL_GROUPING_ONLY',
+                ],
+                'technical_capacity_btu' => [
+                    'value' => $technicalCapacity['value'] ?? null,
+                    'meaning' => 'AUTHORITATIVE_TECHNICAL_RATED_CAPACITY',
+                ],
+            ],
             'verified_fact_registry' => $verifiedFactRegistry,
+            'fact_status' => [
+                'usable_facts' => $usableFactKeys,
+                'omitted_facts' => $omittedFactKeys,
+                'conflicted_facts' => $conflictedFactKeys,
+            ],
+            'allowed_claim_scope' => ['identity', 'basic_product_context', 'supplied_technical_facts'],
+            'forbidden_claim_scope' => ['missing_or_omitted_technical_facts', 'internal_provenance', 'Product_Data_mutation'],
+            'content_eligibility' => $contentEligibility,
             'missing_facts' => array_values(array_unique($missingFacts)),
             'calculation_rules' => [
                 'source' => 'verified_hvac_calculation_rules',
@@ -156,6 +197,34 @@ class AIContentGovernance
             'allowed_content_tasks' => array_keys(array_filter((array) ($contentTask['outputs'] ?? []))),
             'forbidden_update_fields' => config('ai_product_allowed_fields.blocked_product_data_fields', []),
         ];
+    }
+
+    public function contentEligibility(Product $product, array $contentTask = []): array
+    {
+        return app(\App\Services\Product\ProductContentEligibilityPolicy::class)->evaluate(
+            $product,
+            array_merge(
+                $this->requestedContentScopes($contentTask),
+                array_filter(['_current_job_item_id' => $contentTask['current_job_item_id'] ?? null])
+            )
+        );
+    }
+
+    private function requestedContentScopes(array $contentTask): array
+    {
+        if (! empty($contentTask['scope'])) {
+            return is_array($contentTask['scope'])
+                ? array_values(array_unique($contentTask['scope']))
+                : [(string) $contentTask['scope']];
+        }
+        $outputs = (array) ($contentTask['outputs'] ?? []);
+        $scopes = [];
+        if (($outputs['seo'] ?? false) || ($outputs['meta_description'] ?? false)) $scopes[] = \App\Services\Product\ProductContentEligibilityPolicy::SEO_META;
+        if (($outputs['content'] ?? false) || ($outputs['content_html'] ?? false)) $scopes[] = \App\Services\Product\ProductContentEligibilityPolicy::LONG_DESCRIPTION;
+        if (($outputs['faq'] ?? false)) $scopes[] = \App\Services\Product\ProductContentEligibilityPolicy::FAQ;
+        if (($contentTask['type'] ?? null) === 'blog_content' || ($outputs['article'] ?? false)) $scopes[] = \App\Services\Product\ProductContentEligibilityPolicy::ARTICLE;
+
+        return $scopes === [] ? [\App\Services\Product\ProductContentEligibilityPolicy::LONG_DESCRIPTION] : $scopes;
     }
 
     public function buildBlogContext(AiContentJob $job, array $input = []): array
@@ -276,8 +345,14 @@ class AIContentGovernance
 
         return [
             'product_identity' => $context['product_identity'] ?? [],
-            'verified_technical_facts' => $facts,
+            'marketing_identity_facts' => $context['marketing_identity_facts'] ?? [],
+            'capacity_semantics' => $context['capacity_semantics'] ?? [],
+            'verified_technical_facts' => $context['verified_technical_facts'] ?? $facts,
             'allowed_facts' => $facts,
+            'fact_status' => $context['fact_status'] ?? ['usable_facts' => [], 'omitted_facts' => [], 'conflicted_facts' => []],
+            'allowed_claim_scope' => $context['allowed_claim_scope'] ?? [],
+            'forbidden_claim_scope' => $context['forbidden_claim_scope'] ?? [],
+            'content_eligibility' => $context['content_eligibility'] ?? [],
             'missing_technical_facts' => $context['missing_facts'] ?? [],
             'missing_facts' => $context['missing_facts'] ?? [],
             'allowed_content_tasks' => $context['allowed_content_tasks'] ?? [],
@@ -305,7 +380,7 @@ class AIContentGovernance
         // Layer 1: Technical Fact Validation (context-aware classification)
         $technical = $this->technicalFactValidator->validateText($plain, $context);
         $warnings = array_merge($warnings, $technical['warnings'] ?? []);
-        // Technical claims now produce warnings, not blocks (rewrite-first approach)
+        $blockedClaims = array_merge($blockedClaims, $technical['blocked_claims'] ?? []);
         $used = array_merge($used, $technical['used_facts'] ?? []);
         $validationLog = array_merge($validationLog, $technical['log'] ?? []);
 
@@ -433,7 +508,7 @@ class AIContentGovernance
         );
 
         $factToSchemaKey = [
-            'product.capacity_btu' => 'capacity_btu',
+            'product.rated_cooling_capacity_btu' => 'capacity_btu',
             'product.capacity_kw' => 'capacity_kw',
             'product.hp' => 'hp',
             'product.cooling_type' => 'cooling_type',
@@ -479,7 +554,8 @@ class AIContentGovernance
     {
         $missing = [];
         foreach (self::TECHNICAL_FIELDS as $field => $warning) {
-            if (blank($product->{$field}) && $product->{$field} !== 0) {
+            $resolverKey = $field === 'btu' ? 'technical_capacity_btu' : ($field === 'power_consumption' ? 'power_input_kw' : $field);
+            if (blank($this->technicalFacts->getVerified($product, $resolverKey))) {
                 $missing[] = $warning;
             }
         }
@@ -501,16 +577,7 @@ class AIContentGovernance
 
     private function hasVerifiedSourcePage(Product $product): bool
     {
-        $specs = $this->flattenSpecs($product->specs_json ?? []);
-
-        foreach ($specs as $spec) {
-            $label = Str::lower($spec['label']);
-            if (Str::contains($label, ['source_catalogue', 'source page', 'source_page', 'catalogue'])) {
-                return true;
-            }
-        }
-
-        return filled($product->source_catalogue ?? null) || filled($product->source_page ?? null);
+        return $this->technicalFacts->hasVerifiedSourcePage($product);
     }
 
     private function flattenSpecs(array $specs): array

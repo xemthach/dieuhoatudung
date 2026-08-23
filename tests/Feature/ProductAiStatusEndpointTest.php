@@ -61,7 +61,7 @@ class ProductAiStatusEndpointTest extends TestCase
         ]);
         QueueWorkerHeartbeat::create([
             'worker_name' => 'queue-worker',
-            'queue' => 'ai',
+            'queue' => config('ai.governed_queue', 'ai_governed'),
             'hostname' => 'test',
             'last_seen_at' => now(),
             'status' => 'running',

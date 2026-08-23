@@ -8,6 +8,22 @@ use Illuminate\Database\Eloquent\Builder;
 
 class ProductFilterService
 {
+    /** @var array<string, string> */
+    public const CAPACITY_FILTER_OPTIONS = [
+        '9000-12000' => 'Dưới 12.000 BTU',
+        '18000' => '18.000 BTU',
+        '24000' => '24.000 BTU',
+        '28000' => '28.000 BTU',
+        '36000' => '36.000 BTU',
+        '42000' => '42.000 BTU',
+        '48000' => '48.000 BTU',
+        '50000-100000' => 'Từ 50.000 BTU trở lên',
+    ];
+
+    public function __construct(
+        private readonly ProductMarketingCapacityQueryAdapter $capacityQuery,
+    ) {}
+
     /**
      * @var array
      */
@@ -47,15 +63,28 @@ class ProductFilterService
         }
 
         if (!empty($filters['btu'])) {
+            // The public BTU buckets are RAC marketing filters. Explicitly
+            // classified VRF products must not enter them; no kW conversion
+            // is performed here.
+            $query->where(function (Builder $q): void {
+                $q->whereNull('product_type')
+                    ->orWhereNotIn('product_type', ['vrf', 'vrf_outdoor', 'vrf_indoor', 'vrf_system', 'gmv']);
+            })->whereDoesntHave('category', function (Builder $q): void {
+                $q->where(function (Builder $category): void {
+                    $category->whereRaw('LOWER(name) LIKE ?', ['%vrf%'])
+                        ->orWhereRaw('LOWER(name) LIKE ?', ['%gmv%']);
+                });
+            });
+
             $query->where(function ($q) use ($filters) {
                 foreach ($filters['btu'] as $btu) {
                     if (str_contains($btu, '-')) {
                         [$min, $max] = explode('-', $btu, 2);
                         if (is_numeric($min) && is_numeric($max)) {
-                            $q->orWhereBetween('btu', [(int)$min, (int)$max]);
+                            $q->orWhereBetween($this->capacityQuery->column(), [(int) $min, (int) $max]);
                         }
                     } else if (is_numeric($btu)) {
-                        $q->orWhere('btu', (int)$btu);
+                        $q->orWhere($this->capacityQuery->column(), (int) $btu);
                     }
                 }
             });
@@ -122,10 +151,10 @@ class ProductFilterService
                 $query->orderByRaw('COALESCE(sale_price, regular_price) DESC');
                 break;
             case 'btu_asc':
-                $query->orderBy('btu', 'asc');
+                $query->orderBy($this->capacityQuery->column(), 'asc');
                 break;
             case 'btu_desc':
-                $query->orderBy('btu', 'desc');
+                $query->orderBy($this->capacityQuery->column(), 'desc');
                 break;
             case 'latest':
             default:
@@ -154,7 +183,10 @@ class ProductFilterService
                 case 'array':
                     if (is_array($value)) {
                         // Filter out empty strings and sanitize
-                        $cleanArray = array_filter(array_map('trim', array_map('strip_tags', $value)));
+                        $cleanArray = array_values(array_filter(array_map(
+                            static fn ($item): string => is_scalar($item) ? trim(strip_tags((string) $item)) : '',
+                            $value,
+                        )));
                         if (!empty($cleanArray)) {
                             $sanitized[$key] = $cleanArray;
                         }
@@ -186,6 +218,16 @@ class ProductFilterService
                         }
                     }
                     break;
+            }
+        }
+
+        if (isset($sanitized['btu'])) {
+            $sanitized['btu'] = array_values(array_intersect(
+                $sanitized['btu'],
+                array_keys(self::CAPACITY_FILTER_OPTIONS),
+            ));
+            if ($sanitized['btu'] === []) {
+                unset($sanitized['btu']);
             }
         }
 

@@ -95,8 +95,17 @@ if (! function_exists('media_url')) {
             }
         }
 
-        // Fallback: local storage URL
-        return \Illuminate\Support\Facades\Storage::disk('public')->url($relativePath);
+        // Fallback: only return a local URL when the file is actually present.
+        // Missing catalog media must not become a broken <img> URL.
+        try {
+            if (\Illuminate\Support\Facades\Storage::disk('public')->exists($relativePath)) {
+                return \Illuminate\Support\Facades\Storage::disk('public')->url($relativePath);
+            }
+        } catch (\Throwable) {
+            // Fall through to the caller-provided fallback.
+        }
+
+        return $fallback;
     }
 }
 

@@ -50,7 +50,7 @@
             <input type="hidden" name="product_url"  value="{{ route('product.show', $product->slug) }}">
             <input type="hidden" name="product_brand"    value="{{ $product->brand?->name ?? '' }}">
             <input type="hidden" name="product_category" value="{{ $product->category?->name ?? '' }}">
-            <input type="hidden" name="product_capacity_btu" value="{{ $product->btu ?? '' }}">
+    <input type="hidden" name="product_capacity_btu" value="{{ app(\App\Services\Product\ProductTechnicalFactResolver::class)->getDisplay($product, 'marketing_capacity_btu')['value'] ?? '' }}">
             @endif
             <input type="hidden" name="source_page"  value="{{ url()->current() }}">
             <input type="hidden" name="utm_source"   value="{{ request('utm_source') }}">

@@ -1,0 +1,136 @@
+<?php
+
+namespace App\Services\Operations;
+
+use App\Services\AI\AIQueueMonitor;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Schema;
+use Throwable;
+
+/**
+ * Bounded, read-only operational snapshot for the admin panel.
+ * Business data and queue state are never changed by this service.
+ */
+final class SystemHealthService
+{
+    public function __construct(private AIQueueMonitor $queueMonitor) {}
+
+    public function snapshot(): array
+    {
+        $database = $this->database();
+        $queue = $this->queue();
+        $storage = $this->storage();
+        $scheduler = $this->scheduler();
+        $worker = $this->worker($queue);
+
+        $components = [
+            'database' => $database,
+            'cache' => $this->cache(),
+            'queue' => $queue,
+            'storage' => $storage,
+            'scheduler' => $scheduler,
+            'worker' => $worker,
+        ];
+
+        return [
+            'state' => $this->overall($components),
+            'generated_at' => now()->toIso8601String(),
+            'components' => $components,
+            'maintenance' => [
+                'missing_media' => $this->countIfColumn('products', 'main_image', null),
+                'known_backlogs' => [
+                    'mojibake' => 'tracked_separately',
+                    'category_schema_mismatch' => 'tracked_separately',
+                ],
+            ],
+        ];
+    }
+
+    private function database(): array
+    {
+        try {
+            DB::connection()->getPdo();
+            $migrationCount = Schema::hasTable('migrations') ? DB::table('migrations')->count() : null;
+            return ['state' => 'HEALTHY', 'driver' => DB::connection()->getDriverName(), 'migration_count' => $migrationCount];
+        } catch (Throwable $e) {
+            return ['state' => 'CRITICAL', 'reason' => 'database_unreachable'];
+        }
+    }
+
+    private function cache(): array
+    {
+        $store = (string) config('cache.default', 'unknown');
+        return ['state' => $store === '' ? 'UNKNOWN' : 'HEALTHY', 'store' => $store];
+    }
+
+    private function queue(): array
+    {
+        try {
+            $health = $this->queueMonitor->health();
+            $pending = $health['pending_jobs_count'];
+            $failed = $health['failed_jobs_count'];
+            return [
+                'state' => ($failed !== null && $failed > 0) || ($health['ai_jobs_stuck_count'] ?? 0) > 0 ? 'WARNING' : 'HEALTHY',
+                'connection' => $health['queue_connection'],
+                'queue' => config('ai.governed_queue', 'ai_governed'),
+                'pending' => $pending,
+                'failed' => $failed,
+                'stuck' => $health['ai_jobs_stuck_count'],
+                'legacy_processing' => $health['legacy_ai_processing_count'],
+            ];
+        } catch (Throwable $e) {
+            return ['state' => 'UNKNOWN', 'reason' => 'queue_status_unavailable'];
+        }
+    }
+
+    private function storage(): array
+    {
+        $path = storage_path('app');
+        return ['state' => is_dir($path) && is_writable($path) ? 'HEALTHY' : 'WARNING', 'disk' => config('filesystems.default'), 'path_writable' => is_writable($path)];
+    }
+
+    private function scheduler(): array
+    {
+        try {
+            $running = (bool) data_get($this->queueMonitor->health(), 'scheduler_is_running', false);
+            return ['state' => $running ? 'HEALTHY' : 'UNKNOWN', 'heartbeat_present' => $running];
+        } catch (Throwable) {
+            return ['state' => 'UNKNOWN', 'heartbeat_present' => false];
+        }
+    }
+
+    private function worker(array $queue): array
+    {
+        $desiredPath = storage_path('framework/cache/ai-worker-desired-state.json');
+        $desired = 'DISABLED';
+        if (File::exists($desiredPath)) {
+            $payload = json_decode(File::get($desiredPath), true) ?: [];
+            $desired = strtoupper((string) ($payload['desired_state'] ?? 'DISABLED'));
+        }
+        $actual = data_get($this->queueMonitor->health(), 'worker_heartbeat.health_status', 'OFFLINE');
+        if ($desired === 'DISABLED') {
+            return ['state' => 'DISABLED', 'desired' => $desired, 'actual' => $actual];
+        }
+        return ['state' => $actual === 'ONLINE' ? 'HEALTHY' : ($actual === 'STALE' ? 'WARNING' : 'CRITICAL'), 'desired' => $desired, 'actual' => $actual];
+    }
+
+    private function overall(array $components): string
+    {
+        $states = array_column($components, 'state');
+        if (in_array('CRITICAL', $states, true)) return 'CRITICAL';
+        if (in_array('WARNING', $states, true) || in_array('UNKNOWN', $states, true)) return 'WARNING';
+        if (in_array('DISABLED', $states, true)) return 'HEALTHY';
+        return 'HEALTHY';
+    }
+
+    private function countIfColumn(string $table, string $column, mixed $equals): ?int
+    {
+        try {
+            if (! Schema::hasTable($table) || ! Schema::hasColumn($table, $column)) return null;
+            return DB::table($table)->whereNull($column)->count();
+        } catch (Throwable) {
+            return null;
+        }
+    }
+}

@@ -238,7 +238,7 @@
                         </td>
                         {{-- BTU --}}
                         <td class="px-4 py-3 text-center font-semibold text-primary-700">
-                            {{ $product->btu ? number_format($product->btu) : '—' }}
+                            {{ ($capacity = app(\App\Services\Product\ProductTechnicalFactResolver::class)->getDisplay($product, 'marketing_capacity_btu')) ? number_format($capacity['value']) : '—' }}
                         </td>
                         {{-- Inverter --}}
                         <td class="px-4 py-3 text-center">
@@ -330,8 +330,8 @@
                         @if($product->brand)
                         <span class="font-medium">{{ $product->brand->name }}</span>
                         @endif
-                        @if($product->btu)
-                        <span>• {{ number_format($product->btu) }} BTU</span>
+                        @if($capacity = app(\App\Services\Product\ProductTechnicalFactResolver::class)->getDisplay($product, 'marketing_capacity_btu'))
+                        <span>• {{ number_format($capacity['value']) }} BTU</span>
                         @endif
                         @if($product->inverter)
                         <span class="text-green-600">• Inverter</span>

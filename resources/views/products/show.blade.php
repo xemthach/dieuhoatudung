@@ -7,7 +7,7 @@
     :og-image="$product->og_image ? media_url($product->og_image) : $product->main_image_url"
     og-type="product"
 >
-    <x-breadcrumb :items="[
+    <x-breadcrumb :skip-schema="true" :items="[
         ['label' => 'Điều hòa tủ đứng', 'url' => route('products.index')],
         ['label' => $product->category?->name ?? 'Sản phẩm', 'url' => $product->category ? route('category.show', $product->category->slug) : route('products.index')],
         ['label' => $product->name],
@@ -15,6 +15,10 @@
 
     @php
         $price = app(\App\Services\Product\PromotionPriceResolver::class)->resolve($product);
+        $technicalFactResolver = app(\App\Services\Product\ProductTechnicalFactResolver::class);
+        $sourceNativeCapacity = $technicalFactResolver->unitAwareFacts($product)['capacity_kw'] ?? null;
+        $marketingCapacity = $technicalFactResolver->getDisplay($product, 'marketing_capacity_btu');
+        $technicalCapacity = $technicalFactResolver->getDisplay($product, 'technical_capacity_btu');
     @endphp
 
     <section class="py-8 lg:py-12">
@@ -38,7 +42,7 @@
                     <div class="relative overflow-hidden rounded-2xl border border-surface-200 bg-white cursor-pointer group" @click="if(images.length > 0) lightboxOpen = true">
                         @if(count($images) > 0)
                             <img
-                                :src="currentImage"
+                                :src="currentImage.url"
                                 alt="{{ $product->name }}"
                                 class="aspect-square w-full object-contain p-8 transition-transform duration-300 group-hover:scale-105"
                             >
@@ -55,7 +59,7 @@
                         <div class="mt-4 grid grid-cols-4 gap-3">
                             <template x-for="(img, index) in images" :key="index">
                                 <button type="button" @click="currentIndex = index" :class="currentIndex === index ? 'ring-2 ring-primary-500' : 'ring-1 ring-surface-200 hover:ring-primary-300'" class="overflow-hidden rounded-lg bg-white transition-all">
-                                    <img :src="img" alt="{{ $product->name }}" class="aspect-square w-full object-contain p-2" loading="lazy">
+                                    <img :src="img.url" alt="{{ $product->name }}" class="aspect-square w-full object-contain p-2" loading="lazy">
                                 </button>
                             </template>
                         </div>
@@ -74,7 +78,7 @@
                                 </button>
                             </template>
 
-                            <img :src="currentImage" class="max-h-[90vh] max-w-[90vw] object-contain" @click.away="lightboxOpen = false">
+                            <img :src="currentImage.url" class="max-h-[90vh] max-w-[90vw] object-contain" @click.away="lightboxOpen = false">
 
                             <template x-if="images.length > 1">
                                 <button type="button" @click.stop="currentIndex = (currentIndex < images.length - 1) ? currentIndex + 1 : 0" class="absolute right-4 top-1/2 -translate-y-1/2 rounded-full bg-white/10 p-3 text-white hover:bg-white/20 transition-colors">
@@ -127,10 +131,15 @@
 
                     {{-- Quick Specs --}}
                     <div class="mt-6 grid grid-cols-2 gap-3">
-                        @if($product->btu)
+                        @if($sourceNativeCapacity)
+                            <div class="rounded-lg bg-white p-3 ring-1 ring-surface-200">
+                                <p class="text-xs text-surface-500">Công suất định mức</p>
+                                <p class="text-sm font-semibold text-surface-800">{{ $sourceNativeCapacity['value'] }} {{ $sourceNativeCapacity['unit'] }}</p>
+                            </div>
+                        @elseif($marketingCapacity)
                             <div class="rounded-lg bg-white p-3 ring-1 ring-surface-200">
                                 <p class="text-xs text-surface-500">Công suất</p>
-                                <p class="text-sm font-semibold text-surface-800">{{ number_format($product->btu) }} BTU</p>
+                                <p class="text-sm font-semibold text-surface-800">{{ number_format($marketingCapacity['value']) }} BTU</p>
                             </div>
                         @endif
                         @if($product->inverter !== null)
@@ -240,12 +249,13 @@
                                     </tr>
                                 @endforeach
                             @else
-                            @if($product->btu)<tr><td class="bg-surface-50 px-4 py-3 font-medium text-surface-700 w-1/3">Công suất</td><td class="px-4 py-3 text-surface-600">{{ number_format($product->btu) }} BTU</td></tr>@endif
+                            @if($sourceNativeCapacity)<tr><td class="bg-surface-50 px-4 py-3 font-medium text-surface-700 w-1/3">Công suất định mức</td><td class="px-4 py-3 text-surface-600">{{ $sourceNativeCapacity['value'] }} {{ $sourceNativeCapacity['unit'] }}</td></tr>
+                            @elseif($technicalCapacity)<tr><td class="bg-surface-50 px-4 py-3 font-medium text-surface-700 w-1/3">Công suất kỹ thuật</td><td class="px-4 py-3 text-surface-600">{{ number_format($technicalCapacity['value']) }} BTU</td></tr>@endif
                             @if($product->inverter !== null)<tr><td class="bg-surface-50 px-4 py-3 font-medium text-surface-700">Inverter</td><td class="px-4 py-3 text-surface-600">{{ $product->inverter ? 'Có' : 'Không' }}</td></tr>@endif
                             @if($product->cooling_type)<tr><td class="bg-surface-50 px-4 py-3 font-medium text-surface-700">Kiểu</td><td class="px-4 py-3 text-surface-600">{{ $product->cooling_type === '2_chieu' ? '2 chiều (Nóng/Lạnh)' : '1 chiều (Lạnh)' }}</td></tr>@endif
                             @if($product->voltage)<tr><td class="bg-surface-50 px-4 py-3 font-medium text-surface-700">Điện áp</td><td class="px-4 py-3 text-surface-600">{{ $product->voltage }}</td></tr>@endif
                             @if($product->refrigerant_gas)<tr><td class="bg-surface-50 px-4 py-3 font-medium text-surface-700">Gas lạnh</td><td class="px-4 py-3 text-surface-600">{{ $product->refrigerant_gas }}</td></tr>@endif
-                            @if($product->power_consumption)<tr><td class="bg-surface-50 px-4 py-3 font-medium text-surface-700">Tiêu thụ điện</td><td class="px-4 py-3 text-surface-600">{{ $product->power_consumption }}</td></tr>@endif
+                            @if(app(\App\Services\Product\ProductTechnicalFactResolver::class)->getDisplay($product, 'power_input_kw'))<tr><td class="bg-surface-50 px-4 py-3 font-medium text-surface-700">Tiêu thụ điện</td><td class="px-4 py-3 text-surface-600">{{ app(\App\Services\Product\ProductTechnicalFactResolver::class)->getDisplay($product, 'power_input_kw')['value'] }}</td></tr>@endif
                             @if($product->airflow)<tr><td class="bg-surface-50 px-4 py-3 font-medium text-surface-700">Lưu lượng gió</td><td class="px-4 py-3 text-surface-600">{{ $product->airflow }}</td></tr>@endif
                             @if($product->noise_level)<tr><td class="bg-surface-50 px-4 py-3 font-medium text-surface-700">Độ ồn</td><td class="px-4 py-3 text-surface-600">{{ $product->noise_level }}</td></tr>@endif
                             @if($product->indoor_dimensions)<tr><td class="bg-surface-50 px-4 py-3 font-medium text-surface-700">Kích thước dàn lạnh</td><td class="px-4 py-3 text-surface-600">{{ $product->indoor_dimensions }}</td></tr>@endif
@@ -254,9 +264,9 @@
                             @if($product->recommended_area)<tr><td class="bg-surface-50 px-4 py-3 font-medium text-surface-700">Diện tích phù hợp</td><td class="px-4 py-3 text-surface-600">{{ $product->recommended_area }}</td></tr>@endif
 
                             {{-- Dynamic specs from JSON — grouped with Vietnamese labels --}}
-                            @if($product->specs_json)
+                            @if(app(\App\Services\Product\ProductTechnicalFactResolver::class)->allForDisplay($product) !== [])
                                 @php
-                                    $groupedSpecs = \App\Support\ProductSpecLabel::groupSpecs($product->specs_json);
+                                    $groupedSpecs = \App\Support\ProductSpecLabel::groupSpecs(app(\App\Services\Product\ProductTechnicalFactResolver::class)->allForDisplay($product));
                                 @endphp
                                 @foreach($groupedSpecs as $groupLabel => $items)
                                     <tr>
@@ -395,7 +405,7 @@
     </section>
     @endif
 
-    <x-testimonial-section :testimonials="$product->activeTestimonials" :product="$product" />
+    <x-testimonial-section :testimonials="$product->activeTestimonials" :product="$product" :skip-schema="true" />
 
     <x-faq-section :faqs="$product->activeFaqs" title="Câu Hỏi Về Sản Phẩm" :skip-schema="true" />
 

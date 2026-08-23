@@ -62,6 +62,9 @@ class OpenAIAdapter implements AIAdapterInterface
         ];
 
         $maxTokens = $payload['max_tokens'] ?? $options['max_tokens'] ?? null;
+        if ($maxTokens !== null) {
+            $maxTokens = min((int) $maxTokens, (int) config('ai.hard_budget_default_max_output_tokens', 12000));
+        }
         if ($maxTokens) {
             $body['max_tokens'] = (int) $maxTokens;
         }
@@ -72,7 +75,8 @@ class OpenAIAdapter implements AIAdapterInterface
 
         $start = microtime(true);
         $response = Http::withHeaders($this->headers($provider))
-            ->timeout(120)
+            ->connectTimeout((int) config('ai.production.connect_timeout_seconds', 10))
+            ->timeout((int) config('ai.production.request_timeout_seconds', 120))
             ->post($this->endpoint($provider), $body);
         $latency = (int) ((microtime(true) - $start) * 1000);
 
@@ -87,12 +91,26 @@ class OpenAIAdapter implements AIAdapterInterface
 
         $data = $response->json();
         $text = $data['choices'][0]['message']['content'] ?? '';
+        $finishReason = $data['choices'][0]['finish_reason'] ?? null;
+        if (in_array(strtolower((string) $finishReason), ['length', 'max_tokens', 'token_limit'], true)) {
+            throw new \RuntimeException(EncodingGuard::jsonEncode([
+                'code' => 'PROVIDER_OUTPUT_TRUNCATED',
+                'finish_reason' => $finishReason,
+                'raw_response_length' => mb_strlen($text, '8bit'),
+                'response_fingerprint' => hash('sha256', $text),
+                'provider_request_id' => $response->header('x-request-id') ?: $response->header('request-id'),
+            ]));
+        }
 
         return [
             'content' => $text,
             'json' => app(AIJsonResponseParser::class)->parse($text, ! empty($options['require_json'])),
             'tokens_used' => $data['usage']['total_tokens'] ?? 0,
             'latency_ms' => $latency,
+            'finish_reason' => $finishReason,
+            'raw_response_length' => mb_strlen($text, '8bit'),
+            'response_fingerprint' => hash('sha256', $text),
+            'provider_request_id' => $response->header('x-request-id') ?: $response->header('request-id'),
         ];
     }
 

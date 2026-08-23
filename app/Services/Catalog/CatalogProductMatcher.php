@@ -25,7 +25,7 @@ class CatalogProductMatcher
                 ->with(['source', 'fields'])
                 ->whereHas('fields')
                 ->when($preferOfficialGree, function ($q): void {
-                    $q->whereIn('catalog_source_id', [160, 203]);
+                    $q->whereHas('source.brand', fn ($brand) => $brand->whereRaw('LOWER(name) = ?', ['gree']));
                 })
                 ->find($product->catalog_model_id);
 
@@ -84,7 +84,7 @@ class CatalogProductMatcher
             ->whereHas('fields');
         $this->applyTrustedSourceFilter($query);
         if ($preferOfficialGree) {
-            $query->whereIn('catalog_source_id', [160, 203]);
+            $query->whereHas('source.brand', fn ($brand) => $brand->whereRaw('LOWER(name) = ?', ['gree']));
         }
 
         if ($useSourceFilters && $brandId) {

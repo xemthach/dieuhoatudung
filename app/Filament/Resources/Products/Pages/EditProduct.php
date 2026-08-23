@@ -7,6 +7,7 @@ use App\Jobs\AiProductContentSingleJob;
 use App\Models\AiProductJob;
 use App\Models\AiProductJobItem;
 use App\Services\Product\AIProductContentSystem;
+use App\Services\Product\AIProductDraftApplyService;
 use App\Services\Seo\InternalLinkSuggestionService;
 use App\Support\SchemaColumns;
 use Filament\Actions\Action;
@@ -57,18 +58,18 @@ class EditProduct extends EditRecord
                         'created_by' => auth()->id(),
                     ], SchemaColumns::existing('ai_product_jobs', [
                         'module' => 'ai_product_content',
-                        'queue_name' => 'ai',
+                        'queue_name' => config('ai.governed_queue', 'ai_governed'),
                     ])));
                     $item = $job->items()->create(array_merge([
                         'product_id' => $this->record->id,
                         'status' => 'queued',
                     ], SchemaColumns::existing('ai_product_job_items', [
                         'module' => 'ai_product_content',
-                        'queue_name' => 'ai',
+                        'queue_name' => config('ai.governed_queue', 'ai_governed'),
                     ])));
 
                     $this->record->update(['ai_status' => 'queued', 'ai_error_message' => null]);
-                    AiProductContentSingleJob::dispatch($this->record->id, $job->id, $item->id)->onQueue('ai');
+                    AiProductContentSingleJob::dispatch($this->record->id, $job->id, $item->id)->onQueue(config('ai.governed_queue', 'ai_governed'));
 
                     Notification::make()
                         ->title('Đã tạo AI Product Job')
@@ -77,8 +78,28 @@ class EditProduct extends EditRecord
                         ->persistent()
                         ->send();
                 }),
+            Action::make('ai_approve_latest_draft')
+                ->label('Approve Draft')
+                ->icon('heroicon-o-check-circle')
+                ->color('warning')
+                ->requiresConfirmation()
+                ->modalDescription('Approval chỉ ghi nhận quyết định review; draft vẫn chưa được apply cho tới khi bấm Apply approved draft.')
+                ->action(function () {
+                    $item = $this->latestAiDraftItem();
+                    $draft = $item?->draft;
+                    if (! $draft) {
+                        Notification::make()->title('Chưa có AI draft để duyệt')->warning()->send();
+                        return;
+                    }
+                    try {
+                        app(AIProductDraftApplyService::class)->approve($draft, (int) auth()->id(), auth()->user(), 'Approved from Product review UI');
+                        Notification::make()->title('Draft đã được duyệt, chưa apply')->success()->send();
+                    } catch (\Throwable $e) {
+                        Notification::make()->title('Không thể duyệt draft')->body($e->getMessage())->danger()->persistent()->send();
+                    }
+                }),
             Action::make('ai_apply_latest_draft')
-                ->label('Preview Draft')
+                ->label('Apply approved draft')
                 ->icon('heroicon-o-eye')
                 ->color('gray')
                 ->modalHeading('Preview AI Product Draft')
@@ -103,21 +124,27 @@ class EditProduct extends EditRecord
                     if ($draft->status === 'blocked' || $blockedClaims !== []) {
                         Notification::make()
                             ->title('AI draft bị fact-check chặn')
-                            ->body($blockedClaims === []
-                                ? 'Draft chưa vượt qua bước kiểm tra nên không thể apply.'
-                                : 'Cần xử lý trước: '.implode(', ', $blockedClaims))
-                            ->danger()
-                            ->persistent()
-                            ->send();
-
+                            ->body($blockedClaims === [] ? 'Draft chưa vượt qua bước kiểm tra nên không thể apply.' : 'Cần xử lý trước: '.implode(', ', $blockedClaims))
+                            ->danger()->persistent()->send();
+                        return;
+                    }
+                    if (! in_array($draft->status, ['needs_review', 'completed', 'completed_verified', 'completed_with_warnings'], true)) {
+                        $this->record->update(['ai_status' => $draft->status ?: 'queued', 'ai_error_message' => 'Không thể áp dụng bản nháp AI vì job chưa hoàn tất hợp lệ.']);
+                        Notification::make()->title('Chưa có AI draft để apply')->warning()->send();
                         return;
                     }
 
-                    $item = app(AIProductContentSystem::class)->applyLatestDraft($this->record, auth()->id());
-                    $notification = Notification::make()
-                        ->title($item ? 'Đã apply AI draft mới nhất' : 'Chưa có AI draft để apply');
-
-                    ($item ? $notification->success() : $notification->warning())->send();
+                    $draftModel = $draft->draft;
+                    if (! $draftModel) {
+                        Notification::make()->title('Draft chưa được persist đầy đủ')->danger()->send();
+                        return;
+                    }
+                    try {
+                        $result = app(AIProductDraftApplyService::class)->apply($draftModel, (int) auth()->id());
+                        Notification::make()->title($result['result'] === 'NOOP_ALREADY_APPLIED' ? 'Draft đã apply trước đó' : 'Đã apply draft đã duyệt')->success()->send();
+                    } catch (\Throwable $e) {
+                        Notification::make()->title('Apply bị chặn')->body($e->getMessage())->danger()->persistent()->send();
+                    }
                 }),
             ActionGroup::make([
                 Action::make('ai_rollback_latest')
@@ -127,7 +154,7 @@ class EditProduct extends EditRecord
                     ->requiresConfirmation()
                     ->modalDescription('Khôi phục bản backup gần nhất trước khi AI ghi đè nội dung sản phẩm.')
                     ->action(function () {
-                        $version = app(AIProductContentSystem::class)->rollback($this->record);
+                        $version = app(AIProductContentSystem::class)->rollback($this->record, auth()->user());
                         $notification = Notification::make()
                             ->title($version ? 'Đã rollback nội dung sản phẩm' : 'Không có bản backup để rollback');
 

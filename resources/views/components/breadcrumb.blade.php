@@ -1,5 +1,6 @@
 @props([
     'items' => [],
+    'skipSchema' => false,
 ])
 
 <nav aria-label="Breadcrumb" class="border-b border-surface-100 bg-white">
@@ -29,7 +30,7 @@
         </ol>
     </div>
 
-    @if(setting('seo.enable_schema', true) && setting('seo.enable_breadcrumb_schema', true))
+    @if(!$skipSchema && setting('seo.enable_schema', true) && setting('seo.enable_breadcrumb_schema', true))
     @push('schema')
     <script type="application/ld+json">
     {

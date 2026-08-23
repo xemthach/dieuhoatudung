@@ -20,6 +20,10 @@ class SyncSpecsFromCatalogCommand extends Command
 
     public function handle(HVACTechnicalNormalizer $normalizer): int
     {
+        $this->error('Legacy technical write path disabled. Use governed correction/import workflow.');
+        return self::FAILURE;
+
+        /*
         if (! $this->option('approved')) {
             $this->error('Blocked: add --approved after manual review.');
 
@@ -221,5 +225,6 @@ class SyncSpecsFromCatalogCommand extends Command
         $this->info('Batch applied: '.$batch);
 
         return self::SUCCESS;
+        */
     }
 }

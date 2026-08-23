@@ -1,6 +1,8 @@
 <?php
 
 return [
+    'schema_version' => 'content-layer-runtime-contract-v1',
+
     'content_layer_fields' => [
         'excerpt',
         'content_html',
@@ -38,6 +40,14 @@ return [
         'series',
         'capacity_btu',
         'btu',
+        'marketing_capacity_btu',
+        'technical_capacity_btu',
+        'technical_capacity_status',
+        'catalog_source_id',
+        'catalog_model_id',
+        'catalog_provenance',
+        'source_catalogue',
+        'source_page',
         'capacity_kw',
         'hp',
         'cooling_type',
@@ -47,6 +57,7 @@ return [
         'refrigerant',
         'refrigerant_gas',
         'power_consumption',
+        'power_input_kw',
         'airflow',
         'noise_level',
         'recommended_area',

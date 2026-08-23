@@ -16,6 +16,7 @@ class CatalogModelField extends Model
     {
         return [
             'confidence_score' => 'decimal:2',
+            'verified_at' => 'datetime',
         ];
     }
 

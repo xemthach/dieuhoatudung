@@ -96,11 +96,51 @@ class AIProductContentSanitizer
 
     public function assertNoInternalLanguage(array $payload): void
     {
-        $text = $this->displayText($payload);
+        $diagnostics = $this->internalLanguageDiagnostics($payload);
 
-        if (preg_match('/\b[A-Z]{2,}[A-Za-z]*(?:Service|Controller|Model)\b|\b[A-Z][a-z]+(?:[A-Z][A-Za-z0-9]+)+(?:Service|Controller|Model|Repository|Provider|Gateway|Adapter)?\b|\b[a-zA-Z_][a-zA-Z0-9_]*\s*\(\s*\)|\b(?:product|post|blog|config|request|response|job|payload|input|output)\.[a-zA-Z_][a-zA-Z0-9_.]*\b/u', $text)) {
-            throw new RuntimeException('AI output chua ngon ngu noi bo hoac cu phap giong code.');
+        if ($diagnostics !== null) {
+            throw new RuntimeException('AI output chua ngon ngu noi bo hoac cu phap giong code. '.json_encode($diagnostics, JSON_UNESCAPED_SLASHES));
         }
+    }
+
+    /**
+     * Return safe forensic metadata without persisting the matched content.
+     */
+    public function internalLanguageDiagnostics(array $payload): ?array
+    {
+        $rules = [
+            'INTERNAL_CLASS_IDENTIFIER' => '/\b[A-Z]{2,}[A-Za-z]*(?:Service|Controller|Model)\b|\b[A-Z][a-z]+(?:[A-Z][A-Za-z0-9]+)+(?:Service|Controller|Model|Repository|Provider|Gateway|Adapter)?\b/u',
+            'FUNCTION_CALL_SYNTAX' => '/\b[a-zA-Z_][a-zA-Z0-9_]*\s*\(\s*\)/u',
+            'INTERNAL_FIELD_PATH' => '/\b(?:product|post|blog|config|request|response|job|payload|input|output)\.[a-zA-Z_][a-zA-Z0-9_.]*\b/u',
+        ];
+        $fields = [];
+        foreach (self::DISPLAY_TEXT_KEYS as $field) {
+            $fields[$field] = (string) ($payload[$field] ?? '');
+        }
+        foreach ((array) ($payload['faq'] ?? []) as $index => $item) {
+            if (is_array($item)) {
+                $fields['faq.'.$index.'.question'] = (string) ($item['question'] ?? '');
+                $fields['faq.'.$index.'.answer'] = (string) ($item['answer'] ?? '');
+            }
+        }
+        foreach ($fields as $field => $text) {
+            foreach ($rules as $ruleId => $pattern) {
+                if (preg_match($pattern, $text, $match, PREG_OFFSET_CAPTURE) === 1) {
+                    return [
+                        'rule_id' => $ruleId,
+                        'field' => $field,
+                        'matched_category' => match ($ruleId) {
+                            'INTERNAL_CLASS_IDENTIFIER' => 'class_or_service_identifier',
+                            'FUNCTION_CALL_SYNTAX' => 'function_call_syntax',
+                            default => 'internal_field_path',
+                        },
+                        'offset' => (int) ($match[0][1] ?? 0),
+                    ];
+                }
+            }
+        }
+
+        return null;
     }
 
     public function assertCleanEncoding(array $payload): void

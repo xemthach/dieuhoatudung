@@ -55,8 +55,10 @@ class AIQueueHealth extends Page
                 ->label('Retry stuck')
                 ->icon('heroicon-o-arrow-uturn-left')
                 ->color('warning')
+                ->visible(fn (): bool => (bool) auth()->user()?->can('product.ai_generate'))
                 ->requiresConfirmation()
                 ->action(function (): void {
+                    abort_unless(auth()->user()?->can('product.ai_generate'), 403);
                     $result = app(AIQueueMonitor::class)->recoverStuck();
                     $this->reload();
                     Notification::make()

@@ -19,6 +19,10 @@ class AiProductDraft extends Model
             'warnings_json' => 'array',
             'used_verified_facts_json' => 'array',
             'token_usage_json' => 'array',
+            'approved_identity_json' => 'array',
+            'approved_fields_json' => 'array',
+            'approved_at' => 'datetime',
+            'applied_at' => 'datetime',
         ];
     }
 

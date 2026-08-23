@@ -27,15 +27,18 @@ class FixFromCatalog extends Command
             return self::FAILURE;
         }
 
+        if ($this->option('snapshot')) {
+            $this->error('A dry-run must not write ProductSpecsSnapshot rows. Remove --snapshot and use an approved snapshot step before apply.');
+
+            return self::FAILURE;
+        }
+
         $query = Product::query()->with(['brand', 'category', 'catalogSource', 'catalogModel']);
         $this->applyFilters($query);
 
         $rows = [];
         foreach ($query->get() as $product) {
             $audit = $auditor->audit($product);
-            if ($this->option('snapshot')) {
-                $this->snapshot($product);
-            }
 
             $changes = collect($audit['items'])
                 ->filter(fn (array $item) => in_array($item['validation_status'], ['mismatched_value', 'wrong_unit', 'product_missing_specs', 'suspicious_ai_generated', 'product_extra_specs'], true))
@@ -67,7 +70,7 @@ class FixFromCatalog extends Command
             'generated_at' => now()->toIso8601String(),
             'dry_run' => true,
             'auto_fix_applied' => false,
-            'snapshot_created' => (bool) $this->option('snapshot'),
+            'snapshot_created' => false,
             'rows' => $rows,
         ];
 

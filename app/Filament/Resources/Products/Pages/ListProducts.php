@@ -10,7 +10,8 @@ use App\Jobs\AiProductContentBatchJob;
 use App\Models\AiProductJob;
 use App\Models\AiProductJobItem;
 use App\Models\Product;
-use App\Services\Bulk\BulkSelectionResolver;
+use App\Services\AI\ProductBulkGenerationManifest;
+use App\Services\AI\ProductBulkTargetResolver;
 use App\Services\AI\AIQueueMonitor;
 use App\Support\SchemaColumns;
 use Filament\Actions\Action;
@@ -149,8 +150,8 @@ class ListProducts extends ListRecords
 
         $productIds = $this->resolveAiProductIds($scope);
         $currentPageIds = $scope === 'current_page' ? $productIds : $this->resolveAiProductIds('current_page');
-        $resolver = app(BulkSelectionResolver::class);
-        $selection = $resolver->resolvePayload([
+        $resolver = app(ProductBulkTargetResolver::class);
+        $selection = $resolver->resolveLegacyPayload([
             'scope' => $scope === 'all_filtered' ? 'filter' : $scope,
             'selected_ids' => [],
             'current_page_ids' => $currentPageIds,
@@ -201,7 +202,7 @@ class ListProducts extends ListRecords
             'created_by' => auth()->id(),
         ], SchemaColumns::existing('ai_product_jobs', [
             'module' => 'ai_product_bulk',
-            'queue_name' => 'ai',
+            'queue_name' => config('ai.governed_queue', 'ai_governed'),
             'current_page_ids_json' => $scope === 'current_page' ? $productIds : null,
             'filter_json' => in_array($scope, ['filter', 'all_filtered'], true) ? [
                 'source' => 'products_header_action',
@@ -210,7 +211,16 @@ class ListProducts extends ListRecords
             'confirm_filter_scope' => in_array($scope, ['filter', 'all_filtered'], true) && ! empty($data['confirm_filter_scope']),
         ])));
 
-        AiProductContentBatchJob::dispatch($job->id, $productIds)->onQueue('ai');
+        app(ProductBulkGenerationManifest::class)->freeze(
+            $job,
+            $scope === 'current_page' ? \App\Services\AI\ProductBulkTargetResolver::CURRENT_PAGE : \App\Services\AI\ProductBulkTargetResolver::CURRENT_FILTER,
+            $productIds,
+            (int) auth()->id(),
+            ['table_filters' => $this->tableFilters ?? [], 'table_search' => $this->tableSearch ?? null],
+            ['operation' => 'generate_ai_content', 'requested_fields' => $config['outputs'] ?? ['content_html']]
+            , auth()->user()
+        );
+        AiProductContentBatchJob::dispatch($job->id)->onQueue(config('ai.governed_queue', 'ai_governed'));
         $workerOffline = ! (bool) data_get(app(AIQueueMonitor::class)->health(), 'worker_heartbeat.is_running');
 
         Notification::make()

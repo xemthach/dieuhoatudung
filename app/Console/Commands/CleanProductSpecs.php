@@ -16,6 +16,11 @@ class CleanProductSpecs extends Command
 
     public function handle(): int
     {
+        if (! $this->option('dry-run')) {
+            $this->error('Legacy technical write path disabled. Use governed correction/import workflow.');
+            return self::FAILURE;
+        }
+
         $mapper = new ProductImportMapper();
         $dryRun = $this->option('dry-run');
         $verbose = $this->option('verbose-output');

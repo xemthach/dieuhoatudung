@@ -163,6 +163,90 @@ class HVACTechnicalFactValidator
                 continue;
             }
 
+            if ($classification === 'generic_capacity_mention') {
+                $classified[] = array_merge($claim, [
+                    'status' => 'ignored',
+                    'classification' => $classification,
+                    'reason' => 'Capacity mention without technical wording is not a verified technical fact.',
+                ]);
+                $log[] = [
+                    'validator' => 'TechnicalFactValidator',
+                    'claim' => $claimText,
+                    'classification' => $classification,
+                    'action' => 'ignored_not_technical_authority',
+                ];
+                continue;
+            }
+
+            if (in_array($classification, ['marketing_capacity_claim', 'technical_capacity_claim', 'ambiguous_capacity_claim'], true)
+                && ($claim['unit'] ?? null) === 'btu') {
+                $claimValue = (float) ($claim['number'] ?? 0);
+                $marketingValue = $this->capacityValue($context, 'marketing_capacity_btu');
+                $technicalValue = $this->capacityValue($context, 'technical_capacity_btu');
+
+                if ($classification === 'marketing_capacity_claim') {
+                    if ($marketingValue !== null && $claimValue === $marketingValue) {
+                        $used[] = 'product.marketing_capacity_btu';
+                        $classified[] = array_merge($claim, [
+                            'status' => 'verified',
+                            'classification' => $classification,
+                            'source' => 'ProductTechnicalFactResolver::marketing_capacity_btu',
+                        ]);
+                        $log[] = [
+                            'validator' => 'TechnicalFactValidator',
+                            'claim' => $claimText,
+                            'classification' => $classification,
+                            'action' => 'verified_marketing_context',
+                        ];
+                        continue;
+                    }
+
+                    $warnings[] = 'unverified_marketing_capacity_claim:'.$claimText;
+                    $rewritable[] = ['claim' => $claimText, 'classification' => $classification, 'reason' => 'Marketing capacity does not match verified commercial grouping.'];
+                    $classified[] = array_merge($claim, ['status' => 'unverified', 'classification' => $classification]);
+                    continue;
+                }
+
+                if ($classification === 'technical_capacity_claim') {
+                    if ($technicalValue !== null && $claimValue === $technicalValue) {
+                        $used[] = 'product.rated_cooling_capacity_btu';
+                        $classified[] = array_merge($claim, [
+                            'status' => 'verified',
+                            'classification' => $classification,
+                            'source' => 'ProductTechnicalFactResolver::technical_capacity_btu',
+                        ]);
+                        $log[] = [
+                            'validator' => 'TechnicalFactValidator',
+                            'claim' => $claimText,
+                            'classification' => $classification,
+                            'action' => 'verified_against_technical_capacity',
+                        ];
+                        continue;
+                    }
+
+                    $blocked[] = 'contradicted_technical_capacity:'.$claimText;
+                    $classified[] = array_merge($claim, [
+                        'status' => 'contradicted',
+                        'classification' => $classification,
+                        'source' => 'ProductTechnicalFactResolver::technical_capacity_btu',
+                        'verified_value' => $technicalValue,
+                    ]);
+                    $log[] = [
+                        'validator' => 'TechnicalFactValidator',
+                        'claim' => $claimText,
+                        'classification' => $classification,
+                        'action' => 'blocked_contradicted_technical_capacity',
+                        'verified_value' => $technicalValue,
+                    ];
+                    continue;
+                }
+
+                $blocked[] = 'ambiguous_capacity_claim:'.$claimText;
+                $rewritable[] = ['claim' => $claimText, 'classification' => $classification, 'reason' => 'Capacity wording does not identify commercial or technical semantics.'];
+                $classified[] = array_merge($claim, ['status' => 'ambiguous', 'classification' => $classification]);
+                continue;
+            }
+
             // Product technical claims must be verified against specs
             $match = $this->registry->findMatchingFact($registry, $claim);
             if ($match !== null) {
@@ -207,11 +291,32 @@ class HVACTechnicalFactValidator
         return [
             'status' => $blocked === [] ? 'verified' : 'blocked',
             'warnings' => IssueList::normalize($warnings),
-            'blocked_claims' => IssueList::normalize($blocked), // Technical claims no longer hard-block
+            'blocked_claims' => IssueList::normalize($blocked),
             'used_facts' => IssueList::normalize($used),
             'technical_claims' => $classified,
             'rewritable_claims' => $rewritable,
             'log' => $log,
         ];
+    }
+
+    private function capacityValue(array $context, string $key): ?float
+    {
+        $value = Arr::get($context, $key);
+        if ($value === null) {
+            $value = Arr::get($context, 'capacity_semantics.'.$key.'.value');
+        }
+        if ($value === null) {
+            $factKey = $key === 'technical_capacity_btu'
+                ? 'product.rated_cooling_capacity_btu'
+                : 'product.marketing_capacity_btu';
+            foreach ((array) Arr::get($context, 'verified_fact_registry', []) as $fact) {
+                if (($fact['fact_key'] ?? null) === $factKey) {
+                    $value = $fact['value'] ?? null;
+                    break;
+                }
+            }
+        }
+
+        return is_numeric($value) ? (float) $value : null;
     }
 }

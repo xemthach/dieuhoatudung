@@ -2,6 +2,8 @@
 
 namespace App\Services\Product;
 
+use App\Enums\CatalogSectionType;
+
 /**
  * Maps imported product data to the correct database fields.
  *
@@ -26,6 +28,8 @@ class ProductImportMapper
         //  Capacity 
         'capacity_btu'          => 'btu',
         'btu'                   => 'btu',
+        'marketing_capacity_btu' => 'marketing_capacity_btu',
+        'technical_capacity_btu' => 'technical_capacity_btu',
         'capacity_kw'           => 'capacity_kw',
         'kw'                    => 'capacity_kw',
         'hp'                    => 'hp',
@@ -191,6 +195,65 @@ class ProductImportMapper
     }
 
     /**
+     * Catalog import mapping with an explicit section authority boundary.
+     * A generic capacity_btu key is never allowed to silently become products.btu.
+     * The legacy map() method remains for non-catalog integrations only.
+     *
+     * @return array{attributes: array, extra_specs: array, warnings: array, rejected: array}
+     */
+    public function mapCatalog(array $raw, CatalogSectionType|string $section, array $allowedTechnicalFields = []): array
+    {
+        $section = $section instanceof CatalogSectionType
+            ? $section
+            : (CatalogSectionType::tryFrom(strtolower(trim($section))) ?? CatalogSectionType::UNKNOWN);
+
+        $warnings = [];
+        $rejected = [];
+        $prepared = [];
+
+        foreach ($raw as $key => $value) {
+            if ($value === null || $value === '') {
+                continue;
+            }
+
+            $normalizedKey = mb_strtolower(trim((string) $key));
+            if ($normalizedKey === 'capacity_btu' || $normalizedKey === 'btu') {
+                $target = match ($section) {
+                    CatalogSectionType::PRODUCT_LIST => 'marketing_capacity_btu',
+                    CatalogSectionType::TECHNICAL_APPENDIX => 'technical_capacity_btu',
+                    default => null,
+                };
+
+                if ($target === null) {
+                    $warnings[] = "capacity_without_authoritative_section: {$key}";
+                    $rejected[$key] = $value;
+                } else {
+                    $prepared[$target] = $value;
+                }
+                continue;
+            }
+
+            $prepared[$key] = $value;
+        }
+
+        $mapped = $this->map($prepared);
+        foreach ($prepared as $key => $value) {
+            if (in_array($key, ['marketing_capacity_btu', 'technical_capacity_btu'], true)) {
+                $mapped['attributes'][$key] = (int) $value;
+            }
+        }
+
+        $governed = $this->mapWithGovernance($prepared, $allowedTechnicalFields, true);
+
+        return [
+            'attributes' => array_merge($governed['attributes'], $mapped['attributes']),
+            'extra_specs' => $governed['extra_specs'],
+            'warnings' => array_values(array_unique(array_merge($warnings, $governed['warnings']))),
+            'rejected' => array_merge($rejected, $governed['rejected']),
+        ];
+    }
+
+    /**
      * Clean existing specs_json: move standard fields to DB columns,
      * remove metadata, deduplicate.
      *
@@ -300,6 +363,7 @@ class ProductImportMapper
     {
         return match ($column) {
             'btu'           => (int) $value,
+            'marketing_capacity_btu', 'technical_capacity_btu' => (int) $value,
             'capacity_kw'   => (float) $value,
             'hp'            => (float) $value,
             'inverter'      => filter_var($value, FILTER_VALIDATE_BOOLEAN),

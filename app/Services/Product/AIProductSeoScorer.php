@@ -7,6 +7,8 @@ use Illuminate\Support\Str;
 
 class AIProductSeoScorer
 {
+    public function __construct(private readonly ProductTechnicalFactResolver $technicalFacts) {}
+
     public function score(Product $product, array $warnings = []): array
     {
         $score = 0;
@@ -106,7 +108,8 @@ class AIProductSeoScorer
             $product->model_code,
             $product->sku,
             $product->brand?->name,
-            $product->btu ? $product->btu.' btu' : null,
+            $this->technicalFacts->value($product, 'technical_capacity_btu')
+                ? $this->technicalFacts->value($product, 'technical_capacity_btu').' btu' : null,
         ]);
 
         foreach ($needles as $needle) {
@@ -127,12 +130,7 @@ class AIProductSeoScorer
 
     private function hasTechnicalData(Product $product): bool
     {
-        return filled($product->model_code)
-            || filled($product->btu)
-            || filled($product->capacity_kw)
-            || filled($product->refrigerant_gas)
-            || filled($product->voltage)
-            || ! empty($product->specs_json);
+        return filled($product->model_code) || $this->technicalFacts->allVerified($product) !== [];
     }
 
     private function plainText(string $html): string

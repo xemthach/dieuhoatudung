@@ -79,12 +79,37 @@ class AITechnicalLogger
         $message = $error instanceof Throwable ? $error->getMessage() : $error;
         $lower = Str::lower($message.' '.EncodingGuard::jsonEncode($context));
 
+        if (Str::contains($lower, ['content_structure_failed'])) {
+            return 'content_structure_failed';
+        }
+        if (Str::contains($lower, ['content_too_short'])) {
+            return 'content_too_short';
+        }
+        if (Str::contains($lower, ['payload_contract_failed'])) {
+            return 'payload_contract_failed';
+        }
+        if (Str::contains($lower, ['provider_output_truncated'])) {
+            return 'provider_output_truncated';
+        }
+        if (Str::contains($lower, ['ambiguous_capacity'])) {
+            return 'ambiguous_capacity';
+        }
+        if (Str::contains($lower, ['technical_contradiction', 'contradicted'])) {
+            return 'technical_contradiction';
+        }
+
+        // H2/H3 and length checks run after JSON decoding/normalization; they
+        // are content-contract failures, not provider/schema failures.
+        if (Str::contains($lower, ['h2/h3'])) {
+            return 'content_quality_validation_failed';
+        }
+
         return match (true) {
             Str::contains($lower, ['no ai providers available', 'không có ai provider']) => 'missing_api_key',
             Str::contains($lower, ['401', '403', 'unauthorized', 'forbidden', 'invalid api key']) => 'invalid_api_key',
             Str::contains($lower, ['429', 'rate limit', 'rate_limited']) => 'provider_rate_limit',
             Str::contains($lower, ['timeout', 'timed out', 'cURL error 28']) => 'provider_timeout',
-            Str::contains($lower, ['internal_language_detected', 'btucalculatorservice', 'technical_specs_json', 'product.capacity_btu']) => 'internal_code_leak_detected',
+            Str::contains($lower, ['internal_language_detected', 'ngon ngu noi bo', 'cu phap giong code', 'btucalculatorservice', 'technical_specs_json', 'product.capacity_btu']) => 'internal_code_leak_detected',
             Str::contains($lower, ['invalid json', 'json', 'không hợp lệ']) => 'invalid_json_response',
             Str::contains($lower, ['schema', 'thiếu', 'chưa đạt chuẩn', 'validation']) => 'json_schema_validation_failed',
             Str::contains($lower, ['fact-check', 'unverified', 'blocked_claim']) => 'fact_check_failed',

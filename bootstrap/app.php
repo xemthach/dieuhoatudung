@@ -11,7 +11,10 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        $middleware->redirectGuestsTo(fn (): string => route('filament.admin.auth.login'));
+
         $middleware->web(prepend: [
+            \App\Http\Middleware\SecurityResponseHeaders::class,
             \App\Http\Middleware\ForceUtf8ResponseHeaders::class,
             \App\Http\Middleware\HandleRedirects::class,
         ]);

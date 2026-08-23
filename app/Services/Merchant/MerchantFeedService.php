@@ -55,7 +55,9 @@ class MerchantFeedService
             })
             ->whereNotNull('main_image')
             ->where('main_image', '!=', '')
-            ->get();
+            ->get()
+            ->filter(fn (Product $product) => filled(media_url($product->main_image)))
+            ->values();
     }
 
     /**
@@ -66,26 +68,26 @@ class MerchantFeedService
         $price = $this->priceResolver->resolve($product);
         $productUrl = route('product.show', $product->slug);
         $imageUrl = media_url($product->main_image);
-        $condition = $product->condition ?? 'new';
-        $availability = $this->mapAvailability($product->stock_status?->value ?? $product->stock_status ?? 'in_stock');
+        $condition = filled($product->condition) ? (string) $product->condition : null;
+        $availability = $this->mapAvailability($product->stock_status?->value ?? $product->stock_status);
 
         $xml = "  <item>\n";
         $xml .= "    <g:id>{$product->id}</g:id>\n";
         $xml .= '    <g:title>'.$this->escape($product->merchant_title ?? $product->name)."</g:title>\n";
         $xml .= '    <g:description>'.$this->escape($product->merchant_description ?? $product->short_description ?? $product->seo_description ?? $product->name)."</g:description>\n";
-        $xml .= "    <g:link>{$productUrl}</g:link>\n";
-        $xml .= "    <g:image_link>{$imageUrl}</g:image_link>\n";
+        $xml .= '    <g:link>'.$this->escape($productUrl)."</g:link>\n";
+        $xml .= '    <g:image_link>'.$this->escape((string) $imageUrl)."</g:image_link>\n";
 
         // Additional images
         $gallery = $product->gallery_json ?? [];
         if (is_array($gallery)) {
             foreach (array_slice($gallery, 0, 10) as $img) {
-                $xml .= '    <g:additional_image_link>'.media_url($img)."</g:additional_image_link>\n";
+                if ($url = media_url($img)) $xml .= '    <g:additional_image_link>'.$this->escape($url)."</g:additional_image_link>\n";
             }
         }
 
-        $xml .= "    <g:condition>{$condition}</g:condition>\n";
-        $xml .= "    <g:availability>{$availability}</g:availability>\n";
+        if ($condition !== null) $xml .= '    <g:condition>'.$this->escape($condition)."</g:condition>\n";
+        if ($availability !== null) $xml .= '    <g:availability>'.$this->escape($availability)."</g:availability>\n";
         $merchantPrice = $price['regular_price'] ?? $price['final_price'];
         $xml .= '    <g:price>'.number_format($merchantPrice, 0, '.', '')." VND</g:price>\n";
 
@@ -108,7 +110,7 @@ class MerchantFeedService
         }
 
         // MPN (from model_code)
-        if (! empty($product->model_code)) {
+        if (! empty($product->model_code) && (bool) ($product->model_is_mpn ?? false)) {
             $xml .= '    <g:mpn>'.$this->escape($product->model_code)."</g:mpn>\n";
         }
 
@@ -118,15 +120,14 @@ class MerchantFeedService
         }
 
         // Identifier exists
-        $identifierExists = $product->identifier_exists || ! empty($product->gtin);
-        $xml .= '    <g:identifier_exists>'.($identifierExists ? 'true' : 'false')."</g:identifier_exists>\n";
+        if ($product->identifier_exists !== null || ! empty($product->gtin)) {
+            $identifierExists = (bool) $product->identifier_exists || ! empty($product->gtin);
+            $xml .= '    <g:identifier_exists>'.($identifierExists ? 'true' : 'false')."</g:identifier_exists>\n";
+        }
 
         // Google Product Category
         if (! empty($product->google_product_category)) {
             $xml .= '    <g:google_product_category>'.$this->escape($product->google_product_category)."</g:google_product_category>\n";
-        } else {
-            // Default: Home & Garden > Heating, Ventilation & Air Conditioning
-            $xml .= "    <g:google_product_category>604</g:google_product_category>\n";
         }
 
         // Product type
@@ -157,14 +158,14 @@ class MerchantFeedService
     /**
      * Map stock status to Google Merchant availability.
      */
-    protected function mapAvailability(string $status): string
+    protected function mapAvailability(?string $status): ?string
     {
         return match ($status) {
             'in_stock' => 'in_stock',
             'out_of_stock' => 'out_of_stock',
             'pre_order' => 'preorder',
             'contact' => 'in_stock',
-            default => 'in_stock',
+            default => null,
         };
     }
 

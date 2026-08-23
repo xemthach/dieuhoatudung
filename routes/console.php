@@ -16,7 +16,7 @@ Schedule::command('ai:queue-health --record')
     ->everyFiveMinutes()
     ->withoutOverlapping();
 
-Schedule::command('ai:technical-logs-cleanup --days=30')
+Schedule::command('ai:technical-logs-cleanup --days=30 --force')
     ->dailyAt('03:20')
     ->withoutOverlapping();
 

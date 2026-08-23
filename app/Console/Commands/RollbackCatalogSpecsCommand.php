@@ -8,12 +8,24 @@ use Illuminate\Console\Command;
 
 class RollbackCatalogSpecsCommand extends Command
 {
-    protected $signature = 'products:rollback-catalog-specs {--batch= : Snapshot batch identifier in reason}';
+    protected $signature = 'products:rollback-catalog-specs
+        {--batch= : Snapshot batch identifier in reason}
+        {--force : Explicitly authorize restoring product specs from snapshots}';
 
     protected $description = 'Rollback product specs from snapshots by batch marker.';
 
     public function handle(): int
     {
+        $this->error('Legacy technical write path disabled. Use governed correction/import workflow.');
+        return self::FAILURE;
+
+        /*
+        if (! $this->option('force')) {
+            $this->error('Refusing to rollback product specs without explicit --force.');
+
+            return self::FAILURE;
+        }
+
         $batch = (string) $this->option('batch');
         if ($batch === '') {
             $this->error('Missing --batch option.');
@@ -63,5 +75,6 @@ class RollbackCatalogSpecsCommand extends Command
         $this->info("Rollback completed. snapshots={$count}, restored={$restored}");
 
         return self::SUCCESS;
+        */
     }
 }

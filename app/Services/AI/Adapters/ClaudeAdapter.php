@@ -83,6 +83,10 @@ class ClaudeAdapter implements AIAdapterInterface
             'json' => app(AIJsonResponseParser::class)->parse($text, ! empty($options['require_json'])),
             'tokens_used' => $tokens,
             'latency_ms' => $latency,
+            'finish_reason' => $data['stop_reason'] ?? null,
+            'raw_response_length' => mb_strlen($text, '8bit'),
+            'response_fingerprint' => hash('sha256', $text),
+            'provider_request_id' => $response->header('request-id') ?: $response->header('x-request-id'),
         ];
     }
 

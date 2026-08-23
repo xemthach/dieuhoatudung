@@ -5,7 +5,10 @@ namespace App\Jobs;
 use App\Models\AiProductJob;
 use App\Models\AiProductJobItem;
 use App\Models\Product;
+use App\Models\User;
 use App\Services\AI\AITechnicalLogger;
+use App\Services\AI\AIJobStateMachine;
+use App\Services\AI\AIProductIdempotencyService;
 use App\Services\Product\AIProductContentSystem;
 use App\Services\Product\AIProductSeoScorer;
 use App\Support\SchemaColumns;
@@ -15,6 +18,8 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Database\QueryException;
+use Illuminate\Support\Facades\Schema;
 
 class AiProductContentSingleJob implements ShouldQueue
 {
@@ -35,13 +40,78 @@ class AiProductContentSingleJob implements ShouldQueue
         return [60, 180, 300];
     }
 
-    public function handle(AIProductContentSystem $system, ?AITechnicalLogger $technicalLogger = null): void
+    public function handle(AIProductContentSystem $system, ?AITechnicalLogger $technicalLogger = null, ?AIProductIdempotencyService $idempotency = null): void
     {
         $technicalLogger ??= app(AITechnicalLogger::class);
+        $idempotency ??= app(AIProductIdempotencyService::class);
         $product = Product::with(['brand', 'category', 'tags', 'faqs', 'relatedProducts', 'posts'])->findOrFail($this->productId);
         $job = $this->aiProductJobId ? AiProductJob::find($this->aiProductJobId) : null;
         $item = $this->resolveItem($job, $product);
+        if ($item && $item->status_reason === 'BLOCKED_FINAL') return;
+        $resumeAllowlist = (array) data_get($job?->config_json, 'controlled_resume_allowlist', []);
+        if ($resumeAllowlist !== [] && ! in_array((int) $product->id, array_map('intval', $resumeAllowlist), true)) return;
+        if ($job?->created_by) {
+            $actor = User::find($job->created_by);
+            $manifest = is_array($job->target_manifest_json) ? $job->target_manifest_json : [];
+            $permitted = (array) data_get($manifest, 'permission_snapshot.permitted_product_ids', []);
+            $allowed = $actor && ($actor->can('bulk_ai_generate') || $actor->can('product.ai_generate'));
+            if (! $allowed || ($permitted !== [] && ! in_array((int) $product->id, array_map('intval', $permitted), true))) {
+                $this->updateItem($item, ['status' => 'blocked', 'canonical_status' => AIJobStateMachine::BLOCKED, 'status_reason' => 'BLOCKED_PERMISSION_REVOKED', 'last_error_code' => 'BLOCKED_PERMISSION_REVOKED', 'finished_at' => now()]);
+                return;
+            }
+        }
 
+        $config = $job?->config_json ?? [];
+        if ($item) {
+            $config['current_job_item_id'] = $item->id;
+        }
+        \App\Services\AI\PilotRuntimeGuard::assert(is_array($config) ? $config : []);
+        $strictDraftOnly = (bool) ($config['draft_only_strict'] ?? false);
+        $key = $idempotency->key($product, $config);
+        $existing = $idempotency->existing($key, $item?->id);
+        if ($existing) {
+            $isDone = in_array($existing->status, ['completed', 'completed_verified', 'completed_with_warnings'], true)
+                || $existing->canonical_status === 'DONE';
+            $this->updateItem($item, [
+                'technical_context_hash' => $idempotency->contextHash($product),
+                'prompt_version' => \App\Services\AI\AIContentGovernance::PROMPT_VERSION,
+                'status' => $isDone ? 'completed_verified' : 'blocked',
+                'canonical_status' => $isDone ? 'DONE' : 'BLOCKED',
+                'status_reason' => $isDone ? 'REUSED_EXISTING_RESULT' : 'DUPLICATE_IN_PROGRESS',
+                'generated_payload_json' => $isDone ? $existing->generated_payload_json : null,
+                'draft_id' => $isDone ? $existing->draft_id : null,
+            ]);
+
+            return;
+        }
+        try {
+            $this->updateItem($item, [
+                'idempotency_key' => $key,
+                'technical_context_hash' => $item->technical_context_hash ?: $idempotency->contextHash($product),
+                'prompt_version' => \App\Services\AI\AIContentGovernance::PROMPT_VERSION,
+            ]);
+        } catch (QueryException $exception) {
+            if (! $idempotency->isDuplicateKeyException($exception)) {
+                throw $exception;
+            }
+
+            $existing = $idempotency->existing($key, $item?->id);
+            if (! $existing) {
+                throw $exception;
+            }
+
+            $this->updateItem($item, [
+                'status' => 'blocked',
+                'canonical_status' => AIJobStateMachine::BLOCKED,
+                'status_reason' => 'DUPLICATE_IN_PROGRESS',
+            ]);
+
+            return;
+        }
+
+        if ($strictDraftOnly) {
+            \App\Services\AI\DraftOnlyWriteGuard::begin('queued_draft_only_strict');
+        }
         $this->updateItem($item, [
             'status' => 'processing',
             'module' => 'ai_product_content',
@@ -59,8 +129,18 @@ class AiProductContentSingleJob implements ShouldQueue
             'attempts' => $this->attempts(),
             'product_id' => $product->id,
         ], $item);
+        AIJobStateMachine::transition($item, AIJobStateMachine::RUNNING, 'worker_started');
 
         try {
+            $runtime = $this->acquireRuntimeGate($job, $item, $product, $system, $config);
+            if ($runtime === false) {
+                $this->release(5);
+                return;
+            }
+            if (is_array($runtime) && ($runtime['terminal'] ?? false)) {
+                $runtime = null;
+                return;
+            }
             if ($item && $this->shouldPatchExistingDraft($item)) {
                 $patched = $system->retryDraftPatch($product, $item, $job);
                 if ($patched !== null) {
@@ -68,9 +148,13 @@ class AiProductContentSingleJob implements ShouldQueue
                 }
             }
 
-            $system->generate($product, $job?->config_json ?? [], $job, $item, $job?->created_by);
+            $system->generate($product, $config, $job, $item, $job?->created_by);
+            if (is_array($runtime ?? null) && Schema::hasTable('ai_bulk_field_operations')) {
+                \Illuminate\Support\Facades\DB::table('ai_bulk_field_operations')->where('runtime_batch_id', $runtime['batch']->id)->where('item_id', $item->id)->where('field', 'content_html')->update(['status' => 'DONE', 'tokens_consumed' => (int) ($item->refresh()->tokens_used ?? 0), 'updated_at' => now()]);
+            }
         } catch (\Throwable $e) {
-            if ($this->isRateLimit($e) && $this->attempts() < $this->tries) {
+            $providerAttemptsExhausted = str_contains($e->getMessage(), 'AI Generation failed after');
+            if ($this->isRateLimit($e) && ! $providerAttemptsExhausted && $this->attempts() < $this->tries) {
                 $this->updateItem($item, [
                     'status' => 'queued',
                     'retry_count' => (int) ($item->retry_count ?? 0) + 1,
@@ -95,6 +179,21 @@ class AiProductContentSingleJob implements ShouldQueue
                 'attempts' => $this->attempts(),
                 'product_id' => $product->id,
             ]);
+            $responseUsage = is_array($item?->token_usage_json) ? $item->token_usage_json : [];
+            $technical['validation_errors'] = [
+                'code' => $technical['last_error_code'] ?? 'job_failed',
+                'schema_version' => $responseUsage['schema_version'] ?? config('ai_product_allowed_fields.schema_version', 'content-layer-runtime-contract-v1'),
+                'response_shape' => $responseUsage['response_shape'] ?? null,
+                'finish_reason' => $responseUsage['finish_reason'] ?? null,
+                'raw_response_length' => $responseUsage['raw_response_length'] ?? null,
+                'response_fingerprint' => $responseUsage['response_fingerprint'] ?? null,
+            ];
+            $technical['raw_response_summary'] = json_encode([
+                'response_fingerprint' => $responseUsage['response_fingerprint'] ?? null,
+                'raw_response_length' => $responseUsage['raw_response_length'] ?? null,
+                'finish_reason' => $responseUsage['finish_reason'] ?? null,
+                'response_shape' => $responseUsage['response_shape'] ?? null,
+            ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
             $score = app(AIProductSeoScorer::class)->score($product->loadMissing(['brand', 'category', 'tags', 'faqs', 'relatedProducts', 'posts']));
             $message = $e->getMessage();
             $this->updateItem($item, [
@@ -107,21 +206,78 @@ class AiProductContentSingleJob implements ShouldQueue
                 'duration_ms' => (int) $item?->started_at?->diffInMilliseconds(now()),
                 ...$technical,
             ]);
-            $product->update([
-                'ai_status' => 'failed',
-                'ai_score' => $score['score'],
-                'ai_warning_count' => count($score['warnings']),
-                'ai_error_message' => $message,
-                'ai_last_run_at' => now(),
-            ]);
+            if (is_array($runtime ?? null) && Schema::hasTable('ai_bulk_field_operations')) {
+                \Illuminate\Support\Facades\DB::table('ai_bulk_field_operations')->where('runtime_batch_id', $runtime['batch']->id)->where('item_id', $item->id)->where('field', 'content_html')->update(['status' => 'FAILED', 'last_error_code' => $technical['last_error_code'] ?? 'job_failed', 'last_error_message' => $message, 'updated_at' => now()]);
+            }
+            AIJobStateMachine::transition($item, AIJobStateMachine::FAILED, $technical['last_error_code'] ?? 'job_failed');
+            if (! $strictDraftOnly) {
+                $product->update([
+                    'ai_status' => 'failed',
+                    'ai_score' => $score['score'],
+                    'ai_warning_count' => count($score['warnings']),
+                    'ai_error_message' => $message,
+                    'ai_last_run_at' => now(),
+                ]);
+            }
             Log::error('AI product content job failed', [
                 'ai_product_job_id' => $job?->id,
                 'product_id' => $product->id,
                 'error' => $message,
             ]);
         } finally {
+            if (isset($runtime) && is_array($runtime)) {
+                $runtimeBatch = $runtime['batch'];
+                $item?->refresh();
+                $actual = (int) ($item?->tokens_used ?? 0);
+
+                // The provider request is committed before downstream validation and
+                // fact-checking. Recover that authoritative usage when a later
+                // validator throws before AIProductContentSystem can persist it.
+                if ($actual <= 0 && $job && $item) {
+                    $contextId = "ai-product-{$product->id}-{$job->id}";
+                    $providerLog = \Illuminate\Support\Facades\DB::table('ai_request_logs')
+                        ->where('context_id', $contextId)
+                        ->where('status', 'success')
+                        ->whereNotNull('tokens_total')
+                        ->when($item->started_at, fn ($query) => $query->where('created_at', '>=', $item->started_at))
+                        ->latest('id')
+                        ->first();
+
+                    if ($providerLog && (int) $providerLog->tokens_total > 0) {
+                        $actual = (int) $providerLog->tokens_total;
+                        $usage = is_array($item->token_usage_json) ? $item->token_usage_json : [];
+                        $usage['provider_usage_recovered'] = [
+                            'request_log_id' => (int) $providerLog->id,
+                            'tokens_total' => $actual,
+                            'reason' => 'provider_success_before_downstream_validation',
+                        ];
+                        $item->update([
+                            'tokens_used' => $actual,
+                            'token_usage_json' => $usage,
+                        ]);
+                        $technicalLogger->event('ai_bulk_runtime', 'token_usage_recovered', 'Provider usage recovered after downstream validation failure.', [
+                            'batch_uuid' => $runtimeBatch->batch_uuid,
+                            'item_id' => $item->id,
+                            'product_id' => $product->id,
+                            'provider_request_log_id' => (int) $providerLog->id,
+                            'tokens_total' => $actual,
+                            'reason' => 'provider_success_before_downstream_validation',
+                        ], $item);
+                    }
+                }
+                if ($actual > 0) {
+                    app(\App\Services\AI\BulkRuntimeTokenService::class)->finalize($runtimeBatch, $runtime['reserved'], $actual);
+                } else {
+                    app(\App\Services\AI\BulkRuntimeTokenService::class)->releaseOutstandingReservation($runtimeBatch, $runtime['reserved'], 'provider_usage_unavailable_or_interrupted_before_response', (int) $item->id);
+                }
+                app(\App\Services\AI\BulkRuntimeSlotService::class)->release($runtimeBatch, (int) $item->id, $runtime['worker']);
+                app(\App\Services\AI\BulkRuntimeLeaseService::class)->release($runtimeBatch, (int) $item->id, $runtime['worker']);
+            }
             if ($job) {
                 $this->refreshJobStats($job->refresh());
+            }
+            if ($strictDraftOnly) {
+                \App\Services\AI\DraftOnlyWriteGuard::end();
             }
         }
     }
@@ -129,6 +285,7 @@ class AiProductContentSingleJob implements ShouldQueue
     public function failed(\Throwable $exception): void
     {
         $item = $this->aiProductJobItemId ? AiProductJobItem::find($this->aiProductJobItemId) : null;
+        $job = $this->aiProductJobId ? AiProductJob::find($this->aiProductJobId) : null;
         $product = Product::with(['brand', 'category', 'tags', 'faqs', 'relatedProducts', 'posts'])->find($this->productId);
         $score = $product ? app(AIProductSeoScorer::class)->score($product) : ['score' => 0, 'warnings' => []];
         $technical = app(AITechnicalLogger::class)->exception('ai_product_content', $exception, $item, [
@@ -145,13 +302,16 @@ class AiProductContentSingleJob implements ShouldQueue
             ...$technical,
         ]);
 
-        Product::whereKey($this->productId)->update([
-            'ai_status' => 'failed',
-            'ai_score' => $score['score'],
-            'ai_warning_count' => count($score['warnings']),
-            'ai_error_message' => $exception->getMessage(),
-            'ai_last_run_at' => now(),
-        ]);
+        $strictDraftOnly = (bool) ($job?->config_json['draft_only_strict'] ?? false);
+        if (! $strictDraftOnly) {
+            Product::whereKey($this->productId)->update([
+                'ai_status' => 'failed',
+                'ai_score' => $score['score'],
+                'ai_warning_count' => count($score['warnings']),
+                'ai_error_message' => $exception->getMessage(),
+                'ai_last_run_at' => now(),
+            ]);
+        }
 
         if ($this->aiProductJobId && ($job = AiProductJob::find($this->aiProductJobId))) {
             $this->refreshJobStats($job);
@@ -186,6 +346,39 @@ class AiProductContentSingleJob implements ShouldQueue
         $item?->update(SchemaColumns::existing('ai_product_job_items', $attributes));
     }
 
+    private function acquireRuntimeGate(?AiProductJob $job, ?AiProductJobItem $item, Product $product, ?AIProductContentSystem $system = null, array $config = []): array|false|null
+    {
+        if (! $job || ! $item || ! Schema::hasTable('ai_bulk_runtime_batches')) return null;
+        $runtimeBatch = app(\App\Models\AiBulkRuntimeBatch::class)->where('batch_uuid', $job->batch_uuid)->first();
+        if (! $runtimeBatch) return null;
+        if ($runtimeBatch->status === 'CANCELLED') {
+            $this->updateItem($item, ['status' => 'cancelled', 'canonical_status' => 'CANCELLED', 'status_reason' => 'CANCELLED_BY_OPERATOR']);
+            return ['terminal' => true];
+        }
+        $expected = $item->technical_context_hash;
+        $current = app(\App\Services\AI\AIProductIdempotencyService::class)->contextHash($product);
+        if ($expected && ! hash_equals((string) $expected, (string) $current)) {
+            $this->updateItem($item, ['status' => 'blocked', 'canonical_status' => 'BLOCKED', 'status_reason' => 'STALE_TECHNICAL_CONTEXT', 'last_error_code' => 'STALE_TECHNICAL_CONTEXT']);
+            return ['terminal' => true];
+        }
+        $worker = gethostname().':'.getmypid();
+        if (! app(\App\Services\AI\BulkRuntimeLeaseService::class)->claim($runtimeBatch, (int) $item->id, $worker)) return false;
+        $slot = app(\App\Services\AI\BulkRuntimeSlotService::class)->acquire($runtimeBatch, (int) $item->id, $worker);
+        if (! $slot) {
+            app(\App\Services\AI\BulkRuntimeLeaseService::class)->release($runtimeBatch, (int) $item->id, $worker);
+            return false;
+        }
+        $envelope = $system?->providerRequestEnvelope($product, $config ?: ($job->config_json ?? []), $job)
+            ?? throw new \RuntimeException('HARD_TOKEN_BUDGET_ENVELOPE_REQUIRED');
+        $estimate = (int) $envelope['reservation_envelope'];
+        if (! app(\App\Services\AI\BulkRuntimeTokenService::class)->reserveEnvelope($runtimeBatch, $envelope)) {
+            app(\App\Services\AI\BulkRuntimeSlotService::class)->release($runtimeBatch, (int) $item->id, $worker);
+            app(\App\Services\AI\BulkRuntimeLeaseService::class)->release($runtimeBatch, (int) $item->id, $worker);
+            return false;
+        }
+        return ['batch' => $runtimeBatch, 'worker' => $worker, 'reserved' => $estimate];
+    }
+
     private function refreshJobStats(AiProductJob $job): void
     {
         $completedStatuses = ['completed', 'completed_verified', 'completed_with_warnings'];
@@ -205,6 +398,12 @@ class AiProductContentSingleJob implements ShouldQueue
             'status' => $status,
             'finished_at' => $processed >= $job->total ? now() : null,
         ]);
+        if ($processed >= $job->total && \Illuminate\Support\Facades\Schema::hasTable('ai_bulk_runtime_batches') && $job->batch_uuid) {
+            $runtime = \App\Models\AiBulkRuntimeBatch::where('batch_uuid', $job->batch_uuid)->first();
+            if ($runtime && ! in_array($runtime->status, ['PAUSED', 'CANCELLED'], true)) {
+                $runtime->update(['status' => $failed > 0 ? 'COMPLETED_WITH_ERRORS' : 'COMPLETED', 'status_reason' => $failed > 0 ? 'ITEM_FAILURE' : null]);
+            }
+        }
     }
 
     private function isRateLimit(\Throwable $e): bool

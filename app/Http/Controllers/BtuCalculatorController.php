@@ -212,7 +212,7 @@ class BtuCalculatorController extends Controller
                 'id'            => $p->id,
                 'name'          => $p->name,
                 'slug'          => $p->slug,
-                'btu'           => $p->btu,
+                'btu'           => app(\App\Services\Product\ProductTechnicalFactResolver::class)->getDisplay($p, 'marketing_capacity_btu')['value'] ?? null,
                 'sale_price'    => $p->sale_price,
                 'regular_price' => $p->regular_price,
                 'main_image'    => $p->main_image,

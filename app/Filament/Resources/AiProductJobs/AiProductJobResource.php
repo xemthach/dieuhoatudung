@@ -7,8 +7,12 @@ use App\Filament\Resources\AiProductJobs\Pages\ListAiProductJobs;
 use App\Filament\Resources\AiProductJobs\RelationManagers\ItemsRelationManager;
 use App\Filament\Traits\HasResourcePermissions;
 use App\Models\AiProductJob;
+use App\Models\AiBulkRuntimeBatch;
+use App\Services\AI\BulkRuntimeObservabilityService;
+use App\Services\AI\BulkRuntimeAuthorizationService;
 use BackedEnum;
 use Filament\Actions\EditAction;
+use Filament\Actions\Action;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Resources\Resource;
@@ -19,13 +23,14 @@ use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 
 class AiProductJobResource extends Resource
 {
     use HasResourcePermissions;
 
     protected static array $permissionMap = [
-        'viewAny' => 'product.ai_generate',
+        'viewAny' => 'bulk_ai_view',
         'create' => 'product.ai_generate',
         'edit' => 'product.ai_generate',
         'delete' => 'product.ai_generate',
@@ -42,6 +47,22 @@ class AiProductJobResource extends Resource
     public static function getNavigationGroup(): ?string
     {
         return 'E-commerce';
+    }
+
+    public static function getEloquentQuery(): Builder
+    {
+        $query = parent::getEloquentQuery();
+        $actor = auth()->user();
+        if (! $actor || ! $actor->can('bulk_ai_view')) return $query->whereRaw('1 = 0');
+        $ids = app(BulkRuntimeAuthorizationService::class)->visibleJobIds($actor);
+        $query = $ids === null ? $query : $query->whereIn('id', $ids ?: [-1]);
+        return $query->with('runtimeBatch');
+    }
+
+    public static function canEdit($record): bool
+    {
+        $actor = auth()->user();
+        return $actor?->can('bulk_ai_view') && app(BulkRuntimeAuthorizationService::class)->canViewJob($actor, $record);
     }
 
     public static function form(Schema $schema): Schema
@@ -88,6 +109,12 @@ class AiProductJobResource extends Resource
     {
         return $table
             ->poll('10s')
+            ->headerActions([
+                Action::make('refresh_runtime')
+                    ->label('Refresh runtime')
+                    ->icon(Heroicon::ArrowPath)
+                    ->action(fn ($livewire) => $livewire->dispatch('$refresh')),
+            ])
             ->columns([
                 TextColumn::make('id')->sortable(),
                 TextColumn::make('type')->badge()->searchable(),
@@ -101,6 +128,10 @@ class AiProductJobResource extends Resource
                 TextColumn::make('success')->numeric()->sortable()->color('success'),
                 TextColumn::make('failed')->numeric()->sortable()->color('danger'),
                 TextColumn::make('needs_review')->numeric()->sortable()->color('warning'),
+                TextColumn::make('runtime_status')->label('Runtime')->state(fn (AiProductJob $record) => $record->runtimeBatch?->status ?: '-')->badge(),
+                TextColumn::make('runtime_running')->label('Running')->state(fn (AiProductJob $record) => $record->runtimeBatch ? app(BulkRuntimeObservabilityService::class)->snapshot($record->runtimeBatch)['running'] : 0)->numeric(),
+                TextColumn::make('runtime_tokens')->label('Tokens')->state(fn (AiProductJob $record) => $record->runtimeBatch ? app(BulkRuntimeObservabilityService::class)->snapshot($record->runtimeBatch)['tokens_consumed'] : 0)->numeric(),
+                TextColumn::make('runtime_worker')->label('Worker')->state(fn (AiProductJob $record) => $record->runtimeBatch ? app(BulkRuntimeObservabilityService::class)->snapshot($record->runtimeBatch)['worker_health'] : '-')->badge(),
                 TextColumn::make('created_at')->dateTime('d/m/Y H:i')->sortable(),
                 TextColumn::make('finished_at')->dateTime('d/m/Y H:i')->sortable()->placeholder('-'),
             ])

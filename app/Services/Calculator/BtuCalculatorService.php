@@ -3,6 +3,9 @@
 namespace App\Services\Calculator;
 
 use App\Models\Product;
+use App\Enums\ProductHvacClass;
+use App\Services\Product\ProductMarketingCapacityQueryAdapter;
+use App\Services\Product\ProductHvacClassResolver;
 
 /**
  * BtuCalculatorService
@@ -21,6 +24,8 @@ use App\Models\Product;
 class BtuCalculatorService
 {
     public const WARNING_MISSING_INPUTS = 'missing_btu_inputs';
+    private ProductMarketingCapacityQueryAdapter $capacityQuery;
+    private ProductHvacClassResolver $classes;
 
     // ──────────────────────────────────────────────────────────
     // W/m² Cooling Load Table (source: Excel BANG TINH TAI KINH NGHIEM)
@@ -78,8 +83,10 @@ class BtuCalculatorService
         9000, 12000, 18000, 24000, 28000, 30000, 36000, 42000, 45000, 48000, 50000, 60000, 100000,
     ];
 
-    public function __construct()
+    public function __construct(?ProductMarketingCapacityQueryAdapter $capacityQuery = null)
     {
+        $this->capacityQuery = $capacityQuery ?? app(ProductMarketingCapacityQueryAdapter::class);
+        $this->classes = app(ProductHvacClassResolver::class);
         $this->btuTiers = config('hvac.btu.standard_tiers', $this->btuTiers);
     }
 
@@ -280,10 +287,7 @@ class BtuCalculatorService
      */
     public function matchProducts(int $recommendedBtu, string $priority = ''): \Illuminate\Database\Eloquent\Collection
     {
-        $query = Product::query()
-            ->where('is_active', true)
-            ->whereNotNull('btu')
-            ->where('btu', '>', 0);
+        $query = $this->capacityQuery->applyPresent(Product::with('category')->where('is_active', true));
 
         // Exclude out of stock
         if (\Illuminate\Support\Facades\Schema::hasColumn('products', 'stock_status')) {
@@ -297,18 +301,18 @@ class BtuCalculatorService
         $lowerBound = $this->prevTier($recommendedBtu);
         $upperBound = $this->nextTier($recommendedBtu);
 
-        $products = $query->whereBetween('btu', [$lowerBound, $upperBound])->get();
+        $products = $this->withoutVrfProducts(
+            $this->capacityQuery->applyBetween($query, $lowerBound, $upperBound)->get(),
+        );
 
         // Widen if less than 4
         if ($products->count() < 4) {
-            $products = Product::query()
-                ->where('is_active', true)
-                ->whereNotNull('btu')
-                ->where('btu', '>', 0)
-                ->whereBetween('btu', [
-                    max(0, $recommendedBtu - 12000),
-                    $recommendedBtu + 12000,
-                ])->get();
+            $fallback = $this->capacityQuery->applyPresent(Product::with('category')->where('is_active', true));
+            $products = $this->withoutVrfProducts($this->capacityQuery->applyBetween(
+                $fallback,
+                max(0, $recommendedBtu - 12000),
+                $recommendedBtu + 12000
+            )->get());
         }
 
         // Sort by priority
@@ -316,8 +320,21 @@ class BtuCalculatorService
             'tiet_kiem_dien'      => $products->sortBy(fn($p) => $p->energy_rating ?? 999)->values(),
             'gia_tot'             => $products->sortBy('sale_price')->values(),
             'thuong_hieu_cao_cap' => $products->sortByDesc('regular_price')->values(),
-            default               => $products->sortBy(fn($p) => abs($p->btu - $recommendedBtu))->values(),
+            default               => $this->capacityQuery->distance($products, $recommendedBtu),
         };
+    }
+
+    private function withoutVrfProducts(\Illuminate\Database\Eloquent\Collection $products): \Illuminate\Database\Eloquent\Collection
+    {
+        return $products->filter(function (Product $product): bool {
+            $class = $this->classes->resolve($product)['class'];
+
+            return ! in_array($class, [
+                ProductHvacClass::VRF_OUTDOOR,
+                ProductHvacClass::VRF_INDOOR,
+                ProductHvacClass::VRF_SYSTEM,
+            ], true);
+        })->values();
     }
 
     // ──────────────────────────────────────────────────────

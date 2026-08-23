@@ -36,7 +36,9 @@ class EditAiProductJob extends EditRecord
                 ->icon('heroicon-o-arrow-uturn-left')
                 ->color('warning')
                 ->requiresConfirmation()
+                ->authorize(fn () => auth()->user()?->can('bulk_ai_retry') ?? false)
                 ->action(function () {
+                    app(\App\Services\AI\BulkRuntimeAuthorizationService::class)->requireRetry(auth()->user());
                     $items = $this->record->items()
                         ->whereIn('status', ['failed', 'stuck', 'cancelled'])
                         ->get();

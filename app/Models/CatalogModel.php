@@ -18,6 +18,7 @@ class CatalogModel extends Model
         return [
             'technical_data_json' => 'array',
             'confidence_score' => 'decimal:2',
+            'verified_at' => 'datetime',
         ];
     }
 

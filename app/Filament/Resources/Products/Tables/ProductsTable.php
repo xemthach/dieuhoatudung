@@ -5,13 +5,14 @@ namespace App\Filament\Resources\Products\Tables;
 use App\Enums\StockStatus;
 use App\Jobs\AiProductContentSingleJob;
 use App\Jobs\AiProductContentBatchJob;
+use App\Services\AI\ProductBulkGenerationManifest;
+use App\Services\AI\ProductBulkTargetResolver;
 use App\Models\AiProductJob;
 use App\Models\AiProductJobItem;
 use App\Models\AiTechnicalLog;
 use App\Models\Brand;
 use App\Models\Product;
 use App\Models\ProductCategory;
-use App\Services\Bulk\BulkSelectionResolver;
 use App\Services\Product\AIProductContentSystem;
 use App\Services\DataTransfer\DataExportService;
 use App\Services\DataTransfer\ModuleRegistry;
@@ -100,7 +101,8 @@ class ProductsTable
                     ->color(fn (?int $state): string => ((int) $state) > 0 ? 'warning' : 'success')
                     ->sortable(),
                 TextColumn::make('slug')
-                    ->searchable(),
+                    ->searchable()
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('sku')
                     ->label('SKU')
                     ->searchable(),
@@ -109,21 +111,29 @@ class ProductsTable
                 TextColumn::make('brand.name')
                     ->searchable(),
                 TextColumn::make('product_category_id')
+                    ->label('Category ID')
                     ->numeric()
-                    ->sortable(),
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('series')
-                    ->searchable(),
+                    ->searchable()
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('btu')
                     ->numeric()
-                    ->sortable(),
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: true),
                 IconColumn::make('inverter')
-                    ->boolean(),
+                    ->boolean()
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('cooling_type')
-                    ->searchable(),
+                    ->searchable()
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('voltage')
-                    ->searchable(),
+                    ->searchable()
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('refrigerant_gas')
-                    ->searchable(),
+                    ->searchable()
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('power_consumption')
                     ->searchable(),
                 TextColumn::make('airflow')
@@ -739,34 +749,29 @@ class ProductsTable
             ->action(function (Collection $records, array $data, $livewire = null) use ($action) {
                 abort_unless(auth()->user()?->can('product.ai_generate'), 403);
 
-                $productIds = self::resolveProductIds($records, $data, $livewire);
-                $selection = app(BulkSelectionResolver::class)->resolvePayload([
-                    'scope' => $data['scope'] ?? 'selected',
-                    'selected_ids' => $records->pluck('id')->all(),
-                    'current_page_ids' => [],
-                    'confirm_filter_scope' => false,
-                    'selected_count_from_ui' => $records->count(),
-                ], 'product', Product::query());
-
-                if (! $selection->is_valid) {
+                try {
+                    $productIds = app(ProductBulkTargetResolver::class)->resolve(
+                        ProductBulkTargetResolver::SELECTED,
+                        $records->pluck('id')->all(),
+                    );
+                } catch (\RuntimeException $exception) {
                     Log::warning('bulk_scope_mismatch_detected', [
                         'module' => 'ai_product',
                         'action' => $action,
-                        'errors' => $selection->errors,
+                        'errors' => [$exception->getMessage()],
                         'record_count' => $records->count(),
-                        'resolved_total_count' => $selection->total_count,
+                        'resolved_total_count' => 0,
                     ]);
 
                     Notification::make()
                         ->title('Phạm vi AI không hợp lệ')
-                        ->body(implode(', ', $selection->errors))
+                        ->body($exception->getMessage())
                         ->warning()
                         ->send();
 
                     return;
                 }
 
-                $productIds = $selection->ids;
                 Log::info('AI product bulk action payload', [
                     'source' => 'products_table_bulk_action',
                     'user_id' => auth()->id(),
@@ -808,11 +813,20 @@ class ProductsTable
                     'created_by' => auth()->id(),
                 ], SchemaColumns::existing('ai_product_jobs', [
                     'module' => 'ai_product_bulk',
-                    'queue_name' => 'ai',
+                    'queue_name' => config('ai.governed_queue', 'ai_governed'),
                     'selected_product_ids_json' => $productIds,
                 ])));
 
-                AiProductContentBatchJob::dispatch($job->id, $productIds)->onQueue('ai');
+                app(ProductBulkGenerationManifest::class)->freeze(
+                    $job,
+                    ProductBulkTargetResolver::SELECTED,
+                    $productIds,
+                    (int) auth()->id(),
+                    [],
+                    ['operation' => $action, 'requested_fields' => $config['outputs'] ?? ['content_html']]
+                    , auth()->user()
+                );
+                AiProductContentBatchJob::dispatch($job->id)->onQueue(config('ai.governed_queue', 'ai_governed'));
 
                 Notification::make()
                     ->title('Đã đưa AI Product Job vào queue')
@@ -991,7 +1005,7 @@ class ProductsTable
                 'ai_last_run_at' => now(),
             ]);
 
-            AiProductContentSingleJob::dispatch($item->product_id, $item->ai_product_job_id, $item->id)->onQueue('ai');
+            AiProductContentSingleJob::dispatch($item->product_id, $item->ai_product_job_id, $item->id)->onQueue(config('ai.governed_queue', 'ai_governed'));
             $count++;
         }
 

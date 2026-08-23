@@ -5,6 +5,9 @@
 
 @php
     $price = app(\App\Services\Product\PromotionPriceResolver::class)->resolve($product);
+    $technicalFacts = app(\App\Services\Product\ProductTechnicalFactResolver::class)->unitAwareFacts($product);
+    $sourceNativeCapacity = $technicalFacts['capacity_kw'] ?? null;
+    $marketingCapacity = app(\App\Services\Product\ProductTechnicalFactResolver::class)->getDisplay($product, 'marketing_capacity_btu');
 @endphp
 
 <article {{ $attributes->merge(['class' => 'card group']) }} id="product-card-{{ $product->id }}">
@@ -36,9 +39,15 @@
             </a>
         </h3>
 
+        @if($product->model_code)
+            <p class="mt-1 text-xs font-mono text-surface-500">{{ $product->model_code }}</p>
+        @endif
+
         <div class="mt-2 flex flex-wrap gap-2 text-xs text-surface-500">
-            @if($product->btu)
-                <span class="rounded bg-surface-100 px-1.5 py-0.5">{{ number_format($product->btu) }} BTU</span>
+            @if($sourceNativeCapacity)
+                <span class="rounded bg-surface-100 px-1.5 py-0.5">{{ $sourceNativeCapacity['value'] }} {{ $sourceNativeCapacity['unit'] }}</span>
+            @elseif($marketingCapacity)
+                <span class="rounded bg-surface-100 px-1.5 py-0.5">{{ number_format($marketingCapacity['value']) }} BTU</span>
             @endif
             @if($product->inverter)
                 <span class="rounded bg-primary-50 px-1.5 py-0.5 text-primary-700">Inverter</span>

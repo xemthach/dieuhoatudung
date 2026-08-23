@@ -13,12 +13,20 @@ use Illuminate\Support\Facades\Schema;
 
 class AIJobsCancelCurrent extends Command
 {
-    protected $signature = 'ai:jobs-cancel-current {--flush-queue : Delete pending Laravel queue rows for ai/default queues}';
+    protected $signature = 'ai:jobs-cancel-current
+        {--force : Explicitly authorize cancellation of current AI jobs}
+        {--flush-queue : Delete pending Laravel queue rows for ai/default queues}';
 
     protected $description = 'Cancel current queued/processing AI jobs and optionally clear queued rows.';
 
     public function handle(): int
     {
+        if (! $this->option('force')) {
+            $this->error('Refusing to cancel AI jobs without explicit --force.');
+
+            return self::FAILURE;
+        }
+
         $content = 0;
         $productJobs = 0;
         $items = 0;

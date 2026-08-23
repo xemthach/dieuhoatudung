@@ -94,6 +94,11 @@ class AuditDaikinSpecs extends Command
 
     public function handle(): int
     {
+        if ($this->option('fix')) {
+            $this->error('Legacy technical write path disabled. Use governed correction/import workflow.');
+            return self::FAILURE;
+        }
+
         $dryRun = $this->option('dry-run');
         $fix = $this->option('fix');
 

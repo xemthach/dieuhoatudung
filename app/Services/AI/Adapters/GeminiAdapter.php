@@ -92,12 +92,26 @@ class GeminiAdapter implements AIAdapterInterface
 
         $data = $response->json();
         $text = $data['candidates'][0]['content']['parts'][0]['text'] ?? '';
+        $finishReason = $data['candidates'][0]['finishReason'] ?? null;
+        if (in_array(strtoupper((string) $finishReason), ['MAX_TOKENS', 'LENGTH'], true)) {
+            throw new \RuntimeException(EncodingGuard::jsonEncode([
+                'code' => 'PROVIDER_OUTPUT_TRUNCATED',
+                'finish_reason' => $finishReason,
+                'raw_response_length' => mb_strlen($text, '8bit'),
+                'response_fingerprint' => hash('sha256', $text),
+                'provider_request_id' => $response->header('x-request-id') ?: $response->header('request-id'),
+            ]));
+        }
 
         return [
             'content' => $text,
             'json' => app(AIJsonResponseParser::class)->parse($text, ! empty($options['require_json'])),
             'tokens_used' => $data['usageMetadata']['totalTokenCount'] ?? 0,
             'latency_ms' => $latency,
+            'finish_reason' => $finishReason,
+            'raw_response_length' => mb_strlen($text, '8bit'),
+            'response_fingerprint' => hash('sha256', $text),
+            'provider_request_id' => $response->header('x-request-id') ?: $response->header('request-id'),
         ];
     }
 

@@ -5,12 +5,17 @@ namespace App\Jobs;
 use App\Models\AiProductJob;
 use App\Models\Product;
 use App\Services\AI\AITechnicalLogger;
+use App\Services\AI\AIProductIdempotencyService;
+use App\Services\AI\ProductBulkGenerationManifest;
 use App\Support\SchemaColumns;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
+use Illuminate\Database\QueryException;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\DB;
 
 class AiProductContentBatchJob implements ShouldQueue
 {
@@ -19,19 +24,40 @@ class AiProductContentBatchJob implements ShouldQueue
     public int $tries = 1;
 
     public int $timeout = 120;
+    public array $productIds;
 
-    public function __construct(
-        public int $aiProductJobId,
-        public array $productIds,
-    ) {}
+    public function __construct(public int $aiProductJobId)
+    {
+        $manifest = AiProductJob::find($this->aiProductJobId)?->target_manifest_json;
+        $this->productIds = is_array($manifest) ? array_map('intval', $manifest['resolved_product_ids'] ?? []) : [];
+    }
 
-    public function handle(?AITechnicalLogger $technicalLogger = null): void
+    public function handle(?AITechnicalLogger $technicalLogger = null, ?AIProductIdempotencyService $idempotency = null): void
     {
         $technicalLogger ??= app(AITechnicalLogger::class);
+        $idempotency ??= app(AIProductIdempotencyService::class);
         $job = AiProductJob::findOrFail($this->aiProductJobId);
         $config = is_array($job->config_json) ? $job->config_json : [];
+        \App\Services\AI\PilotRuntimeGuard::assert($config);
+        $strictDraftOnly = (bool) ($config['draft_only_strict'] ?? false);
+        if ($job->target_manifest_hash) {
+            $manifest = app(ProductBulkGenerationManifest::class)->loadVerified($job);
+            $this->productIds = array_map('intval', $manifest['resolved_product_ids']);
+        } else {
+            throw new \RuntimeException('GENERATION_MANIFEST_REQUIRED');
+        }
+        $runtimeBatch = Schema::hasTable('ai_bulk_runtime_batches')
+            ? app(\App\Services\AI\BulkRuntimeBatchService::class)->ensure($job)
+            : null;
+        if ($runtimeBatch && $runtimeBatch->status === 'QUEUED') {
+            $runtimeBatch->update(['status' => 'RUNNING']);
+        }
         $batchSize = max(1, min((int) ($config['batch_size'] ?? 10), 50));
-        $productIds = Product::query()->whereKey($this->productIds)->pluck('id')->all();
+        $productIds = array_values(array_unique(array_map('intval', $this->productIds ?? [])));
+        $existingIds = Product::query()->whereKey($productIds)->pluck('id')->map(fn ($id) => (int) $id)->all();
+        if (count($existingIds) !== count($productIds)) {
+            throw new \RuntimeException('BLOCKED_TARGET_MISSING');
+        }
 
         $job->update(SchemaColumns::existing('ai_product_jobs', [
             'status' => 'processing',
@@ -50,11 +76,13 @@ class AiProductContentBatchJob implements ShouldQueue
             'batch_size' => $batchSize,
         ], $job);
 
-        Product::whereKey($productIds)->update([
-            'ai_status' => 'queued',
-            'ai_error_message' => null,
-            'ai_last_run_at' => now(),
-        ]);
+        if (! $strictDraftOnly) {
+            Product::whereKey($productIds)->update([
+                'ai_status' => 'queued',
+                'ai_error_message' => null,
+                'ai_last_run_at' => now(),
+            ]);
+        }
 
         foreach (array_chunk($productIds, $batchSize) as $chunkIndex => $chunk) {
             foreach ($chunk as $productId) {
@@ -63,8 +91,63 @@ class AiProductContentBatchJob implements ShouldQueue
                     ['status' => 'queued', 'error_message' => null]
                 );
 
+                $product = Product::find($productId);
+                $key = $product ? $idempotency->key($product, $config) : null;
+                if ($key && ($existing = $idempotency->existing($key, $item->id))) {
+                    $isDone = in_array($existing->status, ['completed', 'completed_verified', 'completed_with_warnings'], true)
+                        || $existing->canonical_status === 'DONE';
+                    $item->update(SchemaColumns::existing('ai_product_job_items', [
+                        'technical_context_hash' => $product ? $idempotency->contextHash($product) : null,
+                        'prompt_version' => \App\Services\AI\AIContentGovernance::PROMPT_VERSION,
+                        'status' => $isDone ? 'completed_verified' : 'blocked',
+                        'canonical_status' => $isDone ? 'DONE' : 'BLOCKED',
+                        'status_reason' => $isDone ? 'REUSED_EXISTING_RESULT' : 'DUPLICATE_IN_PROGRESS',
+                        'generated_payload_json' => $isDone ? $existing->generated_payload_json : null,
+                        'draft_id' => $isDone ? $existing->draft_id : null,
+                    ]));
+
+                    continue;
+                }
+
+                try {
+                    $item->update(SchemaColumns::existing('ai_product_job_items', [
+                        'idempotency_key' => $key,
+                        'technical_context_hash' => $product ? $idempotency->contextHash($product) : null,
+                        'prompt_version' => \App\Services\AI\AIContentGovernance::PROMPT_VERSION,
+                    ]));
+                } catch (QueryException $exception) {
+                    if (! $idempotency->isDuplicateKeyException($exception)) {
+                        throw $exception;
+                    }
+
+                    $existing = $key ? $idempotency->existing($key, $item->id) : null;
+                    if (! $existing) {
+                        throw $exception;
+                    }
+
+                    $item->update(SchemaColumns::existing('ai_product_job_items', [
+                        'canonical_status' => 'BLOCKED',
+                        'status' => 'blocked',
+                        'status_reason' => 'DUPLICATE_IN_PROGRESS',
+                    ]));
+
+                    continue;
+                }
+
+                if ($runtimeBatch && Schema::hasTable('ai_bulk_field_operations')) {
+                    foreach ((array) ($config['outputs'] ?? ['content' => true]) as $field => $enabled) {
+                        if (! $enabled) continue;
+                        $field = $field === 'content' ? 'content_html' : (string) $field;
+                        DB::table('ai_bulk_field_operations')->insertOrIgnore([
+                            'runtime_batch_id' => $runtimeBatch->id, 'item_id' => $item->id, 'product_id' => $productId,
+                            'field' => $field, 'status' => 'QUEUED', 'max_attempts' => $runtimeBatch->max_attempts,
+                            'created_at' => now(), 'updated_at' => now(),
+                        ]);
+                    }
+                }
+
                 AiProductContentSingleJob::dispatch($productId, $job->id, $item->id)
-                    ->onQueue('ai')
+                    ->onQueue(config('ai.governed_queue', 'ai_governed'))
                     ->delay(now()->addSeconds($chunkIndex * 5));
             }
         }
@@ -75,7 +158,7 @@ class AiProductContentBatchJob implements ShouldQueue
 
         $technicalLogger->event('ai_product_bulk', 'job_dispatched', 'AI product item jobs dispatched.', [
             'total' => count($productIds),
-            'queue' => 'ai',
+            'queue' => config('ai.governed_queue', 'ai_governed'),
         ], $job);
     }
 }

@@ -34,12 +34,13 @@ class AIQueueMonitor
         );
     }
 
-    public function health(): array
+    public function health(?string $queue = null): array
     {
         $hasJobs = Schema::hasTable('jobs');
         $hasFailedJobs = Schema::hasTable('failed_jobs');
+        $governedQueue = $queue ?: config('ai.governed_queue', 'ai_governed');
         $lastWorker = Schema::hasTable('queue_worker_heartbeats')
-            ? QueueWorkerHeartbeat::query()->latest('last_seen_at')->first()
+            ? QueueWorkerHeartbeat::query()->where('worker_name', 'queue-worker')->where('queue', $governedQueue)->latest('last_seen_at')->first()
             : null;
         $lastScheduler = Schema::hasTable('queue_worker_heartbeats')
             ? QueueWorkerHeartbeat::where('worker_name', 'scheduler')->latest('last_seen_at')->first()
@@ -52,16 +53,23 @@ class AIQueueMonitor
             'queue_connection' => config('queue.default'),
             'jobs_table_exists' => $hasJobs,
             'failed_jobs_table_exists' => $hasFailedJobs,
-            'pending_jobs_count' => $hasJobs ? DB::table('jobs')->count() : null,
+            'pending_jobs_count' => $hasJobs ? DB::table('jobs')->where('queue', $governedQueue)->count() : null,
             'failed_jobs_count' => $hasFailedJobs ? DB::table('failed_jobs')->count() : null,
-            'worker_command' => 'php artisan queue:work --queue=ai,default --sleep=3 --tries=3 --timeout=900',
+            'worker_command' => 'php artisan ai:managed-worker --queue='.$governedQueue.' --sleep=3 --tries=3 --timeout=900',
             'scheduler_command' => 'php artisan schedule:run',
             'ai_content_processing_count' => Schema::hasTable('ai_content_jobs')
                 ? AiContentJob::where('status', AIContentJobStatus::Processing->value)->count()
                 : null,
-            'ai_product_processing_count' => Schema::hasTable('ai_product_jobs')
-                ? AiProductJob::where('status', 'processing')->count()
-                : null,
+            'ai_product_processing_count' => Schema::hasTable('ai_product_job_items')
+                ? AiProductJobItem::where('canonical_status', 'RUNNING')
+                    ->whereHas('job', fn ($query) => $query->where('queue_name', $governedQueue))
+                    ->count()
+                : 0,
+            'legacy_ai_processing_count' => Schema::hasTable('ai_product_jobs')
+                ? AiProductJob::where('canonical_status', 'RUNNING')
+                    ->where('status_reason', 'LEGACY_PRE_GOVERNANCE')
+                    ->count()
+                : 0,
             'ai_jobs_stuck_count' => $this->stuckCount(),
             'last_processed_job' => $lastProcessed ? [
                 'module' => $lastProcessed->module,
@@ -72,7 +80,10 @@ class AIQueueMonitor
                 'worker_name' => $lastWorker->worker_name,
                 'queue' => $lastWorker->queue,
                 'last_seen_at' => optional($lastWorker->last_seen_at)->toDateTimeString(),
-                'is_running' => optional($lastWorker->last_seen_at)->gt(now()->subMinutes(5)),
+                'is_running' => $lastWorker->status === 'running' && optional($lastWorker->last_seen_at)->gt(now()->subMinutes(5)),
+                'health_status' => $lastWorker->status !== 'running' ? 'OFFLINE' : (optional($lastWorker->last_seen_at)->gt(now()->subMinutes(5))
+                    ? 'ONLINE'
+                    : (optional($lastWorker->last_seen_at)->gt(now()->subHours(1)) ? 'STALE' : 'OFFLINE')),
             ] : null,
             'scheduler_heartbeat' => optional($lastScheduler?->last_seen_at)->toDateTimeString(),
             'scheduler_is_running' => optional($lastScheduler?->last_seen_at)->gt(now()->subMinutes(10)) ?: false,

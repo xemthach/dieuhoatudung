@@ -75,7 +75,7 @@ class SchemaService
                 '@type' => 'SearchAction',
                 'target' => [
                     '@type' => 'EntryPoint',
-                    'urlTemplate' => $siteUrl . '/san-pham?q={search_term_string}',
+                    'urlTemplate' => route('search.index') . '?q={search_term_string}',
                 ],
                 'query-input' => 'required name=search_term_string',
             ],
@@ -123,23 +123,22 @@ class SchemaService
             '@context' => 'https://schema.org',
             '@type' => 'Product',
             'name' => $product->name,
-            'description' => $product->short_description ?? $product->seo_description ?? '',
             'url' => $productUrl,
-            'sku' => $product->sku ?? '',
-            'brand' => [
-                '@type' => 'Brand',
-                'name' => $product->brand?->name ?? '',
-            ],
         ];
 
+        $description = trim(strip_tags((string) ($product->short_description ?? $product->seo_description ?? '')));
+        if ($description !== '') $schema['description'] = $description;
+        if (!empty($product->sku)) $schema['sku'] = $product->sku;
+        if (!empty($product->brand?->name)) $schema['brand'] = ['@type' => 'Brand', 'name' => $product->brand->name];
+
         // MPN from model_code
-        if (!empty($product->model_code)) {
+        if (!empty($product->model_code) && (bool) ($product->model_is_mpn ?? false)) {
             $schema['mpn'] = $product->model_code;
         }
 
         // Image
-        if (!empty($product->main_image)) {
-            $schema['image'] = media_url($product->main_image);
+        if (!empty($product->main_image) && ($image = media_url($product->main_image))) {
+            $schema['image'] = $image;
         }
 
         // Additional images
@@ -147,9 +146,11 @@ class SchemaService
         if (is_array($gallery) && count($gallery) > 0) {
             $schema['image'] = array_merge(
                 [$schema['image'] ?? ''],
-                array_map(fn($img) => media_url($img), $gallery)
+                array_filter(array_map(fn($img) => media_url($img), $gallery))
             );
             $schema['image'] = array_filter($schema['image']);
+            if (count($schema['image']) === 1) $schema['image'] = reset($schema['image']);
+            if (empty($schema['image'])) unset($schema['image']);
         }
 
         // Offer — ONLY if price exists (fixes price=0 issue)
@@ -173,7 +174,7 @@ class SchemaService
                 'contact' => 'https://schema.org/InStock',
             ];
             $stockValue = $product->stock_status?->value ?? $product->stock_status ?? 'in_stock';
-            $offer['availability'] = $stockMap[$stockValue] ?? 'https://schema.org/InStock';
+            if (isset($stockMap[$stockValue])) $offer['availability'] = $stockMap[$stockValue];
 
             $schema['offers'] = $offer;
         }

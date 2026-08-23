@@ -3,11 +3,14 @@
 namespace App\Services\Search;
 
 use App\Models\Product;
+use App\Services\Product\ProductMarketingCapacityQueryAdapter;
+use App\Services\Product\ProductTechnicalFactResolver;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 
 /**
  * Product search service with weighted scoring, normalization, and caching.
@@ -23,6 +26,10 @@ use Illuminate\Support\Facades\Log;
  */
 class ProductSearchService
 {
+    public function __construct(
+        private readonly ProductMarketingCapacityQueryAdapter $capacityQuery,
+        private readonly ProductTechnicalFactResolver $technicalFacts,
+    ) {}
     /** Maximum suggestions in autocomplete */
     public const SUGGEST_LIMIT = 8;
 
@@ -85,7 +92,11 @@ class ProductSearchService
      */
     public static function removeDiacritics(string $str): string
     {
-        return strtr(mb_strtolower($str), self::VIET_MAP);
+        $lower = mb_strtolower($str);
+
+        // Str::ascii handles valid UTF-8 Vietnamese; retain the legacy map
+        // as compatibility for previously mojibaked values.
+        return strtr(Str::ascii($lower), self::VIET_MAP);
     }
 
     /**
@@ -184,11 +195,12 @@ class ProductSearchService
         $tokens = preg_split('/\s+/', $q);
         $likeQ = '%' . str_replace(['%', '_'], ['\%', '\_'], $qLower) . '%';
         $likeNoAccent = '%' . str_replace(['%', '_'], ['\%', '\_'], $qNoAccent) . '%';
+        $likeSlugNoAccent = '%' . str_replace(['%', '_', ' '], ['\%', '\_', '-'], $qNoAccent) . '%';
 
         // Base query: only active products
         $products = Product::with(['brand', 'category'])
             ->where('is_active', true)
-            ->where(function ($query) use ($qLower, $qNoAccent, $likeQ, $likeNoAccent, $btu, $tokens) {
+            ->where(function ($query) use ($qLower, $qNoAccent, $likeQ, $likeNoAccent, $likeSlugNoAccent, $btu, $tokens) {
                 // Exact match fields
                 $query->where(DB::raw('LOWER(model_code)'), $qLower)
                     ->orWhere(DB::raw('LOWER(sku)'), $qLower)
@@ -198,9 +210,16 @@ class ProductSearchService
                     ->orWhere(DB::raw('LOWER(model_code)'), 'LIKE', $likeQ)
                     ->orWhere(DB::raw('LOWER(sku)'), 'LIKE', $likeQ);
 
+                // Brand is a first-class search dimension. Keep it in the
+                // candidate query so a brand-only search is not discarded
+                // before relevance scoring.
+                $query->orWhereHas('brand', function ($brandQuery) use ($likeQ) {
+                    $brandQuery->where(DB::raw('LOWER(name)'), 'LIKE', $likeQ);
+                });
+
                 // BTU match
                 if ($btu) {
-                    $query->orWhere('btu', $btu);
+                    $query->orWhere($this->capacityQuery->column(), $btu);
                 }
 
                 // Search in specs_json for indoor/outdoor model
@@ -228,6 +247,7 @@ class ProductSearchService
                 if ($qNoAccent !== $qLower) {
                     $query->orWhere(DB::raw('LOWER(slug)'), 'LIKE', $likeNoAccent);
                 }
+                $query->orWhere(DB::raw('LOWER(slug)'), 'LIKE', $likeSlugNoAccent);
             })
             ->limit(200)
             ->get();
@@ -250,7 +270,7 @@ class ProductSearchService
                 'model'    => $product->model_code,
                 'sku'      => $product->sku,
                 'brand'    => $product->brand?->name ?? '',
-                'btu'      => $product->btu,
+                'btu'      => $this->capacityQuery->value($product),
                 'category' => $product->category?->name ?? '',
                 'image'    => $product->main_image_url,
                 'url'      => route('product.show', $product->slug),
@@ -284,16 +304,8 @@ class ProductSearchService
         // Extract indoor/outdoor model from specs_json
         $indoorModel = '';
         $outdoorModel = '';
-        if (is_array($product->specs_json)) {
-            foreach ($product->specs_json as $spec) {
-                if (is_array($spec)) {
-                    $key = $spec['key'] ?? '';
-                    $val = mb_strtolower($spec['value'] ?? '');
-                    if ($key === 'indoor_model') $indoorModel = $val;
-                    if ($key === 'outdoor_model') $outdoorModel = $val;
-                }
-            }
-        }
+        $indoorModel = mb_strtolower((string) ($this->technicalFacts->value($product, 'indoor_model') ?? ''));
+        $outdoorModel = mb_strtolower((string) ($this->technicalFacts->value($product, 'outdoor_model') ?? ''));
 
         // === EXACT MATCHES ===
 
@@ -343,7 +355,7 @@ class ProductSearchService
         }
 
         // === BRAND + BTU ===
-        if ($btu && $product->btu === $btu) {
+        if ($btu && $this->capacityQuery->value($product) === $btu) {
             $score = max($score, 70);
             // Boost if brand also matches
             if ($brand && str_contains($qLower, $brand)) {
@@ -354,6 +366,13 @@ class ProductSearchService
         // === NAME CONTAINS ===
         if (str_contains($name, $qLower)) {
             $score = max($score, 60);
+        }
+
+        // Brand-only searches rank below model/name matches but remain useful.
+        if ($brand === $qLower) {
+            $score = max($score, 65);
+        } elseif ($brand && str_contains($brand, $qLower)) {
+            $score = max($score, 55);
         }
 
         // Accent-insensitive name match

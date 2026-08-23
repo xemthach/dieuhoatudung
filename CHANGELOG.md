@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.25.0] - 2026-08-23
+
+### Added
+- Completed the production AI content workflow with governed drafts, review, approval, apply, idempotency, and rollback safeguards.
+- Added product/catalog UX, exact search, class-aware filtering and RAC calculator protections.
+- Added deterministic SEO, Merchant diagnostics, structured data, performance, operations, and security hardening.
+
+### Changed
+- Revalidated and recovered the production dataset, preserving approved content and catalog lineage.
+- Hardened queue reconciliation, admin authorization, health visibility, and release-readiness checks.
+
+### Security
+- Preserved server-side authorization, sanitized content output, secret-safe diagnostics, and disabled AI worker default state.
+
 ## [1.24.0] - 2026-05-23
 
 ### Added

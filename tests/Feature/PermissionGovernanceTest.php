@@ -32,15 +32,15 @@ class PermissionGovernanceTest extends TestCase
         $this->assertFalse(ProductResource::canViewAny());
     }
 
-    public function test_product_ai_jobs_require_ai_generate_permission(): void
+    public function test_product_ai_jobs_require_bulk_view_permission(): void
     {
         $user = UserFactory::new()->create(['is_active' => true]);
         $this->actingAs($user);
 
         $this->assertFalse(AiProductJobResource::canViewAny());
 
-        Permission::firstOrCreate(['name' => 'product.ai_generate', 'guard_name' => 'web']);
-        $user->givePermissionTo('product.ai_generate');
+        Permission::firstOrCreate(['name' => 'bulk_ai_view', 'guard_name' => 'web']);
+        $user->givePermissionTo('bulk_ai_view');
 
         $this->assertTrue(AiProductJobResource::canViewAny());
     }

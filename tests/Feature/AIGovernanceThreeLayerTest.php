@@ -30,7 +30,7 @@ class AIGovernanceThreeLayerTest extends TestCase
     // Product Tests
     // =========================================================================
 
-    /** @test 1. Product có 24.000 BTU trong specs → AI viết 24.000 BTU → pass */
+    /** @test 1. Legacy BTU alone is not technical authority. */
     public function test_product_with_verified_btu_passes(): void
     {
         $product = Product::factory()->create(['btu' => 24000]);
@@ -42,8 +42,8 @@ class AIGovernanceThreeLayerTest extends TestCase
             $context
         );
 
-        $this->assertNotContains('blocked', [$result['status']]);
-        $this->assertEmpty(array_filter($result['blocked_claims'], fn ($c) => str_contains($c, '24')));
+        $this->assertSame('blocked', $result['status']);
+        $this->assertContains('ambiguous_capacity_claim:24.000 BTU', $result['blocked_claims']);
     }
 
     /** @test 2. Product không có 60m2 → AI viết 60m2 → rewrite/remove, không fail toàn job */
@@ -62,7 +62,7 @@ class AIGovernanceThreeLayerTest extends TestCase
         );
 
         // Should NOT hard-block the entire job
-        $this->assertNotSame('blocked', $result['status']);
+        $this->assertSame('blocked', $result['status']);
         // Should have warnings about unverified claim
         $hasUnverifiedWarning = false;
         foreach ($result['warnings'] as $w) {
@@ -163,7 +163,7 @@ class AIGovernanceThreeLayerTest extends TestCase
             $context
         );
 
-        $this->assertNotSame('blocked', $result['status']);
+        $this->assertSame('blocked', $result['status']);
     }
 
     /** @test 9. Blog không có product liên quan, tự đưa dB/Pa/mm → rewrite/remove */
@@ -203,7 +203,7 @@ class AIGovernanceThreeLayerTest extends TestCase
             'Sản phẩm có công suất 24.000 BTU phù hợp cho văn phòng.'
         );
 
-        $this->assertSame('product_technical_claim', $classification);
+        $this->assertSame('ambiguous_capacity_claim', $classification);
     }
 
     // =========================================================================
@@ -291,7 +291,7 @@ class AIGovernanceThreeLayerTest extends TestCase
             'Sản phẩm có công suất 24.000 BTU.'
         );
 
-        $this->assertSame('product_technical_claim', $classification);
+        $this->assertSame('ambiguous_capacity_claim', $classification);
     }
 
     // =========================================================================
@@ -313,7 +313,7 @@ class AIGovernanceThreeLayerTest extends TestCase
             $context
         );
 
-        // Must NOT hard-block
+        // Missing area is still a warning-only case.
         $this->assertNotSame('blocked', $result['status']);
     }
 
@@ -366,6 +366,8 @@ class AIGovernanceThreeLayerTest extends TestCase
     {
         $product = Product::factory()->create([
             'btu' => 24000,
+            'technical_capacity_btu' => 24000,
+            'technical_capacity_status' => 'verified_candidate',
             'noise_level' => '42',
             'warranty_info' => 'Bảo hành 3 năm',
             'price_includes_vat' => true,
@@ -374,7 +376,7 @@ class AIGovernanceThreeLayerTest extends TestCase
         $context = $governance->buildProductContext($product);
 
         $result = $governance->validateText(
-            '<p>Sản phẩm công suất 24.000 BTU, độ ồn 42 dB. Giá đã bao gồm VAT. Bảo hành chính hãng.</p>',
+            '<p>Sản phẩm có công suất kỹ thuật 24.000 BTU, độ ồn 42 dB. Giá đã bao gồm VAT. Bảo hành chính hãng.</p>',
             $context
         );
 
@@ -397,8 +399,10 @@ class AIGovernanceThreeLayerTest extends TestCase
             $context
         );
 
-        // Should NOT hard-block despite unverified area and VAT without source
-        $this->assertNotSame('blocked', $result['status']);
+        // Generic capacity wording is blocked until its commercial/technical
+        // semantics are made explicit.
+        $this->assertSame('blocked', $result['status']);
+        $this->assertContains('ambiguous_capacity_claim:24.000 BTU', $result['blocked_claims']);
         // But should have warnings
         $this->assertNotEmpty($result['warnings']);
     }

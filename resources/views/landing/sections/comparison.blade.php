@@ -28,7 +28,7 @@
                             </a>
                         </td>
                         <td class="px-4 py-3 text-surface-600">{{ $product->brand?->name ?? '-' }}</td>
-                        <td class="px-4 py-3 text-center text-surface-600">{{ $product->btu ? number_format($product->btu) : '-' }}</td>
+                        <td class="px-4 py-3 text-center text-surface-600">{{ ($capacity = app(\App\Services\Product\ProductTechnicalFactResolver::class)->getDisplay($product, 'marketing_capacity_btu')) ? number_format($capacity['value']) : '-' }}</td>
                         <td class="px-4 py-3 text-center">
                             @if($product->inverter)
                                 <span class="inline-flex items-center rounded-full bg-primary-100 px-2 py-0.5 text-xs font-medium text-primary-700">Có</span>

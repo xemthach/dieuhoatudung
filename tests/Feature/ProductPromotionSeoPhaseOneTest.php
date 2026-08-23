@@ -10,6 +10,7 @@ use App\Services\Seo\SeoAuditService;
 use App\Services\Sitemap\SitemapService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class ProductPromotionSeoPhaseOneTest extends TestCase
@@ -39,6 +40,8 @@ class ProductPromotionSeoPhaseOneTest extends TestCase
     public function test_merchant_feed_uses_regular_price_with_active_sale_price_and_effective_date(): void
     {
         Carbon::setTestNow('2026-05-17 12:00:00');
+        Storage::fake('public');
+        Storage::disk('public')->put('products/gree.jpg', 'test-image');
 
         Product::factory()->create([
             'name' => 'Gree test feed',

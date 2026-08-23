@@ -24,6 +24,12 @@ class AppInstall extends Command
         $isProduction = app()->environment('production');
         $force = $this->option('force');
 
+        if (! $force) {
+            $this->error('Refusing app:install without explicit --force because it migrates and seeds the database.');
+
+            return self::FAILURE;
+        }
+
         //  1. Check .env 
         if (!file_exists(base_path('.env'))) {
             $this->error('.env file not found! Copy .env.example to .env first.');

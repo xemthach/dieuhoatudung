@@ -102,7 +102,7 @@ class QuoteController extends Controller
                 'slug'     => $productModel->slug,
                 'brand'    => $productModel->brand?->name,
                 'category' => $productModel->category?->name,
-                'btu'      => $productModel->btu,
+                'btu'      => app(\App\Services\Product\ProductTechnicalFactResolver::class)->getDisplay($productModel, 'marketing_capacity_btu')['value'] ?? null,
                 'url'      => $validated['product_url'] ?? route('product.show', $productModel->slug),
             ];
         }
@@ -122,7 +122,7 @@ class QuoteController extends Controller
             // Prefer POST (hidden fields from modal) → fallback to DB model
             'product_brand'              => $validated['product_brand'] ?? $productModel?->brand?->name,
             'product_category'           => $validated['product_category'] ?? $productModel?->category?->name,
-            'product_capacity_btu'       => $validated['product_capacity_btu'] ?? $productModel?->btu,
+            'product_capacity_btu'       => $validated['product_capacity_btu'] ?? ($productModel ? app(\App\Services\Product\ProductTechnicalFactResolver::class)->getDisplay($productModel, 'marketing_capacity_btu')['value'] : null),
             'selected_product_snapshot'  => $snapshot,
             'source_page'                => $validated['source_page'] ?? url()->current(),
             'utm_source'                 => $validated['utm_source'] ?? null,
@@ -360,7 +360,7 @@ class QuoteController extends Controller
             'model'    => $productModel->model_code,
             'brand'    => $productModel->brand?->name,
             'category' => $productModel->category?->name,
-            'btu'      => $productModel->btu,
+            'btu'      => app(\App\Services\Product\ProductTechnicalFactResolver::class)->getDisplay($productModel, 'marketing_capacity_btu')['value'] ?? null,
             'price'    => $productModel->sale_price ?? $productModel->regular_price,
             'url'      => route('product.show', $productModel->slug),
             'snapshot_at' => now()->toISOString(),
@@ -383,7 +383,7 @@ class QuoteController extends Controller
             'product_model'            => $productModel?->model_code,
             'product_brand'            => $productModel?->brand?->name,
             'product_category'         => $productModel?->category?->name,
-            'product_capacity_btu'     => $productModel?->btu,
+            'product_capacity_btu'     => $productModel ? app(\App\Services\Product\ProductTechnicalFactResolver::class)->getDisplay($productModel, 'marketing_capacity_btu')['value'] : null,
             'product_url'              => $productModel ? route('product.show', $productModel->slug) : null,
             'selected_product_snapshot'=> $productSnapshot,
             // Step 1
@@ -626,7 +626,7 @@ class QuoteController extends Controller
                     'id'           => $p->id,
                     'name'         => $p->name,
                     'slug'         => $p->slug,
-                    'btu'          => $p->btu,
+                    'btu'          => app(\App\Services\Product\ProductTechnicalFactResolver::class)->getDisplay($p, 'marketing_capacity_btu')['value'] ?? null,
                     'sale_price'   => $p->sale_price,
                     'regular_price'=> $p->regular_price,
                     'main_image'   => $p->main_image,

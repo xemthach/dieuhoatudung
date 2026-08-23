@@ -14,6 +14,11 @@ class AuditCatalogueSpecs extends Command
 
     public function handle()
     {
+        if ($this->option('fix')) {
+            $this->error('Legacy technical write path disabled. Use governed correction/import workflow.');
+            return self::FAILURE;
+        }
+
         $this->info('=== Product Catalogue Specs Audit ===');
         
         $products = Product::all();

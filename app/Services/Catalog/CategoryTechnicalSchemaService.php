@@ -4,11 +4,13 @@ namespace App\Services\Catalog;
 
 use App\Models\Product;
 use App\Models\ProductCategory;
+use App\Services\Product\ProductTechnicalFactResolver;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
 
 class CategoryTechnicalSchemaService
 {
+    public function __construct(private readonly ProductTechnicalFactResolver $technicalFacts) {}
     public const STATUSES = ['missing', 'draft', 'active', 'deprecated'];
 
     public const FIELD_KEYS = [
@@ -302,36 +304,22 @@ class CategoryTechnicalSchemaService
     {
         $category = $product->category;
         $flat = [
-            'capacity_btu' => $product->btu,
-            'capacity_kw' => $product->capacity_kw,
-            'hp' => $product->hp,
-            'inverter' => $product->inverter,
-            'refrigerant' => $product->refrigerant_gas,
-            'voltage' => $product->voltage,
-            'airflow' => $product->airflow,
-            'noise_level' => $product->noise_level,
-            'indoor_dimensions' => $product->indoor_dimensions,
-            'outdoor_dimensions' => $product->outdoor_dimensions,
-            'weight' => $product->weight,
+            'capacity_btu' => $this->technicalFacts->getDisplay($product, 'technical_capacity_btu')['value'] ?? null,
+            'capacity_kw' => $this->technicalFacts->value($product, 'capacity_kw'),
+            'hp' => $this->technicalFacts->value($product, 'hp'),
+            'inverter' => $this->technicalFacts->value($product, 'inverter'),
+            'refrigerant' => $this->technicalFacts->value($product, 'refrigerant_gas'),
+            'voltage' => $this->technicalFacts->value($product, 'voltage'),
+            'airflow' => $this->technicalFacts->value($product, 'airflow'),
+            'noise_level' => $this->technicalFacts->value($product, 'noise_level'),
+            'indoor_dimensions' => $this->technicalFacts->value($product, 'indoor_dimensions'),
+            'outdoor_dimensions' => $this->technicalFacts->value($product, 'outdoor_dimensions'),
+            'weight' => $this->technicalFacts->value($product, 'weight'),
             'warranty' => strip_tags((string) $product->warranty_info),
         ];
 
-        $specs = (array) ($product->specs_json ?? []);
-        if (isset($specs[0]) && is_array($specs[0])) {
-            foreach ($specs as $item) {
-                $key = (string) ($item['key'] ?? '');
-                if ($key === '') {
-                    continue;
-                }
-
-                $flat[$category ? $this->normalizeSchemaKey($category, $key) : $this->normalizeKey($key)] = $item['value'] ?? null;
-            }
-        } else {
-            foreach ($specs as $key => $value) {
-                if (is_string($key)) {
-                    $flat[$category ? $this->normalizeSchemaKey($category, $key) : $this->normalizeKey($key)] = $value;
-                }
-            }
+        foreach ($this->technicalFacts->allForDisplay($product) as $key => $value) {
+            $flat[$category ? $this->normalizeSchemaKey($category, (string) $key) : $this->normalizeKey((string) $key)] = $value;
         }
 
         return array_filter($flat, fn ($value): bool => $value !== null && $value !== '');

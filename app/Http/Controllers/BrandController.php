@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Brand;
 use App\Models\Product;
+use App\Services\Product\ProductMarketingCapacityQueryAdapter;
 use Illuminate\Http\Request;
 
 class BrandController extends Controller
@@ -18,7 +19,7 @@ class BrandController extends Controller
         return view('brands.index', compact('brands'));
     }
 
-    public function show(Request $request, string $slug)
+    public function show(Request $request, string $slug, ProductMarketingCapacityQueryAdapter $capacityQuery)
     {
         $brand = Brand::where('slug', $slug)
             ->where('is_active', true)
@@ -32,8 +33,8 @@ class BrandController extends Controller
         $query = match($request->query('sort')) {
             'price_asc'  => $query->orderByRaw('COALESCE(sale_price, regular_price) ASC'),
             'price_desc' => $query->orderByRaw('COALESCE(sale_price, regular_price) DESC'),
-            'btu_asc'    => $query->orderBy('btu', 'asc'),
-            'btu_desc'   => $query->orderBy('btu', 'desc'),
+            'btu_asc'    => $query->orderBy($capacityQuery->column(), 'asc'),
+            'btu_desc'   => $query->orderBy($capacityQuery->column(), 'desc'),
             default      => $query->latest(),
         };
 

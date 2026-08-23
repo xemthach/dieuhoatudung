@@ -10,6 +10,8 @@ use Illuminate\Support\Facades\Schema;
 
 class SettingService
 {
+    private ?bool $settingsTableAvailable = null;
+
     /**
      * Get a setting value. Key format: 'group.key' or pass group separately.
      * Never throws — returns $default on any error.
@@ -18,7 +20,7 @@ class SettingService
     {
         try {
             // Guard: bảng chưa tồn tại (fresh install)
-            if (! Schema::hasTable('site_settings')) {
+            if (! $this->hasSettingsTable()) {
                 return $default;
             }
 
@@ -157,6 +159,19 @@ class SettingService
         } catch (\Throwable $e) {
             // ignore
         }
+    }
+
+    /**
+     * Schema capability is stable for the lifetime of an application request.
+     * Avoid issuing an information_schema query for every setting read.
+     */
+    private function hasSettingsTable(): bool
+    {
+        // Do not permanently memoize a false result: application boot can run
+        // before test/install migrations create the table.
+        if ($this->settingsTableAvailable === true) return true;
+
+        return $this->settingsTableAvailable = Schema::hasTable('site_settings');
     }
 
     /**

@@ -27,41 +27,35 @@ class SitemapService
         if (setting('sitemap.sitemap_enabled', true)) {
             $sitemaps[] = [
                 'loc'     => $baseUrl . '/sitemap-static.xml',
-                'lastmod' => Carbon::now()->toAtomString(),
             ];
             
             if (setting('sitemap.sitemap_include_products', true)) {
                 $sitemaps[] = [
                     'loc'     => $baseUrl . '/sitemap-products.xml',
-                    'lastmod' => Carbon::now()->toAtomString(),
                 ];
             }
             
             if (setting('sitemap.sitemap_include_categories', true)) {
                 $sitemaps[] = [
                     'loc'     => $baseUrl . '/sitemap-categories.xml',
-                    'lastmod' => Carbon::now()->toAtomString(),
                 ];
             }
             
             if (setting('sitemap.sitemap_include_posts', true)) {
                 $sitemaps[] = [
                     'loc'     => $baseUrl . '/sitemap-posts.xml',
-                    'lastmod' => Carbon::now()->toAtomString(),
                 ];
             }
 
             // Brands sitemap
             $sitemaps[] = [
                 'loc'     => $baseUrl . '/sitemap-brands.xml',
-                'lastmod' => Carbon::now()->toAtomString(),
             ];
 
             // Case Studies sitemap
             if (setting('sitemap.sitemap_include_case_studies', false)) {
                 $sitemaps[] = [
                     'loc'     => $baseUrl . '/sitemap-case-studies.xml',
-                    'lastmod' => Carbon::now()->toAtomString(),
                 ];
             }
         }
@@ -179,43 +173,36 @@ class SitemapService
         $urls = collect([
             [
                 'loc'        => route('home'),
-                'lastmod'    => Carbon::now()->toAtomString(),
                 'changefreq' => 'daily',
                 'priority'   => '1.0',
             ],
             [
                 'loc'        => route('landing'),
-                'lastmod'    => Carbon::now()->toAtomString(),
                 'changefreq' => 'weekly',
                 'priority'   => '0.9',
             ],
             [
                 'loc'        => route('products.index'),
-                'lastmod'    => Carbon::now()->toAtomString(),
                 'changefreq' => 'daily',
                 'priority'   => '0.8',
             ],
             [
                 'loc'        => route('blog.index'),
-                'lastmod'    => Carbon::now()->toAtomString(),
                 'changefreq' => 'daily',
                 'priority'   => '0.7',
             ],
             [
                 'loc'        => route('contact'),
-                'lastmod'    => Carbon::now()->toAtomString(),
                 'changefreq' => 'monthly',
                 'priority'   => '0.5',
             ],
             [
                 'loc'        => route('quote.index'),
-                'lastmod'    => Carbon::now()->toAtomString(),
                 'changefreq' => 'monthly',
                 'priority'   => '0.5',
             ],
             [
                 'loc'        => route('brands.index'),
-                'lastmod'    => Carbon::now()->toAtomString(),
                 'changefreq' => 'weekly',
                 'priority'   => '0.6',
             ],
@@ -241,7 +228,6 @@ class SitemapService
         try {
             $urls->push([
                 'loc'        => route('faq.dieu-hoa'),
-                'lastmod'    => Carbon::now()->toAtomString(),
                 'changefreq' => 'monthly',
                 'priority'   => '0.5',
             ]);
@@ -251,7 +237,6 @@ class SitemapService
         try {
             $urls->push([
                 'loc'        => route('btu-calculator.index'),
-                'lastmod'    => Carbon::now()->toAtomString(),
                 'changefreq' => 'monthly',
                 'priority'   => '0.5',
             ]);
@@ -261,7 +246,6 @@ class SitemapService
         try {
             $urls->push([
                 'loc'        => route('price-list'),
-                'lastmod'    => Carbon::now()->toAtomString(),
                 'changefreq' => 'weekly',
                 'priority'   => '0.6',
             ]);
@@ -271,7 +255,6 @@ class SitemapService
         try {
             $urls->push([
                 'loc'        => route('case-studies.index'),
-                'lastmod'    => Carbon::now()->toAtomString(),
                 'changefreq' => 'monthly',
                 'priority'   => '0.5',
             ]);

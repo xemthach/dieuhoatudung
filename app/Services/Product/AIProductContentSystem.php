@@ -6,11 +6,14 @@ use App\Models\AiProductContentVersion;
 use App\Models\AiProductDraft;
 use App\Models\AiProductJob;
 use App\Models\AiProductJobItem;
+use App\Models\AiProvider;
 use App\Models\Faq;
 use App\Models\Product;
 use App\Models\Tag;
+use App\Models\User;
 use App\Services\AI\AIContentGovernance;
 use App\Services\AI\AIContentPatchService;
+use App\Services\AI\AIJobStateMachine;
 use App\Services\AI\Governance\ForbiddenClaimEngine;
 use App\Services\AI\AIManager;
 use App\Services\AI\AITechnicalLogger;
@@ -59,6 +62,14 @@ class AIProductContentSystem
         'series',
         'capacity_btu',
         'btu',
+        'marketing_capacity_btu',
+        'technical_capacity_btu',
+        'technical_capacity_status',
+        'catalog_source_id',
+        'catalog_model_id',
+        'catalog_provenance',
+        'source_catalogue',
+        'source_page',
         'capacity_kw',
         'hp',
         'cooling_type',
@@ -68,6 +79,7 @@ class AIProductContentSystem
         'refrigerant',
         'refrigerant_gas',
         'power_consumption',
+        'power_input_kw',
         'airflow',
         'noise_level',
         'recommended_area',
@@ -102,6 +114,8 @@ class AIProductContentSystem
     private AIContentGovernance $governance;
 
     private AITechnicalLogger $technicalLogger;
+    private ProductTechnicalFactResolver $technicalFacts;
+    private AIContentStructureValidator $structureValidator;
 
     public function __construct(
         private readonly AIManager $aiManager,
@@ -109,9 +123,13 @@ class AIProductContentSystem
         private readonly AIProductContentSanitizer $sanitizer,
         ?AIContentGovernance $governance = null,
         ?AITechnicalLogger $technicalLogger = null,
+        ?ProductTechnicalFactResolver $technicalFacts = null,
+        ?AIContentStructureValidator $structureValidator = null,
     ) {
         $this->governance = $governance ?? app(AIContentGovernance::class);
         $this->technicalLogger = $technicalLogger ?? app(AITechnicalLogger::class);
+        $this->technicalFacts = $technicalFacts ?? app(ProductTechnicalFactResolver::class);
+        $this->structureValidator = $structureValidator ?? app(AIContentStructureValidator::class);
     }
 
     public function normalizeConfig(array $config): array
@@ -144,7 +162,44 @@ class AIProductContentSystem
                 'og' => false,
             ], $outputs),
             'action' => $config['action'] ?? 'generate_ai_content',
+            'fake_429_attempts' => (int) ($config['fake_429_attempts'] ?? 0),
+            'fake_timeout_attempts' => (int) ($config['fake_timeout_attempts'] ?? 0),
+            'fake_5xx_attempts' => (int) ($config['fake_5xx_attempts'] ?? 0),
+            'fake_governance_failure' => (bool) ($config['fake_governance_failure'] ?? false),
+            'fake_output_case' => $config['fake_output_case'] ?? null,
+            'draft_only_strict' => (bool) ($config['draft_only_strict'] ?? false),
+            'content_eligibility_scope' => $config['content_eligibility_scope'] ?? null,
+            'current_job_item_id' => isset($config['current_job_item_id']) ? (int) $config['current_job_item_id'] : null,
         ];
+    }
+
+    /** Build the governed request shape without contacting a provider. */
+    public function providerRequestEnvelope(Product $product, array $config, ?AiProductJob $job = null): array
+    {
+        $config = $this->normalizeConfig($config);
+        $product->loadMissing(['brand', 'category', 'tags', 'faqs', 'relatedProducts', 'posts']);
+        $contentEligibility = $this->governance->contentEligibility($product, [
+            'outputs' => $config['outputs'],
+            'type' => $config['action'],
+            'scope' => $config['content_eligibility_scope'],
+            'current_job_item_id' => $config['current_job_item_id'],
+        ]);
+        if (! $contentEligibility['eligible']) {
+            throw new RuntimeException('CONTENT_ELIGIBILITY_BLOCKED:'.implode('|', $contentEligibility['reasons']));
+        }
+        $input = $this->buildInput($product);
+        $context = $this->governance->buildProductContext($product, [
+            'action' => $config['action'], 'outputs' => $config['outputs'], 'mode' => $config['mode'],
+            'depth' => $config['depth'], 'tone' => $config['tone'],
+        ]);
+        $payload = [
+            'system' => $this->systemPrompt(),
+            'prompt' => $this->buildPrompt($input, $config, $context),
+            'temperature' => $config['depth'] === 'deep_hvac' ? 0.45 : 0.55,
+            'max_tokens' => $config['depth'] === 'deep_hvac' ? 14000 : 10000,
+        ];
+        $provider = AiProvider::where('status', 'active')->orderBy('id')->first();
+        return app(\App\Services\AI\BulkRuntimeTokenEnvelopeService::class)->forPayload($payload, $provider);
     }
 
     public function audit(Product $product): array
@@ -168,6 +223,15 @@ class AIProductContentSystem
     {
         $config = $this->normalizeConfig($config);
         $product->loadMissing(['brand', 'category', 'tags', 'faqs', 'relatedProducts', 'posts']);
+        $contentEligibility = $this->governance->contentEligibility($product, [
+            'outputs' => $config['outputs'],
+            'type' => $config['action'],
+            'scope' => $config['content_eligibility_scope'],
+            'current_job_item_id' => $item?->id ?? $config['current_job_item_id'],
+        ]);
+        if (! $contentEligibility['eligible']) {
+            throw new RuntimeException('CONTENT_ELIGIBILITY_BLOCKED:'.implode('|', $contentEligibility['reasons']));
+        }
         $before = $this->scorer->score($product);
 
         if ($config['action'] === 'audit_seo') {
@@ -178,11 +242,17 @@ class AIProductContentSystem
             return $this->completeSkippedStrongContent($product, $before, $item);
         }
 
-        $product->update([
-            'ai_status' => 'processing',
-            'ai_last_run_at' => now(),
-            'ai_error_message' => null,
-        ]);
+        $strictDraftOnly = (bool) ($config['draft_only_strict'] ?? false);
+        if ($strictDraftOnly) {
+            $config['apply_mode'] = 'draft_only';
+        }
+        if (! $strictDraftOnly) {
+            $product->update([
+                'ai_status' => 'processing',
+                'ai_last_run_at' => now(),
+                'ai_error_message' => null,
+            ]);
+        }
 
         $input = $this->buildInput($product);
         $guardContext = $this->governance->buildProductContext($product, [
@@ -203,6 +273,11 @@ class AIProductContentSystem
             'require_json' => true,
             'max_tokens' => $config['depth'] === 'deep_hvac' ? 14000 : 10000,
             'max_attempts' => 3,
+            'fake_429_attempts' => (int) ($config['fake_429_attempts'] ?? 0),
+            'fake_timeout_attempts' => (int) ($config['fake_timeout_attempts'] ?? 0),
+            'fake_5xx_attempts' => (int) ($config['fake_5xx_attempts'] ?? 0),
+            'fake_governance_failure' => (bool) ($config['fake_governance_failure'] ?? false),
+            'fake_output_case' => $config['fake_output_case'] ?? null,
         ]);
 
         $payload = $result['json'] ?? [];
@@ -211,7 +286,23 @@ class AIProductContentSystem
         }
 
         $rawPayload = $payload;
+        if ($item && is_string($result['content'] ?? null)) {
+            $usage = is_array($item->token_usage_json) ? $item->token_usage_json : [];
+            $usage['response_fingerprint'] = hash('sha256', $result['content']);
+            $usage['response_shape'] = array_keys($result['json'] ?? []);
+            $usage['schema_version'] = config('ai_product_allowed_fields.schema_version', 'content-layer-runtime-contract-v1');
+            $usage['finish_reason'] = $result['finish_reason'] ?? null;
+            $usage['raw_response_length'] = mb_strlen($result['content'], '8bit');
+            $usage['provider_request_id'] = $result['provider_request_id'] ?? null;
+            $item->update(['token_usage_json' => $usage]);
+        }
+        if ($item) {
+            AIJobStateMachine::transition($item, AIJobStateMachine::VALIDATING, 'provider_output_received');
+        }
         $payload = $this->normalizePayload($payload, $product, $config);
+        if ($item) {
+            AIJobStateMachine::transition($item, AIJobStateMachine::FACT_CHECKING, 'payload_normalized');
+        }
         $factCheck = $this->governance->validatePayload($payload, $guardContext, [
             'excerpt',
             'content_html',
@@ -243,6 +334,8 @@ class AIProductContentSystem
             'model' => $result['model'] ?? null,
             'product_id' => $product->id,
             'job_id' => $job?->id,
+            'prompt_version' => $guardContext['prompt_version'] ?? null,
+            'technical_context_hash' => $this->technicalContextHash($product),
         ];
         $draft = $this->persistDraft($product, $job, $item, $rawPayload, $payload, $fieldStatus, $validationErrors, $warnings, $tokenUsage, 'draft');
         foreach ($fieldStatus as $fieldName => $statusForField) {
@@ -276,13 +369,15 @@ class AIProductContentSystem
             }
 
             if ($hasCriticalBlock) {
-                $product->update([
-                    'ai_status' => $status,
-                    'ai_score' => $before['score'],
-                    'ai_warning_count' => count($warnings),
-                    'ai_error_message' => $message,
-                    'ai_last_run_at' => now(),
-                ]);
+                if (! $strictDraftOnly) {
+                    $product->update([
+                        'ai_status' => $status,
+                        'ai_score' => $before['score'],
+                        'ai_warning_count' => count($warnings),
+                        'ai_error_message' => $message,
+                        'ai_last_run_at' => now(),
+                    ]);
+                }
 
                 $this->updateItem($item, [
                     'status' => $status,
@@ -341,7 +436,7 @@ class AIProductContentSystem
             default => false,
         };
 
-        if ($canApply) {
+        if ($canApply && ! $strictDraftOnly) {
             $this->applyPayload($product, $payload, $config, $before['score'], $userId);
             $applied = true;
             $product->refresh()->loadMissing(['brand', 'category', 'tags', 'faqs', 'relatedProducts', 'posts']);
@@ -352,14 +447,24 @@ class AIProductContentSystem
             ? ($after['score'] < 70 ? 'needs_review' : ($warnings === [] ? 'completed_verified' : 'completed_with_warnings'))
             : 'needs_review';
 
-        $product->update([
-            'ai_status' => $status,
-            'ai_score' => $after['score'],
-            'ai_warning_count' => count($warnings),
-            'ai_error_message' => $warnings !== [] ? 'AI draft contains fact-check warnings: ' . implode(', ', $warnings) : null,
-            'ai_last_run_at' => now(),
-            'ai_generated_at' => now(),
-        ]);
+        if ($item) {
+            AIJobStateMachine::transition(
+                $item,
+                $status === 'needs_review' ? AIJobStateMachine::REVIEW_REQUIRED : AIJobStateMachine::DONE,
+                $status
+            );
+        }
+
+        if (! $strictDraftOnly) {
+            $product->update([
+                'ai_status' => $status,
+                'ai_score' => $after['score'],
+                'ai_warning_count' => count($warnings),
+                'ai_error_message' => $warnings !== [] ? 'AI draft contains fact-check warnings: ' . implode(', ', $warnings) : null,
+                'ai_last_run_at' => now(),
+                'ai_generated_at' => now(),
+            ]);
+        }
 
         $this->updateItem($item, [
             'status' => $status,
@@ -423,6 +528,11 @@ class AIProductContentSystem
             return null;
         }
 
+        $blockedDataFields = $this->blockedProductDataFields($item->generated_payload_json);
+        if ($blockedDataFields !== []) {
+            throw new RuntimeException('AI draft rejected: forbidden Product Data field(s): '.implode(', ', $blockedDataFields));
+        }
+
         if (($item->status === 'blocked') || ! empty($item->generated_payload_json['blocked_claims'] ?? [])) {
             $product->update([
                 'ai_status' => 'blocked',
@@ -441,6 +551,25 @@ class AIProductContentSystem
             ]);
 
             return null;
+        }
+
+        $storedContextHash = data_get($item->token_usage_json, 'technical_context_hash');
+        if (! is_string($storedContextHash) || $storedContextHash === '' || ! hash_equals($storedContextHash, $this->technicalContextHash($product))) {
+            $message = 'STALE_TECHNICAL_CONTEXT: Product technical facts changed or legacy draft has no context snapshot.';
+            $item->update(SchemaColumns::existing('ai_product_job_items', [
+                'status' => 'blocked',
+                'failed_reason' => 'stale_technical_context',
+                'last_error_code' => 'stale_technical_context',
+                'last_error_message' => $message,
+                'error_message' => $message,
+            ]));
+            $product->update([
+                'ai_status' => 'blocked',
+                'ai_error_message' => $message,
+                'ai_last_run_at' => now(),
+            ]);
+
+            throw new RuntimeException($message);
         }
 
         $config = $this->normalizeConfig($item->job?->config_json ?? []);
@@ -563,8 +692,9 @@ class AIProductContentSystem
         return ['status' => 'needs_review', 'payload' => $payload];
     }
 
-    public function rollback(Product $product, ?int $versionId = null): ?AiProductContentVersion
+    public function rollback(Product $product, User $actor, ?int $versionId = null): ?AiProductContentVersion
     {
+        app(\App\Services\AI\BulkRuntimeAuthorizationService::class)->requireRollback($actor);
         $version = $versionId
             ? $product->aiContentVersions()->whereKey($versionId)->first()
             : $product->aiContentVersions()->latest('id')->first();
@@ -613,6 +743,39 @@ class AIProductContentSystem
         $this->audit($product->refresh());
 
         return $version;
+    }
+
+    public function contentSnapshot(Product $product): array
+    {
+        $product->loadMissing(['tags', 'faqs']);
+        return [
+            'short_description' => $product->short_description,
+            'long_description' => $product->long_description,
+            'seo_title' => $product->seo_title, 'seo_description' => $product->seo_description,
+            'og_title' => $product->og_title, 'og_description' => $product->og_description,
+            'merchant_title' => $product->merchant_title, 'merchant_description' => $product->merchant_description,
+            'tags' => $product->tags->map->only(['id', 'name', 'slug'])->values()->all(),
+            'faq' => $product->faqs->map->only(['question', 'answer'])->values()->all(),
+        ];
+    }
+
+    public function restoreContentSnapshot(Product $product, array $snapshot): void
+    {
+        DB::transaction(function () use ($product, $snapshot): void {
+            $product->update(array_intersect_key($snapshot, array_flip([
+                'short_description', 'long_description', 'seo_title', 'seo_description',
+                'og_title', 'og_description', 'merchant_title', 'merchant_description',
+            ])));
+            if (array_key_exists('tags', $snapshot)) $product->tags()->sync(collect($snapshot['tags'])->pluck('id')->filter()->all());
+            if (array_key_exists('faq', $snapshot)) {
+                $product->faqs()->detach();
+                foreach ((array) $snapshot['faq'] as $index => $data) {
+                    if (empty($data['question']) || empty($data['answer'])) continue;
+                    $faq = Faq::create(['question' => $data['question'], 'answer' => $data['answer'], 'group' => 'product', 'sort_order' => $index + 1, 'is_active' => true]);
+                    $product->faqs()->attach($faq->id, ['sort_order' => $index + 1]);
+                }
+            }
+        });
     }
 
     private function completeAuditOnly(Product $product, array $score, ?AiProductJobItem $item): array
@@ -849,6 +1012,12 @@ class AIProductContentSystem
 
     private function buildInput(Product $product): array
     {
+        $verifiedFacts = $this->technicalFacts->allVerified($product);
+        unset($verifiedFacts['marketing_capacity_btu'], $verifiedFacts['technical_capacity_btu']);
+        $verifiedFacts = array_merge([
+            'rated_cooling_capacity_btu' => $this->technicalFacts->value($product, 'technical_capacity_btu'),
+        ], $verifiedFacts);
+
         return [
             'product_id' => $product->id,
             'product_identity' => [
@@ -859,12 +1028,20 @@ class AIProductContentSystem
                 'model_code' => $product->model_code,
                 'sku' => $product->sku,
             ],
-            'verified_technical_facts' => Arr::only($product->toArray(), [
-                'btu', 'capacity_kw', 'hp', 'cooling_type', 'inverter', 'voltage', 'refrigerant_gas',
-                'power_consumption', 'airflow', 'noise_level', 'indoor_dimensions',
-                'outdoor_dimensions', 'weight', 'recommended_area', 'hp',
-            ]),
-            'technical_specs_json' => $product->specs_json ?? [],
+            'marketing_identity_facts' => [
+                'capacity_group_btu' => $this->technicalFacts->value($product, 'marketing_capacity_btu'),
+            ],
+            'verified_technical_facts' => $verifiedFacts,
+            'capacity_semantics' => [
+                'marketing_capacity_btu' => [
+                    'value' => $this->technicalFacts->value($product, 'marketing_capacity_btu'),
+                    'meaning' => 'COMMERCIAL_GROUPING_ONLY',
+                ],
+                'technical_capacity_btu' => [
+                    'value' => $this->technicalFacts->value($product, 'technical_capacity_btu'),
+                    'meaning' => 'AUTHORITATIVE_TECHNICAL_RATED_CAPACITY',
+                ],
+            ],
             'existing_excerpt' => $product->short_description,
             'existing_content' => Str::limit(strip_tags((string) $product->long_description), 1200),
             'existing_seo' => [
@@ -879,14 +1056,43 @@ class AIProductContentSystem
                 'google_product_category' => $product->google_product_category,
                 'product_type' => $product->product_type,
             ],
-            'related_products' => $product->relatedProducts->take(5)->map->only(['id', 'name', 'slug', 'model_code', 'btu'])->values()->all(),
+            'related_products' => $product->relatedProducts->take(5)->map(function (Product $related): array {
+                return [
+                    'id' => $related->id,
+                    'name' => $related->name,
+                    'slug' => $related->slug,
+                    'model_code' => $related->model_code,
+                    'marketing_capacity_btu' => $this->technicalFacts->value($related, 'marketing_capacity_btu'),
+                ];
+            })->values()->all(),
             'related_posts' => $product->posts->take(5)->map->only(['id', 'title', 'slug'])->values()->all(),
         ];
+    }
+
+    /**
+     * Stable snapshot of the Product technical context used by an AI draft.
+     * This intentionally excludes legacy display-only fields such as products.btu.
+     */
+    public function technicalContextHash(Product $product): string
+    {
+        $facts = $this->technicalFacts->allVerified($product);
+
+        return hash('sha256', json_encode([
+            'product_id' => $product->id,
+            'model' => $product->model_code,
+            'brand_id' => $product->brand_id,
+            'marketing_capacity_btu' => $this->technicalFacts->value($product, 'marketing_capacity_btu'),
+            'verified_facts' => $facts,
+        ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRESERVE_ZERO_FRACTION));
     }
 
     private function normalizePayload(array $payload, Product $product, array $config): array
     {
         $blockedDataFields = $this->blockedProductDataFields($payload);
+
+        if ($blockedDataFields !== []) {
+            throw new RuntimeException('AI payload rejected: forbidden Product Data field(s): '.implode(', ', $blockedDataFields));
+        }
 
         if (is_array($payload['content_layer'] ?? null)) {
             $contentLayer = $payload['content_layer'];
@@ -922,15 +1128,6 @@ class AIProductContentSystem
         $payload['warnings'] = $this->normalizeIssueList($payload['warnings'] ?? []);
         $payload['used_facts'] = is_array($payload['used_facts'] ?? null) ? $payload['used_facts'] : [];
         $payload['blocked_claims'] = $this->normalizeIssueList($payload['blocked_claims'] ?? []);
-        if ($blockedDataFields !== []) {
-            $payload['blocked_product_data_fields'] = $blockedDataFields;
-            $payload['warnings'] = $this->normalizeIssueList(
-                $payload['warnings'],
-                'ai_payload_contains_blocked_product_data_fields',
-                array_map(fn (string $field): string => 'blocked_product_data_field:'.$field, $blockedDataFields)
-            );
-        }
-
         $payload = $this->neutralizeUnverifiedMarketingClaims($payload, $product);
 
         $payload = $this->sanitizer->sanitizePayload($payload);
@@ -958,8 +1155,7 @@ class AIProductContentSystem
             $normalized = Str::snake($key);
 
             if ($normalized !== ''
-                && in_array($normalized, config('ai_product_allowed_fields.blocked_product_data_fields', self::BLOCKED_PRODUCT_DATA_FIELDS), true)
-                && ! in_array($parentKey, ['product_identity', 'verified_technical_facts'], true)) {
+                && in_array($normalized, config('ai_product_allowed_fields.blocked_product_data_fields', self::BLOCKED_PRODUCT_DATA_FIELDS), true)) {
                 $blocked[] = $normalized;
             }
 
@@ -1117,6 +1313,11 @@ class AIProductContentSystem
         if (($config['outputs']['content'] ?? false) && ! in_array('missing_technical_data', $payload['warnings'], true)) {
             $minimumWords = $this->isCommercialProduct($product) ? 1200 : 800;
             $words = $this->scorer->wordCount($payload['content_html']);
+            if ($words < (int) floor($minimumWords * 0.75)) {
+                throw new RuntimeException("CONTENT_TOO_SHORT: {$words}/{$minimumWords}");
+            }
+            $minimumWords = $this->isCommercialProduct($product) ? 1200 : 800;
+            $words = $this->scorer->wordCount($payload['content_html']);
             if ($words < $minimumWords && $words >= (int) floor($minimumWords * 0.75)) {
                 $payload['warnings'] = $this->normalizeIssueList($payload['warnings'], ["content_too_short:{$words}/{$minimumWords}"]);
             } elseif ($words < $minimumWords) {
@@ -1124,7 +1325,11 @@ class AIProductContentSystem
             }
         }
 
-        if (($config['outputs']['content'] ?? false) && (! str_contains(Str::lower($payload['content_html']), '<h2') || ! str_contains(Str::lower($payload['content_html']), '<h3'))) {
+        if (($config['outputs']['content'] ?? false)) {
+            $this->structureValidator->assert($payload['content_html']);
+        }
+
+        if (false && ($config['outputs']['content'] ?? false) && (! str_contains(Str::lower($payload['content_html']), '<h2') || ! str_contains(Str::lower($payload['content_html']), '<h3'))) {
             throw new RuntimeException('AI output thiếu H2/H3.');
         }
 
@@ -1290,7 +1495,7 @@ class AIProductContentSystem
     {
         $category = Str::lower($product->category?->name ?? '');
 
-        return $product->btu >= 48000
+        return (int) ($this->technicalFacts->value($product, 'marketing_capacity_btu') ?? 0) >= 48000
             || Str::contains($category, ['vrf', 'gmv', 'rooftop', 'commercial', 'lac', 'ống gió', 'duct']);
     }
 
@@ -1315,6 +1520,9 @@ class AIProductContentSystem
             'internal_language_detected:namespace',
             'internal_language_detected:method_signature',
             'internal_language_detected:raw_variable',
+            'contradicted_technical_capacity:',
+            'ambiguous_capacity_claim:',
+            'FACT_CHECK_BLOCKED',
         ];
 
         foreach ($blockedClaims as $claim) {
@@ -1429,6 +1637,12 @@ PROMPT;
         $inputJson = json_encode($input, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
         $outputJson = json_encode($config['outputs'], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
         $categoryLogic = $this->categoryLogic((string) data_get($input, 'product_identity.category.name', ''));
+        $contentOnlyRetry = ($config['action'] ?? '') === 'retry_ai_product_field'
+            && ($config['outputs']['content'] ?? false)
+            && count(array_filter($config['outputs'], fn ($enabled): bool => (bool) $enabled)) === 1;
+        $retryInstruction = $contentOnlyRetry
+            ? "FIELD-LEVEL RETRY: chỉ tạo content_html. Không tạo lại SEO, OG, Merchant, FAQ, tags hoặc excerpt. Content phải có tối thiểu 1000 từ tiếng Việt (mục tiêu 1000-1200), gồm ít nhất 2 thẻ HTML <h2> và 3 thẻ <h3> cùng các đoạn thực tế; tự kiểm đếm và kiểm tra thẻ trước khi trả JSON."
+            : '';
 
         return <<<PROMPT
 NGỮ CẢNH DỮ LIỆU ĐÃ XÁC MINH (bắt buộc tuân thủ):
@@ -1444,6 +1658,14 @@ CONFIG:
 - mode: {$config['mode']}
 - depth: {$config['depth']}
 - tone: {$config['tone']}
+
+CONTENT SCOPE CONTRACT:
+- AI is a content and SEO writer, not a Product Data or catalog authority.
+- Use only Product facts supplied in this request/context for Product-specific claims.
+- If a fact is absent, omitted, conflicted, or not supplied, omit the claim.
+- Never infer room area, HP, BTU conversions, capacity, electrical values, refrigerant, warranty, price, availability, or regional equivalence.
+- Never correct Product data and never mention internal provenance, data quality, source gates, or internal implementation in customer-facing copy.
+- General writing, benefits, structure, CTA, and SEO phrasing may be creative only when they do not create new Product-specific facts.
 
 JSON output bắt buộc:
 {
@@ -1470,6 +1692,9 @@ AI governance rule:
 - Chỉ tạo AI Content Layer: excerpt, content_html, SEO, OG, Google Merchant text, tags, FAQ, internal links, media metadata.
 - Không trả về và không đề xuất cập nhật Product Data Layer: thông tin cơ bản, model, SKU, brand, category, slug, giá, trạng thái, thông số kỹ thuật, technical_specs_json.
 - verified_technical_facts chỉ dùng để tham chiếu trong nội dung; không được sửa dữ liệu gốc.
+- MARKETING_IDENTITY_FACTS và VERIFIED_TECHNICAL_FACTS là hai nhóm khác nhau. capacity_group_btu chỉ dùng cho nhóm/phân khúc/dòng máy thương mại.
+- rated_cooling_capacity_btu là công suất kỹ thuật/định mức/danh định/công suất lạnh. Không được dùng capacity_group_btu cho các cách gọi kỹ thuật này.
+- Không viết câu mơ hồ "máy có công suất X BTU" khi hai giá trị khác nhau; phải nói rõ "thuộc nhóm công suất thương mại" hoặc "công suất kỹ thuật".
 - Chỉ được dùng giá trị trong dữ liệu đã xác minh để viết thông số kỹ thuật, BTU, kW, HP, diện tích, độ ồn, kích thước, trọng lượng, gas, bảo hành, giá, VAT, CO/CQ.
 - Khi dùng một dữ liệu trong verified_technical_facts, ghi đúng id công khai của dữ liệu đó vào used_verified_facts; không ghi giá trị rời như "GREE", "18000" hoặc tên biến nội bộ.
 - Không tự suy diễn công thức BTU, hệ số BTU/m2, diện tích phù hợp hoặc tải lạnh. Nếu chưa có kết quả tính toán đã xác minh thì không đưa số BTU cụ thể và thêm warning "missing_btu_inputs".
@@ -1479,12 +1704,17 @@ AI governance rule:
 - Nếu phát hiện nội dung có thể vượt nguồn dữ liệu, đưa mã vào blocked_claims thay vì viết thành khẳng định.
 
 Content rule:
-- Sản phẩm thường: content_html 800-1200 từ.
+- content_html is an HTML fragment, not Markdown and not a full HTML document.
+- content_html MUST contain at least one non-empty <h2>...</h2> element and at least one non-empty <h3>...</h3> element.
+- Use this structural skeleton inside content_html: <h2>...</h2><p>...</p><h3>...</h3><p>...</p>.
+- Do not write "## heading" or escaped literal "&lt;h2&gt;" text as a substitute for HTML headings.
+- Sản phẩm thường: content_html tối thiểu 800 từ; hãy viết thực tế khoảng 900-1200 từ để không rơi dưới ngưỡng.
 - Sản phẩm LAC/commercial/VRF/GMV/Rooftop/ống gió hoặc >= 48.000 BTU: 1200-1800 từ.
 - Có H2/H3, giới thiệu sản phẩm, điểm nổi bật kỹ thuật, ứng dụng thực tế, "Khi nào nên dùng", lưu ý lắp đặt/vận hành, CTA nhẹ.
 - Nếu thiếu thông số kỹ thuật, viết ngắn hơn nhưng không fake và thêm warning "missing_technical_data".
 - Toàn bộ excerpt, content_html, SEO, OG, Google Merchant, tag và FAQ phải là tiếng Việt có dấu hoặc tag slug hợp lệ như "cassette inverter", "24000btu", "gree".
 - Không dùng text bị lỗi dấu, ký tự lạ, text vỡ mã hóa hoặc tiếng Việt không dấu.
+{$retryInstruction}
 
 HVAC category logic:
 {$categoryLogic}

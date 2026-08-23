@@ -58,7 +58,7 @@
         </div>
     @endif
 
-    {{-- BTU --}}
+    {{-- BTU marketing filter (RAC semantics; never a VRF kW conversion) --}}
     <div class="mb-6 border-t border-surface-100 pt-4">
         <h4 class="mb-3 text-sm font-semibold text-surface-900">Công suất (BTU)</h4>
         <div class="space-y-2">

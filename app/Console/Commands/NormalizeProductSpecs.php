@@ -14,7 +14,9 @@ class NormalizeProductSpecs extends Command
      *
      * @var string
      */
-    protected $signature = 'products:normalize-specs {--force : Ghi đè nếu column đã có dữ liệu}';
+    protected $signature = 'products:normalize-specs
+        {--apply : Explicitly authorize writing normalized product fields}
+        {--force : Ghi đè nếu column đã có dữ liệu}';
 
     /**
      * The console command description.
@@ -28,7 +30,12 @@ class NormalizeProductSpecs extends Command
      */
     public function handle(ProductCompareSpecService $service)
     {
-        $this->info('Bắt đầu chuẩn hóa specs_json...');
+        $apply = $this->option('apply');
+        if ($apply) {
+            $this->error('Legacy technical write path disabled. Use governed correction/import workflow.');
+            return self::FAILURE;
+        }
+        $this->info($apply ? 'Bắt đầu chuẩn hóa specs_json (APPLY)...' : 'Bắt đầu chuẩn hóa specs_json (DRY RUN)...');
         $products = Product::whereNotNull('specs_json')->get();
         
         $updatedCount = 0;
@@ -76,7 +83,9 @@ class NormalizeProductSpecs extends Command
             }
 
             if (!empty($updates)) {
-                DB::table('products')->where('id', $product->id)->update($updates);
+                if ($apply) {
+                    DB::table('products')->where('id', $product->id)->update($updates);
+                }
                 $updatedCount++;
             }
 
@@ -85,6 +94,8 @@ class NormalizeProductSpecs extends Command
 
         $bar->finish();
         $this->newLine();
-        $this->info("Đã chuẩn hóa và backfill thành công {$updatedCount} sản phẩm.");
+        $this->info($apply
+            ? "Đã chuẩn hóa và backfill thành công {$updatedCount} sản phẩm."
+            : "Dry run: {$updatedCount} sản phẩm sẽ được cập nhật; DB chưa thay đổi.");
     }
 }

@@ -13,6 +13,7 @@ use App\Models\Product;
 use App\Models\ProductCategory;
 use App\Models\Tag;
 use App\Services\Product\PromotionPriceResolver;
+use App\Services\Product\ProductTechnicalFactResolver;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Schema;
 
@@ -21,7 +22,10 @@ class SeoAuditService
     public const CACHE_KEY = 'seo_audit_results';
     public const CACHE_TTL = 300; // 5 minutes
 
-    public function __construct(private PromotionPriceResolver $priceResolver) {}
+    public function __construct(
+        private PromotionPriceResolver $priceResolver,
+        private ProductTechnicalFactResolver $technicalFacts,
+    ) {}
 
     /**
      * Run all audits and return flat collection of issues.
@@ -116,7 +120,7 @@ class SeoAuditService
                 $issues[] = $this->issue('Product', $name, 'Thiếu Brand', 'warning', $edit);
             }
 
-            if (in_array('btu', $columns) && empty($product->btu)) {
+            if ($this->technicalFacts->allVerified($product) === []) {
                 $issues[] = $this->issue('Product', $name, 'Thiếu thông số BTU', 'notice', $edit);
             }
 
@@ -128,7 +132,7 @@ class SeoAuditService
                 $issues[] = $this->issue('Product', $name, 'Thiếu long_description', 'warning', $edit);
             }
 
-            if (in_array('specs_json', $columns) && empty($product->specs_json)) {
+            if (in_array('specs_json', $columns) && $this->technicalFacts->allForDisplay($product) === []) {
                 $issues[] = $this->issue('Product', $name, 'Thiếu thông số kỹ thuật', 'notice', $edit);
             }
 

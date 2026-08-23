@@ -11,11 +11,24 @@ use Illuminate\Support\Str;
 
 class ImportGreeCatalogue extends Command
 {
-    protected $signature = 'app:import-gree-catalogue {file : Path to the extracted JSON file}';
+    protected $signature = 'app:import-gree-catalogue
+        {file : Path to the extracted JSON file}
+        {--apply : Explicitly authorize writing imported products and categories}';
     protected $description = 'Import and normalize Gree products from extracted JSON catalogue';
 
     public function handle()
     {
+        if ($this->option('apply')) {
+            $this->error('Legacy technical write path disabled. Use governed correction/import workflow.');
+            return self::FAILURE;
+        }
+
+        if (! $this->option('apply')) {
+            $this->error('Refusing to import Gree catalogue without explicit --apply.');
+
+            return self::FAILURE;
+        }
+
         $filePath = $this->argument('file');
 
         if (!File::exists($filePath)) {

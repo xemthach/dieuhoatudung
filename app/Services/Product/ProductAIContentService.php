@@ -32,7 +32,7 @@ class ProductAIContentService
 
     public function generateContent(array $productData, array $options, ?int $userId = null, ?string $contextId = null): array
     {
-        $this->checkAIEnabled();
+        throw new \RuntimeException('Legacy Product AI path disabled. Use the canonical AI Product Job workflow.');
 
         $system = "Bạn là một chuyên gia về hệ thống điều hòa không khí (HVAC) và SEO Content Marketing. Bạn phải trả về kết quả dưới định dạng JSON.";
 
@@ -157,7 +157,7 @@ class ProductAIContentService
 
     public function generateSeo(array $productData, ?int $userId = null, ?string $contextId = null): array
     {
-        $this->checkAIEnabled();
+        throw new \RuntimeException('Legacy Product SEO AI path disabled. Use the canonical AI Product Job workflow.');
 
         $system = "Bạn là chuyên gia SEO HVAC. Bạn phải trả về kết quả dưới định dạng JSON chuẩn.";
 

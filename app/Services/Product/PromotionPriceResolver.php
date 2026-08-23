@@ -11,6 +11,8 @@ use Illuminate\Support\Facades\Schema;
 
 class PromotionPriceResolver
 {
+    private static ?array $schemaCapabilities = null;
+
     public function resolve(Product $product, ?CarbonInterface $now = null): array
     {
         $now ??= Carbon::now();
@@ -106,41 +108,58 @@ class PromotionPriceResolver
 
     protected function matchingPromotions(Product $product)
     {
-        if (! $product->exists || ! Schema::hasTable('promotions') || ! Schema::hasColumn('promotions', 'scope')) {
+        $schema = $this->schemaCapabilities();
+        if (! $product->exists || ! $schema['promotions'] || ! $schema['promotion_scope']) {
             return collect();
         }
 
         $with = [];
-        if (Schema::hasTable('product_promotion')) {
+        if ($schema['product_promotion']) {
             $with[] = 'products:id';
         }
-        if (Schema::hasTable('category_promotion')) {
+        if ($schema['category_promotion']) {
             $with[] = 'categories:id';
         }
-        if (Schema::hasTable('brand_promotion')) {
+        if ($schema['brand_promotion']) {
             $with[] = 'brands:id';
         }
 
         return Promotion::query()
             ->currentlyActive()
             ->with($with)
-            ->where(function ($query) use ($product) {
+            ->where(function ($query) use ($product, $schema) {
                 $query->where('scope', 'global');
 
-                if (Schema::hasTable('product_promotion')) {
+                if ($schema['product_promotion']) {
                     $query->orWhere(fn ($q) => $q->where('scope', 'product')->whereHas('products', fn ($relation) => $relation->whereKey($product->getKey())));
                 }
 
-                if (Schema::hasTable('category_promotion')) {
+                if ($schema['category_promotion']) {
                     $query->orWhere(fn ($q) => $q->where('scope', 'category')->whereHas('categories', fn ($relation) => $relation->whereKey($product->product_category_id)));
                 }
 
-                if (Schema::hasTable('brand_promotion')) {
+                if ($schema['brand_promotion']) {
                     $query->orWhere(fn ($q) => $q->where('scope', 'brand')->whereHas('brands', fn ($relation) => $relation->whereKey($product->brand_id)));
                 }
             })
             ->get()
             ->filter(fn (Promotion $promotion) => $promotion->appliesToProduct($product));
+    }
+
+    /**
+     * Promotion schema capabilities are stable during one PHP request/process.
+     * Cache the metadata lookup instead of repeating information_schema queries
+     * once per Product card/feed item.
+     */
+    protected function schemaCapabilities(): array
+    {
+        return self::$schemaCapabilities ??= [
+            'promotions' => Schema::hasTable('promotions'),
+            'promotion_scope' => Schema::hasColumn('promotions', 'scope'),
+            'product_promotion' => Schema::hasTable('product_promotion'),
+            'category_promotion' => Schema::hasTable('category_promotion'),
+            'brand_promotion' => Schema::hasTable('brand_promotion'),
+        ];
     }
 
     protected function applyPromotion(float $regularPrice, Promotion $promotion): ?float

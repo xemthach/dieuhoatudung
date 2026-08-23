@@ -11,7 +11,11 @@ use App\Models\AiProvider;
 use App\Models\Brand;
 use App\Models\Faq;
 use App\Models\Product;
+use App\Services\AI\ProductBulkGenerationManifest;
+use App\Services\AI\ProductBulkTargetResolver;
 use App\Models\ProductCategory;
+use App\Models\User;
+use Spatie\Permission\Models\Permission;
 use App\Services\AI\AIManager;
 use App\Services\Product\AIProductContentSanitizer;
 use App\Services\Product\AIProductContentSystem;
@@ -149,7 +153,8 @@ class AIProductContentSystemTest extends TestCase
         $products = Product::factory()->count(10)->create(['brand_id' => $brand->id, 'product_category_id' => $category->id]);
         $job = AiProductJob::create(['type' => 'generate_ai_content', 'scope' => 'selected', 'status' => 'queued', 'total' => 10, 'config_json' => $this->config()]);
 
-        (new AiProductContentBatchJob($job->id, $products->pluck('id')->all()))->handle();
+        app(ProductBulkGenerationManifest::class)->freeze($job, ProductBulkTargetResolver::SELECTED, $products->pluck('id')->all(), 0);
+        (new AiProductContentBatchJob($job->id))->handle();
 
         $this->assertSame(10, $job->items()->count());
         $this->assertSame(10, Product::whereKey($products->pluck('id'))->where('ai_status', 'queued')->count());
@@ -166,7 +171,8 @@ class AIProductContentSystemTest extends TestCase
             ->merge(Product::factory()->count(10)->create(['product_category_id' => $duct->id]));
         $job = AiProductJob::create(['type' => 'generate_ai_content', 'scope' => 'selected', 'status' => 'queued', 'total' => 20, 'config_json' => $this->config(['batch_size' => 20])]);
 
-        (new AiProductContentBatchJob($job->id, $products->pluck('id')->all()))->handle();
+        app(ProductBulkGenerationManifest::class)->freeze($job, ProductBulkTargetResolver::SELECTED, $products->pluck('id')->all(), 0);
+        (new AiProductContentBatchJob($job->id))->handle();
 
         $this->assertSame(20, $job->items()->count());
         Bus::assertDispatched(AiProductContentSingleJob::class, 20);
@@ -214,7 +220,10 @@ class AIProductContentSystemTest extends TestCase
         $this->assertSame(1, AiProductContentVersion::where('product_id', $product->id)->count());
         $this->assertNotSame('Old excerpt', $product->refresh()->short_description);
 
-        $service->rollback($product);
+        $actor = User::factory()->create();
+        Permission::firstOrCreate(['name' => 'bulk_ai_rollback', 'guard_name' => 'web']);
+        $actor->givePermissionTo('bulk_ai_rollback');
+        $service->rollback($product, $actor);
 
         $product->refresh();
         $this->assertSame('Old excerpt', $product->short_description);
@@ -333,7 +342,17 @@ class AIProductContentSystemTest extends TestCase
 
     public function test_ai_declared_missing_warnings_are_reconciled_with_current_context(): void
     {
-        $product = $this->product(['capacity_kw' => 12.3, 'regular_price' => null, 'sale_price' => null]);
+        $product = $this->product([
+            'capacity_kw' => 12.3,
+            'specs_json' => [[
+                'key' => 'capacity_kw',
+                'value' => '12.3',
+                'source_section' => 'TECHNICAL_APPENDIX',
+                'verification_status' => 'verified',
+            ]],
+            'regular_price' => null,
+            'sale_price' => null,
+        ]);
         $payload = $this->validPayload(warnings: ['missing_capacity_kw', 'missing_price']);
         $service = $this->serviceReturning($payload);
 
@@ -356,7 +375,7 @@ class AIProductContentSystemTest extends TestCase
         $this->assertStringContainsString('fact-check', $product->ai_error_message);
     }
 
-    public function test_ai_payload_with_capacity_btu_is_not_saved_and_is_logged_as_blocked_field(): void
+    public function test_ai_payload_with_capacity_btu_is_rejected_before_persistence(): void
     {
         $product = $this->product(['btu' => 42000]);
         $job = AiProductJob::create(['type' => 'generate_ai_content', 'scope' => 'selected', 'status' => 'queued', 'total' => 1, 'config_json' => $this->config(['apply_mode' => 'auto_apply'])]);
@@ -364,13 +383,37 @@ class AIProductContentSystemTest extends TestCase
         $payload = $this->validPayload();
         $payload['capacity_btu'] = 99999;
 
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('forbidden Product Data field');
         $this->serviceReturning($payload)->generate($product, $job->config_json, $job, $item);
 
         $product->refresh();
-        $item->refresh();
         $this->assertSame(42000, $product->btu);
-        $this->assertContains('ai_payload_contains_blocked_product_data_fields', $item->warnings_json);
-        $this->assertContains('capacity_btu', $item->generated_payload_json['blocked_product_data_fields']);
+    }
+
+    public function test_legacy_draft_without_technical_context_snapshot_is_blocked(): void
+    {
+        $product = $this->product(['btu' => 42650]);
+        $job = AiProductJob::create([
+            'type' => 'generate_ai_content',
+            'scope' => 'selected',
+            'status' => 'queued',
+            'total' => 1,
+            'config_json' => $this->config(['apply_mode' => 'draft_only']),
+        ]);
+        $item = $job->items()->create([
+            'product_id' => $product->id,
+            'status' => 'needs_review',
+            'generated_payload_json' => $this->validPayload(),
+            'token_usage_json' => [],
+        ]);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('STALE_TECHNICAL_CONTEXT');
+        app(AIProductContentSystem::class)->applyLatestDraft($product, null);
+
+        $this->assertSame('blocked', $item->refresh()->status);
+        $this->assertSame('stale_technical_context', $item->failed_reason);
     }
 
     public function test_verified_noise_claim_from_specs_json_passes_fact_check(): void
@@ -520,6 +563,8 @@ class AIProductContentSystemTest extends TestCase
         $payload['technical_specs_json'] = [['key' => 'noise', 'value' => '10 dB']];
         $payload['specs_json'] = [['key' => 'noise', 'value' => '10 dB']];
 
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('forbidden Product Data field');
         $this->serviceReturning($payload)->generate($product, $this->config(['apply_mode' => 'auto_apply']));
 
         $product->refresh();
@@ -539,8 +584,6 @@ class AIProductContentSystemTest extends TestCase
             'specs_json' => [['key' => 'pipe_liquid', 'value' => '6.35']],
         ]);
         $payload = $this->validPayload();
-        $payload['model_code'] = 'AI-BULK-MODEL';
-        $payload['capacity_btu'] = 99999;
         $service = $this->serviceReturning($payload);
 
         foreach ($products as $product) {
@@ -570,6 +613,25 @@ class AIProductContentSystemTest extends TestCase
         $this->assertSame($product->id, $draft->product_id);
         $this->assertArrayHasKey('content_html', $draft->field_status_json);
         $this->assertSame($draft->id, $item->refresh()->draft_id);
+    }
+
+    public function test_strict_draft_only_keeps_product_row_unchanged_while_persisting_draft(): void
+    {
+        $product = $this->product(['ai_status' => 'not_generated']);
+        $before = $product->fresh()->getAttributes();
+
+        $result = $this->serviceReturning($this->validPayload())->generate(
+            $product,
+            $this->config([
+                'draft_only_strict' => true,
+                'apply_mode' => 'auto_apply',
+                'outputs' => ['content' => true],
+            ])
+        );
+
+        $this->assertContains($result['status'], ['needs_review', 'completed_with_warnings', 'completed_verified']);
+        $this->assertSame($before, $product->fresh()->getAttributes());
+        $this->assertDatabaseHas('ai_product_drafts', ['product_id' => $product->id]);
     }
 
     public function test_retry_failed_item_with_existing_draft_patches_fields_without_full_generate(): void

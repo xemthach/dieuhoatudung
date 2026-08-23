@@ -6,6 +6,11 @@ use App\Models\Product;
 
 class ProductCompareSpecService
 {
+    public function __construct(
+        private readonly ProductTechnicalFactResolver $technicalFacts,
+        private readonly ProductTechnicalFieldAliasRegistry $aliases,
+    ) {}
+
     private array $aliasMap = [
         'btu' => ['Công suất', 'Công suất lạnh', 'Capacity', 'Cooling Capacity', 'BTU'],
         'cooling_capacity' => ['Công suất lạnh (kW)', 'Cooling Capacity (kW)', 'Cooling Capacity'],
@@ -32,7 +37,7 @@ class ProductCompareSpecService
 
     public function build(Product $product): array
     {
-        $specs = $this->normalizeSpecs($product->specs_json);
+        $specs = $this->technicalFacts->allForDisplay($product);
 
         return [
             'id' => $product->id,
@@ -70,14 +75,14 @@ class ProductCompareSpecService
 
     private function getValue(Product $product, string $key, array $specs): ?string
     {
-        // 1. Column
-        if (!empty($product->{$key})) {
-            return (string)$product->{$key};
+        $resolved = $this->technicalFacts->value($product, $this->aliases->canonical($key));
+        if ($resolved !== null && $resolved !== '') {
+            return (string) $resolved;
         }
 
-        // 2. specs_json (alias matched in normalizeSpecs)
-        if (!empty($specs[$key])) {
-            return (string)$specs[$key];
+        $canonical = $this->aliases->canonical($key);
+        if (!empty($specs[$canonical])) {
+            return (string) $specs[$canonical];
         }
 
         return null;

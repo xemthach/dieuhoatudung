@@ -235,6 +235,19 @@ return [
     ],
 
     // ── E-commerce: Products ───────────────────────────────────────────
+    'bulk_ai' => [
+        'label' => 'Bulk AI Governance',
+        'icon' => 'heroicon-o-cpu-chip',
+        'permissions' => [
+            'generate' => 'Generate governed bulk drafts',
+            'retry' => 'Retry a governed field',
+            'approve' => 'Approve governed drafts',
+            'apply' => 'Apply approved bulk drafts',
+            'rollback' => 'Rollback bulk applies',
+            'view' => 'View bulk runtime status',
+        ],
+    ],
+
     'product' => [
         'label' => 'Sản phẩm',
         'icon'  => 'heroicon-o-rectangle-stack',

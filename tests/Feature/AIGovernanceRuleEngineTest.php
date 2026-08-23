@@ -33,11 +33,11 @@ class AIGovernanceRuleEngineTest extends TestCase
     {
         $product = Product::factory()->create([
             'specs_json' => [
-                ['key' => 'esp', 'label' => 'ESP', 'value' => '160 Pa'],
-                ['key' => 'external_static_pressure', 'label' => 'Ap suat tinh', 'value' => '50 Pa'],
-                ['key' => 'recommended_area', 'label' => 'Dien tich khuyen nghi', 'value' => '60 m²'],
-                ['key' => 'pipe_liquid', 'label' => 'Ong dong long', 'value' => '6.35 mm'],
-                ['key' => 'outdoor_noise_db', 'label' => 'Do on dan nong', 'value' => '54 dB'],
+                ['key' => 'esp', 'label' => 'ESP', 'value' => '160 Pa', 'source_section' => 'TECHNICAL_APPENDIX', 'verification_status' => 'verified'],
+                ['key' => 'external_static_pressure', 'label' => 'Ap suat tinh', 'value' => '50 Pa', 'source_section' => 'TECHNICAL_APPENDIX', 'verification_status' => 'verified'],
+                ['key' => 'recommended_area', 'label' => 'Dien tich khuyen nghi', 'value' => '60 m²', 'source_section' => 'TECHNICAL_APPENDIX', 'verification_status' => 'verified'],
+                ['key' => 'pipe_liquid', 'label' => 'Ong dong long', 'value' => '6.35 mm', 'source_section' => 'TECHNICAL_APPENDIX', 'verification_status' => 'verified'],
+                ['key' => 'outdoor_noise_db', 'label' => 'Do on dan nong', 'value' => '54 dB', 'source_section' => 'TECHNICAL_APPENDIX', 'verification_status' => 'verified'],
             ],
         ]);
 
@@ -49,7 +49,7 @@ class AIGovernanceRuleEngineTest extends TestCase
 
         $this->assertSame('verified', $result['status']);
         $this->assertSame([], $result['blocked_claims']);
-        $this->assertContains('product.technical_specs_json.0', $result['used_facts']);
+        $this->assertContains('product.technical_specs_json.esp', $result['used_facts']);
     }
 
     public function test_unverified_technical_claim_is_warned_by_registry(): void
@@ -75,7 +75,7 @@ class AIGovernanceRuleEngineTest extends TestCase
             }
         }
         $this->assertTrue($hasWarning);
-        $this->assertNotSame('blocked', $result['status']);
+        $this->assertSame('completed_with_warnings', $result['status']);
     }
 
     public function test_forbidden_claim_engine_handles_policy_claims_without_source(): void
@@ -134,12 +134,55 @@ class AIGovernanceRuleEngineTest extends TestCase
     {
         $this->assertContains('content_html', config('ai_product_allowed_fields.content_layer_fields'));
         $this->assertContains('capacity_btu', config('ai_product_allowed_fields.blocked_product_data_fields'));
+        $this->assertContains('marketing_capacity_btu', config('ai_product_allowed_fields.blocked_product_data_fields'));
+        $this->assertContains('technical_capacity_btu', config('ai_product_allowed_fields.blocked_product_data_fields'));
         $this->assertContains('technical_specs_json', config('ai_product_allowed_fields.blocked_product_data_fields'));
+    }
+
+    public function test_verified_registry_excludes_unverified_specs_and_legacy_btu(): void
+    {
+        $product = Product::factory()->create([
+            'btu' => 42650,
+            'technical_capacity_btu' => 42650,
+            'technical_capacity_status' => 'verified_candidate',
+            'specs_json' => [
+                ['key' => 'noise_level', 'value' => '54 dB'],
+                ['key' => 'esp', 'value' => '160 Pa', 'source_section' => 'TECHNICAL_APPENDIX', 'verification_status' => 'verified'],
+            ],
+        ]);
+
+        $registry = app(VerifiedFactRegistry::class)->buildForProduct($product);
+        $keys = collect($registry)->pluck('fact_key')->all();
+
+        $this->assertNotContains('product.btu', $keys);
+        $this->assertNotContains('product.noise_level', $keys);
+        $this->assertContains('product.technical_specs_json.esp', $keys);
+        $this->assertSame(42650, collect($registry)->firstWhere('fact_key', 'product.rated_cooling_capacity_btu')['original_value']);
+    }
+
+    public function test_product_context_separates_marketing_and_technical_capacity(): void
+    {
+        $product = Product::factory()->create([
+            'btu' => 42650,
+            'marketing_capacity_btu' => 42000,
+            'technical_capacity_btu' => 42650,
+            'technical_capacity_status' => 'verified_candidate',
+        ]);
+
+        $context = app(AIContentGovernance::class)->buildProductContext($product);
+        $technical = collect($context['verified_fact_registry'])
+            ->filter(fn (array $fact): bool => ($fact['fact_key'] ?? '') === 'product.rated_cooling_capacity_btu')
+            ->pluck('original_value', 'fact_key');
+        $allowed = $context['allowed_facts'];
+
+        $this->assertSame(42650, $technical['product.rated_cooling_capacity_btu'] ?? null);
+        $this->assertSame(42000, $allowed['product.marketing_capacity_btu']['value'] ?? null);
+        $this->assertNotSame($allowed['product.marketing_capacity_btu']['value'] ?? null, $technical['product.rated_cooling_capacity_btu'] ?? null);
     }
 
     public function test_registry_format_contains_required_governance_fields(): void
     {
-        $product = Product::factory()->create(['specs_json' => [['key' => 'noise', 'value' => '54 dB']]]);
+        $product = Product::factory()->create(['specs_json' => [['key' => 'noise', 'value' => '54 dB', 'source_section' => 'TECHNICAL_APPENDIX', 'verification_status' => 'verified']]]);
         $registry = app(VerifiedFactRegistry::class)->buildForProduct($product);
         $fact = collect($registry)->firstWhere('normalized_value', '54_db');
 
@@ -155,8 +198,8 @@ class AIGovernanceRuleEngineTest extends TestCase
     {
         $product = Product::factory()->create([
             'specs_json' => [
-                ['key' => 'indoor_esp_nominal_pa', 'label' => 'ESP nominal', 'value' => '50'],
-                ['key' => 'indoor_dn_lnh_phm_vi', 'label' => 'Pham vi dieu chinh', 'value' => '0-160'],
+                ['key' => 'indoor_esp_nominal_pa', 'label' => 'ESP nominal', 'value' => '50', 'source_section' => 'TECHNICAL_APPENDIX', 'verification_status' => 'verified'],
+                ['key' => 'indoor_dn_lnh_phm_vi', 'label' => 'Pham vi dieu chinh', 'value' => '0-160', 'source_section' => 'TECHNICAL_APPENDIX', 'verification_status' => 'verified'],
             ],
         ]);
 
@@ -166,7 +209,7 @@ class AIGovernanceRuleEngineTest extends TestCase
             $governance->buildProductContext($product)
         );
 
-        $this->assertSame('verified', $result['status']);
+        $this->assertSame('completed_with_warnings', $result['status']);
         $this->assertNotContains('unverified_numeric_claim:50 Pa', $result['blocked_claims']);
         $this->assertNotContains('unverified_numeric_claim:0-160 Pa', $result['blocked_claims']);
         $this->assertNotContains('unverified_numeric_claim:160 Pa', $result['blocked_claims']);
@@ -176,7 +219,7 @@ class AIGovernanceRuleEngineTest extends TestCase
     {
         $product = Product::factory()->create([
             'recommended_area' => null,
-            'specs_json' => [['key' => 'indoor_esp_nominal_pa', 'label' => 'ESP nominal', 'value' => '50 Pa']],
+            'specs_json' => [['key' => 'indoor_esp_nominal_pa', 'label' => 'ESP nominal', 'value' => '50 Pa', 'source_section' => 'TECHNICAL_APPENDIX', 'verification_status' => 'verified']],
         ]);
 
         $governance = app(AIContentGovernance::class);
@@ -186,7 +229,7 @@ class AIGovernanceRuleEngineTest extends TestCase
         );
 
         // Area claims without source now produce warnings, not blocks
-        $this->assertNotSame('blocked', $result['status']);
+        $this->assertSame('completed_with_warnings', $result['status']);
         $hasWarning = false;
         foreach ($result['warnings'] as $w) {
             if (str_contains($w, '60') || str_contains($w, 'unverified')) {
@@ -201,6 +244,10 @@ class AIGovernanceRuleEngineTest extends TestCase
     {
         $product = Product::factory()->create([
             'noise_level' => '52/50/46/42',
+            'specs_json' => [[
+                'key' => 'noise_level', 'value' => '52/50/46/42',
+                'source_section' => 'TECHNICAL_APPENDIX', 'verification_status' => 'verified',
+            ]],
         ]);
 
         $governance = app(AIContentGovernance::class);
@@ -225,7 +272,8 @@ class AIGovernanceRuleEngineTest extends TestCase
             $governance->buildProductContext($product)
         );
 
-        $this->assertSame('verified', $result['status']);
+        $this->assertSame('blocked', $result['status']);
+        $this->assertContains('ambiguous_capacity_claim:36.000 BTU', $result['blocked_claims']);
         $this->assertNotContains('unverified_numeric_claim:000 BTU', $result['blocked_claims']);
         $this->assertNotContains('unverified_numeric_claim:36.000 BTU', $result['blocked_claims']);
     }
@@ -262,7 +310,8 @@ class AIGovernanceRuleEngineTest extends TestCase
             $governance->buildProductContext($product)
         );
 
-        $this->assertSame('verified', $result['status']);
+        $this->assertSame('blocked', $result['status']);
+        $this->assertContains('ambiguous_capacity_claim:36.000 BTU', $result['blocked_claims']);
         $this->assertNotContains('unverified_numeric_claim:3-6', $result['blocked_claims']);
         $this->assertNotContains('unverified_numeric_claim:1000-1200', $result['blocked_claims']);
     }
@@ -271,8 +320,8 @@ class AIGovernanceRuleEngineTest extends TestCase
     {
         $product = Product::factory()->create([
             'specs_json' => [
-                ['key' => 'outdoor_package_dim_mm', 'label' => 'Outdoor package dimensions', 'value' => '951x431x620'],
-                ['key' => 'panel_package_dim_mm', 'label' => 'Panel package dimensions', 'value' => '701*701*125'],
+                ['key' => 'outdoor_package_dim_mm', 'label' => 'Outdoor package dimensions', 'value' => '951x431x620', 'source_section' => 'TECHNICAL_APPENDIX', 'verification_status' => 'verified'],
+                ['key' => 'panel_package_dim_mm', 'label' => 'Panel package dimensions', 'value' => '701*701*125', 'source_section' => 'TECHNICAL_APPENDIX', 'verification_status' => 'verified'],
             ],
         ]);
 

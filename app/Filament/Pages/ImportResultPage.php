@@ -6,6 +6,7 @@ use App\Models\DataImportJob;
 use App\Services\DataTransfer\ModuleRegistry;
 use Filament\Actions\Action;
 use Filament\Pages\Page;
+use Illuminate\Support\Facades\Auth;
 
 class ImportResultPage extends Page
 {
@@ -15,12 +16,18 @@ class ImportResultPage extends Page
     public ?int $jobId = null;
     public ?DataImportJob $job = null;
 
+    public static function canAccess(): bool
+    {
+        $user = Auth::user();
+        return (bool) ($user && ($user->isSuperAdmin() || collect(ModuleRegistry::modules())->keys()->some(fn ($module) => $user->can($module.'.import'))));
+    }
+
     public function mount(): void
     {
         $this->jobId = request()->query('job');
         $this->job = DataImportJob::find($this->jobId);
 
-        if (!$this->job) {
+        if (!$this->job || ! $this->canAccessJob($this->job)) {
             $this->redirect(DataTransferPage::getUrl());
         }
     }
@@ -48,5 +55,15 @@ class ImportResultPage extends Page
                 ->icon('heroicon-o-arrow-left')
                 ->url(DataTransferPage::getUrl()),
         ];
+    }
+
+    protected function canAccessJob(DataImportJob $job): bool
+    {
+        $user = Auth::user();
+        if (! $user) return false;
+        if ($user->isSuperAdmin()) return true;
+
+        return (int) $job->created_by === (int) $user->getAuthIdentifier()
+            && $user->can($job->module.'.import');
     }
 }

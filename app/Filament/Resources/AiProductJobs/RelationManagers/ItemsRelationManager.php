@@ -7,6 +7,8 @@ use Filament\Schemas\Schema;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
+use App\Services\AI\BulkRuntimeAuthorizationService;
 
 class ItemsRelationManager extends RelationManager
 {
@@ -20,6 +22,11 @@ class ItemsRelationManager extends RelationManager
     public function table(Table $table): Table
     {
         return $table
+            ->modifyQueryUsing(function (Builder $query): void {
+                $actor = auth()->user();
+                $ids = $actor ? app(BulkRuntimeAuthorizationService::class)->viewableProductIds($actor) : [];
+                if ($ids !== null) $query->whereIn('product_id', $ids ?: [-1]);
+            })
             ->recordTitleAttribute('product.name')
             ->columns([
                 TextColumn::make('product.name')->label('Sản phẩm')->searchable()->limit(45),
