@@ -1,216 +1,143 @@
 # Live Server Update Guide
 
-Use this guide after the release commit, tag, and GitHub release are published.
+Current release: `v1.28.1`
 
-Current release: `v1.28.0`
+This guide is mandatory for every deployment. Updating only the web files is not a complete release because the AI worker is a long-running PHP process.
 
-> **Mandatory worker gate:** this historical deployment guide is supplemented by
-> `docs/operations/AI_WORKER_DEPLOYMENT_RUNBOOK.md`. Every live update must capture
-> the pre-deploy worker state, drain safely, restart the OS-managed worker after
-> code/cache changes, prove web/worker version + DB + `ai_governed` binding, verify
-> scheduler health, run the non-provider worker self-test, and intentionally restore
-> the operator's original desired state. Updating web code alone is not a passing deployment.
+## 1. Before deployment
 
-Affected areas:
+1. Verify the authoritative production database and create a tested, non-zero backup.
+2. Record the current tag/commit and rollback target.
+3. Capture the complete AI runtime snapshot:
 
-- Home Benefits device targeting
-- FAQ admin search and FAQPage schema output
-- Site Campaigns / Popups admin, frontend rendering, and tracking
-- Product card mobile action UI
-- Product AI metadata length safety
-- Product, quote, lead, import/export, R2, and mail admin flows
-- Frontend Vite/Tailwind built assets
+   ```bash
+   php artisan ai:queue-health --json
+   php artisan migrate:status
+   php artisan schedule:list
+   ```
 
----
+4. Record `DESIRED_STATE_BEFORE_DEPLOY`, actual worker state, heartbeat, web/worker version and build, queue connection/name, pending/processing/failed/stuck counts, leases, slots and reservations.
+5. If an operation is processing, do not restart or kill it blindly. Stop new claims through the canonical desired-state contract when needed and allow the active operation to settle.
 
-## 1. Backup
+## 2. Deploy v1.28.1
 
 ```bash
 cd /path/to/dieuhoa-tudung
-php artisan down --secret="deploy-preview"
-php artisan backup:run || true
-mysqldump -u DB_USER -p DB_NAME > backup-$(date +%F-%H%M).sql
-```
-
-Keep the SQL backup until these checks pass:
-
-- Admin dashboard loads.
-- Home Benefits, FAQ, and Site Campaigns admin pages load.
-- Product list and product detail pages load.
-- Lead and quote forms submit.
-- Import/export, R2/CDN Sync, and mail logs still load.
-
----
-
-## 2. Pull Release
-
-```bash
 git fetch origin --tags
 git checkout main
 git pull --ff-only origin main
-git checkout v1.20.0
-```
-
-If the server should track `main` instead of a tag, stop after:
-
-```bash
-git pull --ff-only origin main
-```
-
----
-
-## 3. Install Dependencies and Assets
-
-```bash
-composer install --no-dev --optimize-autoloader
+git checkout v1.28.1
+composer install --no-dev --prefer-dist --optimize-autoloader
 npm ci
 npm run build
-```
-
-This release includes a rebuilt Vite asset manifest. Do not skip `npm run build` on a server that builds assets locally.
-
----
-
-## 4. Run Database Updates
-
-```bash
+php artisan migrate:status
 php artisan migrate --force
-php artisan db:seed --class=RolePermissionSeeder --force
-```
-
-The migrations add:
-
-- `home_benefit_items.display_device` for desktop/mobile/both targeting
-- `faqs.normalized_search_text` with a backfill for accent-insensitive FAQ search
-- `site_campaigns` for popup, announcement, floating CTA, and site campaign configuration
-- `site_campaign_events` for impression, click, close, and conversion tracking
-
-If a previous deploy showed `site_campaigns` missing in `/admin/site-campaigns`, this step is mandatory.
-
----
-
-## 5. Clear and Warm Caches
-
-```bash
-php artisan optimize:clear
-php artisan filament:clear-cached-components || true
 php artisan config:cache
 php artisan route:cache
 php artisan view:cache
 ```
 
-If any route/cache command fails because of environment-specific settings, run:
+Inspect pending migrations before running `migrate --force`. v1.28.1 does not introduce a migration.
 
-```bash
-php artisan optimize:clear
-```
+## 3. Mandatory managed-worker restart
 
-and keep the site uncached until the issue is corrected.
+The application worker command is:
 
----
-
-## 6. Queue Workers
-
-Confirm queue configuration:
-
-```bash
-php artisan tinker --execute="dump([
-  'queue' => config('queue.default'),
-  'queued_jobs' => DB::table('jobs')->count(),
-  'failed_jobs' => DB::table('failed_jobs')->count(),
-]);"
-```
-
-The legacy generic queue restart sequence below is superseded for AI processing. Use the reviewed process-manager command from `docs/operations/AI_WORKER_DEPLOYMENT_RUNBOOK.md` and the exact managed entrypoint:
-
-```bash
+```text
 php artisan ai:managed-worker --queue=ai_governed --sleep=3 --tries=3 --timeout=900
+```
+
+Restart the reviewed OS-managed definition after code and caches are updated:
+
+- Local Windows Task Scheduler:
+
+  ```powershell
+  powershell -File scripts\restart_ai_worker_task.ps1
+  powershell -File scripts\restart_ai_worker_task.ps1 -Restart
+  ```
+
+- Linux systemd: `systemctl restart <reviewed-ai-worker-service>`
+- Supervisor: `supervisorctl restart <reviewed-ai-worker-program>`
+- Windows production: restart the reviewed NSSM/Windows Service/Task Scheduler definition.
+
+The live process-manager target must be selected on the deployment host. Never spawn the worker from HTTP and do not rely on `php artisan queue:restart` alone for this custom managed parent/child worker.
+
+Restarting the process must not change operator intent:
+
+- pre-deploy `DISABLED` -> remain `DISABLED`;
+- pre-deploy `ENABLED` -> restore only after post-deploy health is green.
+
+## 4. Worker and scheduler verification
+
+```bash
 php artisan ai:queue-health --json
 php artisan ai:managed-health-check
+php artisan schedule:list
 ```
 
-Do not run that long-lived command directly during an automated deploy. It must be owned by systemd, Supervisor, Windows Service/NSSM, Task Scheduler, or the actual reviewed container manager. If the process manager is not installed or its target is unknown, deployment is blocked.
+Require:
 
-The final deploy report must include application version and commit/tag; web status/version; worker desired/actual state, heartbeat, version, queue, DB and restart result; scheduler status/heartbeat; queue pending/processing/failed/stuck state; and worker self-test result.
+- fresh worker heartbeat and expected process identity;
+- web and worker both report v1.28.1/the deployed build;
+- correct project, PHP runtime, `APP_ENV`, authoritative DB and queue connection;
+- queue exactly `ai_governed`, never legacy `ai`;
+- no duplicate process, unexpected processing, orphan lease or stale reservation;
+- non-provider self-test completes in an independent worker process with Product/catalog mutation false;
+- scheduler integration exists and heartbeat is fresh where implemented.
 
-Additional historical Supervisor notes are in:
+Keep AI processing disabled and block deployment on any worker version, DB, queue or scheduler mismatch.
 
-- `docs/AI_MODULE_QUEUE_SUPERVISOR.md`
+## 5. Application smoke
 
----
+Public:
 
-## 7. Smoke Test Before Enabling Traffic
+- homepage, Product listing/detail, search, filters and calculator;
+- representative Product main image, gallery, thumbnails, related cards and fallback;
+- sitemap and Merchant feed.
 
-Run automated checks:
+Admin:
 
-```bash
-php artisan test
-npm run build
-```
+- login and Dashboard;
+- Product list/edit and Post edit;
+- AI status/history/provider pages;
+- Media/CDN and Import/Export.
 
-Manual admin checks:
+Confirm no Product shows **Chờ duyệt** unless its edit page has a real reviewable draft. Do not call the AI provider solely for deployment smoke.
 
-- Login to `/admin`.
-- Open Landing & Pages > Home Benefits and confirm the `Hiển thị trên thiết bị` field and device badges render.
-- Open Landing & Pages > FAQ and confirm searching `bao hanh` can match FAQ content normalized from Vietnamese text.
-- Open Landing & Pages > Site Campaigns and confirm the list page loads even when there are no campaigns.
-- Create a draft Site Campaign, keep it inactive/draft, and confirm it does not show on the frontend.
-- Open Products and confirm Product AI status columns still render.
-- Submit one quote request and one lead form.
-- Open Import/Export and confirm unauthorized roles cannot run restricted actions.
-- Open R2/CDN Sync and confirm the page loads.
-- Send or queue one test email and confirm Mail Logs still work.
+## 6. Restore desired state and enable traffic
 
-Manual frontend checks:
-
-- Visit `/`, `/san-pham`, one `/danh-muc/{slug}`, one product detail page, and `/tim-kiem?q=36000`.
-- On mobile width below 640px, product cards must show a blue eye icon for detail and the compare icon beside it.
-- On desktop/tablet width 640px and above, product cards must still show the text button `Xem chi tiết`.
-- Confirm Site Campaigns do not display unless a matching active campaign exists.
-
-Log checks:
-
-```bash
-tail -n 150 storage/logs/laravel.log
-tail -n 150 storage/logs/queue-worker.log || true
-```
-
----
-
-## 8. Enable Traffic
+After web, DB, worker, scheduler, queue and smoke checks pass, restore `DESIRED_STATE_BEFORE_DEPLOY` intentionally. Then return the site from maintenance mode if the deployment used it:
 
 ```bash
 php artisan up
 ```
 
-Then hard-refresh public pages and admin pages in the browser.
+## 7. Deployment evidence
 
----
+Record:
 
-## 9. Rollback
+```text
+APPLICATION VERSION:
+GIT COMMIT/TAG:
 
-Prefer restoring the SQL backup for this release because new campaign tables and FAQ/Home Benefits columns are introduced.
-
-Code rollback:
-
-```bash
-git fetch origin --tags
-git checkout v1.19.0
-composer install --no-dev --optimize-autoloader
-npm ci
-npm run build
-php artisan optimize:clear
-php artisan queue:restart
+WEB: status / version
+AI WORKER: desired / actual / heartbeat / version / queue / DB / restart result
+SCHEDULER: status / heartbeat
+QUEUE: pending / processing / failed / stuck / leases / slots / reservations
+SELF TEST: PASS / NOT AVAILABLE / BLOCKED
+PUBLIC/ADMIN/MEDIA SMOKE: PASS / BLOCKED
+FINAL: DEPLOYMENT PASS / BLOCKED
 ```
 
-Database rollback is not recommended if new Site Campaign records or campaign events were created after deploy. Restore the SQL backup for a full rollback.
+## 8. Rollback
 
----
+1. Stop new AI claims safely and record queue state.
+2. Let active work settle under the governed lease/recovery contract.
+3. Check out the reviewed rollback tag, normally `v1.28.0` for this release.
+4. Reinstall matching dependencies/assets and restore DB only if migration/data rollback requires it.
+5. Rebuild config, route and view caches.
+6. Restart the OS-managed worker again so it loads rollback code.
+7. Verify worker/web version, DB, `ai_governed`, scheduler and non-provider self-test.
+8. Restore the original desired state only after smoke checks pass.
 
-## 10. GitHub Release Manual Steps
-
-1. Open the repository releases page.
-2. Draft a new release from tag `v1.20.0`.
-3. Use title `v1.20.0`.
-4. Copy the `CHANGELOG.md` section for `1.20.0` into the release notes.
-5. Publish the release.
+See [AI Worker Deployment Runbook](operations/AI_WORKER_DEPLOYMENT_RUNBOOK.md) for process-manager contracts and blocker classifications.

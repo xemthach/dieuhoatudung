@@ -16,8 +16,6 @@ use Illuminate\Support\Str;
 
 class Product extends Model
 {
-    private static ?string $cachedProductFallback = null;
-    private static bool $productFallbackResolved = false;
     use HasFactory, SoftDeletes;
 
     protected $guarded = [];
@@ -236,43 +234,12 @@ class Product extends Model
      * Canonical fallback URL for a product image.
      * Priority: main_image → gallery_json[0] → site setting → public asset
      */
-    private function productImageFallback(): string
-    {
-        if (self::$productFallbackResolved) {
-            return self::$cachedProductFallback ?? asset('images/placeholders/product-default.jpg');
-        }
-
-        self::$productFallbackResolved = true;
-        $settingPath = setting('product_detail.default_product_image');
-        if (! empty($settingPath)) {
-            self::$cachedProductFallback = media_url($settingPath, asset('images/placeholders/product-default.jpg'))
-                ?: asset('images/placeholders/product-default.jpg');
-
-            return self::$cachedProductFallback;
-        }
-
-        self::$cachedProductFallback = asset('images/placeholders/product-default.jpg');
-
-        return self::$cachedProductFallback;
-    }
-
     /**
      * Main display URL — used for product detail, OG, schema.
      */
     public function getMainImageUrlAttribute(): string
     {
-        if (! empty($this->main_image)) {
-            return media_url($this->main_image, $this->productImageFallback());
-        }
-        if (is_array($this->gallery_json)) {
-            foreach ($this->gallery_json as $img) {
-                if (! empty($img)) {
-                    return media_url($img, $this->productImageFallback());
-                }
-            }
-        }
-
-        return $this->productImageFallback();
+        return app(\App\Services\Media\ProductMediaResolver::class)->mainUrl($this);
     }
 
     /**
@@ -285,39 +252,7 @@ class Product extends Model
 
     public function getGalleryImagesAttribute(): array
     {
-        $images = [];
-        $fallback = $this->productImageFallback();
-
-        if (! empty($this->main_image)) {
-            $images[] = [
-                'url' => media_url($this->main_image, $fallback),
-                'path' => $this->main_image,
-                'alt' => $this->name,
-            ];
-        }
-
-        if (is_array($this->gallery_json)) {
-            foreach ($this->gallery_json as $img) {
-                if (! empty($img)) {
-                    $images[] = [
-                        'url' => media_url($img, $fallback),
-                        'path' => $img,
-                        'alt' => $this->name,
-                    ];
-                }
-            }
-        }
-
-        // If no real images exist, inject the default image so gallery/lightbox is never empty
-        if (empty($images)) {
-            $images[] = [
-                'url' => $fallback,
-                'path' => '',
-                'alt' => $this->name,
-            ];
-        }
-
-        return collect($images)->unique('url')->values()->all();
+        return app(\App\Services\Media\ProductMediaResolver::class)->gallery($this);
     }
 
     public function getGalleryImageUrlsAttribute(): array

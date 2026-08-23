@@ -32,6 +32,27 @@
         </div>
     @endif
 
+    <dl class="mt-3 grid gap-2 text-sm sm:grid-cols-2 lg:grid-cols-4">
+        <div class="rounded-lg bg-gray-50 px-3 py-2 dark:bg-white/5">
+            <dt class="text-xs text-gray-500">Công việc gần nhất</dt>
+            <dd class="font-medium text-gray-900 dark:text-white">{{ !empty($status['job_id']) ? '#'.$status['job_id'] : 'Chưa có' }}</dd>
+        </div>
+        <div class="rounded-lg bg-gray-50 px-3 py-2 dark:bg-white/5">
+            <dt class="text-xs text-gray-500">Bản nháp</dt>
+            <dd class="font-medium text-gray-900 dark:text-white">{{ !empty($status['draft_id']) ? 'Có bản nháp' : 'Không có' }}</dd>
+        </div>
+        <div class="rounded-lg bg-gray-50 px-3 py-2 dark:bg-white/5">
+            <dt class="text-xs text-gray-500">Duyệt</dt>
+            <dd class="font-medium text-gray-900 dark:text-white">
+                {{ !empty($status['review_required']) ? 'Cần duyệt' : (!empty($status['approved_at']) ? 'Đã duyệt' : 'Không chờ duyệt') }}
+            </dd>
+        </div>
+        <div class="rounded-lg bg-gray-50 px-3 py-2 dark:bg-white/5">
+            <dt class="text-xs text-gray-500">Áp dụng</dt>
+            <dd class="font-medium text-gray-900 dark:text-white">{{ !empty($status['applied_at']) ? 'Đã áp dụng' : (!empty($status['approved_unapplied']) ? 'Sẵn sàng áp dụng' : 'Chưa áp dụng') }}</dd>
+        </div>
+    </dl>
+
     @if(!empty($status['progress']))
         <div class="mt-3 text-sm text-gray-700 dark:text-gray-200">
             <div class="flex justify-between gap-3">

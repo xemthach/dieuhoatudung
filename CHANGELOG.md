@@ -2,6 +2,29 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.28.1] - 2026-08-23
+
+### Added
+- Added canonical Product media composition for main images, galleries, cards, comparison and related-Product rendering.
+- Added a canonical Product AI content-state resolver plus regression coverage for reviewable, approved-unapplied, applied, blocked and stale denormalized states.
+- Added PHPUnit isolation for AI worker desired/managed-state files so release tests never depend on or change the operator's runtime state.
+
+### Changed
+- Product AI badges, live status, review/apply actions, filters and dashboard review counts now derive from the latest actionable item/draft lineage instead of trusting `products.ai_status`.
+- Product edit live status now reports latest operation, draft availability, approval and apply state.
+- Product image administration and frontend composition continue through the shared `MediaDiskService` storage contract.
+
+### Fixed
+- Fixed Product galleries passing URL strings to Alpine while the gallery expected objects with a `url` property.
+- Fixed missing main-image paths creating fallback thumbnails beside valid gallery media.
+- Fixed Product rows showing **Chờ duyệt** when no reviewable AI draft existed, while the edit action reported that no draft could be reviewed.
+- Fixed historical/applied AI items inflating current dashboard review-required counts.
+
+### Security and safety
+- No Product/catalog technical fields or media records are migrated or rewritten by this patch.
+- AI polling remains read-only and does not call providers; Review and Apply remain protected by existing server-side permissions.
+- AI worker desired state remains operator-controlled and the governed queue remains `ai_governed`.
+
 ## [1.28.0] - 2026-08-23
 
 ### Added

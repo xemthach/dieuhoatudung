@@ -9,6 +9,7 @@ use App\Models\AiProductJobItem;
 use App\Services\Product\AIProductContentSystem;
 use App\Services\Product\AIProductDraftApplyService;
 use App\Services\AI\AIWorkerReadinessService;
+use App\Services\AI\AiProductContentStateResolver;
 use App\Services\Seo\InternalLinkSuggestionService;
 use App\Support\SchemaColumns;
 use Filament\Actions\Action;
@@ -88,10 +89,11 @@ class EditProduct extends EditRecord
                 ->icon('heroicon-o-check-circle')
                 ->color('warning')
                 ->requiresConfirmation()
+                ->visible(fn (): bool => app(AiProductContentStateResolver::class)
+                    ->reviewableDraft($this->record) !== null)
                 ->modalDescription('Approval chỉ ghi nhận quyết định review; draft vẫn chưa được apply cho tới khi bấm Apply approved draft.')
                 ->action(function () {
-                    $item = $this->latestAiDraftItem();
-                    $draft = $item?->draft;
+                    $draft = app(AiProductContentStateResolver::class)->reviewableDraft($this->record);
                     if (! $draft) {
                         Notification::make()->title('Chưa có AI draft để duyệt')->warning()->send();
                         return;
@@ -107,6 +109,8 @@ class EditProduct extends EditRecord
                 ->label('Áp dụng nội dung đã duyệt')
                 ->icon('heroicon-o-eye')
                 ->color('gray')
+                ->visible(fn (): bool => app(AiProductContentStateResolver::class)
+                    ->approvedUnappliedDraft($this->record) !== null)
                 ->modalHeading('Xem trước nội dung AI')
                 ->modalDescription('Chỉ các field thuộc Content Layer được apply. Thông tin cơ bản và Thông số kỹ thuật luôn bị bỏ qua nếu xuất hiện trong payload.')
                 ->modalContent(fn () => view('filament.product-ai-preview', [
@@ -114,33 +118,15 @@ class EditProduct extends EditRecord
                 ]))
                 ->modalSubmitActionLabel('Áp dụng nội dung đã duyệt')
                 ->action(function () {
-                    $draft = $this->latestAiDraftItem();
+                    $draftModel = app(AiProductContentStateResolver::class)
+                        ->approvedUnappliedDraft($this->record);
 
-                    if (! $draft) {
+                    if (! $draftModel) {
                         Notification::make()
                             ->title('Chưa có AI draft để apply')
                             ->warning()
                             ->send();
 
-                        return;
-                    }
-
-                    $blockedClaims = $draft->generated_payload_json['blocked_claims'] ?? [];
-                    if ($draft->status === 'blocked' || $blockedClaims !== []) {
-                        Notification::make()
-                            ->title('AI draft bị fact-check chặn')
-                            ->body($blockedClaims === [] ? 'Draft chưa vượt qua bước kiểm tra nên không thể apply.' : 'Cần xử lý trước: '.implode(', ', $blockedClaims))
-                            ->danger()->persistent()->send();
-                        return;
-                    }
-                    if (! in_array($draft->status, ['needs_review', 'completed', 'completed_verified', 'completed_with_warnings'], true)) {
-                        Notification::make()->title('Chưa có AI draft để apply')->warning()->send();
-                        return;
-                    }
-
-                    $draftModel = $draft->draft;
-                    if (! $draftModel) {
-                        Notification::make()->title('Draft chưa được persist đầy đủ')->danger()->send();
                         return;
                     }
                     try {
@@ -200,11 +186,7 @@ class EditProduct extends EditRecord
 
     private function latestAiDraftItem(): ?AiProductJobItem
     {
-        return $this->record
-            ->aiProductJobItems()
-            ->whereNotNull('generated_payload_json')
-            ->latest('id')
-            ->first();
+        return app(AiProductContentStateResolver::class)->resolve($this->record)['item'];
     }
 
     private function aiConfigForm(): array

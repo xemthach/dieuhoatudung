@@ -8,7 +8,9 @@ use App\Jobs\AiProductContentBatchJob;
 use App\Services\AI\ProductBulkGenerationManifest;
 use App\Services\AI\ProductBulkTargetResolver;
 use App\Services\AI\AiContentStatusPresenter;
+use App\Services\AI\AiProductContentStateResolver;
 use App\Services\AI\AIWorkerReadinessService;
+use App\Services\Media\MediaDiskService;
 use App\Models\AiProductJob;
 use App\Models\AiProductJobItem;
 use App\Models\AiTechnicalLog;
@@ -51,7 +53,7 @@ class ProductsTable
     {
         return $table
             ->modifyQueryUsing(fn (Builder $query): Builder => $query->with([
-                'latestAiProductJobItem.draft:id,field_status_json,approval_status,approved_at,approved_by,applied_at',
+                'latestAiProductJobItem.draft:id,status,field_status_json,approval_status,approved_at,approved_by,applied_at',
             ]))
             ->columns([
                 TextColumn::make('name')
@@ -171,7 +173,9 @@ class ProductsTable
                 TextColumn::make('stock_status')
                     ->badge()
                     ->searchable(),
-                ImageColumn::make('main_image'),
+                ImageColumn::make('main_image')
+                    ->label('Hình ảnh')
+                    ->disk(fn (): string => app(MediaDiskService::class)->getUploadDisk()),
                 TextColumn::make('video_url')
                     ->searchable(),
                 IconColumn::make('is_featured')
@@ -220,9 +224,22 @@ class ProductsTable
                 SelectFilter::make('product_category_id')
                     ->label('Category')
                     ->options(fn () => ProductCategory::query()->orderBy('name')->pluck('name', 'id')->all()),
-                SelectFilter::make('ai_status')
-                    ->label('AI status')
-                    ->options(AIProductContentSystem::AI_STATUSES),
+                SelectFilter::make('ai_content_state')
+                    ->label('Trạng thái AI')
+                    ->options([
+                        'not_generated' => 'Chưa tạo',
+                        'queued' => 'Đang chờ',
+                        'processing' => 'Đang xử lý',
+                        'review_required' => 'Chờ duyệt',
+                        'approved' => 'Đã duyệt',
+                        'applied' => 'Đã áp dụng',
+                        'blocked' => 'Bị chặn',
+                        'failed' => 'Thất bại',
+                    ])
+                    ->query(fn (Builder $query, array $data): Builder => self::applyAiStateFilter(
+                        $query,
+                        $data['value'] ?? null,
+                    )),
                 Filter::make('seo_score_lt_70')
                     ->label('SEO score < 70')
                     ->query(fn (Builder $query): Builder => $query->where('ai_score', '<', 70)),
@@ -1015,21 +1032,78 @@ class ProductsTable
 
     private static function aiStatusView(Product $record): array
     {
-        $item = $record->latestAiProductJobItem;
-        $status = $item?->canonical_status ?: $item?->status ?: $record->ai_status ?: 'not_generated';
+        $resolved = app(AiProductContentStateResolver::class)->resolve(
+            $record,
+            $record->latestAiProductJobItem,
+        );
 
         return app(AiContentStatusPresenter::class)->present(
-            $status,
-            applied: (bool) $item?->draft?->applied_at,
+            $resolved['status'],
         );
+    }
+
+    private static function applyAiStateFilter(Builder $query, ?string $state): Builder
+    {
+        if (blank($state)) {
+            return $query;
+        }
+
+        if ($state === 'not_generated') {
+            return $query->whereDoesntHave('latestAiProductJobItem');
+        }
+
+        if ($state === 'applied') {
+            return $query->whereHas('latestAiProductJobItem.draft', fn (Builder $draft): Builder => $draft
+                ->whereNotNull('applied_at'));
+        }
+
+        if ($state === 'approved') {
+            return $query->whereHas('latestAiProductJobItem.draft', fn (Builder $draft): Builder => $draft
+                ->where('approval_status', 'APPROVED_FOR_APPLY')
+                ->whereNull('applied_at'));
+        }
+
+        if ($state === 'review_required') {
+            return $query->whereHas('latestAiProductJobItem', fn (Builder $item): Builder => $item
+                ->where(function (Builder $status): Builder {
+                    return $status->where('canonical_status', 'REVIEW_REQUIRED')
+                        ->orWhere('status', 'needs_review');
+                })
+                ->whereHas('draft', fn (Builder $draft): Builder => $draft
+                    ->whereIn('status', ['needs_review', 'REVIEW_REQUIRED'])
+                    ->whereNull('applied_at')
+                    ->whereNotIn('approval_status', ['APPROVED_FOR_APPLY', 'APPLIED', 'REJECTED'])));
+        }
+
+        $statuses = match ($state) {
+            'queued' => [['QUEUED'], ['queued']],
+            'processing' => [['RUNNING', 'VALIDATING', 'FACT_CHECKING'], ['processing', 'validating']],
+            'blocked' => [['BLOCKED'], ['blocked']],
+            'failed' => [['FAILED'], ['failed', 'stuck']],
+            default => [[], []],
+        };
+
+        if ($statuses[0] === [] && $statuses[1] === []) {
+            return $query;
+        }
+
+        return $query->whereHas('latestAiProductJobItem', fn (Builder $item): Builder => $item
+            ->where(function (Builder $status) use ($statuses): Builder {
+                return $status->whereIn('canonical_status', $statuses[0])
+                    ->orWhereIn('status', $statuses[1]);
+            }));
     }
 
     private static function aiStatusTooltip(Product $record): ?string
     {
         $item = $record->latestAiProductJobItem;
         $view = self::aiStatusView($record);
+        $resolved = app(AiProductContentStateResolver::class)->resolve($record, $item);
         $parts = array_filter([
             $view['warning'],
+            $resolved['state_issue'] === 'REVIEWABLE_DRAFT_MISSING'
+                ? 'Trạng thái cũ không còn bản nháp có thể duyệt.'
+                : null,
             app(AiContentStatusPresenter::class)->safeReason($item?->failed_reason ?: $item?->last_error_code),
             $item?->updated_at ? 'Cập nhật '.$item->updated_at->diffForHumans() : null,
         ]);

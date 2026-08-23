@@ -2,20 +2,23 @@
 
 ## Final status
 
-**PRODUCTION READY** — audit roadmap and `v1.26.0` release validation are complete. The historical `v1.25.0` tag remains immutable.
+**PRODUCTION READY** — audit roadmap and `v1.28.1` release validation are complete. Historical release tags remain immutable.
 
 ## Verified baseline
 
-- Tests: 326 tests / 1,053 assertions / 0 failures or errors / 1 existing skipped test.
+- Tests: 363 tests / 1,260 assertions / 0 failures or errors / 1 existing skipped test.
 - Database: 81 Products, 212 catalog sources, 36,453 catalog models, 656,507 catalog fields.
 - Migrations: 90 applied.
 - BTU hash: `3e981c60fcadd3461746fd8f3b94855dc5205bad6c446c55c17066d40c47e3ba`.
 - Composer audit: clean; npm audit: clean; frontend build: passed.
-- AI worker: `DISABLED_BY_OPERATOR`; provider calls during release validation: 0.
+- AI worker desired state after validation: `DISABLED`; managed process online/paused and not accepting new work.
+- Release-validation commands initiated 0 provider calls. A separate authenticated operator action was observed during the validation window and completed before the release gate; it was not used as release proof.
 
 ## Scope completed
 
 AI Content, Product/Catalog UX, Search/Filter/Calculator, SEO/Merchant/Structured Data, Performance/Cache, Admin/Operations, Security, and final production recovery/readiness were audited and regression-tested. The final admin pass also consolidated Filament navigation into seven workflow domains and redesigned six operator-facing screens without changing Product/catalog facts.
+
+The v1.28.1 patch additionally unifies Product media composition and current AI item/draft actionability. Product list, live panel, review/apply actions, filters and dashboard counts no longer advertise review-required state without a real reviewable draft. PHPUnit worker state is isolated from the operator runtime file.
 
 Measured Dashboard widget queries fell from 85 to 21 and System Health queries from 65 to 25 through request-level snapshot reuse. No browser harness or authenticated CDP transport was available, so no after-screenshot/browser PASS is claimed.
 
@@ -50,4 +53,6 @@ Production deployment must set `APP_ENV=production`, `APP_DEBUG=false`, authorit
 - `PHASE_8_SECURITY_HARDENING_FINAL_REPORT.md`
 - `docs/release/RELEASE_1.25.0.md`
 - `docs/release/RELEASE_1.26.0.md`
+- `docs/release/RELEASE_1.28.1.md`
 - `docs/reports/final/ADMIN_UX_INFORMATION_ARCHITECTURE_REPORT.md`
+- `docs/reports/final/PRODUCT_MEDIA_AI_STATE_CONSISTENCY_REPORT.md`

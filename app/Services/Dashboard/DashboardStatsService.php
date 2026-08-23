@@ -282,10 +282,15 @@ class DashboardStatsService
             ->selectRaw("SUM(CASE WHEN status = 'blocked' THEN 1 ELSE 0 END) AS blocked")
             ->selectRaw("SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END) AS failed")
             ->toBase()->first();
+        $latestProductItems = AiProductJobItem::query()
+            ->selectRaw('MAX(id)')
+            ->groupBy('product_id');
         $productCounts = AiProductJobItem::query()
+            ->leftJoin('ai_product_drafts as dashboard_drafts', 'dashboard_drafts.id', '=', 'ai_product_job_items.draft_id')
+            ->whereIn('ai_product_job_items.id', $latestProductItems)
             ->selectRaw("SUM(CASE WHEN canonical_status = 'QUEUED' THEN 1 ELSE 0 END) AS queued")
             ->selectRaw("SUM(CASE WHEN canonical_status IN ('RUNNING', 'VALIDATING', 'FACT_CHECKING') THEN 1 ELSE 0 END) AS running")
-            ->selectRaw("SUM(CASE WHEN canonical_status = 'REVIEW_REQUIRED' THEN 1 ELSE 0 END) AS review")
+            ->selectRaw("SUM(CASE WHEN canonical_status = 'REVIEW_REQUIRED' AND dashboard_drafts.id IS NOT NULL AND dashboard_drafts.applied_at IS NULL AND dashboard_drafts.approval_status NOT IN ('APPROVED_FOR_APPLY', 'APPLIED', 'REJECTED') THEN 1 ELSE 0 END) AS review")
             ->selectRaw("SUM(CASE WHEN canonical_status = 'BLOCKED' THEN 1 ELSE 0 END) AS blocked")
             ->selectRaw("SUM(CASE WHEN canonical_status = 'FAILED' THEN 1 ELSE 0 END) AS failed")
             ->toBase()->first();

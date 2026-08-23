@@ -10,6 +10,7 @@ final class AiProductLiveStatusService
 {
     public function __construct(
         private AiContentStatusPresenter $presenter,
+        private AiProductContentStateResolver $stateResolver,
         private AIQueueMonitor $queueMonitor,
     ) {}
 
@@ -33,7 +34,7 @@ final class AiProductLiveStatusService
             ->whereIn('id', $latestItemIds)
             ->with([
                 'job:id,total,processed,success,failed,needs_review,status,config_json,updated_at',
-                'draft:id,field_status_json,approval_status,approved_at,approved_by,applied_at',
+                'draft:id,status,field_status_json,approval_status,approved_at,approved_by,applied_at',
             ])
             ->get()
             ->keyBy('product_id');
@@ -44,9 +45,10 @@ final class AiProductLiveStatusService
             ->get()
             ->map(function (Product $product) use ($items, $worker): array {
                 $item = $items->get($product->id);
-                $draft = $item?->draft;
-                $internal = $item?->canonical_status ?: $item?->status ?: $product->ai_status ?: 'not_generated';
-                $status = $this->presenter->present($internal, $worker, (bool) $draft?->applied_at);
+                $resolved = $this->stateResolver->resolve($product, $item);
+                $draft = $resolved['draft'];
+                $internal = $resolved['status'];
+                $status = $this->presenter->present($internal, $worker);
                 $job = $item?->job;
                 $total = (int) ($job?->total ?? 0);
                 $processed = (int) ($job?->processed ?? 0);
@@ -68,7 +70,9 @@ final class AiProductLiveStatusService
                     'ai_status' => strtolower($status['key']),
                     'ai_status_label' => $status['label'],
                     'warning' => $status['warning'],
-                    'safe_reason' => $this->presenter->safeReason($item?->failed_reason ?: $item?->last_error_code),
+                    'safe_reason' => $resolved['state_issue'] === 'REVIEWABLE_DRAFT_MISSING'
+                        ? 'Trạng thái cũ không còn bản nháp có thể duyệt; cần tạo lại nội dung AI.'
+                        : $this->presenter->safeReason($item?->failed_reason ?: $item?->last_error_code),
                     'seo_score' => (int) ($product->ai_score ?? 0),
                     'warnings_count' => (int) ($product->ai_warning_count ?? 0),
                     'updated_at' => ($item?->state_changed_at ?: $item?->updated_at ?: $product->ai_last_run_at)?->toIso8601String(),
@@ -90,7 +94,9 @@ final class AiProductLiveStatusService
                     'job_id' => $item?->ai_product_job_id,
                     'draft_id' => $item?->draft_id,
                     'retry_allowed' => $item && in_array($item->status, ['failed', 'stuck', 'cancelled'], true),
-                    'review_required' => (bool) $status['review_required'],
+                    'review_required' => $resolved['reviewable'],
+                    'approved_unapplied' => $resolved['approved_unapplied'],
+                    'state_issue' => $resolved['state_issue'],
                     'worker' => $worker,
                     'should_poll' => (bool) $status['active'],
                     'approved_at' => $draft?->approved_at?->toIso8601String(),

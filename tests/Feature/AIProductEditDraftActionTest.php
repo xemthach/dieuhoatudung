@@ -23,7 +23,7 @@ class AIProductEditDraftActionTest extends TestCase
         app(PermissionRegistrar::class)->forgetCachedPermissions();
     }
 
-    public function test_blocked_ai_draft_cannot_be_applied_and_shows_fact_check_message(): void
+    public function test_blocked_ai_item_without_approved_draft_hides_apply_action(): void
     {
         $this->actingAsAiProductEditor();
         $product = Product::factory()->create(['ai_status' => 'needs_review']);
@@ -44,13 +44,12 @@ class AIProductEditDraftActionTest extends TestCase
         ]);
 
         Livewire::test(EditProduct::class, ['record' => $product->getRouteKey()])
-            ->callAction('ai_apply_latest_draft')
-            ->assertNotified('AI draft bị fact-check chặn');
+            ->assertActionHidden('ai_apply_latest_draft');
 
         $this->assertSame('needs_review', $product->refresh()->ai_status);
     }
 
-    public function test_queued_ai_draft_cannot_be_applied(): void
+    public function test_queued_ai_item_hides_apply_action(): void
     {
         $this->actingAsAiProductEditor();
         $product = Product::factory()->create(['ai_status' => 'queued']);
@@ -71,8 +70,7 @@ class AIProductEditDraftActionTest extends TestCase
         ]);
 
         Livewire::test(EditProduct::class, ['record' => $product->getRouteKey()])
-            ->callAction('ai_apply_latest_draft')
-            ->assertNotified('Chưa có AI draft để apply');
+            ->assertActionHidden('ai_apply_latest_draft');
 
         $product->refresh();
         $this->assertSame('queued', $product->ai_status);

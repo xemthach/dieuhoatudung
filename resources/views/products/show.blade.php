@@ -26,12 +26,12 @@
             <div class="lg:grid lg:grid-cols-2 lg:gap-12">
                 {{-- Product Image Gallery --}}
                 @php
-                    $images = $product->gallery_image_urls;
-                    $imagesJson = json_encode($images, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+                    // The gallery JavaScript reads image objects (`img.url`).
+                    $images = $product->gallery_images;
                 @endphp
 
                 <div x-data="{
-                        images: {{ $imagesJson }},
+                        images: @js($images),
                         currentIndex: 0,
                         lightboxOpen: false,
                         get currentImage() {
