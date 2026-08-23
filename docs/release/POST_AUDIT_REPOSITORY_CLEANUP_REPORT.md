@@ -25,7 +25,7 @@ The database dump is not release content and must not be pushed.
 
 ## Validation target
 
-320 tests / 1,008 assertions, 0 failures, 1 skipped; Composer and npm audit clean, frontend build passed, config/route/view cache passed, database counts and BTU hash unchanged, provider calls 0, worker disabled. Historical 1,011-assertion evidence is preserved in the prior audit record.
+Current validation passes with 326 tests / 1,053 assertions, 0 failures/errors, and 1 existing skipped test. Composer and npm audits are clean, the frontend build and config/route/view caches pass, database counts and BTU hash are unchanged, provider calls are 0, and the worker remains disabled. Historical validation totals remain preserved in the prior audit record.
 
 ## Validation incident and final gate
 
@@ -33,12 +33,15 @@ The first unscoped test invocation was stopped after it was found to be using th
 
 The controlled `.env.testing` run was not the release proof because its empty fixture profile returned 2 failures and 13 errors. The final proof used a guarded populated MySQL clone with `APP_ENV=testing` and passed 320 tests / 1,008 assertions / 0 failures / 1 existing skipped test. The configured production database was verified separately after the run. The initial unsafe invocation and recovery remain historical evidence; no backup was staged or pushed.
 
+During v1.26.0 verification, running PHPUnit after `config:cache` again selected cached local MySQL settings and emptied Product/catalog tables. Processing stopped before any Git publication. A forensic empty-state dump was created at `storage/backups/v126_current_empty_before_restore_20260823_161500.sql` (SHA-256 `91CFEB7D3DDDD268D79D7EEB6193DB1B0D5A86232BD9DA144A1E2575414851BE`). The Phase 9 source SHA was rechecked, a current-target payload was built and validated by `SafeRestorePayloadBuilder`, and restore completed successfully. Exact 81 / 212 / 36,453 / 656,507 counts, 90 migrations, BTU hash, queue state, and disabled worker state were restored. PHPUnit now bootstraps through `tests/bootstrap.php`; a deliberate cached-config test passed and left MySQL unchanged.
+
 The release commit already exists as `23459f6af58b25902e20857326607ed5cd021261` (`chore(release): prepare v1.25.0`). The annotated `v1.25.0` tag exists locally and remotely; this cleanup follow-up does not recreate or overwrite it. Branch push and GitHub Release publication are handled only after the final staged review.
 
 ## Final publication result
 
 - Validation follow-up commit: `595faf6` (`docs(release): finalize v1.25.0 validation`).
 - `main` pushed to `origin` successfully.
-- Remote `v1.25.0` tag verified and points to release commit `23459f6`.
-- GitHub CLI is not installed, so GitHub Release creation is `MANUAL_FOLLOWUP`. Create it from the existing `v1.25.0` tag using `docs/release/RELEASE_1.25.0.md`.
-- Working tree is expected to remain clean; local SQL backups remain ignored and outside Git.
+- The existing `v1.25.0` tag points to release-preparation commit `23459f6`, but that tagged tree contains canonical `VERSION=1.24.0`. The tag was not recreated, moved, or overwritten.
+- Operator authorization selected a new semantic minor release, `v1.26.0`, for the validated Admin UX consolidation. The historical tag conflict is preserved in documentation rather than rewritten.
+- Commit, tag, push, and GitHub Release results for `v1.26.0` are recorded after final validation.
+- Local SQL backups remain ignored and outside Git.

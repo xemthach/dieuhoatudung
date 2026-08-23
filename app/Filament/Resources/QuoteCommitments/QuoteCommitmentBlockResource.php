@@ -22,17 +22,17 @@ class QuoteCommitmentBlockResource extends Resource
 
     protected static ?string $recordTitleAttribute = 'title';
 
-    protected static ?string $navigationLabel = 'Quote Commitments';
+    protected static ?string $navigationLabel = 'Cam kết báo giá';
 
     protected static ?string $modelLabel = 'Commitment Block';
 
     protected static ?string $pluralModelLabel = 'Commitment Blocks';
 
-    protected static ?int $navigationSort = 3;
+    protected static ?int $navigationSort = 12;
 
     public static function getNavigationGroup(): ?string
     {
-        return 'Landing & Pages';
+        return 'Nội dung';
     }
 
     public static function form(Schema $schema): Schema

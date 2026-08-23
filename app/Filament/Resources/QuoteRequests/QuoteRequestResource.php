@@ -44,7 +44,8 @@ class QuoteRequestResource extends Resource
 
     public static function getNavigationIcon(): ?string  { return 'heroicon-o-document-text'; }
     public static function getNavigationLabel(): string  { return 'Báo giá'; }
-    public static function getNavigationGroup(): ?string { return 'Leads & Contacts'; }
+    public static function getNavigationGroup(): ?string { return 'Bán hàng'; }
+    protected static ?int $navigationSort = 2;
     public static function getModelLabel(): string       { return 'Yêu cầu báo giá'; }
     public static function getPluralModelLabel(): string { return 'Yêu cầu báo giá'; }
 

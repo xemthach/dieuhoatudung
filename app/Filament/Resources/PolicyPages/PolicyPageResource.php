@@ -27,10 +27,13 @@ class PolicyPageResource extends Resource
     ];
 
     protected static ?string $model = PolicyPage::class;
-        public static function getNavigationGroup(): ?string { return 'Landing & Pages'; }
+        public static function getNavigationGroup(): ?string { return 'Nội dung'; }
 
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleStack;
+
+    protected static ?string $navigationLabel = 'Trang chính sách';
+    protected static ?int $navigationSort = 9;
 
     protected static ?string $recordTitleAttribute = 'title';
 

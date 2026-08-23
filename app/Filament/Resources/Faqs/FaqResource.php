@@ -29,10 +29,13 @@ class FaqResource extends Resource
     ];
 
     protected static ?string $model = Faq::class;
-        public static function getNavigationGroup(): ?string { return 'Landing & Pages'; }
+        public static function getNavigationGroup(): ?string { return 'Nội dung'; }
 
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleStack;
+
+    protected static ?string $navigationLabel = 'Câu hỏi thường gặp';
+    protected static ?int $navigationSort = 5;
 
     protected static ?string $recordTitleAttribute = 'question';
 

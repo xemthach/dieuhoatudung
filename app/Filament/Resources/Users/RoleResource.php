@@ -29,9 +29,9 @@ class RoleResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedShieldCheck;
 
-    protected static ?string $navigationLabel = 'Roles';
+    protected static ?string $navigationLabel = 'Vai trò & quyền';
 
-    protected static string|\UnitEnum|null $navigationGroup = 'System';
+    protected static string|\UnitEnum|null $navigationGroup = 'Hệ thống';
 
     protected static ?int $navigationSort = 6;
 

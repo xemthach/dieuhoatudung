@@ -2,6 +2,28 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.26.0] - 2026-08-23
+
+### Added
+- Added a seven-domain Filament information architecture: Bán hàng, Sản phẩm, Nội dung, SEO & Marketing, AI Content, Hệ thống, and Vận hành.
+- Added shared semantic status badges, compact operational summaries, contextual technical details, and dedicated Admin UX regression coverage.
+- Added a complete navigation/capability inventory and permanent Admin UX architecture report.
+
+### Changed
+- Redesigned Dashboard, Import/Export, Media & CDN, AI Queue Health, AI Content Jobs, and Marketing Integrations around operator tasks instead of raw runtime data.
+- Moved AI runtime policy away from the main dashboard into the relevant AI jobs context.
+- Reduced measured Dashboard widget queries from 85 to 21 and System Health queries from 65 to 25 through request-level snapshot reuse.
+- Standardized Vietnamese navigation labels and deterministic ordering while preserving hidden compatibility pages and server-side permissions.
+
+### Security
+- Preserved and extended server-side permission checks and confirmation gates for R2 synchronization, URL replacement, queue recovery, imports, exports, and integration actions.
+- No Product/catalog technical facts were changed; the AI worker remained disabled and no provider call was made.
+- Added a PHPUnit bootstrap guard that removes generated production config cache before Laravel boots, ensuring the declared SQLite `:memory:` test database cannot be bypassed by stale compiled configuration.
+
+### Release note
+- Validation passed with 326 tests, 1,053 assertions, zero failures/errors, and one existing skipped test.
+- `v1.25.0` remains immutable as historical release metadata. This release uses `v1.26.0` because the existing `v1.25.0` tag points to a tree whose canonical `VERSION` is `1.24.0`.
+
 ## [1.25.0] - 2026-08-23
 
 ### Added
@@ -9,16 +31,19 @@ All notable changes to this project will be documented in this file.
 - Added Product/Catalog UX improvements for cards, detail pages, admin forms, empty specs, RAC/VRF presentation, exact model search, class-aware filters, and RAC calculator recommendations.
 - Added deterministic SEO title/meta fallback, canonical/indexation controls, sitemap, breadcrumb, JSON-LD, visible FAQ consistency, and honest Merchant eligibility diagnostics.
 - Added operational health, queue reconciliation, worker desired-state visibility, admin audit safeguards, and security regression coverage.
+- Added a seven-domain Filament navigation architecture and compact summary-first operational screens for Dashboard, Import/Export, Media & CDN, AI Queue Health, AI Content Jobs, and Marketing Integrations.
 
 ### Changed
 - Revalidated and recovered the production dataset, preserving approved content, catalog lineage, migration state, and the verified pre-release backup.
 - Hardened queue reconciliation, admin authorization, health visibility, performance hot paths, and release-readiness checks without changing governed technical facts.
+- Reduced measured Dashboard widget queries from 85 to 21 and System Health queries from 65 to 25 by reusing request-level data and queue snapshots.
 
 ### Security
 - Preserved server-side authorization, CSRF/input validation, sanitized content output, secret-safe diagnostics, safe headers, and disabled AI worker default state.
 
 ### Release note
-- Release validation completed on a guarded populated MySQL test clone: 320 tests, 1,008 assertions, 0 failures, and one pre-existing skipped test. See `docs/release/RELEASE_1.25.0.md`.
+- Current release validation: 326 tests, 1,052 assertions, 0 failures/errors, and one pre-existing skipped test. The Admin UX candidate initially exposed two same-root Filament navigation-icon errors; the configuration was fixed without deleting or weakening tests. See `docs/release/RELEASE_1.25.0.md`.
+- Publication remains pending because the existing annotated `v1.25.0` tag points to an earlier commit with canonical `VERSION=1.24.0`; the tag has not been moved or overwritten.
 
 ## [1.24.0] - 2026-05-23
 

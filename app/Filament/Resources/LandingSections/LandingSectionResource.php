@@ -27,10 +27,13 @@ class LandingSectionResource extends Resource
     ];
 
     protected static ?string $model = LandingSection::class;
-        public static function getNavigationGroup(): ?string { return 'Landing & Pages'; }
+        public static function getNavigationGroup(): ?string { return 'Nội dung'; }
 
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleStack;
+
+    protected static ?string $navigationLabel = 'Khối trang đích';
+    protected static ?int $navigationSort = 8;
 
     protected static ?string $recordTitleAttribute = 'title';
 

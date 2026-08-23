@@ -11,7 +11,7 @@ class MainDashboardWidget extends Widget
 
     protected int | string | array $columnSpan = 'full';
     
-    protected static ?int $sort = -1;
+    protected static ?int $sort = -10;
 
     public static function canView(): bool
     {
@@ -21,16 +21,23 @@ class MainDashboardWidget extends Widget
     protected function getViewData(): array
     {
         $stats = app(DashboardStatsService::class);
+        $leads = $stats->getLeadStats();
+        $products = $stats->getProductStats();
+        $posts = $stats->getPostStats();
+        $seoHealth = $stats->getSeoStats();
+        $r2Status = $stats->getR2Status();
+        $aiStatus = $stats->getAIStatus();
+        $mailStatus = $stats->getMailStatus();
 
         return [
-            'leads'        => $stats->getLeadStats(),
-            'products'     => $stats->getProductStats(),
-            'posts'        => $stats->getPostStats(),
-            'seoHealth'    => $stats->getSeoStats(),
-            'r2Status'     => $stats->getR2Status(),
-            'aiStatus'     => $stats->getAIStatus(),
-            'mailStatus'   => $stats->getMailStatus(),
-            'alerts'       => $stats->getAlerts(),
+            'leads'        => $leads,
+            'products'     => $products,
+            'posts'        => $posts,
+            'seoHealth'    => $seoHealth,
+            'r2Status'     => $r2Status,
+            'aiStatus'     => $aiStatus,
+            'mailStatus'   => $mailStatus,
+            'alerts'       => $stats->getAlerts($products, $posts, $r2Status, $mailStatus, $aiStatus),
             'quickActions' => $stats->getQuickActions(),
         ];
     }

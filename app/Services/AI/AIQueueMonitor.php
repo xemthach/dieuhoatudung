@@ -10,6 +10,7 @@ use App\Models\AiProductJob;
 use App\Models\AiProductJobItem;
 use App\Models\QueueWorkerHeartbeat;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Schema;
 
 class AIQueueMonitor
@@ -48,6 +49,11 @@ class AIQueueMonitor
         $lastProcessed = Schema::hasTable('ai_technical_logs')
             ? DB::table('ai_technical_logs')->whereIn('event', ['job_completed', 'job_failed'])->latest('id')->first()
             : null;
+        $desiredStatePath = storage_path('framework/cache/ai-worker-desired-state.json');
+        $desiredStatePayload = File::exists($desiredStatePath)
+            ? (json_decode(File::get($desiredStatePath), true) ?: [])
+            : [];
+        $workerDesiredState = strtoupper((string) ($desiredStatePayload['desired_state'] ?? 'DISABLED'));
 
         return [
             'queue_connection' => config('queue.default'),
@@ -87,6 +93,7 @@ class AIQueueMonitor
             ] : null,
             'scheduler_heartbeat' => optional($lastScheduler?->last_seen_at)->toDateTimeString(),
             'scheduler_is_running' => optional($lastScheduler?->last_seen_at)->gt(now()->subMinutes(10)) ?: false,
+            'worker_desired_state' => $workerDesiredState,
         ];
     }
 

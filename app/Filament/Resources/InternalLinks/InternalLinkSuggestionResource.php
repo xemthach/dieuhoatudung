@@ -34,11 +34,11 @@ class InternalLinkSuggestionResource extends Resource
 
     protected static ?string $model = InternalLinkSuggestion::class;
 
-    protected static ?string $navigationLabel = 'Internal Links';
+    protected static ?string $navigationLabel = 'Liên kết nội bộ';
 
-    public static function getNavigationGroup(): ?string { return 'SEO'; }
+    public static function getNavigationGroup(): ?string { return 'SEO & Marketing'; }
 
-    protected static ?int $navigationSort = 20;
+    protected static ?int $navigationSort = 3;
 
     public static function getNavigationIcon(): ?string { return 'heroicon-o-link'; }
 

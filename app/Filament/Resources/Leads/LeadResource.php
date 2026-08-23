@@ -29,10 +29,13 @@ class LeadResource extends Resource
     ];
 
     protected static ?string $model = Lead::class;
-        public static function getNavigationGroup(): ?string { return 'CRM'; }
+        public static function getNavigationGroup(): ?string { return 'Bán hàng'; }
 
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleStack;
+
+    protected static ?string $navigationLabel = 'Khách hàng tiềm năng';
+    protected static ?int $navigationSort = 1;
 
     protected static ?string $recordTitleAttribute = 'full_name';
 

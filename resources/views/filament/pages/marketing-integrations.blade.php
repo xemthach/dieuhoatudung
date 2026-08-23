@@ -3,42 +3,51 @@
         $integrations = $health['integrations'] ?? [];
         $summary = $health['summary'] ?? [];
         $events = $health['recommended_events'] ?? [];
+        $needsSetup = collect($integrations)->filter(fn ($integration) => ! ($integration['configured'] ?? false))->count();
+        $criticalIssues = count($summary['critical_missing'] ?? []);
     @endphp
 
     <div class="space-y-6">
         @if (! empty($lastUploadResult))
             <x-filament::section>
                 <div class="flex flex-wrap items-center gap-3 text-sm">
-                    <span class="font-semibold">Last Google Ads upload</span>
-                    <span>Checked: {{ $lastUploadResult['checked'] ?? 0 }}</span>
-                    <span>Uploaded: {{ $lastUploadResult['uploaded'] ?? 0 }}</span>
-                    <span>Failed: {{ $lastUploadResult['failed'] ?? 0 }}</span>
-                    <span>Skipped: {{ $lastUploadResult['skipped'] ?? 0 }}</span>
+                    <span class="font-semibold">Lần gửi Google Ads gần nhất</span>
+                    <span>Đã kiểm tra: {{ $lastUploadResult['checked'] ?? 0 }}</span>
+                    <span>Đã gửi: {{ $lastUploadResult['uploaded'] ?? 0 }}</span>
+                    <span>Lỗi: {{ $lastUploadResult['failed'] ?? 0 }}</span>
+                    <span>Bỏ qua: {{ $lastUploadResult['skipped'] ?? 0 }}</span>
                 </div>
             </x-filament::section>
         @endif
 
-        <div class="grid gap-4 md:grid-cols-3">
-            <x-filament::section>
-                <div class="text-sm text-gray-500 dark:text-gray-400">Configured</div>
-                <div class="mt-1 text-2xl font-semibold">
+        <div class="admin-card-grid admin-card-grid-4">
+            <div class="admin-status-card">
+                <div class="admin-kv-label">Đã cấu hình</div>
+                <div class="mt-1 text-2xl font-semibold text-gray-950 dark:text-white">
                     {{ $summary['configured_count'] ?? 0 }}/{{ $summary['total_count'] ?? count($integrations) }}
                 </div>
-            </x-filament::section>
+            </div>
 
-            <x-filament::section>
-                <div class="text-sm text-gray-500 dark:text-gray-400">Critical missing</div>
-                <div class="mt-1 text-2xl font-semibold">
-                    {{ count($summary['critical_missing'] ?? []) }}
+            <div class="admin-status-card">
+                <div class="admin-kv-label">Cần thiết lập</div>
+                <div class="mt-1 text-2xl font-semibold text-warning-600 dark:text-warning-400">
+                    {{ $needsSetup }}
                 </div>
-            </x-filament::section>
+            </div>
 
-            <x-filament::section>
-                <div class="text-sm text-gray-500 dark:text-gray-400">Tracked event plan</div>
-                <div class="mt-1 text-2xl font-semibold">
+            <div class="admin-status-card">
+                <div class="admin-kv-label">Vấn đề nghiêm trọng</div>
+                <div @class(['mt-1 text-2xl font-semibold', 'text-danger-600 dark:text-danger-400' => $criticalIssues > 0, 'text-success-600 dark:text-success-400' => $criticalIssues === 0])>
+                    {{ $criticalIssues }}
+                </div>
+            </div>
+
+            <div class="admin-status-card">
+                <div class="admin-kv-label">Sự kiện theo dõi</div>
+                <div class="mt-1 text-2xl font-semibold text-gray-950 dark:text-white">
                     {{ count($events) }}
                 </div>
-            </x-filament::section>
+            </div>
         </div>
 
         <div class="grid gap-4 xl:grid-cols-2">
@@ -47,51 +56,37 @@
                     <div class="flex items-start justify-between gap-4">
                         <div>
                             <h2 class="text-base font-semibold">{{ $integration['label'] ?? $key }}</h2>
-                            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                                {{ $integration['configured'] ?? false ? 'Configured' : 'Needs configuration' }}
-                            </p>
+                            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">{{ $integration['configured'] ?? false ? 'Kết nối đã sẵn sàng' : 'Cần bổ sung cấu hình' }}</p>
                         </div>
-
-                        <span
-                            @class([
-                                'rounded-md px-2 py-1 text-xs font-medium',
-                                'bg-success-50 text-success-700 dark:bg-success-500/10 dark:text-success-300' => $integration['configured'] ?? false,
-                                'bg-warning-50 text-warning-700 dark:bg-warning-500/10 dark:text-warning-300' => ! ($integration['configured'] ?? false) && (($integration['severity'] ?? null) !== 'critical'),
-                                'bg-danger-50 text-danger-700 dark:bg-danger-500/10 dark:text-danger-300' => ! ($integration['configured'] ?? false) && (($integration['severity'] ?? null) === 'critical'),
-                            ])
-                        >
-                            {{ $integration['configured'] ?? false ? 'Ready' : 'Missing' }}
-                        </span>
+                        <x-admin.status-badge
+                            :state="($integration['configured'] ?? false) ? 'READY' : (($integration['severity'] ?? null) === 'critical' ? 'ERROR' : 'NEEDS_CONFIGURATION')"
+                        />
                     </div>
 
                     @if (! empty($integration['missing']))
                         <div class="mt-4 rounded-lg bg-gray-50 p-3 text-sm dark:bg-white/5">
-                            <div class="font-medium">Missing</div>
-                            <div class="mt-1 text-gray-600 dark:text-gray-300">
-                                {{ implode(', ', $integration['missing']) }}
-                            </div>
+                            <div class="font-medium">Thông tin còn thiếu</div>
+                            <ul class="mt-2 list-disc space-y-1 pl-5 text-gray-600 dark:text-gray-300">
+                                @foreach($integration['missing'] as $missing)<li>{{ $missing }}</li>@endforeach
+                            </ul>
                         </div>
                     @endif
 
                     @if (! empty($integration['capabilities']))
                         <div class="mt-4">
-                            <div class="text-sm font-medium">Capabilities</div>
-                            <div class="mt-2 flex flex-wrap gap-2">
+                            <div class="text-sm font-medium">Khả năng hỗ trợ</div>
+                            <ul class="mt-2 grid gap-1 text-sm text-gray-600 dark:text-gray-300 sm:grid-cols-2">
                                 @foreach ($integration['capabilities'] as $capability)
-                                    <span class="rounded-md bg-gray-100 px-2 py-1 text-xs text-gray-700 dark:bg-white/10 dark:text-gray-200">
-                                        {{ $capability }}
-                                    </span>
+                                    <li class="flex items-start gap-2"><span class="mt-1 text-success-500">✓</span><span>{{ str($capability)->replace('_', ' ')->headline() }}</span></li>
                                 @endforeach
-                            </div>
+                            </ul>
                         </div>
                     @endif
 
                     @if (! empty($integration['values']))
-                        <details class="mt-4">
-                            <summary class="cursor-pointer text-sm font-medium text-gray-600 dark:text-gray-300">
-                                Technical values
-                            </summary>
-                            <pre class="mt-2 max-h-48 overflow-auto rounded-lg bg-gray-950 p-3 text-xs text-gray-100">{{ json_encode($integration['values'], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) }}</pre>
+                        <details class="admin-technical-details mt-4">
+                            <summary>Chi tiết kỹ thuật</summary>
+                            <pre class="admin-code-block mt-2">{{ json_encode($integration['values'], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) }}</pre>
                         </details>
                     @endif
                 </x-filament::section>
@@ -99,11 +94,11 @@
         </div>
 
         <x-filament::section>
-            <h2 class="text-base font-semibold">Recommended conversion events</h2>
+            <h2 class="text-base font-semibold">Sự kiện chuyển đổi khuyến nghị</h2>
             <div class="mt-3 flex flex-wrap gap-2">
                 @foreach ($events as $event)
                     <span class="rounded-md bg-primary-50 px-2 py-1 text-xs font-medium text-primary-700 dark:bg-primary-500/10 dark:text-primary-300">
-                        {{ $event }}
+                        {{ str($event)->replace('_', ' ')->headline() }}
                     </span>
                 @endforeach
             </div>

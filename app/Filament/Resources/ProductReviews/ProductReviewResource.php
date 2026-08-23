@@ -42,7 +42,7 @@ class ProductReviewResource extends Resource
 
     protected static ?int $navigationSort = 10;
 
-    public static function getNavigationGroup(): ?string { return 'E-commerce'; }
+    public static function getNavigationGroup(): ?string { return 'Bán hàng'; }
 
     public static function getNavigationBadge(): ?string
     {

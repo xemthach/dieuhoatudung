@@ -1,150 +1,84 @@
 <x-filament-panels::page>
     @php
-        $latestJob = \App\Models\R2SyncJob::latest()->first();
-        $isR2Enabled = setting('r2_storage.r2_enabled', false);
+        $latestJob = \App\Models\R2SyncJob::query()->latest()->first();
+        $latestScan = \App\Models\R2SyncJob::query()->where('mode', 'scan_only')->where('status', 'completed')->latest()->first();
+        $latestUpload = \App\Models\R2SyncJob::query()->where('mode', 'upload_only')->latest()->first();
+        $isR2Enabled = (bool) setting('r2_storage.r2_enabled', false);
+        $localFiles = (int) ($latestScan?->total_files ?? 0);
+        $syncedFiles = (int) ($latestUpload?->synced_files ?? 0);
+        $failedFiles = (int) ($latestUpload?->failed_files ?? 0);
+        $missingFiles = max(0, $localFiles - $syncedFiles);
+        $statusLabels = [
+            'pending' => 'Đang chờ', 'scanning' => 'Đang quét', 'syncing' => 'Đang tải lên',
+            'replacing' => 'Đang thay URL', 'completed' => 'Hoàn thành',
+            'completed_with_errors' => 'Hoàn thành có lỗi', 'failed' => 'Thất bại', 'cancelled' => 'Đã hủy',
+        ];
     @endphp
 
-    {{-- System Status Inline --}}
-    <div class="flex items-center justify-between px-5 py-3 bg-white border border-surface-200 rounded-xl shadow-sm dark:bg-surface-800 dark:border-surface-700">
-        <div class="flex items-center gap-6">
-            <div class="flex items-center gap-2.5">
-                <span class="text-sm font-semibold text-surface-500 uppercase tracking-wider">Trạng thái R2:</span>
-                @if($isR2Enabled)
-                    <span class="inline-flex items-center gap-1.5 py-1 px-2.5 rounded-md text-xs font-bold bg-success-50 text-success-700 ring-1 ring-inset ring-success-600/20">
-                        <div class="w-2 h-2 rounded-full bg-success-600 animate-pulse"></div>BẬT (ON)
-                    </span>
-                @else
-                    <span class="inline-flex items-center gap-1.5 py-1 px-2.5 rounded-md text-xs font-bold bg-surface-100 text-surface-600 ring-1 ring-inset ring-surface-500/20">
-                        <div class="w-2 h-2 rounded-full bg-surface-400"></div>TẮT (OFF)
-                    </span>
-                @endif
-            </div>
-            
-            <div class="w-px h-6 bg-surface-200 dark:bg-surface-600"></div>
-            
-            <div class="flex items-center gap-2.5">
-                <span class="text-sm font-semibold text-surface-500 uppercase tracking-wider">Mode:</span>
-                <span class="text-sm font-bold {{ $isR2Enabled ? 'text-primary-600' : 'text-surface-700' }}">
-                    {{ $isR2Enabled ? 'CDN Active' : 'Local Storage' }}
-                </span>
-            </div>
-        </div>
-    </div>
-
-    {{-- R2 OFF Warning --}}
-    @if(!$isR2Enabled)
-        <div class="mt-3 rounded-lg bg-amber-50 border border-amber-200 p-4 flex items-start gap-3">
-            <x-filament::icon icon="heroicon-o-exclamation-triangle" class="h-5 w-5 text-amber-500 mt-0.5 shrink-0" />
-            <div>
-                <h4 class="text-sm font-bold text-amber-800">R2 Storage đang TẮT</h4>
-                <p class="mt-1 text-sm text-amber-700">Upload và Replace URLs yêu cầu R2 phải BẬT. Scan Local Media vẫn hoạt động bình thường. Cấu hình R2 tại <a href="/admin/manage-settings" class="font-semibold underline hover:text-amber-900">Site Settings → R2 Storage</a>.</p>
-            </div>
-        </div>
-    @endif
-
-    {{-- Action State Panel --}}
-    <x-filament::card>
-        @if(!$latestJob)
-            <div class="text-center py-8">
-                <div class="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-primary-50">
-                    <x-filament::icon icon="heroicon-o-magnifying-glass" class="h-8 w-8 text-primary-600" />
+    <div class="space-y-6">
+        <div class="admin-card-grid admin-card-grid-3">
+            <div class="admin-status-card">
+                <div class="flex items-center justify-between gap-3">
+                    <span class="font-semibold">Cloudflare R2</span>
+                    <x-admin.status-badge :state="$isR2Enabled ? 'READY' : 'DISABLED'" :label="$isR2Enabled ? 'Đang bật' : 'Đã tắt'" />
                 </div>
-                <h3 class="mt-4 text-xl font-bold text-surface-900">Chưa có dữ liệu đồng bộ</h3>
-                <p class="mt-2 text-sm text-surface-500">Hệ thống chưa quét file local nào. Bấm nút Scan Local Media ở trên để bắt đầu.</p>
+                <p class="mt-3 text-xs text-gray-500 dark:text-gray-400">Chế độ: {{ $isR2Enabled ? 'CDN' : 'Lưu trữ local' }}</p>
             </div>
-        @else
-            @php
-                $progress = $latestJob->total_files > 0 ? min(100, round(($latestJob->synced_files / $latestJob->total_files) * 100)) : 0;
-            @endphp
-            
-            <div class="flex flex-col gap-5">
-                <div class="flex items-start justify-between">
-                    <div>
-                        <h3 class="text-lg font-bold text-surface-900 flex items-center gap-2">
-                            Tiến trình gần nhất: {{ $latestJob->name }}
-                            <x-filament::badge :color="match($latestJob->status) {
-                                'completed' => 'success',
-                                'completed_with_errors' => 'warning',
-                                'failed', 'cancelled' => 'danger',
-                                default => 'warning',
-                            }">{{ strtoupper($latestJob->status) }}</x-filament::badge>
-                        </h3>
-                        <p class="text-sm text-surface-500 mt-1 flex items-center gap-4">
-                            <span><x-filament::icon icon="heroicon-o-clock" class="inline w-4 h-4 mr-1"/> Cập nhật: {{ $latestJob->updated_at->diffForHumans() }}</span>
-                            @if($latestJob->mode === 'upload_only')
-                                <span><x-filament::icon icon="heroicon-o-document" class="inline w-4 h-4 mr-1"/> Phát hiện: <strong class="text-surface-700">{{ number_format($latestJob->total_files) }} file</strong></span>
-                            @elseif($latestJob->mode === 'scan_only')
-                                <span><x-filament::icon icon="heroicon-o-document" class="inline w-4 h-4 mr-1"/> Phát hiện: <strong class="text-surface-700">{{ number_format($latestJob->total_files) }} file</strong></span>
-                            @endif
-                        </p>
-                    </div>
-                </div>
+            <div class="admin-status-card"><div class="admin-kv-label">Media local</div><div class="mt-1 text-2xl font-semibold">{{ number_format($localFiles) }}</div></div>
+            <div class="admin-status-card"><div class="admin-kv-label">Đã đồng bộ</div><div class="mt-1 text-2xl font-semibold text-success-600">{{ number_format($syncedFiles) }}</div></div>
+            <div class="admin-status-card"><div class="admin-kv-label">Chưa đồng bộ</div><div class="mt-1 text-2xl font-semibold text-warning-600">{{ number_format($missingFiles) }}</div></div>
+            <div class="admin-status-card"><div class="admin-kv-label">File lỗi gần nhất</div><div class="mt-1 text-2xl font-semibold {{ $failedFiles > 0 ? 'text-danger-600' : 'text-gray-950 dark:text-white' }}">{{ number_format($failedFiles) }}</div></div>
+            <div class="admin-status-card"><div class="admin-kv-label">Lần quét gần nhất</div><div class="mt-1 text-sm font-semibold">{{ $latestScan?->updated_at?->diffForHumans() ?? 'Chưa có' }}</div></div>
+        </div>
 
-                @if($latestJob->mode === 'upload_only' && in_array($latestJob->status, ['syncing', 'replacing', 'completed']))
-                    <div class="w-full bg-surface-100 rounded-full h-3 dark:bg-surface-700 overflow-hidden">
-                        <div class="h-3 rounded-full transition-all duration-500 {{ $progress === 100 ? 'bg-success-500' : 'bg-primary-500 relative overflow-hidden' }}" style="width: {{ $progress }}%">
-                            @if($progress < 100 && $progress > 0)
-                                <div class="absolute inset-0 bg-white/20" style="animation: shimmer 2s infinite linear; background-image: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);"></div>
-                            @endif
-                        </div>
-                    </div>
-                    <div class="flex justify-between text-xs text-surface-500 font-semibold">
-                        <span>{{ number_format($latestJob->synced_files) }} file đã upload</span>
-                        <span class="{{ $progress === 100 ? 'text-success-600' : 'text-primary-600' }}">{{ $progress }}%</span>
-                    </div>
-                @endif
-                
-                @if($latestJob->mode === 'upload_only' && $latestJob->status === 'completed')
-                    <div class="rounded-lg bg-success-50 p-4 border border-success-200">
-                        <div class="flex">
-                            <x-filament::icon icon="heroicon-o-check-circle" class="h-6 w-6 text-success-500" />
-                            <div class="ml-3">
-                                <h3 class="text-sm font-bold text-success-800">Scan & Upload hoàn tất!</h3>
-                                <p class="mt-1 text-sm text-success-700">Tất cả file đã sẵn sàng trên R2. Hãy tiếp tục bấm <strong>Dry Run Replace URLs</strong> để kiểm tra thay thế DB an toàn.</p>
-                            </div>
-                        </div>
-                    </div>
-                @elseif($latestJob->status === 'completed_with_errors')
-                    <div class="rounded-lg bg-amber-50 p-4 border border-amber-200">
-                        <div class="flex">
-                            <x-filament::icon icon="heroicon-o-exclamation-triangle" class="h-6 w-6 text-amber-500" />
-                            <div class="ml-3">
-                                <h3 class="text-sm font-bold text-amber-800">Hoàn thành với cảnh báo</h3>
-                                <p class="mt-1 text-sm text-amber-700">{{ $latestJob->error_message ?? 'Một số file bị bỏ qua hoặc thất bại. Kiểm tra logs để biết chi tiết.' }}</p>
-                            </div>
-                        </div>
-                    </div>
-                @elseif($latestJob->mode === 'scan_only' && $latestJob->status === 'completed')
-                    <div class="rounded-lg bg-primary-50 p-4 border border-primary-200">
-                        <div class="flex">
-                            <x-filament::icon icon="heroicon-o-check-circle" class="h-6 w-6 text-primary-500" />
-                            <div class="ml-3">
-                                <h3 class="text-sm font-bold text-primary-800">Scan hoàn tất!</h3>
-                                <p class="mt-1 text-sm text-primary-700">Đã quét <strong>{{ number_format($latestJob->total_files) }}</strong> file local. Bật R2 và bấm <strong>Sync Upload to R2</strong> để upload lên Cloudflare.</p>
-                            </div>
-                        </div>
-                    </div>
-                @elseif($latestJob->status === 'failed')
-                    <div class="rounded-lg bg-danger-50 p-4 border border-danger-200 flex justify-between items-center">
-                        <div class="flex">
-                            <x-filament::icon icon="heroicon-o-x-circle" class="h-6 w-6 text-danger-500 mt-0.5" />
-                            <div class="ml-3">
-                                <h3 class="text-sm font-bold text-danger-800">Tiến trình thất bại</h3>
-                                <p class="mt-1 text-sm text-danger-700">{{ $latestJob->error_message ?? 'Đã xảy ra lỗi không xác định. Vui lòng xem logs hệ thống.' }}</p>
-                            </div>
-                        </div>
-                    </div>
-                @endif
-            </div>
+        @if(! $isR2Enabled)
+            <x-filament::section icon="heroicon-o-information-circle" icon-color="gray" heading="R2 đang tắt">
+                <p class="text-sm text-gray-600 dark:text-gray-300">Quét media local vẫn hoạt động. Tải lên và di chuyển URL chỉ khả dụng sau khi R2 được cấu hình trong Cài đặt website.</p>
+            </x-filament::section>
         @endif
-    </x-filament::card>
 
-    <style>
-        @keyframes shimmer {
-            0% { transform: translateX(-100%); }
-            100% { transform: translateX(200%); }
-        }
-    </style>
+        <x-filament::section heading="Tiến trình gần nhất" description="Tóm tắt tác vụ R2/CDN mới nhất.">
+            @if(! $latestJob)
+                <div class="py-8 text-center text-sm text-gray-500 dark:text-gray-400">Chưa có tác vụ đồng bộ. Hãy quét media local để bắt đầu.</div>
+            @else
+                @php
+                    $total = max(0, (int) $latestJob->total_files);
+                    $processed = min($total, (int) $latestJob->synced_files + (int) $latestJob->failed_files);
+                    $progress = $total > 0 ? min(100, (int) round(($processed / $total) * 100)) : (in_array($latestJob->status, ['completed', 'completed_with_errors']) ? 100 : 0);
+                @endphp
+                <div class="flex flex-col gap-4">
+                    <div class="flex flex-wrap items-start justify-between gap-4">
+                        <div>
+                            <div class="font-semibold text-gray-950 dark:text-white">{{ $latestJob->name }}</div>
+                            <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">Cập nhật {{ $latestJob->updated_at?->diffForHumans() }} · {{ number_format($total) }} file</div>
+                        </div>
+                        <x-admin.status-badge :state="match($latestJob->status) { 'completed' => 'READY', 'completed_with_errors' => 'WARNING', 'failed', 'cancelled' => 'FAILED', default => 'PROCESSING' }" :label="$statusLabels[$latestJob->status] ?? str($latestJob->status)->headline()" />
+                    </div>
 
-    {{ $this->table }}
+                    @if($total > 0)
+                        <div>
+                            <div class="mb-2 flex justify-between text-xs text-gray-500"><span>{{ number_format($processed) }} / {{ number_format($total) }} file</span><span>{{ $progress }}%</span></div>
+                            <div class="h-2 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-700">
+                                <div class="h-full rounded-full {{ $latestJob->status === 'failed' ? 'bg-danger-500' : ($latestJob->status === 'completed_with_errors' ? 'bg-warning-500' : 'bg-primary-500') }}" style="width: {{ $progress }}%"></div>
+                            </div>
+                        </div>
+                    @endif
+
+                    @if($latestJob->error_message)
+                        <div class="rounded-lg bg-danger-50 p-3 text-sm text-danger-700 dark:bg-danger-500/10 dark:text-danger-300">{{ $latestJob->error_message }}</div>
+                    @endif
+                </div>
+            @endif
+        </x-filament::section>
+
+        <x-filament::section heading="Lịch sử tác vụ" description="Các thao tác chạy lại hoặc hủy vẫn tuân theo quyền R2 hiện hành.">
+            {{ $this->table }}
+        </x-filament::section>
+
+        <x-filament::section heading="Di chuyển URL" description="Luồng có tác động dữ liệu: chạy thử, xem kết quả, sau đó mới áp dụng." collapsible collapsed>
+            <div class="rounded-lg border border-danger-200 bg-danger-50 p-4 text-sm text-danger-700 dark:border-danger-500/30 dark:bg-danger-500/10 dark:text-danger-300">
+                Thay URL thật là thao tác nguy hiểm và không có hoàn tác tự động. Nút thao tác nằm trong menu “Di chuyển URL”, yêu cầu quyền <code>r2.sync</code>, xác nhận và có dry-run trước đó.
+            </div>
+        </x-filament::section>
+    </div>
 </x-filament-panels::page>

@@ -27,10 +27,13 @@ class AuthorResource extends Resource
     ];
 
     protected static ?string $model = Author::class;
-        public static function getNavigationGroup(): ?string { return 'Content'; }
+        public static function getNavigationGroup(): ?string { return 'Nội dung'; }
 
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleStack;
+
+    protected static ?string $navigationLabel = 'Tác giả';
+    protected static ?int $navigationSort = 3;
 
     protected static ?string $recordTitleAttribute = 'name';
 

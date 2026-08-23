@@ -32,7 +32,7 @@ class SiteCampaignResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedMegaphone;
 
-    protected static ?string $navigationLabel = 'Site Campaigns';
+    protected static ?string $navigationLabel = 'Chiến dịch website';
 
     protected static ?string $modelLabel = 'Site Campaign';
 
@@ -40,11 +40,11 @@ class SiteCampaignResource extends Resource
 
     protected static ?string $recordTitleAttribute = 'title';
 
-    protected static ?int $navigationSort = 8;
+    protected static ?int $navigationSort = 5;
 
     public static function getNavigationGroup(): ?string
     {
-        return 'Landing & Pages';
+        return 'SEO & Marketing';
     }
 
     public static function form(Schema $schema): Schema

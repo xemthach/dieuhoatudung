@@ -19,10 +19,11 @@ final class SystemHealthService
     public function snapshot(): array
     {
         $database = $this->database();
-        $queue = $this->queue();
+        $queueHealth = $this->queueHealth();
+        $queue = $this->queue($queueHealth);
         $storage = $this->storage();
-        $scheduler = $this->scheduler();
-        $worker = $this->worker($queue);
+        $scheduler = $this->scheduler($queueHealth);
+        $worker = $this->worker($queueHealth);
 
         $components = [
             'database' => $database,
@@ -64,10 +65,22 @@ final class SystemHealthService
         return ['state' => $store === '' ? 'UNKNOWN' : 'HEALTHY', 'store' => $store];
     }
 
-    private function queue(): array
+    private function queueHealth(): ?array
     {
         try {
-            $health = $this->queueMonitor->health();
+            return $this->queueMonitor->health();
+        } catch (Throwable) {
+            return null;
+        }
+    }
+
+    private function queue(?array $health): array
+    {
+        if ($health === null) {
+            return ['state' => 'UNKNOWN', 'reason' => 'queue_status_unavailable'];
+        }
+
+        try {
             $pending = $health['pending_jobs_count'];
             $failed = $health['failed_jobs_count'];
             return [
@@ -90,17 +103,17 @@ final class SystemHealthService
         return ['state' => is_dir($path) && is_writable($path) ? 'HEALTHY' : 'WARNING', 'disk' => config('filesystems.default'), 'path_writable' => is_writable($path)];
     }
 
-    private function scheduler(): array
+    private function scheduler(?array $health): array
     {
-        try {
-            $running = (bool) data_get($this->queueMonitor->health(), 'scheduler_is_running', false);
-            return ['state' => $running ? 'HEALTHY' : 'UNKNOWN', 'heartbeat_present' => $running];
-        } catch (Throwable) {
+        if ($health === null) {
             return ['state' => 'UNKNOWN', 'heartbeat_present' => false];
         }
+
+        $running = (bool) data_get($health, 'scheduler_is_running', false);
+        return ['state' => $running ? 'HEALTHY' : 'UNKNOWN', 'heartbeat_present' => $running];
     }
 
-    private function worker(array $queue): array
+    private function worker(?array $health): array
     {
         $desiredPath = storage_path('framework/cache/ai-worker-desired-state.json');
         $desired = 'DISABLED';
@@ -108,7 +121,7 @@ final class SystemHealthService
             $payload = json_decode(File::get($desiredPath), true) ?: [];
             $desired = strtoupper((string) ($payload['desired_state'] ?? 'DISABLED'));
         }
-        $actual = data_get($this->queueMonitor->health(), 'worker_heartbeat.health_status', 'OFFLINE');
+        $actual = data_get($health, 'worker_heartbeat.health_status', 'OFFLINE');
         if ($desired === 'DISABLED') {
             return ['state' => 'DISABLED', 'desired' => $desired, 'actual' => $actual];
         }

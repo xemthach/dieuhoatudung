@@ -31,7 +31,7 @@ class SiteSettingResource extends Resource
     // Ẩn khỏi navigation — dùng ManageSiteSettings Page thay thế
     protected static bool $shouldRegisterNavigation = false;
 
-    public static function getNavigationGroup(): ?string { return 'System'; }
+    public static function getNavigationGroup(): ?string { return 'Hệ thống'; }
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleStack;
 

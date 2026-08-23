@@ -29,10 +29,13 @@ class TagResource extends Resource
     ];
 
     protected static ?string $model = Tag::class;
-        public static function getNavigationGroup(): ?string { return 'Content'; }
+        public static function getNavigationGroup(): ?string { return 'Nội dung'; }
 
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleStack;
+
+    protected static ?string $navigationLabel = 'Thẻ nội dung';
+    protected static ?int $navigationSort = 4;
 
     protected static ?string $recordTitleAttribute = 'name';
 

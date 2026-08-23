@@ -33,6 +33,11 @@ class CaseStudyResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleStack;
 
+    protected static ?string $navigationLabel = 'Dự án thực tế';
+    protected static ?int $navigationSort = 6;
+
+    public static function getNavigationGroup(): ?string { return 'Nội dung'; }
+
     protected static ?string $recordTitleAttribute = 'title';
 
     public static function form(Schema $schema): Schema

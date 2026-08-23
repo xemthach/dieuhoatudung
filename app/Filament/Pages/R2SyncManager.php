@@ -6,6 +6,7 @@ use Filament\Forms\Concerns\InteractsWithForms;
 use Filament\Forms\Contracts\HasForms;
 use Filament\Notifications\Notification;
 use Filament\Actions\Action;
+use Filament\Actions\ActionGroup;
 use Filament\Pages\Page;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
@@ -17,6 +18,8 @@ class R2SyncManager extends Page implements HasForms, HasTable
 {
     use InteractsWithTable;
     protected string $view = 'filament.pages.r2-sync-manager';
+
+    protected static ?int $navigationSort = 2;
 
     public static function canAccess(): bool
     {
@@ -30,17 +33,17 @@ class R2SyncManager extends Page implements HasForms, HasTable
 
     public static function getNavigationGroup(): ?string
     {
-        return 'System';
+        return 'Hệ thống';
     }
 
     public static function getNavigationLabel(): string
     {
-        return 'R2/CDN Sync';
+        return 'Media & CDN';
     }
 
     public function getTitle(): string|\Illuminate\Contracts\Support\Htmlable
     {
-        return 'R2/CDN Sync Manager';
+        return 'Quản lý Media & CDN';
     }
 
     public function getTableQuery()
@@ -100,8 +103,9 @@ class R2SyncManager extends Page implements HasForms, HasTable
                     ->label('Run Now')
                     ->icon('heroicon-o-play')
                     ->color('success')
-                    ->visible(fn ($record) => in_array($record->status, ['pending']))
+                    ->visible(fn ($record) => in_array($record->status, ['pending']) && auth()->user()?->can('r2.sync'))
                     ->action(function ($record) {
+                        abort_unless(auth()->user()?->can('r2.sync'), 403);
                         try {
                             if ($record->mode === 'scan_only') {
                                 $record->update(['status' => 'scanning', 'started_at' => now()]);
@@ -128,8 +132,9 @@ class R2SyncManager extends Page implements HasForms, HasTable
                     ->label('Retry')
                     ->icon('heroicon-o-arrow-path')
                     ->color('warning')
-                    ->visible(fn ($record) => $record->status === 'failed')
+                    ->visible(fn ($record) => $record->status === 'failed' && auth()->user()?->can('r2.sync'))
                     ->action(function ($record) {
+                        abort_unless(auth()->user()?->can('r2.sync'), 403);
                         try {
                             $record->update(['status' => 'pending', 'error_message' => null, 'finished_at' => null]);
 
@@ -156,8 +161,9 @@ class R2SyncManager extends Page implements HasForms, HasTable
                     ->icon('heroicon-o-x-mark')
                     ->color('danger')
                     ->requiresConfirmation()
-                    ->visible(fn ($record) => in_array($record->status, ['pending', 'scanning', 'syncing', 'replacing']))
+                    ->visible(fn ($record) => in_array($record->status, ['pending', 'scanning', 'syncing', 'replacing']) && auth()->user()?->can('r2.sync'))
                     ->action(function ($record) {
+                        abort_unless(auth()->user()?->can('r2.sync'), 403);
                         $record->update(['status' => 'cancelled', 'finished_at' => now()]);
                         Notification::make()->title('Đã hủy job')->success()->send();
                     }),
@@ -173,10 +179,12 @@ class R2SyncManager extends Page implements HasForms, HasTable
     {
         return [
             Action::make('test_r2')
-                ->label('Test R2 Connection')
+                ->label('Kiểm tra kết nối')
                 ->icon('heroicon-o-signal')
-                ->color('info')
+                ->color('gray')
+                ->visible(fn (): bool => (bool) auth()->user()?->can('r2.test'))
                 ->action(function (\App\Services\Media\R2ConnectionService $svc) {
+                    abort_unless(auth()->user()?->can('r2.test'), 403);
                     $res = $svc->testConnection();
                     if ($res['success']) {
                         Notification::make()->title($res['message'])->success()->send();
@@ -187,9 +195,12 @@ class R2SyncManager extends Page implements HasForms, HasTable
 
             // ── Scan Local Media ──
             Action::make('scan_local')
-                ->label('Scan Local Media')
+                ->label('Quét media local')
                 ->icon('heroicon-o-magnifying-glass')
+                ->color('gray')
+                ->visible(fn (): bool => (bool) auth()->user()?->can('r2.scan'))
                 ->action(function (\App\Services\Media\R2SyncService $svc) {
+                    abort_unless(auth()->user()?->can('r2.scan'), 403);
                     $job = \App\Models\R2SyncJob::create([
                         'name' => 'Scan Local Storage',
                         'mode' => 'scan_only',
@@ -216,15 +227,17 @@ class R2SyncManager extends Page implements HasForms, HasTable
 
             // ── Sync Upload to R2 ──
             Action::make('sync_upload')
-                ->label('Sync Upload to R2')
+                ->label('Tải media thiếu lên R2')
                 ->icon('heroicon-o-arrow-up-tray')
                 ->color('primary')
+                ->visible(fn (): bool => (bool) auth()->user()?->can('r2.sync'))
                 ->requiresConfirmation()
                 ->modalHeading('Xác nhận Upload lên R2')
                 ->modalDescription(fn () => setting('r2_storage.r2_enabled', false)
                     ? 'Hệ thống sẽ upload toàn bộ file local lên Cloudflare R2. Tiếp tục?'
                     : '⚠️ R2 đang TẮT! Vui lòng bật R2 và cấu hình credentials trước.')
                 ->action(function (\App\Services\Media\R2SyncService $svc) {
+                    abort_unless(auth()->user()?->can('r2.sync'), 403);
                     // Guard: R2 must be enabled
                     if (!setting('r2_storage.r2_enabled', false)) {
                         Notification::make()
@@ -276,14 +289,17 @@ class R2SyncManager extends Page implements HasForms, HasTable
                 }),
 
             // ── Dry Run Replace URLs ──
+            ActionGroup::make([
             Action::make('dry_run_replace')
-                ->label('Dry Run Replace URLs')
+                ->label('Chạy thử thay URL')
                 ->icon('heroicon-o-document-text')
                 ->color('warning')
+                ->visible(fn (): bool => (bool) auth()->user()?->can('r2.sync'))
                 ->requiresConfirmation()
                 ->modalHeading('Dry Run — Kiểm tra thay thế URL')
                 ->modalDescription('Chạy thử thay thế URL trong DB (không ghi). Chỉ file đã sync R2 mới được thay.')
                 ->action(function (\App\Services\Settings\SettingService $settingService) {
+                    abort_unless(auth()->user()?->can('r2.sync'), 403);
                     // Guard: R2 must be enabled
                     if (!setting('r2_storage.r2_enabled', false)) {
                         Notification::make()
@@ -335,13 +351,15 @@ class R2SyncManager extends Page implements HasForms, HasTable
 
             // ── Real Replace URLs ──
             Action::make('run_replace')
-                ->label('Replace URLs (Real)')
+                ->label('Áp dụng thay URL thật')
                 ->icon('heroicon-o-check-circle')
                 ->color('danger')
+                ->visible(fn (): bool => (bool) auth()->user()?->can('r2.sync'))
                 ->requiresConfirmation()
                 ->modalHeading('⚠️ Thay thế URL thật — Không thể undo')
                 ->modalDescription('Hệ thống sẽ thay thế URL trong DB. Chỉ file đã xác nhận sync R2 mới được thay. Đảm bảo đã chạy Dry Run trước.')
                 ->action(function (\App\Services\Settings\SettingService $settingService) {
+                    abort_unless(auth()->user()?->can('r2.sync'), 403);
                     // Guard: R2 must be enabled
                     if (!setting('r2_storage.r2_enabled', false)) {
                         Notification::make()
@@ -396,6 +414,10 @@ class R2SyncManager extends Page implements HasForms, HasTable
                         Notification::make()->title('Thay thế URL thất bại')->body($e->getMessage())->danger()->send();
                     }
                 }),
+            ])
+                ->label('Di chuyển URL')
+                ->icon('heroicon-o-arrows-right-left')
+                ->color('warning'),
         ];
     }
 }

@@ -36,11 +36,11 @@ class MailLogResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedPaperAirplane;
 
-    protected static \UnitEnum|string|null $navigationGroup = 'System';
+    protected static \UnitEnum|string|null $navigationGroup = 'Hệ thống';
 
-    protected static ?string $navigationLabel = 'Mail Logs';
+    protected static ?string $navigationLabel = 'Nhật ký email';
 
-    protected static ?int $navigationSort = 53;
+    protected static ?int $navigationSort = 4;
 
     protected static ?string $recordTitleAttribute = 'subject';
 

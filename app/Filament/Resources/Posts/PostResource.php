@@ -30,10 +30,13 @@ class PostResource extends Resource
     ];
 
     protected static ?string $model = Post::class;
-        public static function getNavigationGroup(): ?string { return 'Content'; }
+        public static function getNavigationGroup(): ?string { return 'Nội dung'; }
 
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleStack;
+
+    protected static ?string $navigationLabel = 'Bài viết';
+    protected static ?int $navigationSort = 1;
 
     protected static ?string $recordTitleAttribute = 'title';
 

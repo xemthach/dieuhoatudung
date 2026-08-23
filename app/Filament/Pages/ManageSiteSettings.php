@@ -27,8 +27,9 @@ class ManageSiteSettings extends Page
     }
 
     public static function getNavigationIcon(): ?string { return 'heroicon-o-cog-6-tooth'; }
-    public static function getNavigationLabel(): string { return 'Site Settings'; }
-    public static function getNavigationGroup(): ?string { return 'System'; }
+    public static function getNavigationLabel(): string { return 'Cài đặt website'; }
+    public static function getNavigationGroup(): ?string { return 'Hệ thống'; }
+    protected static ?int $navigationSort = 7;
     protected static ?string $slug = 'manage-settings';
     protected string $view = 'filament.pages.manage-site-settings';
 

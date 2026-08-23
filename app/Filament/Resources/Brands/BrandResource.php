@@ -29,10 +29,13 @@ class BrandResource extends Resource
     ];
 
     protected static ?string $model = Brand::class;
-        public static function getNavigationGroup(): ?string { return 'E-commerce'; }
+        public static function getNavigationGroup(): ?string { return 'Sản phẩm'; }
 
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleStack;
+
+    protected static ?string $navigationLabel = 'Thương hiệu';
+    protected static ?int $navigationSort = 3;
 
     protected static ?string $recordTitleAttribute = 'name';
 

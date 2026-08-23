@@ -32,8 +32,9 @@ class BtuCalculationResource extends Resource
     protected static ?string $model = BtuCalculation::class;
 
     public static function getNavigationIcon(): ?string { return 'heroicon-o-calculator'; }
-    public static function getNavigationLabel(): string { return 'BTU Calculator'; }
-    public static function getNavigationGroup(): ?string { return 'Leads & Contacts'; }
+    public static function getNavigationLabel(): string { return 'Tư vấn công suất BTU'; }
+    public static function getNavigationGroup(): ?string { return 'Bán hàng'; }
+    protected static ?int $navigationSort = 5;
     public static function getModelLabel(): string { return 'Lịch sử tính BTU'; }
     public static function getPluralModelLabel(): string { return 'Lịch sử tính BTU'; }
 

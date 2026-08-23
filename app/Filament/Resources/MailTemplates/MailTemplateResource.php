@@ -45,9 +45,9 @@ class MailTemplateResource extends Resource
 
     protected static ?string $navigationLabel = 'Mẫu Email';
 
-    protected static string|\UnitEnum|null $navigationGroup = 'System';
+    protected static string|\UnitEnum|null $navigationGroup = 'Hệ thống';
 
-    protected static ?int $navigationSort = 52;
+    protected static ?int $navigationSort = 3;
 
     protected static ?string $recordTitleAttribute = 'name';
 

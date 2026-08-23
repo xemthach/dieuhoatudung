@@ -22,17 +22,17 @@ class HomeBenefitItemResource extends Resource
 
     protected static ?string $recordTitleAttribute = 'title';
 
-    protected static ?string $navigationLabel = 'Home Benefits';
+    protected static ?string $navigationLabel = 'Lợi ích trang chủ';
 
     protected static ?string $modelLabel = 'Benefit Item';
 
     protected static ?string $pluralModelLabel = 'Benefit Items';
 
-    protected static ?int $navigationSort = 2;
+    protected static ?int $navigationSort = 11;
 
     public static function getNavigationGroup(): ?string
     {
-        return 'Landing & Pages';
+        return 'Nội dung';
     }
 
     public static function form(Schema $schema): Schema

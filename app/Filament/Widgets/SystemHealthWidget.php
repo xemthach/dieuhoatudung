@@ -9,7 +9,7 @@ class SystemHealthWidget extends Widget
 {
     protected string $view = 'filament.widgets.system-health';
     protected int|string|array $columnSpan = 'full';
-    protected static ?int $sort = -2;
+    protected static ?int $sort = 10;
 
     public static function canView(): bool
     {

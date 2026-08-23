@@ -24,17 +24,17 @@ class HeroSlideResource extends Resource
 
     protected static ?string $recordTitleAttribute = 'title';
 
-    protected static ?string $navigationLabel = 'Hero Slider';
+    protected static ?string $navigationLabel = 'Banner trang chủ';
 
     protected static ?string $modelLabel = 'Hero Slide';
 
     protected static ?string $pluralModelLabel = 'Hero Slides';
 
-    protected static ?int $navigationSort = 1;
+    protected static ?int $navigationSort = 10;
 
     public static function getNavigationGroup(): ?string
     {
-        return 'Landing & Pages';
+        return 'Nội dung';
     }
 
     public static function form(Schema $schema): Schema

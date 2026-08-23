@@ -32,6 +32,11 @@ class TestimonialResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleStack;
 
+    protected static ?string $navigationLabel = 'Cảm nhận khách hàng';
+    protected static ?int $navigationSort = 7;
+
+    public static function getNavigationGroup(): ?string { return 'Nội dung'; }
+
     protected static ?string $recordTitleAttribute = 'customer_name';
 
     public static function form(Schema $schema): Schema

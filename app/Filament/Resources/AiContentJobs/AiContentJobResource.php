@@ -27,10 +27,13 @@ class AiContentJobResource extends Resource
     ];
 
     protected static ?string $model = AiContentJob::class;
-        public static function getNavigationGroup(): ?string { return 'SEO & AI'; }
+        public static function getNavigationGroup(): ?string { return 'AI Content'; }
 
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleStack;
+
+    protected static ?string $navigationLabel = 'Công việc AI bài viết';
+    protected static ?int $navigationSort = 2;
 
     protected static ?string $recordTitleAttribute = 'topic';
 

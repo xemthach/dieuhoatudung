@@ -12,9 +12,9 @@ class MarketingIntegrations extends Page
 {
     protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-globe-alt';
 
-    protected static string|\UnitEnum|null $navigationGroup = 'SEO';
+    protected static string|\UnitEnum|null $navigationGroup = 'SEO & Marketing';
 
-    protected static ?int $navigationSort = 12;
+    protected static ?int $navigationSort = 2;
 
     protected string $view = 'filament.pages.marketing-integrations';
 
@@ -24,12 +24,12 @@ class MarketingIntegrations extends Page
 
     public static function getNavigationLabel(): string
     {
-        return 'Marketing Integrations';
+        return 'Tích hợp Marketing';
     }
 
     public function getTitle(): string
     {
-        return 'Marketing Integrations';
+        return 'Tích hợp Marketing';
     }
 
     public static function canAccess(): bool
@@ -71,18 +71,23 @@ class MarketingIntegrations extends Page
     {
         return [
             Action::make('refresh')
-                ->label('Refresh readiness')
+                ->label('Làm mới trạng thái')
                 ->icon('heroicon-o-arrow-path')
+                ->color('gray')
                 ->action('refreshHealth'),
             Action::make('merchant_feed')
-                ->label('Open Merchant feed')
+                ->label('Mở Merchant feed')
                 ->icon('heroicon-o-arrow-top-right-on-square')
+                ->color('info')
                 ->url(route('merchant.feed'))
                 ->openUrlInNewTab(),
             Action::make('upload_offline_conversions')
-                ->label('Upload offline conversions')
+                ->label('Gửi chuyển đổi offline')
                 ->icon('heroicon-o-cloud-arrow-up')
+                ->color('warning')
                 ->requiresConfirmation()
+                ->modalHeading('Gửi chuyển đổi offline lên Google Ads?')
+                ->modalDescription('Chỉ các chuyển đổi đang chờ và đủ điều kiện mới được xử lý. Kết quả sẽ được ghi nhận theo từng bản ghi.')
                 ->action('uploadOfflineConversions'),
         ];
     }

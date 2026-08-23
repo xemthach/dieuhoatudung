@@ -10,6 +10,7 @@ use App\Models\AiProductJob;
 use App\Models\AiBulkRuntimeBatch;
 use App\Services\AI\BulkRuntimeObservabilityService;
 use App\Services\AI\BulkRuntimeAuthorizationService;
+use App\Services\AI\AIRuntimePolicyService;
 use BackedEnum;
 use Filament\Actions\EditAction;
 use Filament\Actions\Action;
@@ -40,13 +41,13 @@ class AiProductJobResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedCpuChip;
 
-    protected static ?string $navigationLabel = 'AI Product Jobs';
+    protected static ?string $navigationLabel = 'Công việc nội dung AI';
 
-    protected static ?int $navigationSort = 25;
+    protected static ?int $navigationSort = 1;
 
     public static function getNavigationGroup(): ?string
     {
-        return 'E-commerce';
+        return 'AI Content';
     }
 
     public static function getEloquentQuery(): Builder
@@ -109,31 +110,67 @@ class AiProductJobResource extends Resource
     {
         return $table
             ->poll('10s')
+            ->header(function () {
+                $counts = (clone static::getEloquentQuery())
+                    ->selectRaw("SUM(CASE WHEN status = 'queued' THEN 1 ELSE 0 END) AS queued")
+                    ->selectRaw("SUM(CASE WHEN status = 'processing' THEN 1 ELSE 0 END) AS processing")
+                    ->selectRaw("SUM(CASE WHEN status = 'needs_review' THEN 1 ELSE 0 END) AS review")
+                    ->selectRaw("SUM(CASE WHEN status IN ('completed', 'completed_with_errors') THEN 1 ELSE 0 END) AS completed")
+                    ->selectRaw("SUM(CASE WHEN status IN ('failed', 'blocked', 'cancelled') THEN 1 ELSE 0 END) AS failed")
+                    ->toBase()
+                    ->first();
+
+                return view('filament.ai-product-jobs.table-header', [
+                    'summary' => (array) $counts,
+                    'policy' => app(AIRuntimePolicyService::class)->snapshot(),
+                ]);
+            })
             ->headerActions([
                 Action::make('refresh_runtime')
-                    ->label('Refresh runtime')
+                    ->label('Làm mới')
                     ->icon(Heroicon::ArrowPath)
                     ->action(fn ($livewire) => $livewire->dispatch('$refresh')),
             ])
             ->columns([
-                TextColumn::make('id')->sortable(),
-                TextColumn::make('type')->badge()->searchable(),
-                TextColumn::make('scope')->badge(),
-                TextColumn::make('status')->badge()->sortable(),
-                TextColumn::make('failed_reason')->badge()->color('danger')->placeholder('-')->toggleable(),
+                TextColumn::make('id')->label('ID')->sortable(),
+                TextColumn::make('type')->label('Thao tác')->badge()->searchable()->limit(36)->tooltip(fn ($state) => $state),
+                TextColumn::make('scope')->label('Phạm vi')->badge(),
+                TextColumn::make('status')
+                    ->label('Trạng thái')
+                    ->badge()
+                    ->formatStateUsing(fn (string $state): string => match ($state) {
+                        'queued' => 'Đang chờ',
+                        'processing' => 'Đang xử lý',
+                        'needs_review' => 'Cần duyệt',
+                        'completed' => 'Hoàn thành',
+                        'completed_with_errors' => 'Hoàn thành có lỗi',
+                        'failed' => 'Thất bại',
+                        'blocked' => 'Bị chặn',
+                        'cancelled' => 'Đã hủy',
+                        default => str($state)->replace('_', ' ')->title()->toString(),
+                    })
+                    ->color(fn (string $state): string => match ($state) {
+                        'completed' => 'success',
+                        'queued' => 'gray',
+                        'processing', 'needs_review', 'completed_with_errors' => 'warning',
+                        'failed', 'blocked', 'cancelled' => 'danger',
+                        default => 'gray',
+                    })
+                    ->sortable(),
+                TextColumn::make('failed_reason')->label('Lý do lỗi')->badge()->color('danger')->placeholder('-')->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('queue_name')->label('Queue')->placeholder('-')->toggleable(isToggledHiddenByDefault: true),
-                TextColumn::make('attempts')->numeric()->sortable()->toggleable(),
-                TextColumn::make('total')->numeric()->sortable(),
-                TextColumn::make('processed')->numeric()->sortable(),
-                TextColumn::make('success')->numeric()->sortable()->color('success'),
-                TextColumn::make('failed')->numeric()->sortable()->color('danger'),
-                TextColumn::make('needs_review')->numeric()->sortable()->color('warning'),
-                TextColumn::make('runtime_status')->label('Runtime')->state(fn (AiProductJob $record) => $record->runtimeBatch?->status ?: '-')->badge(),
-                TextColumn::make('runtime_running')->label('Running')->state(fn (AiProductJob $record) => $record->runtimeBatch ? app(BulkRuntimeObservabilityService::class)->snapshot($record->runtimeBatch)['running'] : 0)->numeric(),
-                TextColumn::make('runtime_tokens')->label('Tokens')->state(fn (AiProductJob $record) => $record->runtimeBatch ? app(BulkRuntimeObservabilityService::class)->snapshot($record->runtimeBatch)['tokens_consumed'] : 0)->numeric(),
-                TextColumn::make('runtime_worker')->label('Worker')->state(fn (AiProductJob $record) => $record->runtimeBatch ? app(BulkRuntimeObservabilityService::class)->snapshot($record->runtimeBatch)['worker_health'] : '-')->badge(),
-                TextColumn::make('created_at')->dateTime('d/m/Y H:i')->sortable(),
-                TextColumn::make('finished_at')->dateTime('d/m/Y H:i')->sortable()->placeholder('-'),
+                TextColumn::make('attempts')->label('Lần thử')->numeric()->sortable(),
+                TextColumn::make('progress')
+                    ->label('Tiến độ')
+                    ->state(fn (AiProductJob $record): string => number_format((int) $record->processed).' / '.number_format((int) $record->total))
+                    ->description(fn (AiProductJob $record): string => "Thành công {$record->success} · Lỗi {$record->failed} · Cần duyệt {$record->needs_review}"),
+                TextColumn::make('runtime_status')->label('Runtime')->state(fn (AiProductJob $record) => $record->runtimeBatch?->status ?: '-')->badge()->toggleable(isToggledHiddenByDefault: true),
+                TextColumn::make('runtime_running')->label('Đang chạy')->state(fn (AiProductJob $record) => $record->runtimeBatch ? app(BulkRuntimeObservabilityService::class)->snapshot($record->runtimeBatch)['running'] : 0)->numeric()->toggleable(isToggledHiddenByDefault: true),
+                TextColumn::make('runtime_tokens')->label('Tokens')->state(fn (AiProductJob $record) => $record->runtimeBatch ? app(BulkRuntimeObservabilityService::class)->snapshot($record->runtimeBatch)['tokens_consumed'] : 0)->numeric()->toggleable(isToggledHiddenByDefault: true),
+                TextColumn::make('runtime_worker')->label('Worker')->state(fn (AiProductJob $record) => $record->runtimeBatch ? app(BulkRuntimeObservabilityService::class)->snapshot($record->runtimeBatch)['worker_health'] : '-')->badge()->toggleable(isToggledHiddenByDefault: true),
+                TextColumn::make('updated_at')->label('Cập nhật')->since()->dateTimeTooltip()->sortable(),
+                TextColumn::make('created_at')->label('Tạo lúc')->dateTime('d/m/Y H:i')->sortable()->toggleable(isToggledHiddenByDefault: true),
+                TextColumn::make('finished_at')->label('Hoàn tất')->dateTime('d/m/Y H:i')->sortable()->placeholder('-')->toggleable(isToggledHiddenByDefault: true),
             ])
             ->defaultSort('id', 'desc')
             ->filters([
@@ -149,7 +186,7 @@ class AiProductJobResource extends Resource
                     ]),
             ])
             ->recordActions([
-                EditAction::make()->label('Report'),
+                EditAction::make()->label('Xem báo cáo'),
             ]);
     }
 

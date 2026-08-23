@@ -7,6 +7,8 @@ use Filament\Widgets\Widget;
 
 class AIRuntimePolicyWidget extends Widget
 {
+    protected static bool $isDiscovered = false;
+
     protected string $view = 'filament.widgets.ai-runtime-policy';
 
     protected int|string|array $columnSpan = 'full';

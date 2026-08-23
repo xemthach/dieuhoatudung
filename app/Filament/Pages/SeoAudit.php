@@ -21,7 +21,7 @@ class SeoAudit extends Page
 
     protected static ?string $title = 'SEO Audit';
 
-    protected static ?string $navigationLabel = 'SEO Audit';
+    protected static ?string $navigationLabel = 'Tổng quan SEO';
 
     public function getMaxContentWidth(): Width|string|null
     {
@@ -37,10 +37,10 @@ class SeoAudit extends Page
 
     public static function getNavigationGroup(): ?string
     {
-        return 'SEO';
+        return 'SEO & Marketing';
     }
 
-    protected static ?int $navigationSort = 10;
+    protected static ?int $navigationSort = 1;
 
     // ─── State ───────────────────────────────────────────
     public string $filterEntity = 'all';

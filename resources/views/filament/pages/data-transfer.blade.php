@@ -1,48 +1,4 @@
 <x-filament-panels::page>
-    <style>
-        .dt-grid-4 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.75rem; }
-        @media (min-width: 640px)  { .dt-grid-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
-
-        .dt-card { border-radius: 0.75rem; background: white; box-shadow: 0 1px 2px 0 rgba(0,0,0,.05); border: 1px solid rgba(0,0,0,.05); overflow: hidden; }
-        .dark .dt-card { background: rgb(17 24 39); border-color: rgba(255,255,255,.1); }
-        .dt-card-head { padding: 0.875rem 1.5rem; border-bottom: 1px solid rgba(0,0,0,.05); display: flex; align-items: center; justify-content: space-between; }
-        .dark .dt-card-head { border-color: rgba(255,255,255,.08); }
-
-        .dt-stat { position: relative; overflow: hidden; padding: 1rem 1.25rem; }
-        .dt-stat::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; }
-        .dt-stat.ac-export::before  { background: linear-gradient(90deg, #22c55e, #16a34a); }
-        .dt-stat.ac-import::before  { background: linear-gradient(90deg, #3b82f6, #2563eb); }
-        .dt-stat.ac-success::before { background: linear-gradient(90deg, #10b981, #059669); }
-        .dt-stat.ac-danger::before  { background: linear-gradient(90deg, #ef4444, #dc2626); }
-
-        .dt-tw { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-        .dt-tw::-webkit-scrollbar { height: 6px; }
-        .dt-tw::-webkit-scrollbar-thumb { background: rgba(0,0,0,.1); border-radius: 3px; }
-        .dt-tbl { width: 100%; border-collapse: collapse; font-size: 0.8125rem; }
-        .dt-tbl th { position: sticky; top: 0; z-index: 10; white-space: nowrap; padding: 0.5rem 0.875rem; font-weight: 600; font-size: 0.6875rem; text-transform: uppercase; letter-spacing: 0.05em; background: #f9fafb; color: #6b7280; border-bottom: 2px solid #e5e7eb; text-align: left; }
-        .dark .dt-tbl th { background: rgba(255,255,255,.03); color: #9ca3af; border-color: rgba(255,255,255,.1); }
-        .dt-tbl td { padding: 0.5rem 0.875rem; white-space: nowrap; color: #374151; vertical-align: middle; }
-        .dark .dt-tbl td { color: #d1d5db; }
-        .dt-tbl tbody tr { transition: background-color 0.1s; border-bottom: 1px solid rgba(0,0,0,.03); }
-        .dark .dt-tbl tbody tr { border-color: rgba(255,255,255,.04); }
-        .dt-tbl tbody tr:nth-child(even) { background: rgba(0,0,0,.012); }
-        .dark .dt-tbl tbody tr:nth-child(even) { background: rgba(255,255,255,.015); }
-        .dt-tbl tbody tr:hover { background: rgba(59,130,246,.04); }
-        .dark .dt-tbl tbody tr:hover { background: rgba(59,130,246,.06); }
-        .dt-tbl .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.6875rem; }
-        .dt-tbl .fname { max-width: 200px; overflow: hidden; text-overflow: ellipsis; }
-        .dt-tbl .num-ok { color: #059669; font-weight: 600; } .dark .dt-tbl .num-ok { color: #34d399; }
-        .dt-tbl .num-err { color: #dc2626; font-weight: 600; } .dark .dt-tbl .num-err { color: #f87171; }
-        .dt-tbl .num-err.zero { color: #d1d5db; font-weight: 400; } .dark .dt-tbl .num-err.zero { color: #4b5563; }
-
-        .dt-act { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 0.375rem; transition: all 0.15s; color: #6b7280; }
-        .dt-act:hover { background: rgba(59,130,246,.1); color: #3b82f6; }
-        .dark .dt-act:hover { background: rgba(59,130,246,.15); color: #60a5fa; }
-
-        .dt-module-grid { display: grid; grid-template-columns: 1fr; gap: 1.25rem; }
-        @media (min-width: 1024px) { .dt-module-grid { grid-template-columns: repeat(2, 1fr); } }
-    </style>
-
     <div style="display:flex; flex-direction:column; gap:1.5rem;">
 
         {{-- ═══ 1. Summary Stats ═══════════════════════════════════ --}}

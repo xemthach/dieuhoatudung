@@ -44,6 +44,13 @@ v1.25.0 consolidates the completed Phase 2–9 roadmap: AI Product Content, Prod
 
 Populated-data query baselines were rechecked: listing about 20 cold/15 warm, search about 15, Merchant about 24, and Product detail about 44 cold/42 warm queries. Queue reconciliation preserves history, removes stale executable delivery safely, and leaves the AI worker disabled.
 
+## Admin UX and information architecture
+
+- Consolidated the Filament sidebar into seven operator-oriented groups: Bán hàng, Sản phẩm, Nội dung, SEO & Marketing, AI Content, Hệ thống, and Vận hành.
+- Reworked Dashboard, Import/Export, Media & CDN, AI Queue Health, AI Content Jobs, and Marketing Integrations into compact summary-first screens with secondary technical detail.
+- Preserved server-side RBAC and confirmation gates for recovery, synchronization, URL replacement, import/export, and integration actions.
+- Reduced measured Dashboard widget queries from 85 to 21 and System Health queries from 65 to 25 by reusing request-level snapshots.
+
 ## Database integrity
 
 - Products: `81`
@@ -65,7 +72,7 @@ The SQL backup is Git-ignored and must not be uploaded.
 
 | Check | Result |
 |---|---|
-| Full test suite on guarded populated MySQL clone | PASS — 320 tests, 1,008 assertions, 0 failures, 1 existing skipped |
+| Full test suite with isolated SQLite test lifecycle | PASS — 326 tests, 1,052 assertions, 0 failures/errors, 1 existing skipped |
 | Composer validate/audit | PASS |
 | npm audit | PASS — 0 vulnerabilities |
 | Vite production build | PASS |
@@ -75,6 +82,8 @@ The SQL backup is Git-ignored and must not be uploaded.
 | Browser certification | Not available; no Playwright/Dusk harness |
 
 The initial 2-failure/13-error result was traced to PHPUnit not overriding the local `.env` database configuration. A controlled test clone was used for the final proof; the production-like database was never used by the final test run.
+
+The subsequent Admin UX release-candidate validation initially found two same-root Filament errors because navigation groups and their child items both declared icons. The configuration was corrected at the group level, the affected tests passed in isolation, and the complete suite then passed without skipping or deleting tests.
 
 ## Deployment
 
@@ -96,4 +105,4 @@ Historical missing media, 26 mojibake records, technical category-schema mismatc
 
 ## Release decision
 
-`v1.25.0` is release-ready. The existing annotated tag must not be recreated or overwritten.
+The code and release validation are green for `v1.25.0`. Publication is not complete: the existing annotated `v1.25.0` tag points to an earlier commit whose canonical `VERSION` file contains `1.24.0`. The tag must not be moved or overwritten; release publication requires an explicit version/tag decision.

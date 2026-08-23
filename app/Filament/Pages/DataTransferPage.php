@@ -28,8 +28,9 @@ class DataTransferPage extends Page
     protected string $view = 'filament.pages.data-transfer';
 
     public static function getNavigationIcon(): ?string { return 'heroicon-o-arrows-right-left'; }
-    public static function getNavigationLabel(): string { return 'Import / Export'; }
-    public static function getNavigationGroup(): ?string { return 'System'; }
+    public static function getNavigationLabel(): string { return 'Nhập / Xuất dữ liệu'; }
+    public static function getNavigationGroup(): ?string { return 'Hệ thống'; }
+    protected static ?int $navigationSort = 1;
     public static function getModelLabel(): string { return 'Import / Export Dữ liệu'; }
 
     public static function canAccess(): bool
@@ -55,7 +56,7 @@ class DataTransferPage extends Page
 
     public function getTitle(): string
     {
-        return 'Import / Export Dữ liệu';
+        return 'Nhập / Xuất dữ liệu';
     }
 
     // ─── Header Actions ──────────────────────────────────────────────

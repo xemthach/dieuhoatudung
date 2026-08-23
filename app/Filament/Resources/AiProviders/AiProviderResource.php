@@ -32,9 +32,10 @@ class AiProviderResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedCpuChip;
 
-    protected static string|\UnitEnum|null $navigationGroup = 'SEO & AI';
+    protected static string|\UnitEnum|null $navigationGroup = 'AI Content';
 
-    protected static ?string $navigationLabel = 'AI Providers';
+    protected static ?string $navigationLabel = 'Nhà cung cấp AI';
+    protected static ?int $navigationSort = 3;
 
     protected static ?string $modelLabel = 'AI Provider';
 

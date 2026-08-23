@@ -46,11 +46,11 @@ class RedirectResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedArrowsRightLeft;
 
-    protected static ?string $navigationLabel = 'Redirect 301/302';
+    protected static ?string $navigationLabel = 'Chuyển hướng 301/302';
 
-    public static function getNavigationGroup(): ?string { return 'SEO'; }
+    public static function getNavigationGroup(): ?string { return 'SEO & Marketing'; }
 
-    protected static ?int $navigationSort = 90;
+    protected static ?int $navigationSort = 4;
 
     protected static ?string $recordTitleAttribute = 'source_url';
 

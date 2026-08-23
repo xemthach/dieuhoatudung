@@ -298,11 +298,17 @@ class DashboardStatsService
     }
 
     // ─── ALERTS ────────────────────────────────────────────
-    public function getAlerts(): \Illuminate\Support\Collection
+    public function getAlerts(
+        ?array $products = null,
+        ?array $posts = null,
+        ?array $r2 = null,
+        ?array $mail = null,
+        ?array $ai = null,
+    ): \Illuminate\Support\Collection
     {
         $alerts   = collect();
-        $products = $this->getProductStats();
-        $posts    = $this->getPostStats();
+        $products ??= $this->getProductStats();
+        $posts ??= $this->getPostStats();
 
         // Products missing SEO
         if ($products['missing_seo'] > 0) {
@@ -335,7 +341,7 @@ class DashboardStatsService
         }
 
         // R2 failed jobs
-        $r2 = $this->getR2Status();
+        $r2 ??= $this->getR2Status();
         if ($r2['failed_jobs'] > 0) {
             $alerts->push([
                 'title'       => 'Đồng bộ R2 thất bại',
@@ -346,7 +352,7 @@ class DashboardStatsService
         }
 
         // Mail misconfigured or disabled
-        $mail = $this->getMailStatus();
+        $mail ??= $this->getMailStatus();
         if ($mail['status'] === 'misconfigured') {
             $alerts->push([
                 'title'       => 'Mail thiếu cấu hình',
@@ -365,7 +371,7 @@ class DashboardStatsService
         // NOTE: If mail is 'active' or 'disabled' → no alert needed
 
         // AI status
-        $ai = $this->getAIStatus();
+        $ai ??= $this->getAIStatus();
         if ($ai['failed_jobs'] > 0) {
             $alerts->push([
                 'title'       => 'AI Job thất bại',
