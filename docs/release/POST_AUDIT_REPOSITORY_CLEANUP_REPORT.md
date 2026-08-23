@@ -34,3 +34,11 @@ The first unscoped test invocation was stopped after it was found to be using th
 The controlled `.env.testing` run was not the release proof because its empty fixture profile returned 2 failures and 13 errors. The final proof used a guarded populated MySQL clone with `APP_ENV=testing` and passed 320 tests / 1,008 assertions / 0 failures / 1 existing skipped test. The configured production database was verified separately after the run. The initial unsafe invocation and recovery remain historical evidence; no backup was staged or pushed.
 
 The release commit already exists as `23459f6af58b25902e20857326607ed5cd021261` (`chore(release): prepare v1.25.0`). The annotated `v1.25.0` tag exists locally and remotely; this cleanup follow-up does not recreate or overwrite it. Branch push and GitHub Release publication are handled only after the final staged review.
+
+## Final publication result
+
+- Validation follow-up commit: `595faf6` (`docs(release): finalize v1.25.0 validation`).
+- `main` pushed to `origin` successfully.
+- Remote `v1.25.0` tag verified and points to release commit `23459f6`.
+- GitHub CLI is not installed, so GitHub Release creation is `MANUAL_FOLLOWUP`. Create it from the existing `v1.25.0` tag using `docs/release/RELEASE_1.25.0.md`.
+- Working tree is expected to remain clean; local SQL backups remain ignored and outside Git.
