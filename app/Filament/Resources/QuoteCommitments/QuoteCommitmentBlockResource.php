@@ -28,11 +28,11 @@ class QuoteCommitmentBlockResource extends Resource
 
     protected static ?string $pluralModelLabel = 'Commitment Blocks';
 
-    protected static ?int $navigationSort = 12;
+    protected static ?int $navigationSort = 4;
 
     public static function getNavigationGroup(): ?string
     {
-        return 'Nội dung';
+        return 'Bán hàng';
     }
 
     public static function form(Schema $schema): Schema

@@ -33,7 +33,7 @@ class PostResource extends Resource
         public static function getNavigationGroup(): ?string { return 'Nội dung'; }
 
 
-    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleStack;
+    protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-document-text';
 
     protected static ?string $navigationLabel = 'Bài viết';
     protected static ?int $navigationSort = 1;

@@ -40,7 +40,7 @@ class ProductReviewResource extends Resource
 
     protected static ?string $pluralModelLabel = 'Đánh giá';
 
-    protected static ?int $navigationSort = 10;
+    protected static ?int $navigationSort = 5;
 
     public static function getNavigationGroup(): ?string { return 'Bán hàng'; }
 

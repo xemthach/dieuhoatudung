@@ -2,6 +2,28 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.27.0] - 2026-08-23
+
+### Added
+- Added a code-proven admin navigation inventory, domain mapping, relationship graph, and overlap analysis.
+- Added permission-aware **Cấu hình bài viết** actions for post categories, authors, and tags without changing their routes or authorization.
+- Added focused regression coverage for primary navigation, supporting-resource deep links, and limited-role denial.
+
+### Changed
+- Reorganized Filament navigation around operator domains instead of one menu item per database-backed resource.
+- Reduced the open **Nội dung** group from 12 registered peers to four primary content workflows.
+- Added **Trang & Giao diện** for landing-page composition, homepage banners, homepage benefits, and policy pages.
+- Moved quote commitments to **Bán hàng** and renamed **AI Content** to **Nội dung AI**.
+- Differentiated content icons and normalized navigation ordering while preserving all resource URLs.
+
+### Security and safety
+- Preserved server-side RBAC; hiding supporting resources from global navigation does not bypass resource authorization.
+- No Product/catalog data was changed, the AI worker remained disabled, and no provider call was made.
+
+### Release note
+- Validation passed with 327 tests, 1,075 assertions, zero failures/errors, and one existing skipped test.
+- Database counts and the canonical BTU hash remained unchanged.
+
 ## [1.26.0] - 2026-08-23
 
 ### Added

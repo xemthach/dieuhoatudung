@@ -28,11 +28,11 @@ class HomeBenefitItemResource extends Resource
 
     protected static ?string $pluralModelLabel = 'Benefit Items';
 
-    protected static ?int $navigationSort = 11;
+    protected static ?int $navigationSort = 3;
 
     public static function getNavigationGroup(): ?string
     {
-        return 'Nội dung';
+        return 'Trang & Giao diện';
     }
 
     public static function form(Schema $schema): Schema

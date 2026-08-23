@@ -30,11 +30,11 @@ class HeroSlideResource extends Resource
 
     protected static ?string $pluralModelLabel = 'Hero Slides';
 
-    protected static ?int $navigationSort = 10;
+    protected static ?int $navigationSort = 2;
 
     public static function getNavigationGroup(): ?string
     {
-        return 'Nội dung';
+        return 'Trang & Giao diện';
     }
 
     public static function form(Schema $schema): Schema

@@ -47,7 +47,7 @@ class AiProductJobResource extends Resource
 
     public static function getNavigationGroup(): ?string
     {
-        return 'AI Content';
+        return 'Nội dung AI';
     }
 
     public static function getEloquentQuery(): Builder

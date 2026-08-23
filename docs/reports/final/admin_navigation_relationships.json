@@ -1,0 +1,65 @@
+{
+  "evidence_basis": "Application code, Eloquent relationships, routes and Blade consumers audited on 2026-08-23",
+  "relationships": {
+    "POST": {
+      "classification": "PRIMARY_CONTENT_ENTITY",
+      "depends_on": [
+        {"target": "POST_CATEGORY", "relationship": "belongsTo", "proof": "App\\Models\\Post::category and PostForm post_category_id"},
+        {"target": "AUTHOR", "relationship": "belongsTo", "proof": "App\\Models\\Post::author and PostForm author_id"},
+        {"target": "TAG", "relationship": "morphToMany", "proof": "App\\Models\\Post::tags and TagsRelationManager"}
+      ],
+      "relates_to": [
+        {"target": "FAQ", "relationship": "morphToMany", "proof": "App\\Models\\Post::faqs"},
+        {"target": "PRODUCT", "relationship": "belongsToMany", "proof": "App\\Models\\Post::products"}
+      ]
+    },
+    "FAQ": {
+      "classification": "PRIMARY_SHARED_CONTENT_ENTITY",
+      "shared_by": ["PRODUCT", "POST", "PRODUCT_CATEGORY", "POST_CATEGORY", "CASE_STUDY"],
+      "proof": "Faq polymorphic relationships and matching faqs() relationships on consumer models",
+      "frontend_consumers": ["homepage", "global FAQ page", "price list", "product detail", "blog detail", "category pages", "landing sections"]
+    },
+    "CASE_STUDY": {
+      "classification": "PRIMARY_MARKETING_CONTENT_ENTITY",
+      "belongs_to": ["PRODUCT"],
+      "relates_to": ["TAG", "FAQ"],
+      "has_many": ["TESTIMONIAL"],
+      "proof": "App\\Models\\CaseStudy relationships and public /du-an routes"
+    },
+    "TESTIMONIAL": {
+      "classification": "PRIMARY_REUSABLE_TRUST_CONTENT",
+      "belongs_to": ["PRODUCT", "CASE_STUDY"],
+      "frontend_consumers": ["product detail", "case study detail", "landing pages"],
+      "proof": "App\\Models\\Testimonial and frontend queries/views"
+    },
+    "HOME_PAGE": {
+      "classification": "PAGE_COMPOSITION_OWNER",
+      "composed_from": [
+        {"target": "HERO_SLIDE", "proof": "resources/views/components/home/hero-slider.blade.php included by pages/home.blade.php"},
+        {"target": "HOME_BENEFIT", "proof": "resources/views/components/home/benefit-bar.blade.php included by pages/home.blade.php"}
+      ]
+    },
+    "LANDING_PAGE": {
+      "classification": "PAGE_COMPOSITION_OWNER",
+      "composed_by": ["LANDING_SECTION"],
+      "references": ["PRODUCT", "PRODUCT_CATEGORY", "CASE_STUDY", "FAQ", "POLICY_PAGE", "POST"],
+      "proof": "LandingController::show/buildSectionData and resources/views/landing/index.blade.php"
+    },
+    "QUOTE_FLOW": {
+      "classification": "SALES_WORKFLOW",
+      "composed_from": ["QUOTE_COMMITMENT_BLOCK"],
+      "proof": "components/quote/commitment-block.blade.php included by pages/quote.blade.php"
+    },
+    "SITE_SETTINGS": {
+      "classification": "SYSTEM_CONFIGURATION",
+      "controls": ["branding", "contact", "SEO defaults", "CTA", "display limits"],
+      "does_not_own": ["HERO_SLIDE content", "HOME_BENEFIT content", "LANDING_SECTION content"],
+      "proof": "ManageSiteSettings schema and settings consumers"
+    }
+  },
+  "navigation_consequence": {
+    "post_supporting_entities": ["POST_CATEGORY", "AUTHOR", "TAG"],
+    "page_composition_entities": ["LANDING_SECTION", "HERO_SLIDE", "HOME_BENEFIT", "POLICY_PAGE"],
+    "sales_configuration": ["QUOTE_COMMITMENT_BLOCK"]
+  }
+}

@@ -34,7 +34,7 @@ class BtuCalculationResource extends Resource
     public static function getNavigationIcon(): ?string { return 'heroicon-o-calculator'; }
     public static function getNavigationLabel(): string { return 'Tư vấn công suất BTU'; }
     public static function getNavigationGroup(): ?string { return 'Bán hàng'; }
-    protected static ?int $navigationSort = 5;
+    protected static ?int $navigationSort = 3;
     public static function getModelLabel(): string { return 'Lịch sử tính BTU'; }
     public static function getPluralModelLabel(): string { return 'Lịch sử tính BTU'; }
 

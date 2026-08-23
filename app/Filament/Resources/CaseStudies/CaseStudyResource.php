@@ -31,10 +31,10 @@ class CaseStudyResource extends Resource
 
     protected static ?string $model = CaseStudy::class;
 
-    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleStack;
+    protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-briefcase';
 
     protected static ?string $navigationLabel = 'Dự án thực tế';
-    protected static ?int $navigationSort = 6;
+    protected static ?int $navigationSort = 2;
 
     public static function getNavigationGroup(): ?string { return 'Nội dung'; }
 

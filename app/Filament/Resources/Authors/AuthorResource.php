@@ -29,8 +29,9 @@ class AuthorResource extends Resource
     protected static ?string $model = Author::class;
         public static function getNavigationGroup(): ?string { return 'Nội dung'; }
 
+    protected static bool $shouldRegisterNavigation = false;
 
-    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleStack;
+    protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-user';
 
     protected static ?string $navigationLabel = 'Tác giả';
     protected static ?int $navigationSort = 3;

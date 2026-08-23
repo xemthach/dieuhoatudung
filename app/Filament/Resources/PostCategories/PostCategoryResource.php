@@ -31,8 +31,9 @@ class PostCategoryResource extends Resource
     protected static ?string $model = PostCategory::class;
         public static function getNavigationGroup(): ?string { return 'Nội dung'; }
 
+    protected static bool $shouldRegisterNavigation = false;
 
-    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleStack;
+    protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-folder';
 
     protected static ?string $navigationLabel = 'Danh mục bài viết';
     protected static ?int $navigationSort = 2;

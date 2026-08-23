@@ -27,7 +27,7 @@ class AiContentJobResource extends Resource
     ];
 
     protected static ?string $model = AiContentJob::class;
-        public static function getNavigationGroup(): ?string { return 'AI Content'; }
+        public static function getNavigationGroup(): ?string { return 'Nội dung AI'; }
 
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleStack;

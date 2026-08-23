@@ -38,8 +38,9 @@ class AdminPanelProvider extends PanelProvider
                 NavigationGroup::make()->label('Bán hàng'),
                 NavigationGroup::make()->label('Sản phẩm'),
                 NavigationGroup::make()->label('Nội dung'),
+                NavigationGroup::make()->label('Trang & Giao diện'),
                 NavigationGroup::make()->label('SEO & Marketing'),
-                NavigationGroup::make()->label('AI Content'),
+                NavigationGroup::make()->label('Nội dung AI'),
                 NavigationGroup::make()->label('Hệ thống'),
                 NavigationGroup::make()->label('Vận hành')->collapsed(),
             ])

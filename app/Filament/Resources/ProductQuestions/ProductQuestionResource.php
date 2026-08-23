@@ -40,7 +40,7 @@ class ProductQuestionResource extends Resource
 
     protected static ?string $pluralModelLabel = 'Hỏi đáp';
 
-    protected static ?int $navigationSort = 11;
+    protected static ?int $navigationSort = 6;
 
     public static function getNavigationGroup(): ?string { return 'Bán hàng'; }
 

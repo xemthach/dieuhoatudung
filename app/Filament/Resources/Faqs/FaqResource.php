@@ -32,10 +32,10 @@ class FaqResource extends Resource
         public static function getNavigationGroup(): ?string { return 'Nội dung'; }
 
 
-    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleStack;
+    protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-question-mark-circle';
 
     protected static ?string $navigationLabel = 'Câu hỏi thường gặp';
-    protected static ?int $navigationSort = 5;
+    protected static ?int $navigationSort = 4;
 
     protected static ?string $recordTitleAttribute = 'question';
 

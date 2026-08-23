@@ -8,9 +8,20 @@ use App\Filament\Pages\MarketingIntegrations;
 use App\Filament\Pages\R2SyncManager;
 use App\Filament\Resources\AiProductJobs\AiProductJobResource;
 use App\Filament\Resources\AiProductJobs\Pages\ListAiProductJobs;
+use App\Filament\Resources\Authors\AuthorResource;
+use App\Filament\Resources\CaseStudies\CaseStudyResource;
+use App\Filament\Resources\Faqs\FaqResource;
+use App\Filament\Resources\HeroSlides\HeroSlideResource;
+use App\Filament\Resources\HomeBenefitItems\HomeBenefitItemResource;
+use App\Filament\Resources\LandingSections\LandingSectionResource;
 use App\Filament\Resources\Leads\LeadResource;
+use App\Filament\Resources\PolicyPages\PolicyPageResource;
+use App\Filament\Resources\PostCategories\PostCategoryResource;
 use App\Filament\Resources\Posts\PostResource;
 use App\Filament\Resources\Products\ProductResource;
+use App\Filament\Resources\QuoteCommitments\QuoteCommitmentBlockResource;
+use App\Filament\Resources\Tags\TagResource;
+use App\Filament\Resources\Testimonials\TestimonialResource;
 use App\Filament\Widgets\AIRuntimePolicyWidget;
 use App\Filament\Widgets\MainDashboardWidget;
 use App\Filament\Widgets\SystemHealthWidget;
@@ -37,14 +48,57 @@ class AdminUxInformationArchitectureTest extends TestCase
         $this->assertSame('Bán hàng', LeadResource::getNavigationGroup());
         $this->assertSame('Sản phẩm', ProductResource::getNavigationGroup());
         $this->assertSame('Nội dung', PostResource::getNavigationGroup());
-        $this->assertSame('AI Content', AiProductJobResource::getNavigationGroup());
+        $this->assertSame('Nội dung AI', AiProductJobResource::getNavigationGroup());
         $this->assertSame('Hệ thống', DataTransferPage::getNavigationGroup());
         $this->assertSame('Vận hành', AIQueueHealth::getNavigationGroup());
+        $this->assertSame('Trang & Giao diện', LandingSectionResource::getNavigationGroup());
+        $this->assertSame('Trang & Giao diện', HeroSlideResource::getNavigationGroup());
+        $this->assertSame('Trang & Giao diện', HomeBenefitItemResource::getNavigationGroup());
+        $this->assertSame('Trang & Giao diện', PolicyPageResource::getNavigationGroup());
+        $this->assertSame('Bán hàng', QuoteCommitmentBlockResource::getNavigationGroup());
 
         $this->assertSame('Khách hàng tiềm năng', LeadResource::getNavigationLabel());
         $this->assertSame('Nhập / Xuất dữ liệu', DataTransferPage::getNavigationLabel());
         $this->assertSame('Media & CDN', R2SyncManager::getNavigationLabel());
         $this->assertSame('Tích hợp Marketing', MarketingIntegrations::getNavigationLabel());
+    }
+
+    public function test_content_navigation_prioritizes_primary_entities_and_keeps_supporting_routes(): void
+    {
+        $this->assertTrue(PostResource::shouldRegisterNavigation());
+        $this->assertTrue(CaseStudyResource::shouldRegisterNavigation());
+        $this->assertTrue(TestimonialResource::shouldRegisterNavigation());
+        $this->assertTrue(FaqResource::shouldRegisterNavigation());
+        $this->assertFalse(PostCategoryResource::shouldRegisterNavigation());
+        $this->assertFalse(AuthorResource::shouldRegisterNavigation());
+        $this->assertFalse(TagResource::shouldRegisterNavigation());
+
+        $source = File::get(app_path('Filament/Resources/Posts/Pages/ListPosts.php'));
+        $this->assertStringContainsString("->label('Cấu hình bài viết')", $source);
+        $this->assertStringContainsString('PostCategoryResource::canViewAny()', $source);
+        $this->assertStringContainsString('AuthorResource::canViewAny()', $source);
+        $this->assertStringContainsString('TagResource::canViewAny()', $source);
+
+        $user = UserFactory::new()->create(['is_active' => true]);
+        foreach (['post.view', 'post_category.view', 'author.view', 'tag.view'] as $permission) {
+            Permission::firstOrCreate(['name' => $permission, 'guard_name' => 'web']);
+        }
+        $user->givePermissionTo(['post.view', 'post_category.view', 'author.view', 'tag.view']);
+
+        $this->actingAs($user)
+            ->get(route('filament.admin.resources.post-categories.index'))
+            ->assertOk();
+        $this->get(route('filament.admin.resources.authors.index'))->assertOk();
+        $this->get(route('filament.admin.resources.tags.index'))->assertOk();
+
+        $limitedUser = UserFactory::new()->create(['is_active' => true]);
+        $limitedUser->givePermissionTo('post.view');
+
+        $this->actingAs($limitedUser)
+            ->get(route('filament.admin.resources.post-categories.index'))
+            ->assertForbidden();
+        $this->get(route('filament.admin.resources.authors.index'))->assertForbidden();
+        $this->get(route('filament.admin.resources.tags.index'))->assertForbidden();
     }
 
     public function test_dashboard_prioritizes_business_widgets_and_does_not_discover_runtime_policy(): void
@@ -80,7 +134,7 @@ class AdminUxInformationArchitectureTest extends TestCase
 
     public function test_admin_version_uses_the_canonical_release_file(): void
     {
-        $this->assertSame('1.26.0', trim(File::get(base_path('VERSION'))));
+        $this->assertSame('1.27.0', trim(File::get(base_path('VERSION'))));
         $this->assertStringContainsString(
             'bootstrap="tests/bootstrap.php"',
             File::get(base_path('phpunit.xml')),
