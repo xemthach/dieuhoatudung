@@ -2,7 +2,7 @@
 
 > CRM & E-commerce platform chuyên về điều hòa tủ đứng — Laravel monolith, Filament admin, HVAC BTU calculator.
 
-![Version](https://img.shields.io/badge/version-1.28.1-blue)
+![Version](https://img.shields.io/badge/version-1.28.2-blue)
 ![Laravel](https://img.shields.io/badge/Laravel-13-red)
 ![PHP](https://img.shields.io/badge/PHP-8.2+-purple)
 ![License](https://img.shields.io/badge/license-proprietary-gray)

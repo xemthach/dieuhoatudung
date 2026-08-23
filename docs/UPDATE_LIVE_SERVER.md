@@ -1,6 +1,6 @@
 # Live Server Update Guide
 
-Current release: `v1.28.1`
+Current release: `v1.28.2`
 
 This guide is mandatory for every deployment. Updating only the web files is not a complete release because the AI worker is a long-running PHP process.
 
@@ -19,14 +19,14 @@ This guide is mandatory for every deployment. Updating only the web files is not
 4. Record `DESIRED_STATE_BEFORE_DEPLOY`, actual worker state, heartbeat, web/worker version and build, queue connection/name, pending/processing/failed/stuck counts, leases, slots and reservations.
 5. If an operation is processing, do not restart or kill it blindly. Stop new claims through the canonical desired-state contract when needed and allow the active operation to settle.
 
-## 2. Deploy v1.28.1
+## 2. Deploy v1.28.2
 
 ```bash
 cd /path/to/dieuhoa-tudung
 git fetch origin --tags
 git checkout main
 git pull --ff-only origin main
-git checkout v1.28.1
+git checkout v1.28.2
 composer install --no-dev --prefer-dist --optimize-autoloader
 npm ci
 npm run build
@@ -37,7 +37,7 @@ php artisan route:cache
 php artisan view:cache
 ```
 
-Inspect pending migrations before running `migrate --force`. v1.28.1 does not introduce a migration.
+Inspect pending migrations before running `migrate --force`. v1.28.2 repairs the existing AI bulk-runtime migration so a MariaDB deployment that stopped after creating the first two empty tables can resume without dropping them.
 
 ## 3. Mandatory managed-worker restart
 
@@ -78,7 +78,7 @@ php artisan schedule:list
 Require:
 
 - fresh worker heartbeat and expected process identity;
-- web and worker both report v1.28.1/the deployed build;
+- web and worker both report v1.28.2/the deployed build;
 - correct project, PHP runtime, `APP_ENV`, authoritative DB and queue connection;
 - queue exactly `ai_governed`, never legacy `ai`;
 - no duplicate process, unexpected processing, orphan lease or stale reservation;
@@ -133,7 +133,7 @@ FINAL: DEPLOYMENT PASS / BLOCKED
 
 1. Stop new AI claims safely and record queue state.
 2. Let active work settle under the governed lease/recovery contract.
-3. Check out the reviewed rollback tag, normally `v1.28.0` for this release.
+3. Check out the reviewed rollback tag only with a database-aware rollback plan. Do not roll back to v1.28.1 on MariaDB before resolving the failed AI runtime migration.
 4. Reinstall matching dependencies/assets and restore DB only if migration/data rollback requires it.
 5. Rebuild config, route and view caches.
 6. Restart the OS-managed worker again so it loads rollback code.

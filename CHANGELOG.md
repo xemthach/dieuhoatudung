@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.28.2] - 2026-08-23
+
+### Fixed
+- Made the AI bulk-runtime migration resumable after MariaDB partial DDL: each table is created only when absent, preserving already-created empty runtime tables.
+- Changed required lease timestamps from implicit `TIMESTAMP` columns to explicit `DATETIME` columns, avoiding MariaDB 10.6 `NO_ZERO_DATE` error 1067 for `expires_at`.
+
+### Safety
+- No existing table is dropped or rewritten by the forward migration.
+- No Product/catalog data migration, AI provider call, queue purge or worker enable is required.
+
 ## [1.28.1] - 2026-08-23
 
 ### Added
