@@ -5,16 +5,20 @@ All notable changes to this project will be documented in this file.
 ## [1.25.0] - 2026-08-23
 
 ### Added
-- Completed the production AI content workflow with governed drafts, review, approval, apply, idempotency, and rollback safeguards.
-- Added product/catalog UX, exact search, class-aware filtering and RAC calculator protections.
-- Added deterministic SEO, Merchant diagnostics, structured data, performance, operations, and security hardening.
+- Completed the governed AI Product Content workflow: read-only context, safe draft, human review, field approval, content-only apply, idempotency, and rollback readiness.
+- Added Product/Catalog UX improvements for cards, detail pages, admin forms, empty specs, RAC/VRF presentation, exact model search, class-aware filters, and RAC calculator recommendations.
+- Added deterministic SEO title/meta fallback, canonical/indexation controls, sitemap, breadcrumb, JSON-LD, visible FAQ consistency, and honest Merchant eligibility diagnostics.
+- Added operational health, queue reconciliation, worker desired-state visibility, admin audit safeguards, and security regression coverage.
 
 ### Changed
-- Revalidated and recovered the production dataset, preserving approved content and catalog lineage.
-- Hardened queue reconciliation, admin authorization, health visibility, and release-readiness checks.
+- Revalidated and recovered the production dataset, preserving approved content, catalog lineage, migration state, and the verified pre-release backup.
+- Hardened queue reconciliation, admin authorization, health visibility, performance hot paths, and release-readiness checks without changing governed technical facts.
 
 ### Security
-- Preserved server-side authorization, sanitized content output, secret-safe diagnostics, and disabled AI worker default state.
+- Preserved server-side authorization, CSRF/input validation, sanitized content output, secret-safe diagnostics, safe headers, and disabled AI worker default state.
+
+### Release note
+- Release validation completed on a guarded populated MySQL test clone: 320 tests, 1,008 assertions, 0 failures, and one pre-existing skipped test. See `docs/release/RELEASE_1.25.0.md`.
 
 ## [1.24.0] - 2026-05-23
 

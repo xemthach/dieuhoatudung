@@ -2,26 +2,28 @@
 
 ## Final status
 
-**PRODUCTION READY** — audit roadmap complete at release `v1.25.0`.
-
-This is the concise permanent index. Detailed phase evidence remains in the retained final reports and release documentation.
+**PRODUCTION READY** — audit roadmap complete and `v1.25.0` release validation passed on an isolated guarded MySQL test clone.
 
 ## Verified baseline
 
-- Tests: 320 tests / 1,008 assertions / 0 failures (1 skipped); the historical 1,011-assertion figure remains in prior release evidence.
+- Tests: 320 tests / 1,008 assertions / 0 failures / 1 existing skipped test.
 - Database: 81 Products, 212 catalog sources, 36,453 catalog models, 656,507 catalog fields.
 - Migrations: 90 applied.
-- BTU semantic hash: `3e981c60fcadd3461746fd8f3b94855dc5205bad6c446c55c17066d40c47e3ba`.
+- BTU hash: `3e981c60fcadd3461746fd8f3b94855dc5205bad6c446c55c17066d40c47e3ba`.
 - Composer audit: clean; npm audit: clean; frontend build: passed.
-- AI worker: `DISABLED_BY_OPERATOR`; provider calls during release work: 0.
+- AI worker: `DISABLED_BY_OPERATOR`; provider calls during release validation: 0.
 
 ## Scope completed
 
 AI Content, Product/Catalog UX, Search/Filter/Calculator, SEO/Merchant/Structured Data, Performance/Cache, Admin/Operations, Security, and final production recovery/readiness were audited and regression-tested.
 
+## Test safety
+
+The initial 2-failure/13-error result came from PHPUnit not overriding the local `.env` database configuration. The final suite was executed against a guarded populated MySQL clone. The configured production-like database was verified after the run and was not used for the final test lifecycle.
+
 ## Deployment requirements
 
-Production deployment must set `APP_ENV=production`, `APP_DEBUG=false`, an authoritative HTTPS `APP_URL`, secure session cookies, protected `.env`, valid database/storage/mail configuration, and the approved queue/scheduler configuration. Verify the scheduler heartbeat after deployment.
+Production deployment must set `APP_ENV=production`, `APP_DEBUG=false`, authoritative HTTPS `APP_URL`, secure session cookies, protected `.env`, valid database/storage/mail configuration, and approved queue/scheduler configuration. Verify scheduler heartbeat after deployment.
 
 ## Known non-blocking backlogs
 
