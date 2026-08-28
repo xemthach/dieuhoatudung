@@ -1,0 +1,12 @@
+MODULE,FILE,CLASS,METHOD,ROUTE,DB TABLE,READ/WRITE,CACHE,QUEUE,FRONTEND CONSUMER,PERMISSION,PURPOSE
+Campaign,app/Models/SiteCampaign.php,SiteCampaign,scopeActive,,site_campaigns,read,no,no,x-site-campaigns,public eligibility,canonical schedule
+Campaign,app/Services/Marketing/SiteCampaignResolver.php,SiteCampaignResolver,forRequest,public routes,site_campaigns,read,no,no,x-site-campaigns,public eligibility,route/device/target resolution
+Campaign,resources/views/components/site-campaigns.blade.php,Blade component,render,public routes,site_campaign_events,read/write events,no,no,layouts,public,production display
+Campaign,app/Filament/Resources/SiteCampaigns/Pages/EditSiteCampaign.php,EditSiteCampaign,preview_campaign,admin/site-campaigns/{record}/edit,site_campaigns,read,no,no,same x-site-campaigns,site_campaign.edit,private preview
+Campaign,app/Services/Marketing/SiteCampaignReadinessService.php,SiteCampaignReadinessService,present,admin/site-campaigns,site_campaigns,read,no,no,Filament table,site_campaign.view,derived readiness
+Post AI,app/Services/AI/PostAiWorkflowService.php,PostAiWorkflowService,createForPost/apply,admin/posts/{record}/edit,posts+ai_content_jobs,write,no,ai_governed,EditPost,post.edit+ai_content_job.view,targeted draft workflow
+Post editor,app/Filament/Resources/Posts/Schemas/PostForm.php,PostForm,configure,admin/posts/{record}/edit,posts,read/write,no,no,Filament RichEditor,post.edit,HTML editing
+Promotion,app/Services/Product/PromotionPriceResolver.php,PromotionPriceResolver,resolve,product surfaces,promotions+pivots,read,request metadata,no,product cards/detail,public,price discount
+Promotion,app/Services/Marketing/PromotionDisplayResolver.php,PromotionDisplayResolver,forRequest,public routes,promotions+pivots,read,no,no,x-promotions,public,display eligibility
+Promotion,resources/views/components/promotions.blade.php,Blade component,render,public routes,promotions,read,no,no,layouts,public,landing/banner/popup/bar
+Promotion AI,app/Filament/Resources/Shared/Forms/AdminContentAutomation.php,AdminContentAutomation,aiAction,admin/promotions/{record}/edit,promotions,form state only,no,no,Promotion form,promotion.edit,review-before-save generation

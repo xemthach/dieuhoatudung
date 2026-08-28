@@ -1,9 +1,14 @@
+@props([
+    'campaigns' => null,
+    'preview' => false,
+])
+
 @php
-    $campaigns = app(\App\Services\Marketing\SiteCampaignResolver::class)->forRequest(request());
+    $campaigns = $campaigns ?? app(\App\Services\Marketing\SiteCampaignResolver::class)->forRequest(request());
 @endphp
 
 @if($campaigns->isNotEmpty())
-    <div id="site-campaign-root" aria-live="polite">
+    <div id="site-campaign-root" class="{{ $preview ? 'site-campaign-root--preview' : '' }}" aria-live="polite" data-campaign-preview="{{ $preview ? '1' : '0' }}">
         @foreach($campaigns as $campaign)
             @php
                 $content = $campaign->content_json ?? [];
@@ -18,6 +23,14 @@
                 $position = data_get($design, 'position', 'center');
                 $position = in_array($position, ['center', 'bottom_right', 'bottom_left'], true) ? $position : 'center';
                 $videoUrl = data_get($content, 'video_url');
+                $safeUrl = function (mixed $url): ?string {
+                    if (! is_string($url) || trim($url) === '') return null;
+                    $url = trim($url);
+                    return str_starts_with($url, '/') || preg_match('#^https?://#i', $url) ? $url : null;
+                };
+                $primaryUrl = $safeUrl(data_get($content, 'button_primary_url'));
+                $secondaryUrl = $safeUrl(data_get($content, 'button_secondary_url'));
+                $zaloUrl = $safeUrl(data_get($content, 'zalo_url'));
                 $videoEmbedUrl = null;
                 if (is_string($videoUrl) && $videoUrl !== '') {
                     $videoHost = strtolower((string) parse_url($videoUrl, PHP_URL_HOST));
@@ -43,7 +56,7 @@
             @endphp
 
             <div
-                class="site-campaign site-campaign--{{ $type }} site-campaign--position-{{ $position }} hidden"
+                class="site-campaign site-campaign--{{ $type }} site-campaign--position-{{ $position }} {{ $preview ? '' : 'hidden' }}"
                 data-site-campaign
                 data-campaign-id="{{ $campaign->id }}"
                 data-type="{{ $type }}"
@@ -88,13 +101,13 @@
                         @endif
 
                         <div class="site-campaign__actions">
-                            @if(data_get($content, 'button_primary_text') && data_get($content, 'button_primary_url'))
-                                <a href="{{ data_get($content, 'button_primary_url') }}" class="site-campaign__button site-campaign__button--primary" data-site-campaign-click="click_primary">
+                            @if(data_get($content, 'button_primary_text') && $primaryUrl)
+                                <a href="{{ $primaryUrl }}" class="site-campaign__button site-campaign__button--primary" data-site-campaign-click="click_primary">
                                     {{ data_get($content, 'button_primary_text') }}
                                 </a>
                             @endif
-                            @if(data_get($content, 'button_secondary_text') && data_get($content, 'button_secondary_url'))
-                                <a href="{{ data_get($content, 'button_secondary_url') }}" class="site-campaign__button site-campaign__button--secondary" data-site-campaign-click="click_secondary">
+                            @if(data_get($content, 'button_secondary_text') && $secondaryUrl)
+                                <a href="{{ $secondaryUrl }}" class="site-campaign__button site-campaign__button--secondary" data-site-campaign-click="click_secondary">
                                     {{ data_get($content, 'button_secondary_text') }}
                                 </a>
                             @endif
@@ -103,8 +116,8 @@
                                     Gọi ngay
                                 </a>
                             @endif
-                            @if(data_get($content, 'zalo_url'))
-                                <a href="{{ data_get($content, 'zalo_url') }}" class="site-campaign__button site-campaign__button--secondary" data-site-campaign-click="click_secondary">
+                            @if($zaloUrl)
+                                <a href="{{ $zaloUrl }}" class="site-campaign__button site-campaign__button--secondary" data-site-campaign-click="click_secondary">
                                     Zalo
                                 </a>
                             @endif
@@ -118,6 +131,18 @@
     <style>
         .site-campaign.hidden { display: none !important; }
         .site-campaign { position: fixed; z-index: 70; }
+        .site-campaign-root--preview .site-campaign,
+        .site-campaign-root--preview .site-campaign__modal-panel,
+        .site-campaign-root--preview .site-campaign__slide-in,
+        .site-campaign-root--preview .site-campaign__bar,
+        .site-campaign-root--preview .site-campaign__floating {
+            position: relative;
+            inset: auto;
+            width: 100%;
+            max-width: 100%;
+            transform: none;
+        }
+        .site-campaign-root--preview .site-campaign__backdrop { display: none; }
         .site-campaign__backdrop { position: fixed; inset: 0; background: rgba(15, 23, 42, .48); }
         .site-campaign__modal-panel,
         .site-campaign__slide-in {
@@ -223,6 +248,7 @@
         }
     </style>
 
+    @unless($preview)
     <script>
     (function() {
         const endpoint = @json(route('site-campaign-events.store'));
@@ -330,4 +356,5 @@
         });
     })();
     </script>
+    @endunless
 @endif

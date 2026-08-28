@@ -44,6 +44,7 @@ class PromotionForm
                                 ],
                                 fieldOptions: [
                                     'promotion_description' => 'Promotion description',
+                                    'detailed_content' => 'Nội dung chi tiết',
                                     'cta_content' => 'CTA content',
                                     'banner_copy' => 'Banner copy',
                                     'seo_title' => 'SEO title',

@@ -1,0 +1,12 @@
+PLACEMENT,ADMIN LABEL,ROUTE MATCH,RUNTIME CONSUMER,DETERMINISTIC CONFLICT
+all,All pages,fallback/all routes,SiteCampaignResolver,highest priority then highest id per type group
+home,Home page,home,SiteCampaignResolver,highest priority then highest id per type group
+product,Product detail,product.show,SiteCampaignResolver,highest priority then highest id per type group
+product_category,Product category,category.show,SiteCampaignResolver,highest priority then highest id per type group
+brand,Brand page,brands.show,SiteCampaignResolver,highest priority then highest id per type group
+blog_list,Blog list,blog.index,SiteCampaignResolver,highest priority then highest id per type group
+blog_post,Blog post detail,blog.show,SiteCampaignResolver,highest priority then highest id per type group
+policy,Policy page,policy-pages.*,SiteCampaignResolver,highest priority then highest id per type group
+quote,Quote page,quote.*,SiteCampaignResolver,highest priority then highest id per type group
+search,Search page,search.index,SiteCampaignResolver,highest priority then highest id per type group
+compare,Compare page,compare.*,SiteCampaignResolver,highest priority then highest id per type group

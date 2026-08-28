@@ -1,0 +1,7 @@
+ID,MODULE,SYMPTOM,SEVERITY,ROOT_CAUSE,FILES,FIX_STATUS,TEST,BROWSER_PROOF,FINAL_STATUS
+MC-01,Campaign,Operator cannot know runtime readiness,MEDIUM,table exposed stored status but not derived renderer/schedule validity,SiteCampaignReadinessService+SiteCampaignsTable,FIXED,MarketingContentRuntimeRegressionTest,UNAVAILABLE,SERVER_PASS
+MC-02,Campaign,No safe preview,MEDIUM,no admin action and component always resolved active records/tracked events,EditSiteCampaign+site-campaigns.blade.php,FIXED,MarketingContentRuntimeRegressionTest,UNAVAILABLE,SERVER_PASS
+MC-03,Post editor,AI-shaped content reported uneditable,HIGH,no reproducible server format/readonly defect; interaction transport unavailable,PostForm+RichHtmlSanitizer,MITIGATED,MarketingContentRuntimeRegressionTest,UNAVAILABLE,PARTIAL
+MC-04,Post AI,Apply could overwrite manual edits after generation,HIGH,current_content_hash persisted but never enforced,PostAiWorkflowService,FIXED,AiContentWorkflowConsolidationTest,UNAVAILABLE,SERVER_PASS
+MC-05,Promotion,Placement options had no frontend consumer,HIGH,no resolver/component/layout inclusion,PromotionDisplayResolver+promotions.blade.php,FIXED,MarketingContentRuntimeRegressionTest,UNAVAILABLE,SERVER_PASS
+MC-06,Promotion AI,Detailed content never generated,HIGH,field map existed but option and local output were absent,PromotionForm+AISeoContentGenerator,FIXED,MarketingContentRuntimeRegressionTest,UNAVAILABLE,SERVER_PASS

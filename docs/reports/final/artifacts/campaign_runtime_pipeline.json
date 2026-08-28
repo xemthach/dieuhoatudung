@@ -1,0 +1,12 @@
+{
+  "admin": "SiteCampaignResource/SiteCampaignForm",
+  "table": "site_campaigns",
+  "eligibility": ["status=active", "start_at<=now or null", "end_at>=now or null", "placement", "device", "URL targeting"],
+  "resolver": "App\\Services\\Marketing\\SiteCampaignResolver",
+  "conflict_order": ["priority desc", "id desc"],
+  "renderer": "resources/views/components/site-campaigns.blade.php",
+  "layout_consumers": ["resources/views/components/layouts/app.blade.php", "resources/views/layouts/app.blade.php"],
+  "tracking": "POST site-campaign-events",
+  "readiness": "App\\Services\\Marketing\\SiteCampaignReadinessService",
+  "cache": "none"
+}

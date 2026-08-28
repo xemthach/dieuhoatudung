@@ -62,6 +62,7 @@ class AiContentWorkflowConsolidationTest extends TestCase
         $post = Post::factory()->create(['content' => '<p>Original content</p>', 'seo_title' => 'Original SEO']);
         $job = $this->postJob($post, $user->id);
         $workflow = app(PostAiWorkflowService::class);
+        $postCount = Post::count();
 
         $workflow->approve($post, $job, $user);
         $this->assertSame('<p>Original content</p>', $post->refresh()->content);
@@ -73,6 +74,24 @@ class AiContentWorkflowConsolidationTest extends TestCase
         $this->assertSame('NOOP_ALREADY_APPLIED', $second['result']);
         $this->assertSame('<h2>AI draft</h2><p>Safe content.</p>', $post->refresh()->content);
         $this->assertSame('AI SEO title', $post->seo_title);
+        $this->assertSame($postCount, Post::count(), 'Applying a Post-origin AI draft must update the same Post.');
+    }
+
+    public function test_apply_rejects_stale_target_content_instead_of_overwriting_manual_edits(): void
+    {
+        $user = $this->actor(['post.edit', 'post.view', 'ai_content_job.view']);
+        $post = Post::factory()->create(['content' => '<p>Original content</p>']);
+        $job = $this->postJob($post, $user->id);
+        $job->update(['input_payload' => array_merge((array) $job->input_payload, [
+            'current_content_hash' => hash('sha256', '<p>Original content</p>'),
+        ])]);
+        $job->update(['status' => AIContentJobStatus::Reviewed]);
+        $post->update(['content' => '<p>Manual edit after generation</p>']);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('AI_POST_TARGET_CONTENT_CHANGED');
+
+        app(PostAiWorkflowService::class)->apply($post->refresh(), $job->refresh(), $user);
     }
 
     public function test_live_panel_uses_persisted_status_and_provider_evidence(): void

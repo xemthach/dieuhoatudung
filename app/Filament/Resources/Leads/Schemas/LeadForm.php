@@ -5,6 +5,7 @@ namespace App\Filament\Resources\Leads\Schemas;
 use App\Enums\LeadStatus;
 use App\Models\Lead;
 use App\Models\QuoteRequest;
+use Filament\Actions\Action;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Textarea;
@@ -33,7 +34,7 @@ class LeadForm
                                     ->tel()
                                     ->required()
                                     ->suffixAction(
-                                        \Filament\Forms\Components\Actions\Action::make('call')
+                                        Action::make('call')
                                             ->icon('heroicon-o-phone')
                                             ->url(fn ($get) => $get('phone') ? 'tel:' . $get('phone') : null)
                                             ->openUrlInNewTab()
@@ -124,7 +125,7 @@ class LeadForm
                                 ->label('Mã báo giá')
                                 ->disabled()
                                 ->suffixAction(
-                                    \Filament\Forms\Components\Actions\Action::make('view_quote')
+                                    Action::make('view_quote')
                                         ->icon('heroicon-o-arrow-top-right-on-square')
                                         ->url(fn ($get) => $get('quote_request_id')
                                             ? route('filament.admin.resources.quote-requests.view', $get('quote_request_id'))

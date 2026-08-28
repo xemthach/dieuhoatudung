@@ -1,0 +1,5 @@
+PLACEMENT,ADMIN OPTION,ROUTE CONTEXT,RENDERER,COLLISION
+landing,Landing page,landing,components/promotions,latest active id wins per placement
+banner,Banner,home,components/promotions,latest active id wins per placement
+popup,Popup,all routes with optional Product scope,components/promotions,latest active id wins per placement
+announcement_bar,Announcement bar,all routes with optional Product scope,components/promotions,latest active id wins per placement

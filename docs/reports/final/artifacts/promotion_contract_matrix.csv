@@ -1,0 +1,10 @@
+CAPABILITY,SOURCE,RUNTIME,STATUS
+percent discount,DiscountType::Percent,PromotionPriceResolver,PRESERVED
+fixed discount,DiscountType::Fixed,PromotionPriceResolver,PRESERVED
+custom discount,DiscountType::Custom,no arithmetic implementation,CONFIGURATION_ONLY
+scope global,Promotion.scope,display and price resolver,SUPPORTED
+scope product,product_promotion,product-context display and price resolver,SUPPORTED
+scope category,category_promotion,product-context display and price resolver,SUPPORTED
+scope brand,brand_promotion,product-context display and price resolver,SUPPORTED
+schedule,start_at/end_at,Promotion::currentlyActive,SUPPORTED
+display placement,Promotion.placement,PromotionDisplayResolver,SUPPORTED

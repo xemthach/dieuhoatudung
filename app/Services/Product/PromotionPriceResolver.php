@@ -7,11 +7,14 @@ use App\Models\Promotion;
 use App\Models\Product;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Schema;
 
 class PromotionPriceResolver
 {
     private static ?array $schemaCapabilities = null;
+
+    private ?Collection $activePromotions = null;
 
     public function resolve(Product $product, ?CarbonInterface $now = null): array
     {
@@ -124,25 +127,12 @@ class PromotionPriceResolver
             $with[] = 'brands:id';
         }
 
-        return Promotion::query()
+        $this->activePromotions ??= Promotion::query()
             ->currentlyActive()
             ->with($with)
-            ->where(function ($query) use ($product, $schema) {
-                $query->where('scope', 'global');
+            ->get();
 
-                if ($schema['product_promotion']) {
-                    $query->orWhere(fn ($q) => $q->where('scope', 'product')->whereHas('products', fn ($relation) => $relation->whereKey($product->getKey())));
-                }
-
-                if ($schema['category_promotion']) {
-                    $query->orWhere(fn ($q) => $q->where('scope', 'category')->whereHas('categories', fn ($relation) => $relation->whereKey($product->product_category_id)));
-                }
-
-                if ($schema['brand_promotion']) {
-                    $query->orWhere(fn ($q) => $q->where('scope', 'brand')->whereHas('brands', fn ($relation) => $relation->whereKey($product->brand_id)));
-                }
-            })
-            ->get()
+        return $this->activePromotions
             ->filter(fn (Promotion $promotion) => $promotion->appliesToProduct($product));
     }
 

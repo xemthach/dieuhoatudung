@@ -1,0 +1,11 @@
+{
+  "entry": "authorized EditSiteCampaign header action",
+  "public_route": false,
+  "renderer": "same x-site-campaigns component as production",
+  "supports_non_active_records": true,
+  "tracking": false,
+  "analytics": false,
+  "frequency_storage": false,
+  "campaign_mutation": false,
+  "preview_marker": "data-campaign-preview=1"
+}

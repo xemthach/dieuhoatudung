@@ -10,6 +10,7 @@ use App\Models\Faq;
 use App\Models\Post;
 use App\Models\Tag;
 use App\Models\User;
+use App\Services\Content\RichHtmlSanitizer;
 use App\Support\SchemaColumns;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -135,12 +136,22 @@ final class PostAiWorkflowService
         $changes['ai_review_status'] = AIReviewStatus::Approved;
 
         DB::transaction(function () use ($post, $job, $actor, $payload, $requested, $changes): void {
-            $post->update($changes);
+            $target = Post::query()->whereKey($post->id)->lockForUpdate()->firstOrFail();
+            $expectedHash = (string) ($payload['current_content_hash'] ?? '');
+            if ($expectedHash !== '' && ! hash_equals($expectedHash, hash('sha256', (string) $target->content))) {
+                throw new RuntimeException('AI_POST_TARGET_CONTENT_CHANGED');
+            }
+
+            if (array_key_exists('content', $changes)) {
+                $changes['content'] = app(RichHtmlSanitizer::class)->sanitize((string) $changes['content']);
+            }
+
+            $target->update($changes);
             if (in_array('tags', $requested, true)) {
-                $this->syncTags($post, (array) $job->output_tags);
+                $this->syncTags($target, (array) $job->output_tags);
             }
             if (in_array('faq', $requested, true)) {
-                $this->syncFaq($post, (array) $job->output_faq);
+                $this->syncFaq($target, (array) $job->output_faq);
             }
             $job->update(['input_payload' => array_merge($payload, [
                 'applied_at' => now()->toIso8601String(),

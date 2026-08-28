@@ -183,6 +183,9 @@
     {{-- Compare Bar --}}
     <x-compare-bar />
 
+    {{-- Governed promotion placements --}}
+    <x-promotions />
+
     {{-- Site Campaigns / Popups --}}
     <x-site-campaigns />
 

@@ -136,6 +136,7 @@ class AISeoContentGenerator
             ],
             default => [
                 'promotion_description' => "{$title} là nội dung chiến dịch khuyến mãi cần bám sát cấu hình đã nhập trong admin. Nội dung chỉ nêu điều kiện áp dụng, phạm vi và lời mời tư vấn khi các dữ liệu ưu đãi cụ thể chưa được cấu hình.",
+                'detailed_content' => "<h2>Thông tin chương trình {$title}</h2><p>Chương trình được áp dụng theo phạm vi và thời gian đã cấu hình trong hệ thống. Nội dung này không tự suy diễn mức giảm, giá, tồn kho hoặc điều kiện pháp lý chưa được xác nhận.</p><h2>Cách nhận tư vấn</h2><p>{$cta} để kiểm tra sản phẩm phù hợp và điều kiện áp dụng tại thời điểm yêu cầu.</p>",
                 'cta_content' => "{$cta} để kiểm tra điều kiện áp dụng và sản phẩm phù hợp.",
                 'banner_copy' => "{$title} - liên hệ tư vấn điều kiện áp dụng",
                 'seo_title' => "{$title} | Chương trình HVAC",

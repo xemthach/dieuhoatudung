@@ -126,6 +126,9 @@
     {{-- Sticky CTA Mobile --}}
     @include('partials.sticky-cta')
 
+    {{-- Governed promotion placements --}}
+    <x-promotions />
+
     {{-- Site Campaigns / Popups --}}
     <x-site-campaigns />
 

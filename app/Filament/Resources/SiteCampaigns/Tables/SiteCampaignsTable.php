@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\SiteCampaigns\Tables;
 
 use App\Models\SiteCampaign;
+use App\Services\Marketing\SiteCampaignReadinessService;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
@@ -18,6 +19,12 @@ class SiteCampaignsTable
     public static function configure(Table $table): Table
     {
         return $table
+            ->modifyQueryUsing(fn ($query) => $query
+                ->withCount([
+                    'events as impressions_count' => fn ($q) => $q->where('event_type', 'impression'),
+                    'events as clicks_count' => fn ($q) => $q->whereIn('event_type', ['click_primary', 'click_secondary']),
+                ])
+                ->withMax('events as last_rendered_at', 'created_at'))
             ->columns([
                 TextColumn::make('title')
                     ->label('Title')
@@ -48,6 +55,12 @@ class SiteCampaignsTable
                         'archived' => 'gray',
                         default => 'info',
                     }),
+                TextColumn::make('runtime_readiness')
+                    ->label('Runtime')
+                    ->badge()
+                    ->state(fn (SiteCampaign $record): string => app(SiteCampaignReadinessService::class)->present($record)['label'])
+                    ->color(fn (SiteCampaign $record): string => app(SiteCampaignReadinessService::class)->present($record)['color'])
+                    ->tooltip(fn (SiteCampaign $record): string => app(SiteCampaignReadinessService::class)->present($record)['reason']),
                 TextColumn::make('start_at')
                     ->label('Start')
                     ->dateTime()
@@ -65,6 +78,11 @@ class SiteCampaignsTable
                 TextColumn::make('ctr')
                     ->label('CTR')
                     ->suffix('%'),
+                TextColumn::make('last_rendered_at')
+                    ->label('Event gần nhất')
+                    ->dateTime()
+                    ->placeholder('Chưa có dữ liệu')
+                    ->toggleable(),
                 TextColumn::make('priority')
                     ->label('Priority')
                     ->sortable(),

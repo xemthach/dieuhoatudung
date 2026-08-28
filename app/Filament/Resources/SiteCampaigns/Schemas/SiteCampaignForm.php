@@ -124,7 +124,8 @@ class SiteCampaignForm
                             DateTimePicker::make('start_at')
                                 ->label('Start at'),
                             DateTimePicker::make('end_at')
-                                ->label('End at'),
+                                ->label('End at')
+                                ->afterOrEqual('start_at'),
                         ]),
 
                         Section::make('Display rules')->schema([

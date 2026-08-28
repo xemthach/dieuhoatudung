@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use App\Models\User;
 use App\Services\AI\AIQueueMonitor;
+use App\Services\Product\PromotionPriceResolver;
 use App\Services\Settings\SettingService;
 use App\Services\Settings\UploadSettingService;
 use Illuminate\Auth\Events\Login;
@@ -26,6 +27,9 @@ class AppServiceProvider extends ServiceProvider
         $this->app->singleton(SettingService::class, function () {
             return new SettingService;
         });
+
+        // One active Promotion snapshot per request/job prevents Product-card N+1 queries.
+        $this->app->scoped(PromotionPriceResolver::class);
     }
 
     /**

@@ -1,0 +1,18 @@
+{
+  "editor": "Filament 5 RichEditor backed by TipTap",
+  "state_path": "content",
+  "stored_format": "HTML fragment",
+  "livewire_host": "EditPost with nested AiPostWorkflowPanel polling every 10 seconds",
+  "readonly_rule_found": false,
+  "actual_active_post_sample": {
+    "id": 10,
+    "content_length": 7581,
+    "ai_generated": true,
+    "ai_review_status": "approved",
+    "unsafe_full_document_tags_found": false,
+    "editor_blocking_attributes_found": false
+  },
+  "server_round_trip": "PASS",
+  "browser_transport": "UNAVAILABLE",
+  "browser_interaction_certification": "NOT_PROVEN"
+}

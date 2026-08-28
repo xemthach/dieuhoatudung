@@ -104,11 +104,19 @@ class SiteCampaign extends Model
 
     public function getImpressionsCountAttribute(): int
     {
+        if (array_key_exists('impressions_count', $this->attributes)) {
+            return (int) $this->attributes['impressions_count'];
+        }
+
         return (int) $this->events()->where('event_type', 'impression')->count();
     }
 
     public function getClicksCountAttribute(): int
     {
+        if (array_key_exists('clicks_count', $this->attributes)) {
+            return (int) $this->attributes['clicks_count'];
+        }
+
         return (int) $this->events()
             ->whereIn('event_type', ['click_primary', 'click_secondary'])
             ->count();

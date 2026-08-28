@@ -2,6 +2,7 @@
 
 namespace App\Services\AI;
 
+use App\Services\Content\RichHtmlSanitizer;
 use App\Support\EncodingGuard;
 
 class AIContentFieldPipeline
@@ -27,12 +28,15 @@ class AIContentFieldPipeline
             $value = $generated[$semanticField] ?? $generated[$targetField] ?? null;
 
             if (is_string($value) && trim($value) !== '') {
-                $updates[$targetField] = EncodingGuard::ensureUtf8(
+                $value = EncodingGuard::ensureUtf8(
                     trim($value),
                     autoFixMojibake: true,
                     rejectBroken: true,
                     context: 'AI field '.$targetField
                 );
+                $updates[$targetField] = in_array($targetField, ['content', 'content_html'], true)
+                    ? app(RichHtmlSanitizer::class)->sanitize($value)
+                    : $value;
             }
         }
 

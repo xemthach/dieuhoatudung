@@ -5,9 +5,11 @@
     "scripts": {
         "build": "vite build",
         "dev": "vite",
-        "dev:full": "concurrently \"npm run dev\" \"php artisan ai:managed-worker --queue=ai_governed --sleep=3 --tries=3 --timeout=900\" \"php artisan schedule:work\""
+        "dev:full": "concurrently \"npm run dev\" \"php artisan ai:managed-worker --queue=ai_governed --sleep=3 --tries=3 --timeout=900\" \"php artisan schedule:work\"",
+        "test:browser:marketing": "playwright test tests/browser/marketing-content.spec.ts"
     },
     "devDependencies": {
+        "@playwright/test": "^1.62.1",
         "@tailwindcss/vite": "^4.2.4",
         "concurrently": "^9.0.1",
         "laravel-vite-plugin": "^3.0.0",

@@ -2,6 +2,31 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.30.0] - 2026-08-29
+
+### Added
+- Added authorized Website Campaign preview using the same production renderer without analytics or frequency-state writes.
+- Added Campaign runtime-readiness, schedule/placement diagnostics and aggregate impression/click visibility in Filament.
+- Added public Promotion renderers for home banner, landing, contextual popup and announcement-bar placements.
+- Added Playwright release certification for Campaign, Post RichEditor, AI Post and Promotion workflows at desktop/mobile sizes.
+
+### Changed
+- Post-origin AI review/apply now remains in the Post workflow and records exact target/apply lineage.
+- Promotion AI can generate both program description and detailed content through the existing governed content pipeline.
+- Promotion pricing is request-scoped to avoid one active-Promotion query per Product card.
+
+### Fixed
+- Prevented stale AI Post drafts from silently overwriting content changed after generation and kept double apply idempotent.
+- Sanitized AI rich HTML before Post apply/form insertion, blocking executable tags, event handlers, unsafe links and editor-blocking overlays.
+- Fixed Website Campaign renderer/readiness gaps for image/video types and placement/schedule visibility.
+- Fixed advertised Promotion placements that previously had no frontend consumer.
+- Fixed the Filament Lead form action namespace incompatibility.
+
+### Security and operations
+- Browser certification uses an isolated migrated SQLite database, synthetic account/content and zero AI provider calls.
+- No migration or Product/catalog technical mutation is included.
+- Live deployment must restart the OS-managed governed worker on `ai_governed`, verify scheduler health and preserve the operator's desired worker state.
+
 ## [1.29.0] - 2026-08-24
 
 ### Added

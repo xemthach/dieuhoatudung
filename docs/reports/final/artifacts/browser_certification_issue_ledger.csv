@@ -1,0 +1,7 @@
+ID,MODULE,SCENARIO,EXPECTED,ACTUAL,ROOT_CAUSE,FIX,TEST,STATUS
+BROWSER-001,Harness,Filament login locator,Login form can be filled,Fields expose Livewire IDs rather than HTML name attributes,Harness assumption,Use labels/escaped IDs,marketing-content.spec.ts login,PASS
+BROWSER-002,Website Campaign,Production and preview rendering,Active renders while inactive/future do not and preview is non-tracking,Behavior matched runtime contract,None required,Campaign browser scenario,PASS
+BROWSER-003,Post RichEditor,Pointer and editing interaction,Mouse/cursor/selection/typing/delete/paste/toolbar/save/reload work,Behavior matched runtime contract,None required,RichEditor browser scenario,PASS
+BROWSER-004,AI Post,Review and double apply,Same Post is updated once with no duplicate,Post ID and count remained unchanged,None required,AI Post browser scenario,PASS
+BROWSER-005,Promotion,Popup dismiss with campaign modal present,Modal overlay owns pointer until dismissed,Expected modal layering semantics,Close modal before interacting with lower popup,Promotion browser scenario,PASS
+BROWSER-006,Promotion AI,Generate both content fields,Description and detailed content persist without structured fact change,Behavior matched governed local draft contract,None required,Promotion AI browser scenario,PASS

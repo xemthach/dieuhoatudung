@@ -1,0 +1,9 @@
+SEMANTIC FIELD,FORM TARGET,REQUESTABLE,LOCAL DRAFT,PROVIDER ALIAS,SANITIZED
+promotion_description,description,yes,yes,description/intro,text encoding
+detailed_content,content,yes,yes,content/content_html,rich HTML
+cta_content,cta_content,yes,yes,cta/popup_text/announcement_bar,text encoding
+banner_copy,banner_copy,yes,yes,headline/subtitle,text encoding
+seo_title,seo_title,yes,yes,seo_title,text encoding
+meta_description,seo_description,yes,yes,meta_description/seo_description,text encoding
+og_title,og_title,yes,yes,og_title,text encoding
+og_description,og_description,yes,yes,og_description,text encoding

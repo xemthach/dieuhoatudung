@@ -1,0 +1,21 @@
+{
+  "post_origin": {
+    "target_type": "App\\Models\\Post",
+    "target_post_id": "required",
+    "operation": ["generate", "regenerate"],
+    "current_content_hash": "captured at generation",
+    "apply": "row-lock same Post; reject stale hash; sanitize HTML; idempotent applied_at",
+    "post_count_change": 0
+  },
+  "standalone_legacy": {
+    "target_post_id": null,
+    "purpose": "historical standalone draft",
+    "new_post_action": "explicit restore old draft action only",
+    "classification": "SEPARATE_EXPLICIT_MODE"
+  },
+  "observed_history": {
+    "targeted_job_ids": [9, 10, 11],
+    "applied_targeted_job_id": 11,
+    "standalone_job_ids": [8, 12]
+  }
+}
