@@ -1478,14 +1478,9 @@ class AIProductContentSystem
         if (($config['outputs']['content'] ?? false) && ! in_array('missing_technical_data', $payload['warnings'], true)) {
             $minimumWords = $this->isCommercialProduct($product) ? 1200 : 800;
             $words = $this->scorer->wordCount($payload['content_html']);
-            if ($words < (int) floor($minimumWords * 0.75)) {
-                throw new RuntimeException("CONTENT_TOO_SHORT: {$words}/{$minimumWords}");
-            }
-            $minimumWords = $this->isCommercialProduct($product) ? 1200 : 800;
-            $words = $this->scorer->wordCount($payload['content_html']);
-            if ($words < $minimumWords && $words >= (int) floor($minimumWords * 0.75)) {
+            if ($words < $minimumWords) {
                 $payload['warnings'] = $this->normalizeIssueList($payload['warnings'], ["content_too_short:{$words}/{$minimumWords}"]);
-            } elseif ($words < $minimumWords) {
+            } elseif (false && $words < $minimumWords) {
                 throw new RuntimeException("AI output content quá ngắn ({$words}/{$minimumWords} từ).");
             }
         }

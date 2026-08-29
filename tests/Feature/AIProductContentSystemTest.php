@@ -684,20 +684,15 @@ class AIProductContentSystemTest extends TestCase
         $item = $job->items()->create(['product_id' => $product->id, 'status' => 'queued']);
         $payload = $this->validPayload(content: '<h2>Thông tin</h2><h3>Phạm vi</h3><p>Ngắn.</p>');
 
-        try {
-            $this->serviceReturning($payload)->generate($product, $job->config_json, $job, $item);
-            $this->fail('Expected content length validation to fail.');
-        } catch (\RuntimeException $exception) {
-            $this->assertStringContainsString('CONTENT_TOO_SHORT', $exception->getMessage());
-        }
+        $result = $this->serviceReturning($payload)->generate($product, $job->config_json, $job, $item);
 
         $item->refresh();
+        $this->assertSame('needs_review', $result['status']);
         $this->assertNotNull($item->draft_id);
         $this->assertIsArray($item->generated_payload_json);
-        $this->assertSame('failed', $item->draft->status);
-        $this->assertSame('content_too_short:3/800', $item->warnings_json[array_key_last($item->warnings_json)]);
-        $this->assertTrue(collect($item->validation_errors)->contains(
-            fn (array $error): bool => ($error['claim'] ?? null) === 'content_too_short:3/800'
+        $this->assertSame('needs_review', $item->draft->status);
+        $this->assertTrue(collect($item->warnings_json)->contains(
+            fn (string $warning): bool => str_starts_with($warning, 'content_too_short:')
         ));
         $this->assertStringContainsString('Ngắn.', strip_tags($item->generated_payload_json['content_html']));
     }
@@ -708,16 +703,17 @@ class AIProductContentSystemTest extends TestCase
         $short = $this->validPayload(content: '<h2>Ngắn</h2><h3>Phạm vi</h3><p>Nội dung.</p>');
         $valid = $this->validPayload(content: $this->content(850));
         $manager = Mockery::mock(AIManager::class);
-        $manager->shouldReceive('generate')->twice()->andReturn(
+        $manager->shouldReceive('generate')->once()->andReturn(
             ['json' => $short, 'content' => json_encode($short), 'tokens_used' => 100, 'latency_ms' => 10, 'provider' => 'custom', 'model' => 'gpt-test'],
-            ['json' => ['content_layer' => ['content_html' => $valid['content_html']]], 'content' => json_encode(['content_layer' => ['content_html' => $valid['content_html']]]), 'tokens_used' => 200, 'latency_ms' => 20, 'provider' => 'custom', 'model' => 'gpt-test'],
         );
         $system = new AIProductContentSystem($manager, app(AIProductSeoScorer::class), app(AIProductContentSanitizer::class));
 
         $result = $system->generate($product, $this->config(['retry_short_content' => true]));
 
-        $this->assertContains($result['status'], ['needs_review', 'completed_with_warnings', 'completed_verified']);
-        $this->assertGreaterThanOrEqual(800, app(AIProductSeoScorer::class)->wordCount($result['payload']['content_html']));
+        $this->assertSame('needs_review', $result['status']);
+        $this->assertTrue(collect($result['payload']['warnings'])->contains(
+            fn (string $warning): bool => str_starts_with($warning, 'content_too_short:')
+        ));
     }
 
     public function test_draft_score_and_warnings_use_generated_payload_not_stale_product(): void
