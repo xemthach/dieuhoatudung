@@ -1,0 +1,9 @@
+FIELD,REQUESTED_KEY,RESPONSE_KEY,DRAFT_KEY,PRODUCT_KEY,VALIDATOR,APPLY_MAPPING
+Long content,content,content_html,content_html,long_description,ContentSafetyValidator + validatePayload,long_description
+Excerpt,content,excerpt,excerpt,short_description,fieldStatus,short_description
+SEO title,seo,seo_title,seo_title,seo_title,fieldStatus,seo_title
+Meta description,seo,meta_description,meta_description,seo_description,fieldStatus,seo_description
+Open Graph,og,og_title/og_description,og_title/og_description,og_title/og_description,fieldStatus,og_title/og_description
+Merchant,merchant,merchant_title/merchant_description,merchant_title/merchant_description,merchant_title/merchant_description,fieldStatus,merchant_title/merchant_description
+FAQ,faq,faq,faq,faqs relation,validatePayload + fieldStatus,faqs relation
+Tags,tags,tags,tags,tags relation,fieldStatus,tags relation

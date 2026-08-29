@@ -2,6 +2,28 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.31.2] - 2026-08-30
+
+### Fixed
+- Preserve sanitized AI Product output, field-level status and structured validation evidence when content-length validation rejects a provider response.
+- Keep provider metadata and token usage attached to the failed AI Product item instead of presenting all generated fields as missing.
+- Keep critical fact-check failures aligned with the canonical `BLOCKED` state.
+
+### Changed
+- AI Product job history now shows compact generated-field coverage and human-readable Vietnamese warning labels while retaining raw warning codes in the technical tooltip.
+- Data completeness remains a governance score and is hidden by default in the primary operational table; no fabricated Data% or Fact-check value is introduced.
+
+### Operations
+- Added controlled real-provider and worker cross-process audit evidence using temporary local fixtures only.
+- No bulk retry, Product/catalog mutation, migration, or production AI operation is included.
+
+### Security
+- Failed validation output is sanitized before evidence persistence.
+
+### Known Limitations
+- Existing historical FAILED/BLOCKED items are preserved and are not automatically retried.
+- A real provider response below the configured content threshold remains FAILED with reviewable evidence; the validator threshold was not weakened.
+
 ## [1.31.1] - 2026-08-29
 
 ### Fixed

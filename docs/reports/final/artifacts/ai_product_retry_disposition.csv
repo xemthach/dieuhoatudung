@@ -1,0 +1,6 @@
+SCOPE,DISPOSITION,RULE,EVIDENCE,EXECUTED
+Historical FAILED with provider success and no draft,REGENERATE_REQUIRED,do not mutate history; retry only after fix and explicit operator action,content-quality exception occurred before persistence,NO
+Historical FAILED with provider/network/schema failure,RETRY_SAFE only after runtime/provider gate,depends on exact failure code,NO
+BLOCKED duplicate or stale recovery,NOT_RETRYABLE until idempotency/recovery review,existing status_reason,NO
+BLOCKED permission/eligibility/budget,NOT_RETRYABLE,operator or governance blocker,job code,NO
+Successful draft needing review,HISTORICAL_ONLY,retain draft and review state,DB draft present,NO

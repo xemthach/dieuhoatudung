@@ -38,13 +38,17 @@ class ItemsRelationManager extends RelationManager
                     ->formatStateUsing(fn (string $state): string => app(AiContentStatusPresenter::class)->present($state)['label'])
                     ->color(fn (string $state): string => app(AiContentStatusPresenter::class)->present($state)['color'])
                     ->sortable(),
+                TextColumn::make('field_status_json')
+                    ->label('Trường đã tạo')
+                    ->formatStateUsing(fn ($state): string => self::fieldCoverage($state))
+                    ->placeholder('-'),
                 TextColumn::make('seo_score_before')->label('Score trước')->sortable(),
                 TextColumn::make('seo_score_after')->label('Score sau')->sortable(),
                 TextColumn::make('generated_payload_json.governance_context.data_completeness.score')
                     ->label('Data %')
                     ->suffix('%')
                     ->placeholder('-')
-                    ->toggleable(),
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('generated_payload_json.fact_check.status')
                     ->label('Fact check')
                     ->badge()
@@ -69,7 +73,7 @@ class ItemsRelationManager extends RelationManager
                     ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('warnings_json')
                     ->label('Warnings')
-                    ->formatStateUsing(fn ($state) => self::formatList($state))
+                    ->formatStateUsing(fn ($state) => self::formatWarnings($state))
                     ->limit(60)
                     ->tooltip(fn ($record) => self::formatList($record->warnings_json ?? [])),
                 TextColumn::make('failed_reason')
@@ -126,5 +130,45 @@ class ItemsRelationManager extends RelationManager
             })
             ->filter()
             ->implode(', ');
+    }
+
+    private static function fieldCoverage(mixed $state): string
+    {
+        if (! is_array($state) || $state === []) {
+            return '-';
+        }
+
+        $generated = count(array_filter($state, fn ($status): bool => in_array($status, ['valid', 'warning', 'needs_patch'], true)));
+        $total = count($state);
+
+        return $generated.'/'.$total;
+    }
+
+    private static function formatWarnings(mixed $state): string
+    {
+        if (! is_array($state)) {
+            return self::formatList($state);
+        }
+
+        return collect($state)
+            ->map(fn ($warning): string => self::warningLabel((string) $warning))
+            ->filter()
+            ->implode(', ');
+    }
+
+    private static function warningLabel(string $warning): string
+    {
+        $labels = [
+            'missing_content' => 'Thiếu nội dung chính',
+            'missing_h2_h3' => 'Thiếu cấu trúc H2/H3',
+            'missing_seo' => 'Thiếu SEO',
+            'missing_merchant' => 'Thiếu Merchant',
+            'missing_faq' => 'Thiếu FAQ',
+            'content_too_short' => 'Nội dung chưa đủ độ dài',
+            'missing_technical_data' => 'Thiếu dữ liệu kỹ thuật',
+        ];
+        $code = trim(explode(':', $warning, 2)[0]);
+
+        return $labels[$code] ?? $warning;
     }
 }

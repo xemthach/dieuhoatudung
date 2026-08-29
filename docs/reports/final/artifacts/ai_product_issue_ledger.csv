@@ -1,0 +1,6 @@
+ID,MODULE,SCENARIO,EXPECTED,ACTUAL,ROOT_CAUSE,FIX,TEST,STATUS
+AI-001,AI Product,Provider returns content below hard content floor,Draft contains sanitized output and validation evidence,Old path could leave payload/draft empty while tokens were recorded,Validation happened before persistDraft,Preserve evidence around content-length failure,AIProductContentSystemTest::test_content_length_failure_preserves_sanitized_output_and_validation_evidence,RESOLVED_LOCAL
+AI-002,AI Product,Provider success token usage,Token semantics are explicit,token_usage_json stores provider total; ai_request_logs stores tokens_total,Adapters map provider totals; input/output unavailable for Gemini,Document semantics only,code audit,DOCUMENTED
+AI-003,AI Product,Blocked duplicate/stale item,No provider call and no retry,blocked with zero tokens,Idempotency/runtime gate,No code change,DB audit,CONFIRMED
+AI-004,AI Product,Live screenshot 50-item list,Production evidence available,local DB has 22 items not 50,Local and live DB differ,Run read-only live export,live query,OPEN_LIVE_EVIDENCE
+AI-005,AI Product,Critical fact-check block,Canonical state BLOCKED,item 169 had status BLOCKED but canonical FACT_CHECKING,missing state-machine transition,Transition FACT_CHECKING to BLOCKED,AIProductContentSystemTest::test_critical_fact_check_failure_transitions_item_to_blocked,RESOLVED_LOCAL

@@ -1,0 +1,3 @@
+TEST_ID,PURPOSE,PRODUCT_FIXTURE,PROVIDER,MODEL,INPUT_TOKENS,OUTPUT_TOKENS,TOTAL_TOKENS,RESULT,PERSISTENT_MUTATION,ROLLBACK,REQUEST_LOG_ID
+REAL-A-CONTROLLED-PROBE,short-content evidence path and parser/draft persistence,temporary Product 1595/custom transaction,custom,gemini-2.5-flash,,,4764,CONTENT_TOO_SHORT 344/800; sanitized payload and failed draft persisted during probe,none,yes,not retained after transaction rollback
+REAL-C-WORKER-CROSS-PROCESS,governed queue worker proof and real response mapping,temporary Product 1596,custom,gemini-2.5-flash,,,4553,CONTENT_TOO_SHORT 376/800; item FAILED with draft_id 9 and provider metadata,none,yes,239

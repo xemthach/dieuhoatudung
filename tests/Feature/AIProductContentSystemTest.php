@@ -375,6 +375,28 @@ class AIProductContentSystemTest extends TestCase
         $this->assertStringContainsString('fact-check', $product->ai_error_message);
     }
 
+    public function test_critical_fact_check_failure_transitions_item_to_blocked(): void
+    {
+        $product = $this->product();
+        $job = AiProductJob::create([
+            'type' => 'generate_ai_content',
+            'scope' => 'selected',
+            'status' => 'queued',
+            'total' => 1,
+            'config_json' => $this->config(),
+        ]);
+        $item = $job->items()->create(['product_id' => $product->id, 'status' => 'queued']);
+        $payload = $this->validPayload(content: $this->content(850));
+        $payload['blocked_claims'] = ['FACT_CHECK_BLOCKED'];
+
+        $result = $this->serviceReturning($payload)->generate($product, $job->config_json, $job, $item);
+
+        $this->assertSame('blocked', $result['status']);
+        $this->assertSame('blocked', $item->refresh()->status);
+        $this->assertSame('BLOCKED', $item->canonical_status);
+        $this->assertSame('fact_check_failed', $item->status_reason);
+    }
+
     public function test_ai_payload_with_capacity_btu_is_rejected_before_persistence(): void
     {
         $product = $this->product(['btu' => 42000]);
@@ -613,6 +635,37 @@ class AIProductContentSystemTest extends TestCase
         $this->assertSame($product->id, $draft->product_id);
         $this->assertArrayHasKey('content_html', $draft->field_status_json);
         $this->assertSame($draft->id, $item->refresh()->draft_id);
+    }
+
+    public function test_content_length_failure_preserves_sanitized_output_and_validation_evidence(): void
+    {
+        $product = $this->product();
+        $job = AiProductJob::create([
+            'type' => 'generate_ai_content',
+            'scope' => 'selected',
+            'status' => 'queued',
+            'total' => 1,
+            'config_json' => $this->config(),
+        ]);
+        $item = $job->items()->create(['product_id' => $product->id, 'status' => 'queued']);
+        $payload = $this->validPayload(content: '<h2>Thông tin</h2><h3>Phạm vi</h3><p>Ngắn.</p>');
+
+        try {
+            $this->serviceReturning($payload)->generate($product, $job->config_json, $job, $item);
+            $this->fail('Expected content length validation to fail.');
+        } catch (\RuntimeException $exception) {
+            $this->assertStringContainsString('CONTENT_TOO_SHORT', $exception->getMessage());
+        }
+
+        $item->refresh();
+        $this->assertNotNull($item->draft_id);
+        $this->assertIsArray($item->generated_payload_json);
+        $this->assertSame('failed', $item->draft->status);
+        $this->assertSame('content_too_short:3/800', $item->warnings_json[array_key_last($item->warnings_json)]);
+        $this->assertTrue(collect($item->validation_errors)->contains(
+            fn (array $error): bool => ($error['claim'] ?? null) === 'content_too_short:3/800'
+        ));
+        $this->assertStringContainsString('Ngắn.', strip_tags($item->generated_payload_json['content_html']));
     }
 
     public function test_strict_draft_only_keeps_product_row_unchanged_while_persisting_draft(): void

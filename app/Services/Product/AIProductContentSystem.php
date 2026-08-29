@@ -299,7 +299,68 @@ class AIProductContentSystem
         if ($item) {
             AIJobStateMachine::transition($item, AIJobStateMachine::VALIDATING, 'provider_output_received');
         }
-        $payload = $this->normalizePayload($payload, $product, $config);
+        try {
+            $payload = $this->normalizePayload($payload, $product, $config);
+        } catch (\Throwable $exception) {
+            // Preserve safe provider output when a downstream content-quality
+            // check rejects it. Without this evidence draft persistence never
+            // runs, while the job still records provider token usage; the UI
+            // then misleadingly reports every field as missing.
+            if ($item && $this->isPersistableValidationFailure($exception)) {
+                try {
+                    $evidencePayload = $this->normalizePayload($rawPayload, $product, $config, validate: false);
+                    $evidencePayload['warnings'] = $this->normalizeIssueList(
+                        $evidencePayload['warnings'] ?? [],
+                        $this->validationWarningFromException($exception),
+                    );
+                    $validationErrors = $this->structuredValidationErrors($evidencePayload, $config);
+                    $fieldStatus = $this->fieldStatus(
+                        $evidencePayload,
+                        $evidencePayload['warnings'],
+                        $evidencePayload['blocked_claims'] ?? [],
+                        $config,
+                    );
+                    $tokenUsage = [
+                        'generate_tokens' => (int) ($result['tokens_used'] ?? 0),
+                        'patch_tokens' => 0,
+                        'saved_tokens_estimate' => 0,
+                        'provider' => $result['provider'] ?? null,
+                        'model' => $result['model'] ?? null,
+                        'product_id' => $product->id,
+                        'job_id' => $job?->id,
+                        'prompt_version' => $guardContext['prompt_version'] ?? null,
+                        'technical_context_hash' => $this->technicalContextHash($product),
+                        'validation_failure_evidence' => true,
+                    ];
+                    $this->persistDraft(
+                        $product,
+                        $job,
+                        $item,
+                        $rawPayload,
+                        $evidencePayload,
+                        $fieldStatus,
+                        $validationErrors,
+                        $evidencePayload['warnings'],
+                        $tokenUsage,
+                        'failed',
+                    );
+                    $this->updateItem($item, [
+                        'generated_payload_json' => $evidencePayload,
+                        'validation_errors' => $validationErrors,
+                        'warnings_json' => $evidencePayload['warnings'],
+                        'tokens_used' => (int) ($result['tokens_used'] ?? 0),
+                        'latency_ms' => (int) ($result['latency_ms'] ?? 0),
+                        'provider' => $result['provider'] ?? null,
+                        'model' => $result['model'] ?? null,
+                    ]);
+                } catch (\Throwable) {
+                    // Keep the original validation exception authoritative if
+                    // evidence normalization itself cannot be completed.
+                }
+            }
+
+            throw $exception;
+        }
         if ($item) {
             AIJobStateMachine::transition($item, AIJobStateMachine::FACT_CHECKING, 'payload_normalized');
         }
@@ -396,6 +457,9 @@ class AIProductContentSystem
                     'finished_at' => now(),
                     'duration_ms' => (int) $item?->started_at?->diffInMilliseconds(now()),
                 ]);
+                if ($item) {
+                    AIJobStateMachine::transition($item->refresh(), AIJobStateMachine::BLOCKED, 'fact_check_failed');
+                }
                 $this->technicalLogger->event('ai_product_content', 'fact_check_failed', $message, [
                     'content_layer_only' => true,
                     'warnings' => $warnings,
@@ -1086,7 +1150,7 @@ class AIProductContentSystem
         ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRESERVE_ZERO_FRACTION));
     }
 
-    private function normalizePayload(array $payload, Product $product, array $config): array
+    private function normalizePayload(array $payload, Product $product, array $config, bool $validate = true): array
     {
         $blockedDataFields = $this->blockedProductDataFields($payload);
 
@@ -1131,9 +1195,25 @@ class AIProductContentSystem
         $payload = $this->neutralizeUnverifiedMarketingClaims($payload, $product);
 
         $payload = $this->sanitizer->sanitizePayload($payload);
-        $this->validatePayload($payload, $product, $config);
+        if ($validate) {
+            $this->validatePayload($payload, $product, $config);
+        }
 
         return $payload;
+    }
+
+    private function isPersistableValidationFailure(\Throwable $exception): bool
+    {
+        return str_contains(Str::lower($exception->getMessage()), 'content_too_short');
+    }
+
+    private function validationWarningFromException(\Throwable $exception): array
+    {
+        if (preg_match('/content_too_short:\s*(\d+)\/(\d+)/i', $exception->getMessage(), $matches) === 1) {
+            return ["content_too_short:{$matches[1]}/{$matches[2]}"];
+        }
+
+        return ['content_validation_failed'];
     }
 
     private function blockedProductDataFields(array $payload): array

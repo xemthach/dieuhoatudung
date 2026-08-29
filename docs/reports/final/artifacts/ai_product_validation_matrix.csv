@@ -1,0 +1,9 @@
+CHECK,CODE,INPUT,THRESHOLD_OR_RULE,FAILURE_BEHAVIOR,EVIDENCE
+JSON response,AIJsonResponseParser::parse,provider text,valid JSON object/array,throws invalid_json_response,adapter code
+Product identity,AIProductContentSystem::validatePayload,payload.product_id,equals Product id,throws RuntimeException,AIProductContentSystem.php
+Content presence,AIProductContentSystem::validatePayload,content_html,nonblank when content requested,throws,AIProductContentSystem.php
+Content length,AIProductContentSystem::validatePayload,wordCount(content_html),75% hard floor then warning until full minimum,throws CONTENT_TOO_SHORT below floor,AIProductContentSystem.php
+Heading structure,AIProductContentSystem::structureValidator,content_html,structure validator contract,throws content_structure_failed when invalid,AIProductContentSystem.php
+FAQ,AIProductContentSystem::validatePayload,faq array,at least 3 when requested,throws,AIProductContentSystem.php
+Fact safety,AIContentGovernance::validatePayload,normalized payload,verified-fact rules,blocked or warning,governance code
+Product write safety,AIProductContentSystem::applyPayload,approved payload,content-layer allowlist only,technical fields blocked,AIProductContentSystem.php
