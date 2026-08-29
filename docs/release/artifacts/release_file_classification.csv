@@ -104,3 +104,5 @@ VERSION,MODIFIED,CANONICAL_DOC,Canonical application release version,YES,Release
 CHANGELOG.md,MODIFIED,RELEASE_DOC,Release change history,YES,Release metadata,NO,NO,Changelog
 docs/release/RELEASE_1.31.0.md,UNTRACKED,RELEASE_DOC,Complete v1.31.0 release notes,YES,Release metadata,NO,NO,Release note
 README.md,MODIFIED,RELEASE_DOC,Canonical version badge,YES,Release metadata consistency,NO,NO,README
+docs/release/LIVE_DEPLOYMENT_RUNBOOK_1.31.0.md,UNTRACKED,RELEASE_DOC,Exact v1.31.0 live deployment runbook,YES,Post-release operational documentation,NO,NO,Release runbook
+docs/release/POST_RELEASE_GITHUB_UPDATE_REPORT.md,UNTRACKED,RELEASE_DOC,Post-release remote verification report,YES,Post-release evidence,NO,NO,Post-release report
