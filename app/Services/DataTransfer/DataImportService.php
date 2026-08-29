@@ -4,11 +4,11 @@ namespace App\Services\DataTransfer;
 
 use App\Models\DataImportJob;
 use App\Support\EncodingGuard;
+use App\Support\Spreadsheet\SpreadsheetLoader;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
-use PhpOffice\PhpSpreadsheet\IOFactory;
 
 class DataImportService
 {
@@ -183,7 +183,7 @@ class DataImportService
      */
     protected function parseXlsx(string $path): Collection
     {
-        $spreadsheet = IOFactory::load($path);
+        $spreadsheet = SpreadsheetLoader::load($path);
         $sheet = $spreadsheet->getActiveSheet();
         $rows = $sheet->toArray(null, true, true, false);
         $spreadsheet->disconnectWorksheets();

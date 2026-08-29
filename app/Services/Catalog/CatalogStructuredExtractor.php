@@ -8,9 +8,9 @@ use App\Models\CatalogModelField;
 use App\Models\CatalogSource;
 use App\Models\Brand;
 use App\Services\HVAC\HVACTechnicalNormalizer;
+use App\Support\Spreadsheet\SpreadsheetLoader;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
-use PhpOffice\PhpSpreadsheet\IOFactory;
 
 class CatalogStructuredExtractor
 {
@@ -276,7 +276,7 @@ class CatalogStructuredExtractor
     private function readSpreadsheetRows(string $path): Collection
     {
         try {
-            $sheet = IOFactory::load($path)->getActiveSheet();
+            $sheet = SpreadsheetLoader::load($path)->getActiveSheet();
         } catch (\Throwable) {
             return collect();
         }
