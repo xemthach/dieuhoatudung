@@ -100,16 +100,19 @@ class ProductImportMapper
     public const EXCLUDED_FROM_SPECS = [
         // Product identity
         'name', 'slug', 'brand', 'brand_id', 'product_category',
-        'product_category_id', 'model_code', 'sku',
+        'product_category_id', 'model_code', 'sku', 'series',
         // Content fields
         'short_description', 'description', 'long_description',
         'warranty_info', 'installation_note',
         // Status flags
-        'is_active', 'is_featured', 'is_new', 'is_bestseller',
+        'is_active', 'is_featured', 'is_new', 'is_bestseller', 'schema_enabled',
         // SEO
-        'seo_title', 'meta_description', 'seo_description',
+        'seo_title', 'meta_description', 'seo_description', 'canonical_url', 'robots',
+        'og_title', 'og_description', 'og_image',
         // Import metadata
-        'import_action', 'extraction_confidence',
+        'import_action', 'import_status', 'review_reason', 'extraction_confidence',
+        'source_pdf', 'source_sha256', 'source_page', 'source_row',
+        'source_column', 'source_section', 'extraction_method',
         // Misc
         'type', 'stock_status', 'regular_price', 'sale_price',
     ];

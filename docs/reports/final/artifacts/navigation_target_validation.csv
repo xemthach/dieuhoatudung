@@ -1,0 +1,10 @@
+target_type,target,label,status,url,reason
+route,home,"Trang chủ",READY,https://dieuhoa-tudung.test,"named route allowlisted"
+route,products.index,"Sản phẩm",READY,https://dieuhoa-tudung.test/san-pham,"named route allowlisted"
+product_category,23,"Điều hòa đặt sàn/áp trần",READY,https://dieuhoa-tudung.test/danh-muc/dieu-hoa-dat-san-ap-tran,"public target"
+product_category,24,"Điều hòa âm trần Cassette",READY,https://dieuhoa-tudung.test/danh-muc/dieu-hoa-am-tran-cassette,"public target"
+product_category,25,"Điều hòa tủ đứng",READY,https://dieuhoa-tudung.test/danh-muc/dieu-hoa-tu-dung,"public target"
+product_category,26,"Điều hòa trung tâm VRF/GMV",READY,https://dieuhoa-tudung.test/danh-muc/dieu-hoa-trung-tam-vrf-gmv,"public target"
+product_category,27,"Điều hòa giấu trần nối ống gió",READY,https://dieuhoa-tudung.test/danh-muc/dieu-hoa-giau-tran-noi-ong-gio,"public target"
+product_category,28,"Quis sequi perspiciatis",READY,https://dieuhoa-tudung.test/danh-muc/quis-sequi-perspiciatis,"public target"
+product_category,29,"Điều hòa treo tường",TARGET_INACTIVE_OR_NOT_INDEXABLE,https://dieuhoa-tudung.test/danh-muc/dieu-hoa-treo-tuong,"resolver hides invalid target"

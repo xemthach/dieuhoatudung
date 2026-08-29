@@ -1,0 +1,6 @@
+id,module,scenario,expected,actual,root_cause,fix,status
+NAV-001,Header,"desktop and mobile list","same logical items","same resolver collection after change","duplicated Blade literals","both loops consume PublicNavigationResolver",FIXED
+NAV-002,Header,"legacy floor-standing target","Products/general catalog","old literal /dieu-hoa-tu-dung","header was hard-coded to landing page","fallback uses named products.index",FIXED
+NAV-003,"Category target","inactive category","hidden/no dead link","resolver returns no item","category route requires active","category_id relation + active/indexable guard",FIXED
+NAV-004,Admin,"operator reorder/enable","JSON setting fields","new navigation settings section","no previous menu model/settings","ManageSiteSettings navigation repeater",IMPLEMENTED
+NAV-005,Footer,policies,"separate logical location","PolicyLinks remains separate","footer policies have own display contract","preserved existing PolicyLinks",INTENTIONAL

@@ -1,0 +1,75 @@
+﻿mode,outdoor_family_label,outdoor_model,outdoor_series,phase,refrigerant,source_pdf_page,source_printed_page
+cooling_only,Tiêu chuẩn,RC100AGY1V,RC,3,R410A,64,126|127
+cooling_only,Tiêu chuẩn,RC125AGY1V,RC,3,R410A,64,126|127
+cooling_only,Tiêu chuẩn,RC140AGY1V,RC,3,R410A,64,126|127
+cooling_only,Tiêu chuẩn,RC50AGV1V,RC,1,R410A,64,126|127
+cooling_only,Tiêu chuẩn,RC60AGV1V,RC,1,R410A,64,126|127
+cooling_only,Tiêu chuẩn,RC85AGV1V,RC,1,R410A,64,126|127
+cooling_only,Tiêu chuẩn,RC85AGY1V,RC,3,R410A,64,126|127
+cooling_only,Tiêu chuẩn,RCN100H(E)Y18,RCN,3,R410A,65,128|129
+cooling_only,Tiêu chuẩn,RCN125H(E)Y18,RCN,3,R410A,65,128|129
+cooling_only,Tiêu chuẩn,RCN150H(E)Y18,RCN,3,R410A,65,128|129
+cooling_only,Tiêu chuẩn,RN80H(E)Y18,RN,3,R410A,65,128|129
+cooling_only,Tiêu chuẩn,RNQ09MV1V,RNQ,1,R410A,64,126|127
+cooling_only,Tiêu chuẩn,RNQ13MV1,RNQ,1,R410A,64,126|127
+cooling_only,Tiêu chuẩn,RNQ13MV1V,RNQ,1,R410A,64,126|127
+cooling_only,Tiêu chuẩn,RNQ18MV19,RNQ,1,R410A,64,126|127
+cooling_only,Tiêu chuẩn,RNQ18MV1V,RNQ,1,R410A,64,126|127
+cooling_only,Tiêu chuẩn,RNQ21MV19,RNQ,1,R410A,64,126|127
+cooling_only,Tiêu chuẩn,RNQ21MV1V,RNQ,1,R410A,64,126|127
+cooling_only,Tiêu chuẩn,RNQ24MV1V,RNQ,1,R410A,64,126|127
+cooling_only,Tiêu chuẩn,RNQ26MV19,RNQ,1,R410A,64,126|127
+cooling_only,Tiêu chuẩn,RNQ26MY1,RNQ,1,R410A,64,126|127
+cooling_only,Tiêu chuẩn,RNQ30MV1,RNQ,1,R410A,64,126|127
+cooling_only,Tiêu chuẩn,RNQ30MV1V,RNQ,1,R410A,65,128|129
+cooling_only,Tiêu chuẩn,RNQ30MY1,RNQ,1,R410A,64,126|127
+cooling_only,Tiêu chuẩn,RNQ36MV1,RNQ,1,R410A,64,126|127
+cooling_only,Tiêu chuẩn,RNQ36MV1V,RNQ,1,R410A,65,128|129
+cooling_only,Tiêu chuẩn,RNQ36MY1,RNQ,1,R410A,64,126|127
+cooling_only,Tiêu chuẩn,RNQ42MY1,RNQ,3,R410A,64,126|127
+cooling_only,Tiêu chuẩn,RNQ48MY1,RNQ,3,R410A,64,126|127
+heat_pump,Inverter cao cấp,RZA100DV1,RZA,1,R32,59,116|117
+heat_pump,Inverter cao cấp,RZA100DY1,RZA,3,R32,59,116|117
+heat_pump,Inverter cao cấp,RZA125DV1,RZA,1,R32,59,116|117
+heat_pump,Inverter cao cấp,RZA125DY1,RZA,3,R32,59,116|117
+heat_pump,Inverter cao cấp,RZA140DV1,RZA,1,R32,59,116|117
+heat_pump,Inverter cao cấp,RZA140DY1,RZA,3,R32,59,116|117
+heat_pump,Inverter cao cấp,RZA50DV2V,RZA,1,R32,59,116|117
+heat_pump,Inverter cao cấp,RZA60DV2V,RZA,1,R32,59,116|117
+heat_pump,Inverter cao cấp,RZA71DV1,RZA,1,R32,59,116|117
+cooling_only,Inverter cao cấp,RZF100CVM,RZF,1,R32,55,108|109
+cooling_only,Inverter cao cấp,RZF100CYM,RZF,3,R32,55,108|109
+cooling_only,Inverter cao cấp,RZF100DVM,RZF,1,R32,55,108|109
+cooling_only,Inverter cao cấp,RZF100DYM,RZF,3,R32,55,108|109
+cooling_only,Inverter cao cấp,RZF125CVM,RZF,1,R32,55,108|109
+cooling_only,Inverter cao cấp,RZF125CYM,RZF,3,R32,55,108|109
+cooling_only,Inverter cao cấp,RZF125DVM,RZF,1,R32,55,108|109
+cooling_only,Inverter cao cấp,RZF125DYM,RZF,3,R32,55,108|109
+cooling_only,Inverter cao cấp,RZF140CVM,RZF,1,R32,55,108|109
+cooling_only,Inverter cao cấp,RZF140CYM,RZF,3,R32,55,108|109
+cooling_only,Inverter cao cấp,RZF140DVM,RZF,1,R32,55,108|109
+cooling_only,Inverter cao cấp,RZF140DYM,RZF,3,R32,55,108|109
+cooling_only,Inverter cao cấp,RZF50DVM,RZF,1,R32,55,108|109
+cooling_only,Inverter cao cấp,RZF60DVM,RZF,1,R32,55,108|109
+cooling_only,Inverter cao cấp,RZF71DVM,RZF,1,R32,55,108|109
+cooling_only,Inverter cao cấp,RZF71DYM,RZF,3,R32,55,108|109
+cooling_only,Inverter tiêu chuẩn,RZFC100AV19,RZFC,1,R32,61,120|121
+cooling_only,Inverter tiêu chuẩn,RZFC100EVM,RZFC,1,R32,61,120|121
+cooling_only,Inverter tiêu chuẩn,RZFC100EY1,RZFC,3,R32,61,120|121
+cooling_only,Inverter tiêu chuẩn,RZFC125AY19,RZFC,3,R32,61,120|121
+cooling_only,Inverter tiêu chuẩn,RZFC125EY1,RZFC,3,R32,61,120|121
+cooling_only,Inverter tiêu chuẩn,RZFC140AY19,RZFC,3,R32,61,120|121
+cooling_only,Inverter tiêu chuẩn,RZFC140EY1,RZFC,3,R32,61,120|121
+cooling_only,Inverter tiêu chuẩn,RZFC35EVM,RZFC,1,R32,61,120|121
+cooling_only,Inverter tiêu chuẩn,RZFC40EVM,RZFC,1,R32,61,120|121
+cooling_only,Inverter tiêu chuẩn,RZFC50AV1V,RZFC,1,R32,61,120|121
+cooling_only,Inverter tiêu chuẩn,RZFC50EVM,RZFC,1,R32,61,120|121
+cooling_only,Inverter tiêu chuẩn,RZFC60AGV19,RZFC,1,R32,61,120|121
+cooling_only,Inverter tiêu chuẩn,RZFC60EVM,RZFC,1,R32,61,120|121
+cooling_only,Inverter tiêu chuẩn,RZFC71AGV19,RZFC,1,R32,61,120|121
+cooling_only,Inverter tiêu chuẩn,RZFC71EVM,RZFC,1,R32,61,120|121
+cooling_only,Inverter tiêu chuẩn,RZFC71EY1,RZFC,3,R32,61,120|121
+cooling_only,Inverter tiêu chuẩn,RZFC85AGV19,RZFC,1,R32,61,120|121
+cooling_only,Inverter tiêu chuẩn,RZFC85AV19,RZFC,1,R32,63,124|125
+cooling_only,Inverter tiêu chuẩn,RZFC85EVM,RZFC,1,R32,61,120|121
+cooling_only,Inverter tiêu chuẩn,RZFC85EY1,RZFC,3,R32,61,120|121

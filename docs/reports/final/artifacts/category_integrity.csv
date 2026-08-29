@@ -1,0 +1,8 @@
+id,name,slug,parent_id,is_active,is_indexable,deleted_at,product_count,active_product_count,route_contract
+23,"Điều hòa đặt sàn/áp trần",dieu-hoa-dat-san-ap-tran,,1,1,,39,2,PUBLIC_200_EXPECTED
+24,"Điều hòa âm trần Cassette",dieu-hoa-am-tran-cassette,,1,1,,91,28,PUBLIC_200_EXPECTED
+25,"Điều hòa tủ đứng",dieu-hoa-tu-dung,,1,1,,39,0,PUBLIC_200_EXPECTED
+26,"Điều hòa trung tâm VRF/GMV",dieu-hoa-trung-tam-vrf-gmv,,1,1,,0,0,PUBLIC_200_EXPECTED
+27,"Điều hòa giấu trần nối ống gió",dieu-hoa-giau-tran-noi-ong-gio,,1,1,,57,21,PUBLIC_200_EXPECTED
+28,"Quis sequi perspiciatis",quis-sequi-perspiciatis,,1,1,,0,0,PUBLIC_200_EXPECTED
+29,"Điều hòa treo tường",dieu-hoa-treo-tuong,,0,0,,51,51,PUBLIC_404_EXPECTED

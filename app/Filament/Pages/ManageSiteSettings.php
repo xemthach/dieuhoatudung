@@ -9,6 +9,7 @@ use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
+use Filament\Forms\Components\Repeater;
 use Filament\Schemas\Components\Tabs;
 use Filament\Schemas\Schema;
 use Filament\Schemas\Concerns\InteractsWithSchemas;
@@ -75,6 +76,11 @@ class ManageSiteSettings extends Page
             // Without this, string '0' is treated as truthy by Toggle.
             if ($s->type === 'boolean') {
                 $formatted[$formKey] = filter_var($s->value, FILTER_VALIDATE_BOOLEAN);
+                continue;
+            }
+
+            if ($s->type === 'json') {
+                $formatted[$formKey] = json_decode((string) $s->value, true) ?: [];
                 continue;
             }
 
@@ -217,6 +223,23 @@ class ManageSiteSettings extends Page
                                 Toggle::make('branding__footer_show_company_name')->label('Hiện tên công ty ở footer')->default(true),
                                 Toggle::make('branding__footer_show_contact')->label('Hiện thông tin liên hệ ở footer')->default(true),
                             ])->columns(2)->collapsible()->collapsed(),
+
+                        \Filament\Schemas\Components\Section::make('Điều hướng public')
+                            ->description('Một nguồn cấu hình dùng chung cho desktop/mobile. Category inactive hoặc route không hợp lệ sẽ không được render.')
+                            ->schema([
+                                Repeater::make('navigation__header_primary')
+                                    ->label('Menu header chính')
+                                    ->schema([
+                                        TextInput::make('label')->label('Nhãn')->required(),
+                                        Select::make('type')->label('Loại')->options(['route'=>'Route hệ thống','product_category'=>'Danh mục sản phẩm','custom_url'=>'URL tùy chỉnh'])->required()->live(),
+                                        Select::make('target')->label('Route')->options(['home'=>'Trang chủ','products.index'=>'Sản phẩm','price-list'=>'Bảng giá','blog.index'=>'Blog','faq.dieu-hoa'=>'FAQ','contact'=>'Liên hệ','quote.index'=>'Báo giá','brands.index'=>'Thương hiệu','case-studies.index'=>'Dự án','policy-pages.index'=>'Chính sách'])->visible(fn (callable $get) => $get('type') === 'route'),
+                                        Select::make('category_target')->label('Danh mục')->options(fn () => \App\Models\ProductCategory::query()->orderBy('sort_order')->pluck('name','id')->all())->visible(fn (callable $get) => $get('type') === 'product_category'),
+                                        TextInput::make('custom_target')->label('URL')->url()->visible(fn (callable $get) => $get('type') === 'custom_url'),
+                                        TextInput::make('sort_order')->label('Thứ tự')->numeric()->default(10)->required(),
+                                        Toggle::make('is_active')->label('Hiển thị')->default(true),
+                                        Toggle::make('open_new_tab')->label('Tab mới')->default(false),
+                                    ])->columns(2)->orderColumn('sort_order')->defaultItems(0),
+                            ])->collapsible()->collapsed(),
                     ]),
 
                     /* ── Tab 1: General ── */
@@ -893,10 +916,10 @@ class ManageSiteSettings extends Page
                 $value = is_array($value) ? (collect($value)->first() ?? '') : ($value ?? '');
             }
 
-            $type = is_bool($value) ? 'boolean' : 'text';
+            $type = is_array($value) ? 'json' : (is_bool($value) ? 'boolean' : 'text');
             $svc->set(
                 $settingKey,
-                is_bool($value) ? ($value ? '1' : '0') : (string) $value,
+                is_array($value) ? $value : (is_bool($value) ? ($value ? '1' : '0') : (string) $value),
                 $group,
                 $isEncrypted,
                 $type

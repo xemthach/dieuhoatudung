@@ -1,0 +1,8 @@
+category_id,category,schema_version,schema_status,field_count,active_products
+23,"Điều hòa đặt sàn/áp trần",skyair-ceiling_suspended-v1,active,34,2
+24,"Điều hòa âm trần Cassette",skyair-cassette-v1,active,38,28
+25,"Điều hòa tủ đứng",skyair-floor_standing-v1,active,34,0
+26,"Điều hòa trung tâm VRF/GMV",v1,active,9,0
+27,"Điều hòa giấu trần nối ống gió",skyair-ducted-v1,active,38,21
+28,"Quis sequi perspiciatis",,missing,0,0
+29,"Điều hòa treo tường",wall-mounted-v1,active,75,51

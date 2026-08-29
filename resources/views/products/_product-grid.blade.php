@@ -18,7 +18,7 @@
                         <span class="hidden text-sm text-surface-500 sm:inline-block">{{ $products->total() }} sản phẩm</span>
                         
                         <div class="relative">
-                            <select onchange="const url = new URL(window.location.href); url.searchParams.set('sort', this.value); window.location.href = url.href;" class="block w-full appearance-none rounded-lg border border-surface-300 bg-white py-2 pl-4 pr-10 text-sm font-medium text-surface-700 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500">
+                            <select onchange="const url = new window.URL(window.location.href); url.searchParams.set('sort', this.value); window.location.href = url.href;" class="block w-full appearance-none rounded-lg border border-surface-300 bg-white py-2 pl-4 pr-10 text-sm font-medium text-surface-700 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500">
                                 <option value="latest" {{ request('sort', 'latest') === 'latest' ? 'selected' : '' }}>Mới nhất</option>
                                 <option value="price_asc" {{ request('sort') === 'price_asc' ? 'selected' : '' }}>Giá: Thấp đến Cao</option>
                                 <option value="price_desc" {{ request('sort') === 'price_desc' ? 'selected' : '' }}>Giá: Cao đến Thấp</option>

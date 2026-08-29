@@ -66,7 +66,7 @@ No remaining production source defect was reproduced. Harness locators were alig
 
 ## 16. Full Regression
 
-Browser suite: `6 passed`, `0 failed`, provider calls `0`. Full Laravel/build/security results are recorded in the parent audit after final release validation.
+The complete controlled release browser run executed 9 tests with one worker: `9 passed`, `0 failed`, `0 skipped`. It included the 2 Product/filter/navigation tests, 6 marketing/content tests and 1 Admin navigation round-trip test. Provider calls remained `0`.
 
 ## 17. Remaining Limitations
 
@@ -78,4 +78,4 @@ Browser suite: `6 passed`, `0 failed`, provider calls `0`. Full Laravel/build/se
 
 **BROWSER CERTIFICATION = PASS.**
 
-Website Campaign, Post RichEditor, AI Post and Promotion browser-specific blockers are closed. Release still depends on the full repository regression and release gates.
+Website Campaign, Post RichEditor, AI Post, Promotion, Product/filter/navigation and Admin navigation browser-specific blockers are closed. The remaining release gates are repository staging, release metadata and remote publication.

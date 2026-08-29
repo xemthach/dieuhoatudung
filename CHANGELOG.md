@@ -2,6 +2,36 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.31.0] - 2026-08-29
+
+### Added
+- Added configurable public header/top/footer navigation using the existing `site_settings` JSON contract, with allowlisted named routes, Product category targets, safe custom URLs, deterministic ordering and active-state control.
+- Added Filament navigation governance controls for labels, targets, order, visibility and new-tab behavior; desktop and mobile consume the same resolved navigation collection.
+- Added Daikin SkyAir and wall-mounted catalog schema/import tooling, source contracts, validation artifacts and regression coverage. No production catalog import was executed.
+- Added Product catalog/category/filter integrity and public navigation regression tests, including inactive-category fail-closed behavior.
+
+### Changed
+- Product/category presentation and breadcrumb links now use canonical active/indexable category targets and avoid dead inactive-category links.
+- Product media, related-product rendering and internal-link suggestions use the audited canonical data contracts already present in the release candidate.
+- Release browser fixtures now clear settings cache, use deterministic local assets and isolate navigation/marketing state without provider calls.
+
+### Fixed
+- Fixed the browser sort handler collision by using `window.URL` explicitly.
+- Fixed duplicate mobile navigation toggle handling.
+- Fixed Filament navigation round-trip test selectors and Livewire endpoint detection for the current Filament/Livewire runtime.
+
+### Security
+- Navigation route targets are allowlisted; unsafe `javascript:`, `data:` and `vbscript:` URLs are rejected.
+- Browser certification uses isolated fixtures, with zero AI provider calls and no Product/catalog writes.
+
+### Operations
+- Worker remains operator-controlled and disabled state is unchanged by this release.
+- Live deployment must restart OS-managed long-running workers, verify `ai_governed` queue/runtime version and preserve the pre-deploy desired state.
+
+### Known Limitations
+- Existing active Products assigned to inactive categories and active uncategorized Products were not automatically reclassified.
+- SkyAir workbooks and production import manifests remain protected local artifacts; production import is a separate authorized operation.
+
 ## [1.30.0] - 2026-08-29
 
 ### Added

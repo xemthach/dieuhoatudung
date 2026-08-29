@@ -1,0 +1,76 @@
+﻿field_key,label_vi,type,unit,nullable,group,display,importable,source_coverage,notes
+technical_capacity_btu,"Công suất lạnh danh định",measurement,BTU,YES,"Capacity / Performance",YES,YES,51,"Core technical capacity; Product.btu is not overwritten."
+capacity_kw,"Công suất lạnh danh định",measurement,kW,YES,"Capacity / Performance",YES,YES,51,"Source-native nominal cooling capacity."
+hp,"Công suất HP",decimal,HP,YES,"Core Compatibility",YES,YES,51,"Optional. Source group 3-3.5 HP remains blank."
+inverter,"Công nghệ Inverter",boolean,none,YES,"Core Compatibility",YES,YES,51,"Published series behavior."
+cooling_type,"Chế độ vận hành",enum,none,YES,"Core Compatibility",YES,YES,51,"1 chiều lạnh or 2 chiều lạnh/sưởi."
+voltage,"Nguồn điện",voltage,V,YES,"Core Compatibility",YES,YES,51,"Raw published supply contract; may include multiple voltage/frequency variants."
+power_input_kw,"Điện năng tiêu thụ lạnh danh định",measurement,kW,YES,"Core Compatibility",YES,YES,51,"Compatibility summary derived exactly from published W / 1000 in the import artifact."
+airflow,"Lưu lượng gió lạnh H/M/L/Q",text,m³/min,YES,"Core Compatibility",YES,YES,51,"Compatibility summary; detailed source-native levels are canonical below."
+noise_level,"Độ ồn dàn lạnh H/M/L/Q",text,dB(A),YES,"Core Compatibility",YES,YES,51,"Compatibility summary; detailed levels are canonical below."
+indoor_dimensions,"Kích thước dàn lạnh C×R×D",dimension,mm,YES,"Indoor Unit",YES,YES,51,"Compatibility summary; C=height, R=width, D=depth."
+outdoor_dimensions,"Kích thước dàn nóng C×R×D",dimension,mm,YES,"Outdoor Unit",YES,YES,51,"Compatibility summary; C=height, R=width, D=depth."
+weight,"Khối lượng dàn lạnh",weight,kg,YES,"Core Compatibility",YES,YES,51,"Compatibility mirror of indoor_weight_kg."
+cooling_capacity_kw_min,"Công suất lạnh tối thiểu",decimal,kW,YES,"Capacity / Performance",YES,YES,47,
+cooling_capacity_kw_max,"Công suất lạnh tối đa",decimal,kW,YES,"Capacity / Performance",YES,YES,47,
+cooling_capacity_btu_min,"Công suất lạnh tối thiểu",number,BTU,YES,"Capacity / Performance",YES,YES,47,
+cooling_capacity_btu_max,"Công suất lạnh tối đa",number,BTU,YES,"Capacity / Performance",YES,YES,47,
+heating_capacity_kw_min,"Công suất sưởi tối thiểu",decimal,kW,YES,"Capacity / Performance",YES,YES,19,
+heating_capacity_kw_nominal,"Công suất sưởi danh định",decimal,kW,YES,"Capacity / Performance",YES,YES,19,
+heating_capacity_kw_max,"Công suất sưởi tối đa",decimal,kW,YES,"Capacity / Performance",YES,YES,19,
+heating_capacity_btu_min,"Công suất sưởi tối thiểu",number,BTU,YES,"Capacity / Performance",YES,YES,19,
+heating_capacity_btu_nominal,"Công suất sưởi danh định",number,BTU,YES,"Capacity / Performance",YES,YES,19,
+heating_capacity_btu_max,"Công suất sưởi tối đa",number,BTU,YES,"Capacity / Performance",YES,YES,19,
+cspf,CSPF,decimal,none,YES,"Capacity / Performance",YES,YES,51,
+phase,"Pha điện",text,none,YES,Electrical,YES,YES,51,
+frequency,"Tần số",text,Hz,YES,Electrical,YES,YES,51,
+power_supply_location,"Vị trí cấp điện",enum,none,YES,Electrical,YES,YES,51,
+rated_current_cooling_a,"Dòng điện định mức lạnh",text,A,YES,Electrical,YES,YES,51,"Text preserves voltage-dependent multi-values."
+rated_current_heating_a,"Dòng điện định mức sưởi",text,A,YES,Electrical,YES,YES,19,"Blank for cooling-only models."
+power_consumption_cooling_w_min,"Điện năng lạnh tối thiểu",number,W,YES,Electrical,YES,YES,47,
+power_consumption_cooling_w_nominal,"Điện năng lạnh danh định",number,W,YES,Electrical,YES,YES,51,
+power_consumption_cooling_w_max,"Điện năng lạnh tối đa",number,W,YES,Electrical,YES,YES,47,
+power_consumption_heating_w_min,"Điện năng sưởi tối thiểu",number,W,YES,Electrical,YES,YES,19,
+power_consumption_heating_w_nominal,"Điện năng sưởi danh định",number,W,YES,Electrical,YES,YES,19,
+power_consumption_heating_w_max,"Điện năng sưởi tối đa",number,W,YES,Electrical,YES,YES,19,
+indoor_airflow_cooling_high_m3_min,"Lưu lượng gió lạnh cao",decimal,m³/min,YES,"Indoor Unit",YES,YES,51,
+indoor_airflow_cooling_medium_m3_min,"Lưu lượng gió lạnh trung bình",decimal,m³/min,YES,"Indoor Unit",YES,YES,51,
+indoor_airflow_cooling_low_m3_min,"Lưu lượng gió lạnh thấp",decimal,m³/min,YES,"Indoor Unit",YES,YES,51,
+indoor_airflow_cooling_quiet_m3_min,"Lưu lượng gió lạnh yên tĩnh",decimal,m³/min,YES,"Indoor Unit",YES,YES,48,
+indoor_airflow_heating_high_m3_min,"Lưu lượng gió sưởi cao",decimal,m³/min,YES,"Indoor Unit",YES,YES,19,
+indoor_airflow_heating_medium_m3_min,"Lưu lượng gió sưởi trung bình",decimal,m³/min,YES,"Indoor Unit",YES,YES,19,
+indoor_airflow_heating_low_m3_min,"Lưu lượng gió sưởi thấp",decimal,m³/min,YES,"Indoor Unit",YES,YES,19,
+indoor_airflow_heating_quiet_m3_min,"Lưu lượng gió sưởi yên tĩnh",decimal,m³/min,YES,"Indoor Unit",YES,YES,19,
+fan_speed_modes,"Các cấp tốc độ quạt",text,none,YES,"Indoor Unit",YES,YES,51,
+indoor_noise_cooling_high_db,"Độ ồn dàn lạnh - lạnh cao",number,dB(A),YES,"Indoor Unit",YES,YES,51,
+indoor_noise_cooling_medium_db,"Độ ồn dàn lạnh - lạnh trung bình",number,dB(A),YES,"Indoor Unit",YES,YES,51,
+indoor_noise_cooling_low_db,"Độ ồn dàn lạnh - lạnh thấp",number,dB(A),YES,"Indoor Unit",YES,YES,51,
+indoor_noise_cooling_quiet_db,"Độ ồn dàn lạnh - lạnh yên tĩnh",number,dB(A),YES,"Indoor Unit",YES,YES,48,
+indoor_noise_heating_high_db,"Độ ồn dàn lạnh - sưởi cao",number,dB(A),YES,"Indoor Unit",YES,YES,19,
+indoor_noise_heating_medium_db,"Độ ồn dàn lạnh - sưởi trung bình",number,dB(A),YES,"Indoor Unit",YES,YES,19,
+indoor_noise_heating_low_db,"Độ ồn dàn lạnh - sưởi thấp",number,dB(A),YES,"Indoor Unit",YES,YES,19,
+indoor_noise_heating_quiet_db,"Độ ồn dàn lạnh - sưởi yên tĩnh",number,dB(A),YES,"Indoor Unit",YES,YES,19,
+indoor_height_mm,"Chiều cao dàn lạnh",number,mm,YES,"Indoor Unit",YES,YES,51,
+indoor_width_mm,"Chiều rộng dàn lạnh",number,mm,YES,"Indoor Unit",YES,YES,51,
+indoor_depth_mm,"Chiều sâu dàn lạnh",number,mm,YES,"Indoor Unit",YES,YES,51,
+indoor_weight_kg,"Khối lượng dàn lạnh",decimal,kg,YES,"Indoor Unit",YES,YES,51,
+compressor_type,"Loại máy nén",text,none,YES,"Compressor / Refrigerant",YES,YES,51,
+compressor_output_w,"Công suất đầu ra máy nén",number,W,YES,"Compressor / Refrigerant",YES,YES,51,
+refrigerant_charge_kg,"Lượng nạp môi chất lạnh",decimal,kg,YES,"Compressor / Refrigerant",YES,YES,51,"Catalog states charge only; refrigerant type is intentionally not inferred."
+outdoor_noise_cooling_high_db,"Độ ồn dàn nóng - lạnh cao",number,dB(A),YES,"Outdoor Unit",YES,YES,51,
+outdoor_noise_cooling_low_db,"Độ ồn dàn nóng - lạnh thấp",number,dB(A),YES,"Outdoor Unit",YES,YES,47,
+outdoor_noise_heating_high_db,"Độ ồn dàn nóng - sưởi cao",number,dB(A),YES,"Outdoor Unit",YES,YES,19,
+outdoor_noise_heating_low_db,"Độ ồn dàn nóng - sưởi thấp",number,dB(A),YES,"Outdoor Unit",YES,YES,19,
+outdoor_height_mm,"Chiều cao dàn nóng",number,mm,YES,"Outdoor Unit",YES,YES,51,
+outdoor_width_mm,"Chiều rộng dàn nóng",number,mm,YES,"Outdoor Unit",YES,YES,51,
+outdoor_depth_mm,"Chiều sâu dàn nóng",number,mm,YES,"Outdoor Unit",YES,YES,51,
+outdoor_weight_kg,"Khối lượng dàn nóng",decimal,kg,YES,"Outdoor Unit",YES,YES,51,
+liquid_pipe_mm,"Đường kính ống lỏng",decimal,mm,YES,Piping,YES,YES,51,
+gas_pipe_mm,"Đường kính ống gas",decimal,mm,YES,Piping,YES,YES,51,
+drain_pipe_mm,"Đường kính ống xả",decimal,mm,YES,Piping,YES,YES,51,
+max_pipe_length_m,"Chiều dài ống tối đa",number,m,YES,Piping,YES,YES,51,
+max_height_difference_m,"Chênh lệch độ cao tối đa",number,m,YES,Piping,YES,YES,51,
+cooling_operating_min_c_db,"Nhiệt độ làm lạnh tối thiểu (DB)",decimal,°C,YES,"Operating Range",YES,YES,0,
+cooling_operating_max_c_db,"Nhiệt độ làm lạnh tối đa (DB)",decimal,°C,YES,"Operating Range",YES,YES,0,
+heating_operating_min_c_wb,"Nhiệt độ sưởi tối thiểu (WB)",decimal,°C,YES,"Operating Range",YES,YES,0,
+heating_operating_max_c_wb,"Nhiệt độ sưởi tối đa (WB)",decimal,°C,YES,"Operating Range",YES,YES,0,

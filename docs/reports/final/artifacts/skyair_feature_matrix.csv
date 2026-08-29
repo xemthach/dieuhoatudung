@@ -1,0 +1,15 @@
+﻿availability,dependency,feature_key,label,source_pdf_page,source_printed_page
+OUTDOOR_SPECIFIC,RZF/RZA/RZFC,energy_inverter,Công nghệ Inverter,11,20|21
+MODEL_SPECIFIC,RZF/RZA/RZFC where catalog marks it,microchannel_heat_exchanger,Dàn trao đổi nhiệt Microchannel,13,24|25
+MODEL_SPECIFIC,FCTF or accessory-dependent FHA/FHFC,streamer_air_cleaning,Lọc khí Streamer,15,28|29
+OPTIONAL,Compatible cassette models; accessory required,uv_streamer,Thiết bị lọc khí UV Streamer,14,26|27
+MODEL_SPECIFIC,Cassette family matrix,individual_airflow_control,Điều khiển hướng gió độc lập,18,34|35
+CONTROLLER_REQUIRED,Sensor panel/controller dependency,occupancy_floor_sensor,Cảm biến hiện diện/sàn,20,38|39
+MODEL_SPECIFIC,Indoor family matrix,auto_swing,Đảo gió tự động,31,60|61
+MODEL_SPECIFIC,Cassette/ceiling family matrix,high_ceiling,Ứng dụng trần cao,22,42|43
+MODEL_SPECIFIC,Built-in or optional by family,drain_pump,Bơm nước xả,23,44|45
+OPTIONAL,Accessory/installation conditions,fresh_air_intake,Nạp gió tươi,35,68|69
+OPTIONAL,Controller compatibility matrix,wired_controller,Điều khiển có dây,44,86|87
+OPTIONAL,Controller compatibility matrix,wireless_controller,Điều khiển không dây,44,86|87
+CONTROLLER_REQUIRED,Adapter/controller dependency,central_control,Điều khiển trung tâm,44,86|87
+OPTIONAL,Model-specific adapter,wifi_adapter,Bộ điều hợp mạng LAN không dây,67,132|133

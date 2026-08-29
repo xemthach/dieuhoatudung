@@ -63,6 +63,12 @@ test.describe.serial('Marketing/content browser certification', () => {
 
     test.beforeEach(async ({ page }) => {
         observe(page);
+        await page.route('https://dieuhoa-tudung.test/**', async route => {
+            const url = new URL(route.request().url());
+            const base = process.env.BROWSER_BASE_URL ?? 'http://127.0.0.1:8098';
+            const response = await route.fetch({ url: `${base}${url.pathname}${url.search}` });
+            await route.fulfill({ response });
+        });
         await login(page);
     });
 

@@ -127,7 +127,8 @@ class ModuleRegistry
             'specs' => [
                 'label'  => 'Thông số kỹ thuật',
                 'fields' => [
-                    'btu', 'inverter', 'cooling_type', 'voltage', 'refrigerant_gas',
+                    'btu', 'marketing_capacity_btu', 'technical_capacity_btu', 'capacity_kw',
+                    'inverter', 'cooling_type', 'voltage', 'refrigerant_gas',
                     'power_consumption', 'airflow', 'noise_level', 'indoor_dimensions',
                     'outdoor_dimensions', 'weight', 'recommended_area', 'warranty_info',
                     'installation_note', 'specs_json',

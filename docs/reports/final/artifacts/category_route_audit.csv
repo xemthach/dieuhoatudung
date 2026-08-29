@@ -1,0 +1,8 @@
+category_id,slug,is_active,is_indexable,expected_http_status,route,reason
+23,dieu-hoa-dat-san-ap-tran,1,1,200,https://dieuhoa-tudung.test/danh-muc/dieu-hoa-dat-san-ap-tran,"active category route"
+24,dieu-hoa-am-tran-cassette,1,1,200,https://dieuhoa-tudung.test/danh-muc/dieu-hoa-am-tran-cassette,"active category route"
+25,dieu-hoa-tu-dung,1,1,200,https://dieuhoa-tudung.test/danh-muc/dieu-hoa-tu-dung,"active category route"
+26,dieu-hoa-trung-tam-vrf-gmv,1,1,200,https://dieuhoa-tudung.test/danh-muc/dieu-hoa-trung-tam-vrf-gmv,"active category route"
+27,dieu-hoa-giau-tran-noi-ong-gio,1,1,200,https://dieuhoa-tudung.test/danh-muc/dieu-hoa-giau-tran-noi-ong-gio,"active category route"
+28,quis-sequi-perspiciatis,1,1,200,https://dieuhoa-tudung.test/danh-muc/quis-sequi-perspiciatis,"active category route"
+29,dieu-hoa-treo-tuong,0,0,404,https://dieuhoa-tudung.test/danh-muc/dieu-hoa-treo-tuong,"inactive/deleted category is intentionally not public"

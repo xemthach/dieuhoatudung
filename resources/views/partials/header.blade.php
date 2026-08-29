@@ -1,4 +1,9 @@
 {{-- Header --}}
+@php
+    $navigationResolver = app(\App\Services\Navigation\PublicNavigationResolver::class);
+    $headerPrimaryNavigation = $navigationResolver->items('header_primary');
+    $headerTopNavigation = $navigationResolver->items('header_top');
+@endphp
 <header class="sticky top-0 z-40 border-b border-surface-200 bg-white/95 backdrop-blur-sm">
     {{-- Top Bar --}}
     <div class="hidden border-b border-surface-100 bg-surface-900 text-sm text-surface-300 lg:block">
@@ -13,9 +18,9 @@
             </div>
             <div class="flex items-center gap-4">
                 <x-policy-links display-location="header_top" variant="inline" />
-                <a href="/bang-gia/dieu-hoa-tu-dung" class="transition-colors hover:text-white">Bảng giá</a>
-                <a href="/faq/dieu-hoa-tu-dung" class="transition-colors hover:text-white">FAQ</a>
-                <a href="/lien-he" class="transition-colors hover:text-white">Liên hệ</a>
+                @foreach($headerTopNavigation as $item)
+                    <a href="{{ $item['url'] }}" @if($item['open_new_tab']) target="_blank" rel="noopener" @endif class="transition-colors hover:text-white">{{ $item['label'] }}</a>
+                @endforeach
             </div>
         </div>
     </div>
@@ -30,12 +35,9 @@
 
             {{-- Desktop Menu --}}
             <div class="hidden items-center gap-1 lg:flex">
-                <a href="/" class="rounded-lg px-3 py-2 text-sm font-medium text-surface-700 transition-colors hover:bg-surface-100 hover:text-primary-600">Trang chủ</a>
-                <a href="/dieu-hoa-tu-dung" class="rounded-lg px-3 py-2 text-sm font-medium text-surface-700 transition-colors hover:bg-surface-100 hover:text-primary-600">Điều hòa tủ đứng</a>
-                <a href="/bang-gia/dieu-hoa-tu-dung" class="rounded-lg px-3 py-2 text-sm font-medium text-surface-700 transition-colors hover:bg-surface-100 hover:text-primary-600">Bảng giá</a>
-                <a href="/blog" class="rounded-lg px-3 py-2 text-sm font-medium text-surface-700 transition-colors hover:bg-surface-100 hover:text-primary-600">Blog</a>
-                <a href="/faq/dieu-hoa-tu-dung" class="rounded-lg px-3 py-2 text-sm font-medium text-surface-700 transition-colors hover:bg-surface-100 hover:text-primary-600">FAQ</a>
-                <a href="/lien-he" class="rounded-lg px-3 py-2 text-sm font-medium text-surface-700 transition-colors hover:bg-surface-100 hover:text-primary-600">Liên hệ</a>
+                @foreach($headerPrimaryNavigation as $item)
+                    <a href="{{ $item['url'] }}" @if($item['open_new_tab']) target="_blank" rel="noopener" @endif class="rounded-lg px-3 py-2 text-sm font-medium text-surface-700 transition-colors hover:bg-surface-100 hover:text-primary-600">{{ $item['label'] }}</a>
+                @endforeach
             </div>
 
             {{-- CTA + Mobile Toggle --}}
@@ -50,7 +52,8 @@
                     type="button"
                     class="rounded-lg p-2 text-surface-600 transition-colors hover:bg-surface-100 lg:hidden"
                     aria-label="Mở menu"
-                    onclick="document.getElementById('mobile-menu').classList.toggle('hidden')"
+                    aria-expanded="false"
+                    aria-controls="mobile-menu"
                 >
                     <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
                 </button>
@@ -60,12 +63,9 @@
         {{-- Mobile Menu --}}
         <div id="mobile-menu" class="hidden border-t border-surface-200 pb-4 lg:hidden">
             <div class="flex flex-col gap-1 pt-3">
-                <a href="/" class="rounded-lg px-3 py-2 text-sm font-medium text-surface-700 hover:bg-surface-100">Trang chủ</a>
-                <a href="/dieu-hoa-tu-dung" class="rounded-lg px-3 py-2 text-sm font-medium text-surface-700 hover:bg-surface-100">Điều hòa tủ đứng</a>
-                <a href="/bang-gia/dieu-hoa-tu-dung" class="rounded-lg px-3 py-2 text-sm font-medium text-surface-700 hover:bg-surface-100">Bảng giá</a>
-                <a href="/blog" class="rounded-lg px-3 py-2 text-sm font-medium text-surface-700 hover:bg-surface-100">Blog</a>
-                <a href="/faq/dieu-hoa-tu-dung" class="rounded-lg px-3 py-2 text-sm font-medium text-surface-700 hover:bg-surface-100">FAQ</a>
-                <a href="/lien-he" class="rounded-lg px-3 py-2 text-sm font-medium text-surface-700 hover:bg-surface-100">Liên hệ</a>
+                @foreach($headerPrimaryNavigation as $item)
+                    <a href="{{ $item['url'] }}" @if($item['open_new_tab']) target="_blank" rel="noopener" @endif class="rounded-lg px-3 py-2 text-sm font-medium text-surface-700 hover:bg-surface-100">{{ $item['label'] }}</a>
+                @endforeach
                 <a href="{{ setting('cta.global_cta_link', '/bao-gia') }}" class="btn-accent mt-2 text-center text-sm">{{ setting('cta.global_cta_text', 'Nhận báo giá') }}</a>
             </div>
         </div>

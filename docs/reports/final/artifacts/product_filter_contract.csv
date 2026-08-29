@@ -1,0 +1,10 @@
+filter,request_key,allowed_values,query_source,visible_in_current_sidebar,notes
+Category,"route slug","active ProductCategory slug",product_category_id,YES,"Category route requires active category"
+Brand,brand[],"active Brand slug",brand_id,YES,"Checkbox multi-select"
+Capacity,btu[],9000-12000|18000|24000|28000|36000|42000|48000|50000-100000,"marketing_capacity_btu (fallback btu)",YES,"RAC-safe exclusion for VRF/GMV category names"
+Inverter,inverter,0|1,inverter,YES,"Radio filter"
+"Cooling type",cooling_type,"service allowlisted key",cooling_type,NO,"Supported by service but not exposed in current sidebar"
+Voltage,voltage,"service allowlisted value",voltage,NO,"Supported by service but not exposed in current sidebar"
+Refrigerant,refrigerant_gas,"service allowlisted value",refrigerant_gas,NO,"Supported by service but not exposed in current sidebar"
+Price,price_min/price_max,numeric,regular_price/sale_price,NO,"Supported by service but not exposed in current sidebar"
+Sort,sort,latest|price_asc|price_desc|btu_asc|btu_desc,"order by allowlist",YES,"No arbitrary SQL"

@@ -21,7 +21,10 @@ class ProductTechnicalSpecWriter
 
     public function write(Product $product, string $fieldKey, mixed $value, array $provenance): array
     {
-        if (! in_array($fieldKey, self::ALLOWED_FIELDS, true)) {
+        $schemaAllowsField = $product->category?->hasTechnicalSchema()
+            && in_array($fieldKey, $product->category->technicalSchemaPermittedFields(), true);
+
+        if (! in_array($fieldKey, self::ALLOWED_FIELDS, true) && ! $schemaAllowsField) {
             throw new InvalidArgumentException('Unknown technical field rejected: '.$fieldKey);
         }
         $this->assertProvenance($fieldKey, $provenance);
@@ -39,18 +42,22 @@ class ProductTechnicalSpecWriter
             foreach ($specs as &$item) {
                 if (is_array($item) && ($item['key'] ?? null) === $fieldKey) {
                     $item['value'] = (string) $value;
+                    $item['unit'] = $this->schemaUnit($product, $fieldKey);
                     $item['source_pdf'] = $provenance['source_pdf'];
                     $item['source_sha256'] = $provenance['source_sha256'];
                     $item['source_page'] = $provenance['source_page'];
                     $item['source_row'] = $provenance['source_row'];
                     $item['source_column'] = $provenance['source_column'];
                     $item['source_section'] = 'TECHNICAL_APPENDIX';
+                    $item['extraction_method'] = $provenance['extraction_method'];
+                    $item['source_native'] = true;
+                    $item['derived'] = false;
                     $item['verification_status'] = 'verified_candidate';
                     $found = true;
                 }
             }
             unset($item);
-            if (!$found) $specs[] = ['key' => $fieldKey, 'value' => (string) $value, 'source_pdf' => $provenance['source_pdf'], 'source_sha256' => $provenance['source_sha256'], 'source_page' => $provenance['source_page'], 'source_row' => $provenance['source_row'], 'source_column' => $provenance['source_column'], 'source_section' => 'TECHNICAL_APPENDIX', 'verification_status' => 'verified_candidate'];
+            if (!$found) $specs[] = ['key' => $fieldKey, 'value' => (string) $value, 'unit' => $this->schemaUnit($product, $fieldKey), 'source_pdf' => $provenance['source_pdf'], 'source_sha256' => $provenance['source_sha256'], 'source_page' => $provenance['source_page'], 'source_row' => $provenance['source_row'], 'source_column' => $provenance['source_column'], 'source_section' => 'TECHNICAL_APPENDIX', 'extraction_method' => $provenance['extraction_method'], 'source_native' => true, 'derived' => false, 'verification_status' => 'verified_candidate'];
             $updates['specs_json'] = $specs;
 
             // capacity_kw is a legacy decimal display mirror. Multi-value
@@ -60,6 +67,12 @@ class ProductTechnicalSpecWriter
                 $updates['capacity_kw'] = (float) $match[0];
             }
             if ($fieldKey === 'power_input_kw') $updates['power_consumption'] = (string) $value;
+            if ($fieldKey === 'hp') $updates['hp'] = (float) $value;
+            if ($fieldKey === 'inverter') $updates['inverter'] = filter_var($value, FILTER_VALIDATE_BOOLEAN);
+            if ($fieldKey === 'cooling_type') $updates['cooling_type'] = $this->normalizeCoolingType((string) $value);
+            if (in_array($fieldKey, ['voltage', 'refrigerant_gas', 'airflow', 'noise_level', 'indoor_dimensions', 'outdoor_dimensions', 'weight', 'recommended_area'], true)) {
+                $updates[$fieldKey] = $value;
+            }
         }
 
         $updates['technical_specs_source'] = 'catalog_verified_specs';
@@ -68,6 +81,28 @@ class ProductTechnicalSpecWriter
         $product->save();
 
         return ['field' => $fieldKey, 'before' => $before, 'after' => $this->resolver->value($product->fresh(), $fieldKey), 'updates' => $updates, 'provenance' => $provenance];
+    }
+
+    private function schemaUnit(Product $product, string $fieldKey): string
+    {
+        foreach ($product->category?->technicalSchemaFieldDefinitions() ?? [] as $field) {
+            if (($field['key'] ?? null) === $fieldKey) {
+                return (string) ($field['unit'] ?? 'none');
+            }
+        }
+
+        return 'none';
+    }
+
+    private function normalizeCoolingType(string $value): string
+    {
+        $normalized = mb_strtolower(trim($value));
+
+        return match (true) {
+            in_array($normalized, ['heat_pump', '2_chieu', '2 chiều', '2 chiều lạnh/sưởi'], true) => '2_chieu',
+            in_array($normalized, ['cooling_only', '1_chieu', '1 chiều', '1 chiều lạnh'], true) => '1_chieu',
+            default => $value,
+        };
     }
 
     private function assertProvenance(string $fieldKey, array $provenance): void

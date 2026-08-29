@@ -1,0 +1,126 @@
+﻿category_id,indoor_model,indoor_series,mapping_status,reason,schema_id,source_equipment_type,system_category
+27,FBA100BVMA9,Áp suất tĩnh trung bình,NEEDS_SCHEMA_EXTENSION,Existing category is truthful; current v1 schema lacks commercial fields.,skyair-ducted-v1,ducted,Điều hòa giấu trần nối ống gió
+27,FBA125BVMA9,Áp suất tĩnh trung bình,NEEDS_SCHEMA_EXTENSION,Existing category is truthful; current v1 schema lacks commercial fields.,skyair-ducted-v1,ducted,Điều hòa giấu trần nối ống gió
+27,FBA140BVMA,Áp suất tĩnh trung bình,NEEDS_SCHEMA_EXTENSION,Existing category is truthful; current v1 schema lacks commercial fields.,skyair-ducted-v1,ducted,Điều hòa giấu trần nối ống gió
+27,FBA140BVMA9,Áp suất tĩnh trung bình,NEEDS_SCHEMA_EXTENSION,Existing category is truthful; current v1 schema lacks commercial fields.,skyair-ducted-v1,ducted,Điều hòa giấu trần nối ống gió
+27,FBA50BVMA9,Áp suất tĩnh trung bình,NEEDS_SCHEMA_EXTENSION,Existing category is truthful; current v1 schema lacks commercial fields.,skyair-ducted-v1,ducted,Điều hòa giấu trần nối ống gió
+27,FBA60BVMA9,Áp suất tĩnh trung bình,NEEDS_SCHEMA_EXTENSION,Existing category is truthful; current v1 schema lacks commercial fields.,skyair-ducted-v1,ducted,Điều hòa giấu trần nối ống gió
+27,FBA71BVMA9,Áp suất tĩnh trung bình,NEEDS_SCHEMA_EXTENSION,Existing category is truthful; current v1 schema lacks commercial fields.,skyair-ducted-v1,ducted,Điều hòa giấu trần nối ống gió
+27,FBFC100DVM9,Áp suất tĩnh trung bình,NEEDS_SCHEMA_EXTENSION,Existing category is truthful; current v1 schema lacks commercial fields.,skyair-ducted-v1,ducted,Điều hòa giấu trần nối ống gió
+27,FBFC125DVM9,Áp suất tĩnh trung bình,NEEDS_SCHEMA_EXTENSION,Existing category is truthful; current v1 schema lacks commercial fields.,skyair-ducted-v1,ducted,Điều hòa giấu trần nối ống gió
+27,FBFC140DVM9,Áp suất tĩnh trung bình,NEEDS_SCHEMA_EXTENSION,Existing category is truthful; current v1 schema lacks commercial fields.,skyair-ducted-v1,ducted,Điều hòa giấu trần nối ống gió
+27,FBFC40DVM9,Áp suất tĩnh trung bình,NEEDS_SCHEMA_EXTENSION,Existing category is truthful; current v1 schema lacks commercial fields.,skyair-ducted-v1,ducted,Điều hòa giấu trần nối ống gió
+27,FBFC50DVM9,Áp suất tĩnh trung bình,NEEDS_SCHEMA_EXTENSION,Existing category is truthful; current v1 schema lacks commercial fields.,skyair-ducted-v1,ducted,Điều hòa giấu trần nối ống gió
+27,FBFC60DVM9,Áp suất tĩnh trung bình,NEEDS_SCHEMA_EXTENSION,Existing category is truthful; current v1 schema lacks commercial fields.,skyair-ducted-v1,ducted,Điều hòa giấu trần nối ống gió
+27,FBFC71DVM9,Áp suất tĩnh trung bình,NEEDS_SCHEMA_EXTENSION,Existing category is truthful; current v1 schema lacks commercial fields.,skyair-ducted-v1,ducted,Điều hòa giấu trần nối ống gió
+27,FBFC85DVM9,Áp suất tĩnh trung bình,NEEDS_SCHEMA_EXTENSION,Existing category is truthful; current v1 schema lacks commercial fields.,skyair-ducted-v1,ducted,Điều hòa giấu trần nối ống gió
+24,FCC100AV1V,4 hướng thổi,NEEDS_SCHEMA_EXTENSION,Existing category is truthful; current v1 schema lacks commercial fields.,skyair-cassette-v1,cassette,Điều hòa âm trần Cassette
+24,FCC125AV1V,4 hướng thổi,NEEDS_SCHEMA_EXTENSION,Existing category is truthful; current v1 schema lacks commercial fields.,skyair-cassette-v1,cassette,Điều hòa âm trần Cassette
+24,FCC140AV1V,4 hướng thổi,NEEDS_SCHEMA_EXTENSION,Existing category is truthful; current v1 schema lacks commercial fields.,skyair-cassette-v1,cassette,Điều hòa âm trần Cassette
+24,FCC50AV1V,4 hướng thổi,NEEDS_SCHEMA_EXTENSION,Existing category is truthful; current v1 schema lacks commercial fields.,skyair-cassette-v1,cassette,Điều hòa âm trần Cassette
+24,FCC60AV1V,4 hướng thổi,NEEDS_SCHEMA_EXTENSION,Existing category is truthful; current v1 schema lacks commercial fields.,skyair-cassette-v1,cassette,Điều hòa âm trần Cassette
+24,FCC85AV1V,4 hướng thổi,NEEDS_SCHEMA_EXTENSION,Existing category is truthful; current v1 schema lacks commercial fields.,skyair-cassette-v1,cassette,Điều hòa âm trần Cassette
+24,FCF100CVM,Round Flow,NEEDS_SCHEMA_EXTENSION,Existing category is truthful; current v1 schema lacks commercial fields.,skyair-cassette-v1,cassette,Điều hòa âm trần Cassette
+24,FCF125CVM,Round Flow,NEEDS_SCHEMA_EXTENSION,Existing category is truthful; current v1 schema lacks commercial fields.,skyair-cassette-v1,cassette,Điều hòa âm trần Cassette
+24,FCF125DVM,Round Flow,NEEDS_SCHEMA_EXTENSION,Existing category is truthful; current v1 schema lacks commercial fields.,skyair-cassette-v1,cassette,Điều hòa âm trần Cassette
+24,FCF140CVM,Round Flow,NEEDS_SCHEMA_EXTENSION,Existing category is truthful; current v1 schema lacks commercial fields.,skyair-cassette-v1,cassette,Điều hòa âm trần Cassette
+24,FCF140DVM,Round Flow,NEEDS_SCHEMA_EXTENSION,Existing category is truthful; current v1 schema lacks commercial fields.,skyair-cassette-v1,cassette,Điều hòa âm trần Cassette
+24,FCF50CVM,Round Flow,NEEDS_SCHEMA_EXTENSION,Existing category is truthful; current v1 schema lacks commercial fields.,skyair-cassette-v1,cassette,Điều hòa âm trần Cassette
+24,FCF60CVM,Round Flow,NEEDS_SCHEMA_EXTENSION,Existing category is truthful; current v1 schema lacks commercial fields.,skyair-cassette-v1,cassette,Điều hòa âm trần Cassette
+24,FCF71CVM,Round Flow,NEEDS_SCHEMA_EXTENSION,Existing category is truthful; current v1 schema lacks commercial fields.,skyair-cassette-v1,cassette,Điều hòa âm trần Cassette
+24,FCFC100DVM,Round Flow,NEEDS_SCHEMA_EXTENSION,Existing category is truthful; current v1 schema lacks commercial fields.,skyair-cassette-v1,cassette,Điều hòa âm trần Cassette
+24,FCFC125DVM,Round Flow,NEEDS_SCHEMA_EXTENSION,Existing category is truthful; current v1 schema lacks commercial fields.,skyair-cassette-v1,cassette,Điều hòa âm trần Cassette
+24,FCFC140DVM,Round Flow,NEEDS_SCHEMA_EXTENSION,Existing category is truthful; current v1 schema lacks commercial fields.,skyair-cassette-v1,cassette,Điều hòa âm trần Cassette
+24,FCFC40DVM,Round Flow,NEEDS_SCHEMA_EXTENSION,Existing category is truthful; current v1 schema lacks commercial fields.,skyair-cassette-v1,cassette,Điều hòa âm trần Cassette
+24,FCFC50DVM,Round Flow,NEEDS_SCHEMA_EXTENSION,Existing category is truthful; current v1 schema lacks commercial fields.,skyair-cassette-v1,cassette,Điều hòa âm trần Cassette
+24,FCFC60DVM,Round Flow,NEEDS_SCHEMA_EXTENSION,Existing category is truthful; current v1 schema lacks commercial fields.,skyair-cassette-v1,cassette,Điều hòa âm trần Cassette
+24,FCFC71DVM,Round Flow,NEEDS_SCHEMA_EXTENSION,Existing category is truthful; current v1 schema lacks commercial fields.,skyair-cassette-v1,cassette,Điều hòa âm trần Cassette
+24,FCFC85DVM,Round Flow,NEEDS_SCHEMA_EXTENSION,Existing category is truthful; current v1 schema lacks commercial fields.,skyair-cassette-v1,cassette,Điều hòa âm trần Cassette
+24,FCFG100AV1V,KIRIU Surround,NEEDS_SCHEMA_EXTENSION,Existing category is truthful; current v1 schema lacks commercial fields.,skyair-cassette-v1,cassette,Điều hòa âm trần Cassette
+24,FCFG125AV1V,KIRIU Surround,NEEDS_SCHEMA_EXTENSION,Existing category is truthful; current v1 schema lacks commercial fields.,skyair-cassette-v1,cassette,Điều hòa âm trần Cassette
+24,FCFG140AV1V,KIRIU Surround,NEEDS_SCHEMA_EXTENSION,Existing category is truthful; current v1 schema lacks commercial fields.,skyair-cassette-v1,cassette,Điều hòa âm trần Cassette
+24,FCFG50AV1V,KIRIU Surround,NEEDS_SCHEMA_EXTENSION,Existing category is truthful; current v1 schema lacks commercial fields.,skyair-cassette-v1,cassette,Điều hòa âm trần Cassette
+24,FCFG60AV1V,KIRIU Surround,NEEDS_SCHEMA_EXTENSION,Existing category is truthful; current v1 schema lacks commercial fields.,skyair-cassette-v1,cassette,Điều hòa âm trần Cassette
+24,FCFG71AV1V,KIRIU Surround,NEEDS_SCHEMA_EXTENSION,Existing category is truthful; current v1 schema lacks commercial fields.,skyair-cassette-v1,cassette,Điều hòa âm trần Cassette
+24,FCFG85AV1V,KIRIU Surround,NEEDS_SCHEMA_EXTENSION,Existing category is truthful; current v1 schema lacks commercial fields.,skyair-cassette-v1,cassette,Điều hòa âm trần Cassette
+24,FCNQ13MV1,4 hướng thổi,NEEDS_SCHEMA_EXTENSION,Existing category is truthful; current v1 schema lacks commercial fields.,skyair-cassette-v1,cassette,Điều hòa âm trần Cassette
+24,FCNQ18MV1,4 hướng thổi,NEEDS_SCHEMA_EXTENSION,Existing category is truthful; current v1 schema lacks commercial fields.,skyair-cassette-v1,cassette,Điều hòa âm trần Cassette
+24,FCNQ21MV1,4 hướng thổi,NEEDS_SCHEMA_EXTENSION,Existing category is truthful; current v1 schema lacks commercial fields.,skyair-cassette-v1,cassette,Điều hòa âm trần Cassette
+24,FCNQ26MV1,4 hướng thổi,NEEDS_SCHEMA_EXTENSION,Existing category is truthful; current v1 schema lacks commercial fields.,skyair-cassette-v1,cassette,Điều hòa âm trần Cassette
+24,FCNQ30MV1,4 hướng thổi,NEEDS_SCHEMA_EXTENSION,Existing category is truthful; current v1 schema lacks commercial fields.,skyair-cassette-v1,cassette,Điều hòa âm trần Cassette
+24,FCNQ36MV1,4 hướng thổi,NEEDS_SCHEMA_EXTENSION,Existing category is truthful; current v1 schema lacks commercial fields.,skyair-cassette-v1,cassette,Điều hòa âm trần Cassette
+24,FCNQ42MV1,4 hướng thổi,NEEDS_SCHEMA_EXTENSION,Existing category is truthful; current v1 schema lacks commercial fields.,skyair-cassette-v1,cassette,Điều hòa âm trần Cassette
+24,FCNQ48MV1,4 hướng thổi,NEEDS_SCHEMA_EXTENSION,Existing category is truthful; current v1 schema lacks commercial fields.,skyair-cassette-v1,cassette,Điều hòa âm trần Cassette
+24,FCTF100AVM,Round Flow có Streamer,NEEDS_SCHEMA_EXTENSION,Existing category is truthful; current v1 schema lacks commercial fields.,skyair-cassette-v1,cassette,Điều hòa âm trần Cassette
+24,FCTF125AVM,Round Flow có Streamer,NEEDS_SCHEMA_EXTENSION,Existing category is truthful; current v1 schema lacks commercial fields.,skyair-cassette-v1,cassette,Điều hòa âm trần Cassette
+24,FCTF125BVM,Round Flow có Streamer,NEEDS_SCHEMA_EXTENSION,Existing category is truthful; current v1 schema lacks commercial fields.,skyair-cassette-v1,cassette,Điều hòa âm trần Cassette
+24,FCTF140AVM,Round Flow có Streamer,NEEDS_SCHEMA_EXTENSION,Existing category is truthful; current v1 schema lacks commercial fields.,skyair-cassette-v1,cassette,Điều hòa âm trần Cassette
+24,FCTF140BVM,Round Flow có Streamer,NEEDS_SCHEMA_EXTENSION,Existing category is truthful; current v1 schema lacks commercial fields.,skyair-cassette-v1,cassette,Điều hòa âm trần Cassette
+24,FCTF50AVM,Round Flow có Streamer,NEEDS_SCHEMA_EXTENSION,Existing category is truthful; current v1 schema lacks commercial fields.,skyair-cassette-v1,cassette,Điều hòa âm trần Cassette
+24,FCTF60AVM,Round Flow có Streamer,NEEDS_SCHEMA_EXTENSION,Existing category is truthful; current v1 schema lacks commercial fields.,skyair-cassette-v1,cassette,Điều hòa âm trần Cassette
+24,FCTF71AVM,Round Flow có Streamer,NEEDS_SCHEMA_EXTENSION,Existing category is truthful; current v1 schema lacks commercial fields.,skyair-cassette-v1,cassette,Điều hòa âm trần Cassette
+27,FDBNQ09MV1V,Áp suất tĩnh thấp,NEEDS_SCHEMA_EXTENSION,Existing category is truthful; current v1 schema lacks commercial fields.,skyair-ducted-v1,ducted,Điều hòa giấu trần nối ống gió
+27,FDBNQ13MV1V,Áp suất tĩnh thấp,NEEDS_SCHEMA_EXTENSION,Existing category is truthful; current v1 schema lacks commercial fields.,skyair-ducted-v1,ducted,Điều hòa giấu trần nối ống gió
+27,FDBNQ18MV1V,Áp suất tĩnh thấp,NEEDS_SCHEMA_EXTENSION,Existing category is truthful; current v1 schema lacks commercial fields.,skyair-ducted-v1,ducted,Điều hòa giấu trần nối ống gió
+27,FDBNQ21MV1V,Áp suất tĩnh thấp,NEEDS_SCHEMA_EXTENSION,Existing category is truthful; current v1 schema lacks commercial fields.,skyair-ducted-v1,ducted,Điều hòa giấu trần nối ống gió
+27,FDBNQ24MV1V,Áp suất tĩnh thấp,NEEDS_SCHEMA_EXTENSION,Existing category is truthful; current v1 schema lacks commercial fields.,skyair-ducted-v1,ducted,Điều hòa giấu trần nối ống gió
+27,FDBNQ26MV1,Áp suất tĩnh thấp,NEEDS_SCHEMA_EXTENSION,Existing category is truthful; current v1 schema lacks commercial fields.,skyair-ducted-v1,ducted,Điều hòa giấu trần nối ống gió
+27,FDLF40DV1,Áp suất tĩnh thấp - chiều cao nhỏ gọn,NEEDS_SCHEMA_EXTENSION,Existing category is truthful; current v1 schema lacks commercial fields.,skyair-ducted-v1,ducted,Điều hòa giấu trần nối ống gió
+27,FDLF50DV1,Áp suất tĩnh thấp - chiều cao nhỏ gọn,NEEDS_SCHEMA_EXTENSION,Existing category is truthful; current v1 schema lacks commercial fields.,skyair-ducted-v1,ducted,Điều hòa giấu trần nối ống gió
+27,FDLF60DV1,Áp suất tĩnh thấp - chiều cao nhỏ gọn,NEEDS_SCHEMA_EXTENSION,Existing category is truthful; current v1 schema lacks commercial fields.,skyair-ducted-v1,ducted,Điều hòa giấu trần nối ống gió
+27,FDLF71DV1,Áp suất tĩnh thấp - chiều cao nhỏ gọn,NEEDS_SCHEMA_EXTENSION,Existing category is truthful; current v1 schema lacks commercial fields.,skyair-ducted-v1,ducted,Điều hòa giấu trần nối ống gió
+27,FDLF85DV1,Áp suất tĩnh thấp - chiều cao nhỏ gọn,NEEDS_SCHEMA_EXTENSION,Existing category is truthful; current v1 schema lacks commercial fields.,skyair-ducted-v1,ducted,Điều hòa giấu trần nối ống gió
+27,FDMNQ26MV1,Áp suất tĩnh trung bình,NEEDS_SCHEMA_EXTENSION,Existing category is truthful; current v1 schema lacks commercial fields.,skyair-ducted-v1,ducted,Điều hòa giấu trần nối ống gió
+27,FDMNQ30MV1,Áp suất tĩnh trung bình,NEEDS_SCHEMA_EXTENSION,Existing category is truthful; current v1 schema lacks commercial fields.,skyair-ducted-v1,ducted,Điều hòa giấu trần nối ống gió
+27,FDMNQ36MV1,Áp suất tĩnh trung bình,NEEDS_SCHEMA_EXTENSION,Existing category is truthful; current v1 schema lacks commercial fields.,skyair-ducted-v1,ducted,Điều hòa giấu trần nối ống gió
+27,FDMNQ42MV1,Áp suất tĩnh trung bình,NEEDS_SCHEMA_EXTENSION,Existing category is truthful; current v1 schema lacks commercial fields.,skyair-ducted-v1,ducted,Điều hòa giấu trần nối ống gió
+27,FDMNQ48MV1,Áp suất tĩnh trung bình,NEEDS_SCHEMA_EXTENSION,Existing category is truthful; current v1 schema lacks commercial fields.,skyair-ducted-v1,ducted,Điều hòa giấu trần nối ống gió
+24,FFFC35AVM,4 hướng thổi nhỏ gọn,NEEDS_SCHEMA_EXTENSION,Existing category is truthful; current v1 schema lacks commercial fields.,skyair-cassette-v1,cassette,Điều hòa âm trần Cassette
+24,FFFC50AVM,4 hướng thổi nhỏ gọn,NEEDS_SCHEMA_EXTENSION,Existing category is truthful; current v1 schema lacks commercial fields.,skyair-cassette-v1,cassette,Điều hòa âm trần Cassette
+24,FFFC60AVM,4 hướng thổi nhỏ gọn,NEEDS_SCHEMA_EXTENSION,Existing category is truthful; current v1 schema lacks commercial fields.,skyair-cassette-v1,cassette,Điều hòa âm trần Cassette
+24,FFFC71AVM,4 hướng thổi nhỏ gọn,NEEDS_SCHEMA_EXTENSION,Existing category is truthful; current v1 schema lacks commercial fields.,skyair-cassette-v1,cassette,Điều hòa âm trần Cassette
+23,FHA100CVMV,Áp trần,NEEDS_SCHEMA_EXTENSION,Existing category is truthful; current v1 schema lacks commercial fields.,skyair-ceiling_suspended-v1,ceiling_suspended,Điều hòa đặt sàn/áp trần
+23,FHA125CVMA,Áp trần,NEEDS_SCHEMA_EXTENSION,Existing category is truthful; current v1 schema lacks commercial fields.,skyair-ceiling_suspended-v1,ceiling_suspended,Điều hòa đặt sàn/áp trần
+23,FHA140CVMA,Áp trần,NEEDS_SCHEMA_EXTENSION,Existing category is truthful; current v1 schema lacks commercial fields.,skyair-ceiling_suspended-v1,ceiling_suspended,Điều hòa đặt sàn/áp trần
+23,FHA50CVMV,Áp trần,NEEDS_SCHEMA_EXTENSION,Existing category is truthful; current v1 schema lacks commercial fields.,skyair-ceiling_suspended-v1,ceiling_suspended,Điều hòa đặt sàn/áp trần
+23,FHA50DVMV,Áp trần,NEEDS_SCHEMA_EXTENSION,Existing category is truthful; current v1 schema lacks commercial fields.,skyair-ceiling_suspended-v1,ceiling_suspended,Điều hòa đặt sàn/áp trần
+23,FHA60CVMV,Áp trần,NEEDS_SCHEMA_EXTENSION,Existing category is truthful; current v1 schema lacks commercial fields.,skyair-ceiling_suspended-v1,ceiling_suspended,Điều hòa đặt sàn/áp trần
+23,FHA60DVMV,Áp trần,NEEDS_SCHEMA_EXTENSION,Existing category is truthful; current v1 schema lacks commercial fields.,skyair-ceiling_suspended-v1,ceiling_suspended,Điều hòa đặt sàn/áp trần
+23,FHA71CVMV,Áp trần,NEEDS_SCHEMA_EXTENSION,Existing category is truthful; current v1 schema lacks commercial fields.,skyair-ceiling_suspended-v1,ceiling_suspended,Điều hòa đặt sàn/áp trần
+23,FHA71DVMV,Áp trần,NEEDS_SCHEMA_EXTENSION,Existing category is truthful; current v1 schema lacks commercial fields.,skyair-ceiling_suspended-v1,ceiling_suspended,Điều hòa đặt sàn/áp trần
+23,FHFC100EV1,Áp trần,NEEDS_SCHEMA_EXTENSION,Existing category is truthful; current v1 schema lacks commercial fields.,skyair-ceiling_suspended-v1,ceiling_suspended,Điều hòa đặt sàn/áp trần
+23,FHFC125EV1,Áp trần,NEEDS_SCHEMA_EXTENSION,Existing category is truthful; current v1 schema lacks commercial fields.,skyair-ceiling_suspended-v1,ceiling_suspended,Điều hòa đặt sàn/áp trần
+23,FHFC140EV1,Áp trần,NEEDS_SCHEMA_EXTENSION,Existing category is truthful; current v1 schema lacks commercial fields.,skyair-ceiling_suspended-v1,ceiling_suspended,Điều hòa đặt sàn/áp trần
+23,FHFC40EV1,Áp trần,NEEDS_SCHEMA_EXTENSION,Existing category is truthful; current v1 schema lacks commercial fields.,skyair-ceiling_suspended-v1,ceiling_suspended,Điều hòa đặt sàn/áp trần
+23,FHFC50EV1,Áp trần,NEEDS_SCHEMA_EXTENSION,Existing category is truthful; current v1 schema lacks commercial fields.,skyair-ceiling_suspended-v1,ceiling_suspended,Điều hòa đặt sàn/áp trần
+23,FHFC60EV1,Áp trần,NEEDS_SCHEMA_EXTENSION,Existing category is truthful; current v1 schema lacks commercial fields.,skyair-ceiling_suspended-v1,ceiling_suspended,Điều hòa đặt sàn/áp trần
+23,FHFC71EV1,Áp trần,NEEDS_SCHEMA_EXTENSION,Existing category is truthful; current v1 schema lacks commercial fields.,skyair-ceiling_suspended-v1,ceiling_suspended,Điều hòa đặt sàn/áp trần
+23,FHFC85EV1,Áp trần,NEEDS_SCHEMA_EXTENSION,Existing category is truthful; current v1 schema lacks commercial fields.,skyair-ceiling_suspended-v1,ceiling_suspended,Điều hòa đặt sàn/áp trần
+23,FHNQ13MV1V,Áp trần,NEEDS_SCHEMA_EXTENSION,Existing category is truthful; current v1 schema lacks commercial fields.,skyair-ceiling_suspended-v1,ceiling_suspended,Điều hòa đặt sàn/áp trần
+23,FHNQ18MV1V,Áp trần,NEEDS_SCHEMA_EXTENSION,Existing category is truthful; current v1 schema lacks commercial fields.,skyair-ceiling_suspended-v1,ceiling_suspended,Điều hòa đặt sàn/áp trần
+23,FHNQ21MV1V,Áp trần,NEEDS_SCHEMA_EXTENSION,Existing category is truthful; current v1 schema lacks commercial fields.,skyair-ceiling_suspended-v1,ceiling_suspended,Điều hòa đặt sàn/áp trần
+23,FHNQ24MV1V,Áp trần,NEEDS_SCHEMA_EXTENSION,Existing category is truthful; current v1 schema lacks commercial fields.,skyair-ceiling_suspended-v1,ceiling_suspended,Điều hòa đặt sàn/áp trần
+23,FHNQ26MV1,Áp trần,NEEDS_SCHEMA_EXTENSION,Existing category is truthful; current v1 schema lacks commercial fields.,skyair-ceiling_suspended-v1,ceiling_suspended,Điều hòa đặt sàn/áp trần
+23,FHNQ30MV1V,Áp trần,NEEDS_SCHEMA_EXTENSION,Existing category is truthful; current v1 schema lacks commercial fields.,skyair-ceiling_suspended-v1,ceiling_suspended,Điều hòa đặt sàn/áp trần
+23,FHNQ36MV1V,Áp trần,NEEDS_SCHEMA_EXTENSION,Existing category is truthful; current v1 schema lacks commercial fields.,skyair-ceiling_suspended-v1,ceiling_suspended,Điều hòa đặt sàn/áp trần
+23,FHNQ42MV1,Áp trần,NEEDS_SCHEMA_EXTENSION,Existing category is truthful; current v1 schema lacks commercial fields.,skyair-ceiling_suspended-v1,ceiling_suspended,Điều hòa đặt sàn/áp trần
+23,FHNQ48MV1,Áp trần,NEEDS_SCHEMA_EXTENSION,Existing category is truthful; current v1 schema lacks commercial fields.,skyair-ceiling_suspended-v1,ceiling_suspended,Điều hòa đặt sàn/áp trần
+25,FVA100AMVM,Tủ đứng đặt sàn,NEEDS_SCHEMA_EXTENSION,Existing category is truthful; current v1 schema lacks commercial fields.,skyair-floor_standing-v1,floor_standing,Điều hòa tủ đứng
+25,FVA125AMVM,Tủ đứng đặt sàn,NEEDS_SCHEMA_EXTENSION,Existing category is truthful; current v1 schema lacks commercial fields.,skyair-floor_standing-v1,floor_standing,Điều hòa tủ đứng
+25,FVA140AMVM,Tủ đứng đặt sàn,NEEDS_SCHEMA_EXTENSION,Existing category is truthful; current v1 schema lacks commercial fields.,skyair-floor_standing-v1,floor_standing,Điều hòa tủ đứng
+25,FVA50AMVM,Tủ đứng đặt sàn,NEEDS_SCHEMA_EXTENSION,Existing category is truthful; current v1 schema lacks commercial fields.,skyair-floor_standing-v1,floor_standing,Điều hòa tủ đứng
+25,FVA60AMVM,Tủ đứng đặt sàn,NEEDS_SCHEMA_EXTENSION,Existing category is truthful; current v1 schema lacks commercial fields.,skyair-floor_standing-v1,floor_standing,Điều hòa tủ đứng
+25,FVA71AMVM,Tủ đứng đặt sàn,NEEDS_SCHEMA_EXTENSION,Existing category is truthful; current v1 schema lacks commercial fields.,skyair-floor_standing-v1,floor_standing,Điều hòa tủ đứng
+25,FVC100AV1V,Tủ đứng đặt sàn,NEEDS_SCHEMA_EXTENSION,Existing category is truthful; current v1 schema lacks commercial fields.,skyair-floor_standing-v1,floor_standing,Điều hòa tủ đứng
+25,FVC125AV1V,Tủ đứng đặt sàn,NEEDS_SCHEMA_EXTENSION,Existing category is truthful; current v1 schema lacks commercial fields.,skyair-floor_standing-v1,floor_standing,Điều hòa tủ đứng
+25,FVC140AV1V,Tủ đứng đặt sàn,NEEDS_SCHEMA_EXTENSION,Existing category is truthful; current v1 schema lacks commercial fields.,skyair-floor_standing-v1,floor_standing,Điều hòa tủ đứng
+25,FVC85AV1V,Tủ đứng đặt sàn,NEEDS_SCHEMA_EXTENSION,Existing category is truthful; current v1 schema lacks commercial fields.,skyair-floor_standing-v1,floor_standing,Điều hòa tủ đứng
+25,FVFC100AV1,Tủ đứng đặt sàn,NEEDS_SCHEMA_EXTENSION,Existing category is truthful; current v1 schema lacks commercial fields.,skyair-floor_standing-v1,floor_standing,Điều hòa tủ đứng
+25,FVFC125AV1,Tủ đứng đặt sàn,NEEDS_SCHEMA_EXTENSION,Existing category is truthful; current v1 schema lacks commercial fields.,skyair-floor_standing-v1,floor_standing,Điều hòa tủ đứng
+25,FVFC140AV1,Tủ đứng đặt sàn,NEEDS_SCHEMA_EXTENSION,Existing category is truthful; current v1 schema lacks commercial fields.,skyair-floor_standing-v1,floor_standing,Điều hòa tủ đứng
+25,FVFC71AV1,Tủ đứng đặt sàn,NEEDS_SCHEMA_EXTENSION,Existing category is truthful; current v1 schema lacks commercial fields.,skyair-floor_standing-v1,floor_standing,Điều hòa tủ đứng
+25,FVFC85AV1,Tủ đứng đặt sàn,NEEDS_SCHEMA_EXTENSION,Existing category is truthful; current v1 schema lacks commercial fields.,skyair-floor_standing-v1,floor_standing,Điều hòa tủ đứng
+25,FVGR10PV1,Tủ đứng package,NEEDS_SCHEMA_EXTENSION,Existing category is truthful; current v1 schema lacks commercial fields.,skyair-floor_standing-v1,floor_standing,Điều hòa tủ đứng
+25,FVGR13PV1,Tủ đứng package,NEEDS_SCHEMA_EXTENSION,Existing category is truthful; current v1 schema lacks commercial fields.,skyair-floor_standing-v1,floor_standing,Điều hòa tủ đứng
+25,FVGR15PV1,Tủ đứng package,NEEDS_SCHEMA_EXTENSION,Existing category is truthful; current v1 schema lacks commercial fields.,skyair-floor_standing-v1,floor_standing,Điều hòa tủ đứng
+25,FVGR8PV1,Tủ đứng package,NEEDS_SCHEMA_EXTENSION,Existing category is truthful; current v1 schema lacks commercial fields.,skyair-floor_standing-v1,floor_standing,Điều hòa tủ đứng

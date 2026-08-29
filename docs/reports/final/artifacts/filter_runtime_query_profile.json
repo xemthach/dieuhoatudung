@@ -1,0 +1,18 @@
+{
+    "generated_at": "2026-08-29T09:03:44+00:00",
+    "routes": {
+        "\/san-pham": {
+            "status": 200,
+            "query_count": 16,
+            "query_time_ms": 25.67,
+            "response_bytes": 131682
+        },
+        "\/danh-muc\/dieu-hoa-am-tran-cassette": {
+            "status": 200,
+            "query_count": 36,
+            "query_time_ms": 41.94,
+            "response_bytes": 133025
+        }
+    },
+    "scope": "single warmed in-process request; excludes browser assets"
+}

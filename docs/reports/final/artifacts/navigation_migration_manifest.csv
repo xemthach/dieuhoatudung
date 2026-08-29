@@ -1,0 +1,2 @@
+migration,required,reason
+,NO,site_settings JSON reused; no schema migration

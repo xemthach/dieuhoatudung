@@ -81,6 +81,12 @@ Homestead.yaml
 # Data import (not needed in repo)
 /data dieu hoa/
 
+# Controlled catalog review/import workbooks (kept outside Git; use the
+# accompanying source reports/manifests for auditable release evidence).
+/DAIKIN_*_OPERATOR_REVIEW.xlsx
+/DAIKIN_*_PRODUCTION_IMPORT.xlsx
+/~$DAIKIN_*_PRODUCTION_IMPORT.xlsx
+
 # Agent config
 /antigravity
 /antigravity.pub

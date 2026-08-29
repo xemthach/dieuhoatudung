@@ -3,9 +3,11 @@
 declare(strict_types=1);
 
 use App\Models\AiContentJob;
+use App\Models\AiProvider;
 use App\Models\Post;
 use App\Models\Promotion;
 use App\Models\SiteCampaign;
+use App\Models\SiteSetting;
 use App\Models\User;
 use Illuminate\Contracts\Console\Kernel;
 use Illuminate\Support\Facades\DB;
@@ -23,6 +25,18 @@ $statePath = storage_path('framework/testing/marketing-browser-fixture.json');
 if ($mode === 'cleanup') {
     $state = is_file($statePath) ? json_decode((string) file_get_contents($statePath), true) : [];
     DB::transaction(function () use ($state): void {
+        foreach (($state['provider_statuses'] ?? []) as $providerId => $status) {
+            AiProvider::query()->whereKey($providerId)->update(['status' => $status]);
+        }
+        $navigation = $state['navigation_setting'] ?? null;
+        if ($navigation === null) {
+            SiteSetting::query()->where('group', 'navigation')->where('key', 'header_primary')->delete();
+        } else {
+            SiteSetting::query()->updateOrCreate(
+                ['group' => 'navigation', 'key' => 'header_primary'],
+                $navigation,
+            );
+        }
         DB::table('site_campaign_events')->whereIn('site_campaign_id', $state['campaign_ids'] ?? [0])->delete();
         AiContentJob::query()->whereIn('id', $state['ai_job_ids'] ?? [0])->delete();
         SiteCampaign::withTrashed()->whereIn('id', $state['campaign_ids'] ?? [0])->forceDelete();
@@ -30,6 +44,7 @@ if ($mode === 'cleanup') {
         Post::withTrashed()->whereIn('id', $state['post_ids'] ?? [0])->forceDelete();
         User::query()->whereIn('id', $state['user_ids'] ?? [0])->delete();
     });
+    app(\App\Services\Settings\SettingService::class)->clearAllCache();
     @unlink(storage_path('app/public/browser-certification-20260828.svg'));
     @unlink($statePath);
     echo json_encode(['cleaned' => true], JSON_THROW_ON_ERROR);
@@ -53,6 +68,47 @@ if ($mode === 'snapshot') {
 }
 
 DB::transaction(function () use ($marker, $statePath): void {
+    // Browser certification must never call a real provider. Force the existing
+    // governed generator down its deterministic local-draft path and restore
+    // provider status during cleanup.
+    $providerStatuses = AiProvider::query()->pluck('status', 'id')->all();
+    AiProvider::query()->update(['status' => 'inactive']);
+    $navigationSetting = SiteSetting::query()->where('group', 'navigation')->where('key', 'header_primary')->first();
+    $navigationSnapshot = $navigationSetting?->only(['value', 'type', 'is_encrypted', 'is_public']);
+    SiteSetting::query()->updateOrCreate(
+        ['group' => 'navigation', 'key' => 'header_primary'],
+        [
+            'value' => json_encode([
+                [
+                    'label' => 'Sản phẩm kiểm thử',
+                    'type' => 'route',
+                    'target' => 'products.index',
+                    'sort_order' => 20,
+                    'is_active' => true,
+                    'open_new_tab' => false,
+                ],
+                [
+                    'label' => 'Bảng giá',
+                    'type' => 'route',
+                    'target' => 'price-list',
+                    'sort_order' => 30,
+                    'is_active' => true,
+                    'open_new_tab' => false,
+                ],
+                [
+                    'label' => 'Blog',
+                    'type' => 'route',
+                    'target' => 'blog.index',
+                    'sort_order' => 40,
+                    'is_active' => true,
+                    'open_new_tab' => false,
+                ],
+            ], JSON_THROW_ON_ERROR),
+            'type' => 'json',
+            'is_encrypted' => false,
+            'is_public' => true,
+        ],
+    );
     $imagePath = $marker.'.svg';
     file_put_contents(storage_path('app/public/'.$imagePath), '<svg xmlns="http://www.w3.org/2000/svg" width="640" height="320"><rect width="100%" height="100%" fill="#f97316"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="white" font-size="34">Browser Campaign Image</text></svg>');
     $role = Role::firstOrCreate(['name' => 'super_admin', 'guard_name' => 'web']);
@@ -143,6 +199,8 @@ DB::transaction(function () use ($marker, $statePath): void {
     $campaigns = [$active, $inactive, $future, $preview, $image, $video];
     $promotions = [...array_values($promotionRows), $promotionAi];
     $state = [
+        'provider_statuses' => $providerStatuses,
+        'navigation_setting' => $navigationSnapshot,
         'email' => $user->email, 'password' => $password,
         'user_ids' => [$user->id], 'post_ids' => [$post->id], 'post_id' => $post->id,
         'ai_job_ids' => [$job->id], 'ai_job_id' => $job->id,
@@ -159,3 +217,4 @@ DB::transaction(function () use ($marker, $statePath): void {
     file_put_contents($statePath, json_encode($state, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR));
     echo json_encode($state, JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
 });
+app(\App\Services\Settings\SettingService::class)->clearAllCache();

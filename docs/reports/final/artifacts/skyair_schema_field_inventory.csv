@@ -1,0 +1,17 @@
+﻿categories,field,mapping_status,source_pdf_pages,units
+cassette|ceiling_suspended|ducted|floor_standing,cooling_capacity_kw,MAPPED_CANONICAL,55|56|57|58|59|60|61|62|63|64|65,kW
+cassette|ceiling_suspended|ducted|floor_standing,cooling_capacity_btu,MAPPED_CANONICAL,55|56|57|58|59|60|61|62|63|64|65,Btu/h|kW
+cassette|ceiling_suspended|ducted|floor_standing,power_input_kw,MAPPED_CANONICAL,55|56|57|58|59|60|61|62|63|64|65,kW
+cassette|ceiling_suspended|ducted|floor_standing,cop,MAPPED_CANONICAL,55|56|57|58|59|60|61|62|63|64|65,none
+cassette|ceiling_suspended|ducted|floor_standing,cspf,MAPPED_CANONICAL,55|56|57|58|59|60|61|62|63|64|65,none
+cassette|ceiling_suspended|ducted|floor_standing,airflow,MAPPED_CANONICAL,55|56|57|58|59|60|61|62|63|64|65,m3/min|none
+cassette|ceiling_suspended|ducted|floor_standing,noise_level,MAPPED_CANONICAL,55|56|57|58|59|60|61|62|63|64|65,dB(A)
+cassette|ceiling_suspended|ducted|floor_standing,compressor_type,MAPPED_CANONICAL,55|56|57|58|59|60|61|62|63|64|65,none
+cassette|ceiling_suspended|ducted|floor_standing,refrigerant_charge_kg,MAPPED_CANONICAL,55|56|57|58|59|60|61|62|63|64|65,kg
+cassette|ceiling_suspended|ducted|floor_standing,liquid_pipe_mm,MAPPED_CANONICAL,55|56|57|58|59|60|61|62|63|64|65,mm
+cassette|ceiling_suspended|ducted|floor_standing,max_actual_pipe_length_m,MAPPED_CANONICAL,55|56|57|58|59|60|61|62|63|64|65,m
+cassette|ceiling_suspended|ducted|floor_standing,max_height_difference_m,MAPPED_CANONICAL,55|56|57|58|59|60|61|62|63|64|65,m|none
+ducted,external_static_pressure_pa,MAPPED_CANONICAL,56|59|62|64,Pa|none
+cassette|ceiling_suspended|ducted|floor_standing,heating_capacity_kw,MAPPED_CANONICAL,59|60,kW
+cassette|ceiling_suspended|ducted|floor_standing,heating_capacity_btu,MAPPED_CANONICAL,59|60,Btu/h
+floor_standing,gas_pipe_mm,MAPPED_CANONICAL,65,mm

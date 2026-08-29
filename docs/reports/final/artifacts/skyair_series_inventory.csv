@@ -1,0 +1,8 @@
+﻿inverter,label,mode,outdoor_family,outdoor_models,refrigerant,source_pdf_pages,verified_combinations
+0,Tiêu chuẩn,cooling_only,RC,7,R410A,64|65,12
+0,Tiêu chuẩn,cooling_only,RCN,3,R410A,65,3
+0,Tiêu chuẩn,cooling_only,RN,1,R410A,65,1
+0,Tiêu chuẩn,cooling_only,RNQ,18,R410A,64|65,34
+1,Inverter cao cấp,heat_pump,RZA,9,R32,59|60,45
+1,Inverter cao cấp,cooling_only,RZF,16,R32,55|56|57|58,74
+1,Inverter tiêu chuẩn,cooling_only,RZFC,20,R32,61|62|63,56

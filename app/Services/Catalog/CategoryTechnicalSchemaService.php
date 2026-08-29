@@ -67,6 +67,8 @@ class CategoryTechnicalSchemaService
         'mm',
         'kg',
         'm³/h',
+        'm³/min',
+        'dB(A)',
         'V',
         'A',
         'Hz',

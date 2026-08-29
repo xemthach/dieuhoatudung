@@ -1,4 +1,5 @@
 {{-- Footer --}}
+@php($footerNavigation = app(\App\Services\Navigation\PublicNavigationResolver::class)->items('footer_products'))
 <footer class="mt-16 border-t border-surface-200 bg-surface-900 text-surface-300">
     <div class="container-main py-12 lg:py-16">
         <div class="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-4">
@@ -31,10 +32,9 @@
             <div>
                 <h3 class="mb-4 text-sm font-semibold uppercase tracking-wider text-white">Sản phẩm</h3>
                 <ul class="space-y-2 text-sm">
-                    <li><a href="/dieu-hoa-tu-dung" class="transition-colors hover:text-white">Điều hòa tủ đứng</a></li>
-                    <li><a href="/bang-gia/dieu-hoa-tu-dung" class="transition-colors hover:text-white">Bảng giá</a></li>
-                    <li><a href="/blog" class="transition-colors hover:text-white">Kiến thức</a></li>
-                    <li><a href="/faq/dieu-hoa-tu-dung" class="transition-colors hover:text-white">FAQ</a></li>
+                    @foreach($footerNavigation as $item)
+                        <li><a href="{{ $item['url'] }}" @if($item['open_new_tab']) target="_blank" rel="noopener" @endif class="transition-colors hover:text-white">{{ $item['label'] }}</a></li>
+                    @endforeach
                 </ul>
             </div>
 
@@ -83,4 +83,3 @@
         </div>
     </div>
 </footer>
-

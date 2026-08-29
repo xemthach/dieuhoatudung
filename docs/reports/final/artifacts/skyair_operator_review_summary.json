@@ -1,0 +1,18 @@
+{
+  "rows": 225,
+  "default_review": 225,
+  "approved": 0,
+  "rejected": 0,
+  "high_risk": 221,
+  "duplicate_sku": 0,
+  "capacity_rows": 225,
+  "capacity_conversion_review": 0,
+  "workbook": "D:\\laragon\\www\\dieuhoa-tudung\\DAIKIN_SKYAIR_2026_OPERATOR_REVIEW.xlsx",
+  "source_hash": "F02E3C7B0F993D636630AB4C640D3C7662AA2BF0CC9F5F1957CF460DF7C659DE",
+  "source_data_hash": "F0B6335EE6BF0AAC191E57546D3C1B0854FE69DF45D3618A136F47C91B3CED27",
+  "risk_severity": {
+    "HIGH": 217,
+    "MEDIUM": 6,
+    "NORMAL": 2
+  }
+}

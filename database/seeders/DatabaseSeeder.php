@@ -31,6 +31,7 @@ class DatabaseSeeder extends Seeder
         }
 
         $this->call(ProductCategoryTechnicalSchemaSeeder::class);
+        $this->call(WallMountedProductCategorySeeder::class);
+        $this->call(SkyAirProductCategorySchemaSeeder::class);
     }
 }
-

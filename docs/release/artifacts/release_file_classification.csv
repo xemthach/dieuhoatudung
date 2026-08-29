@@ -1,0 +1,106 @@
+PATH,STATUS,CATEGORY,PURPOSE,INCLUDE_RELEASE,REASON,SENSITIVE,GENERATED,SOURCE_OF_TRUTH
+.gitignore,MODIFIED,SOURCE_CODE,Protect controlled import workbooks,YES,Narrow repository hygiene rule,NO,NO,Git policy
+app/Filament/Pages/ManageSiteSettings.php,MODIFIED,SOURCE_CODE,Public navigation settings UI,YES,Runtime application source,NO,NO,Application code
+app/Services/Catalog/CategoryTechnicalSchemaService.php,MODIFIED,SOURCE_CODE,Category schema support,YES,Runtime import/schema source,NO,NO,Application code
+app/Services/DataTransfer/ModuleRegistry.php,MODIFIED,SOURCE_CODE,Import module registration,YES,Runtime import source,NO,NO,Application code
+app/Services/DataTransfer/Modules/ProductImportHandler.php,MODIFIED,SOURCE_CODE,Safe catalog importer,YES,Runtime import source,NO,NO,Application code
+app/Services/Product/ProductImportMapper.php,MODIFIED,SOURCE_CODE,Product import mapping,YES,Runtime import source,NO,NO,Application code
+app/Services/Product/ProductTechnicalSpecWriter.php,MODIFIED,SOURCE_CODE,Technical field persistence,YES,Runtime import source,NO,NO,Application code
+app/Services/Seo/InternalLinkSuggestionService.php,MODIFIED,SOURCE_CODE,Active-category SEO links,YES,Runtime application source,NO,NO,Application code
+app/Services/Navigation/PublicNavigationResolver.php,UNTRACKED,SOURCE_CODE,Canonical public navigation resolver,YES,Required by header/footer,NO,NO,Application code
+app/Support/Catalog/SkyAirTechnicalSchema.php,UNTRACKED,SOURCE_CODE,SkyAir schema definition,YES,Runtime schema source,NO,NO,Application code
+app/Support/Catalog/WallMountedTechnicalSchema.php,UNTRACKED,SOURCE_CODE,Wall-mounted schema definition,YES,Runtime schema source,NO,NO,Application code
+database/seeders/DatabaseSeeder.php,MODIFIED,SOURCE_CODE,Application seed registration,YES,Current database bootstrap source,NO,NO,Application code
+database/seeders/SkyAirProductCategorySchemaSeeder.php,UNTRACKED,SOURCE_CODE,SkyAir category schema seed,YES,Required schema setup,NO,NO,Application code
+database/seeders/WallMountedProductCategorySeeder.php,UNTRACKED,SOURCE_CODE,Wall-mounted category seed,YES,Required taxonomy setup,NO,NO,Application code
+resources/views/partials/header.blade.php,MODIFIED,SOURCE_CODE,Shared desktop/mobile navigation rendering,YES,Runtime view source,NO,NO,Application code
+resources/views/partials/footer.blade.php,MODIFIED,SOURCE_CODE,Footer navigation rendering,YES,Runtime view source,NO,NO,Application code
+resources/views/products/_product-grid.blade.php,MODIFIED,SOURCE_CODE,Product sort browser fix,YES,Verified browser defect fix,NO,NO,Application code
+resources/views/products/show.blade.php,MODIFIED,SOURCE_CODE,Product breadcrumb/media safety,YES,Verified product UX fix,NO,NO,Application code
+resources/views/brands/show.blade.php,MODIFIED,SOURCE_CODE,Brand sort browser fix,YES,Verified browser defect fix,NO,NO,Application code
+tests/Feature/ProductCatalogIntegrityTest.php,UNTRACKED,TEST,Product breadcrumb regression,YES,Required regression test,NO,NO,Test source
+tests/Feature/PublicNavigationResolverTest.php,UNTRACKED,TEST,Navigation resolver tests,YES,Required regression test,NO,NO,Test source
+tests/Feature/DaikinSkyAirImportReadinessTest.php,UNTRACKED,TEST,SkyAir import safety tests,YES,Required import regression test,NO,NO,Test source
+tests/Feature/DaikinWallMountedImportReadinessTest.php,UNTRACKED,TEST,Wall-mounted import safety tests,YES,Required import regression test,NO,NO,Test source
+tests/browser/fixture.php,MODIFIED,SAFE_FIXTURE,Provider-disabled browser fixture,YES,No-provider browser proof,NO,NO,Test source
+tests/browser/product-navigation.spec.ts,UNTRACKED,TEST,Product/filter/navigation browser proof,YES,Required browser certification,NO,NO,Test source
+tests/browser/admin-navigation.spec.ts,UNTRACKED,TEST,Admin navigation browser proof,YES,Required release gate,NO,NO,Test source
+public/build/manifest.json,MODIFIED,GENERATED_BUILD,Vite manifest,YES,Tracked build convention,NO,YES,Vite build
+public/build/assets/app-NHMkQ_F-.js,MODIFIED,GENERATED_BUILD,Vite JavaScript bundle,YES,Tracked build convention,NO,YES,Vite build
+public/build/assets/app-_gEm9JH9.css,MODIFIED,GENERATED_BUILD,Vite CSS bundle,YES,Tracked build convention,NO,YES,Vite build
+public/build/assets/theme-DGBZ8U_R.css,MODIFIED,GENERATED_BUILD,Vite theme bundle,YES,Tracked build convention,NO,YES,Vite build
+docs/catalog/DAIKIN_SKYAIR_2026_IMPORT_CONTRACT.md,UNTRACKED,CANONICAL_DOC,SkyAir import contract,YES,Release governance documentation,NO,NO,Catalog contract
+docs/catalog/DAIKIN_WALL_MOUNTED_IMPORT_CONTRACT.md,UNTRACKED,CANONICAL_DOC,Wall-mounted import contract,YES,Release governance documentation,NO,NO,Catalog contract
+docs/catalog/SKYAIR_PRODUCTION_IMPORT_RUNBOOK.md,UNTRACKED,RELEASE_DOC,Production import runbook,YES,Operational documentation only,NO,NO,Import contract
+docs/catalog/WALL_MOUNTED_TECHNICAL_SCHEMA.md,UNTRACKED,CANONICAL_DOC,Wall-mounted schema documentation,YES,Runtime schema documentation,NO,NO,Schema source
+docs/reports/final/PRODUCT_FILTER_CATEGORY_CATALOG_FULL_AUDIT_REPORT.md,UNTRACKED,RELEASE_DOC,Product/category/navigation audit,YES,Current release evidence,NO,NO,Audit report
+docs/reports/final/DAIKIN_SKYAIR_2026_EXTRACTION_REPORT.md,UNTRACKED,RELEASE_DOC,SkyAir extraction evidence,YES,Current release evidence,NO,NO,Audit report
+docs/reports/final/DAIKIN_SKYAIR_2026_OPERATOR_REVIEW_REPORT.md,UNTRACKED,RELEASE_DOC,SkyAir operator state,YES,Current release evidence,NO,NO,Audit report
+docs/reports/final/DAIKIN_WALL_MOUNTED_2026_EXTRACTION_REPORT.md,UNTRACKED,RELEASE_DOC,Wall-mounted extraction evidence,YES,Current release evidence,NO,NO,Audit report
+docs/reports/final/DAIKIN_WALL_MOUNTED_SCHEMA_AND_IMPORT_READINESS_REPORT.md,UNTRACKED,RELEASE_DOC,Wall-mounted readiness evidence,YES,Current release evidence,NO,NO,Audit report
+docs/reports/final/artifacts/public_navigation_inventory.csv,UNTRACKED,RELEASE_DOC,Navigation source inventory,YES,Audit evidence,NO,YES,Navigation audit
+docs/reports/final/artifacts/navigation_target_validation.csv,UNTRACKED,RELEASE_DOC,Navigation target validation,YES,Audit evidence,NO,YES,Navigation audit
+docs/reports/final/artifacts/navigation_route_health.csv,UNTRACKED,RELEASE_DOC,Navigation route health,YES,Audit evidence,NO,YES,Navigation audit
+docs/reports/final/artifacts/navigation_issue_ledger.csv,UNTRACKED,RELEASE_DOC,Navigation issue ledger,YES,Audit evidence,NO,YES,Navigation audit
+docs/reports/final/artifacts/navigation_migration_manifest.csv,UNTRACKED,RELEASE_DOC,Navigation migration evidence,YES,Audit evidence,NO,YES,Navigation audit
+docs/reports/final/artifacts/browser/campaign-preview-image.png,MODIFIED,LOCAL_DATA_ARTIFACT,Campaign preview screenshot,NO,Generated browser evidence kept local,NO,YES,Playwright
+docs/reports/final/artifacts/browser/campaign-preview-inactive.png,MODIFIED,LOCAL_DATA_ARTIFACT,Inactive campaign screenshot,NO,Generated browser evidence kept local,NO,YES,Playwright
+docs/reports/final/artifacts/browser/campaign-production-desktop.png,MODIFIED,LOCAL_DATA_ARTIFACT,Campaign production screenshot,NO,Generated browser evidence kept local,NO,YES,Playwright
+docs/reports/final/artifacts/browser/post-ai-applied-same-record.png,MODIFIED,LOCAL_DATA_ARTIFACT,AI Post apply screenshot,NO,Generated browser evidence kept local,NO,YES,Playwright
+docs/reports/final/artifacts/browser/post-ai-preview.png,MODIFIED,LOCAL_DATA_ARTIFACT,AI Post preview screenshot,NO,Generated browser evidence kept local,NO,YES,Playwright
+docs/reports/final/artifacts/browser/post-editor-focused-editable.png,MODIFIED,LOCAL_DATA_ARTIFACT,Rich editor screenshot,NO,Generated browser evidence kept local,NO,YES,Playwright
+docs/reports/final/artifacts/browser/promotion-ai-description-detailed-content.png,MODIFIED,LOCAL_DATA_ARTIFACT,Promotion AI screenshot,NO,Generated browser evidence kept local,NO,YES,Playwright
+docs/reports/final/artifacts/browser/promotion-banner-popup-desktop.png,MODIFIED,LOCAL_DATA_ARTIFACT,Promotion desktop screenshot,NO,Generated browser evidence kept local,NO,YES,Playwright
+docs/reports/final/artifacts/browser/promotion-campaign-mobile-390.png,MODIFIED,LOCAL_DATA_ARTIFACT,Responsive campaign screenshot,NO,Generated browser evidence kept local,NO,YES,Playwright
+docs/reports/final/artifacts/browser/promotion-landing-desktop.png,MODIFIED,LOCAL_DATA_ARTIFACT,Promotion landing screenshot,NO,Generated browser evidence kept local,NO,YES,Playwright
+DAIKIN_SKYAIR_2026_IMPORT.xlsx,UNTRACKED,OPERATOR_REVIEW_ARTIFACT,Source import workbook,NO,Controlled binary artifact kept outside release commit,NO,NO,Extraction package
+DAIKIN_SKYAIR_2026_OPERATOR_REVIEW.xlsx,UNTRACKED,OPERATOR_REVIEW_ARTIFACT,Human review workbook,NO,Operator-controlled local artifact,NO,NO,Review workflow
+DAIKIN_SKYAIR_2026_PRODUCTION_IMPORT.xlsx,UNTRACKED,PRODUCTION_IMPORT_ARTIFACT,Production import workbook,NO,Never commit production import binary,NO,NO,Approved workbook process
+DAIKIN_WALL_MOUNTED_2026_IMPORT.xlsx,UNTRACKED,OPERATOR_REVIEW_ARTIFACT,Source import workbook,NO,Controlled binary artifact kept outside release commit,NO,NO,Extraction package
+DAIKIN_WALL_MOUNTED_2026_IMPORT_READY.xlsx,UNTRACKED,PRODUCTION_IMPORT_ARTIFACT,Import-ready workbook,NO,Not authorized for Git release,NO,NO,Import process
+~$DAIKIN_SKYAIR_2026_PRODUCTION_IMPORT.xlsx,UNTRACKED,TEMP,Excel lock file,NO,Machine temporary file,NO,YES,Excel runtime
+scripts/extract_skyair_catalog.py,UNTRACKED,SAFE_SCRIPT,Portable catalog extraction tool,YES,Maintenance tooling under review,NO,NO,Extraction source
+scripts/create_skyair_operator_review.py,UNTRACKED,SAFE_SCRIPT,Operator workbook generator,YES,Maintenance tooling under review,NO,NO,Review source
+scripts/finalize_skyair_operator_review.py,UNTRACKED,SAFE_SCRIPT,Operator decision finalizer,YES,Maintenance tooling under review,NO,NO,Review source
+docs/release/artifacts/release_file_classification.csv,UNTRACKED,RELEASE_DOC,Release candidate file classification,YES,Required hygiene evidence,NO,YES,Git status audit
+docs/reports/final/artifacts/catalog_category_schema_matrix.csv,UNTRACKED,RELEASE_DOC,Category schema audit,YES,Audit evidence,NO,YES,Catalog audit
+docs/reports/final/artifacts/category_brand_crosstab.csv,UNTRACKED,RELEASE_DOC,Category brand audit,YES,Audit evidence,NO,YES,Catalog audit
+docs/reports/final/artifacts/category_integrity.csv,UNTRACKED,RELEASE_DOC,Category integrity audit,YES,Audit evidence,NO,YES,Catalog audit
+docs/reports/final/artifacts/category_route_audit.csv,UNTRACKED,RELEASE_DOC,Category route audit,YES,Audit evidence,NO,YES,Catalog audit
+docs/reports/final/artifacts/daikin_2026_extraction_coverage.csv,UNTRACKED,RELEASE_DOC,Daikin extraction coverage,YES,Audit evidence,NO,YES,Extraction output
+docs/reports/final/artifacts/daikin_catalog_difference_report.csv,UNTRACKED,RELEASE_DOC,Daikin database difference audit,YES,Audit evidence,NO,YES,Extraction output
+docs/reports/final/artifacts/daikin_feature_matrix.csv,UNTRACKED,RELEASE_DOC,Daikin feature evidence,YES,Audit evidence,NO,YES,Extraction output
+docs/reports/final/artifacts/daikin_model_pairing_audit.csv,UNTRACKED,RELEASE_DOC,Daikin pairing audit,YES,Audit evidence,NO,YES,Extraction output
+docs/reports/final/artifacts/facet_count_validation.csv,UNTRACKED,RELEASE_DOC,Filter facet validation,YES,Audit evidence,NO,YES,Filter audit
+docs/reports/final/artifacts/filter_category_issue_ledger.csv,UNTRACKED,RELEASE_DOC,Filter issue ledger,YES,Audit evidence,NO,YES,Filter audit
+docs/reports/final/artifacts/filter_runtime_query_profile.json,UNTRACKED,RELEASE_DOC,Filter query profile,YES,Audit evidence,NO,YES,Filter audit
+docs/reports/final/artifacts/product_category_integrity.csv,UNTRACKED,RELEASE_DOC,Product category integrity,YES,Audit evidence,NO,YES,Catalog audit
+docs/reports/final/artifacts/product_category_repair_manifest.csv,UNTRACKED,RELEASE_DOC,Category repair evidence,YES,Audit evidence,NO,YES,Catalog audit
+docs/reports/final/artifacts/product_filter_contract.csv,UNTRACKED,CANONICAL_DOC,Filter contract,YES,Audit evidence,NO,NO,Product filter contract
+docs/reports/final/artifacts/skyair_2026_extraction_coverage.csv,UNTRACKED,RELEASE_DOC,SkyAir extraction coverage,YES,Audit evidence,NO,YES,Extraction output
+docs/reports/final/artifacts/skyair_accessory_matrix.csv,UNTRACKED,RELEASE_DOC,SkyAir accessory reference,YES,Audit evidence,NO,YES,Extraction output
+docs/reports/final/artifacts/skyair_capacity_review.csv,UNTRACKED,RELEASE_DOC,SkyAir capacity review,YES,Audit evidence,NO,YES,Extraction output
+docs/reports/final/artifacts/skyair_category_mapping.csv,UNTRACKED,RELEASE_DOC,SkyAir category mapping,YES,Audit evidence,NO,YES,Extraction output
+docs/reports/final/artifacts/skyair_combination_matrix.csv,UNTRACKED,RELEASE_DOC,SkyAir combination evidence,YES,Audit evidence,NO,YES,Extraction output
+docs/reports/final/artifacts/skyair_controller_compatibility.csv,UNTRACKED,RELEASE_DOC,SkyAir controller reference,YES,Audit evidence,NO,YES,Extraction output
+docs/reports/final/artifacts/skyair_database_difference_report.csv,UNTRACKED,RELEASE_DOC,SkyAir DB difference audit,YES,Audit evidence,NO,YES,Extraction output
+docs/reports/final/artifacts/skyair_feature_matrix.csv,UNTRACKED,RELEASE_DOC,SkyAir feature reference,YES,Audit evidence,NO,YES,Extraction output
+docs/reports/final/artifacts/skyair_indoor_model_inventory.csv,UNTRACKED,RELEASE_DOC,SkyAir indoor inventory,YES,Audit evidence,NO,YES,Extraction output
+docs/reports/final/artifacts/skyair_operator_review_summary.json,UNTRACKED,RELEASE_DOC,Operator review summary,YES,Audit evidence,NO,YES,Review tooling
+docs/reports/final/artifacts/skyair_outdoor_model_inventory.csv,UNTRACKED,RELEASE_DOC,SkyAir outdoor inventory,YES,Audit evidence,NO,YES,Extraction output
+docs/reports/final/artifacts/skyair_production_import_manifest.csv,UNTRACKED,PRODUCTION_IMPORT_ARTIFACT,SkyAir production manifest,NO,Production import not authorized,NO,YES,Import process
+docs/reports/final/artifacts/skyair_qa_source.csv,UNTRACKED,RELEASE_DOC,SkyAir provenance QA,YES,Audit evidence,NO,YES,Extraction output
+docs/reports/final/artifacts/skyair_schema_field_inventory.csv,UNTRACKED,RELEASE_DOC,SkyAir schema inventory,YES,Audit evidence,NO,YES,Schema source
+docs/reports/final/artifacts/skyair_series_inventory.csv,UNTRACKED,RELEASE_DOC,SkyAir series inventory,YES,Audit evidence,NO,YES,Extraction output
+docs/reports/final/artifacts/wall_mounted_import_validation.csv,UNTRACKED,RELEASE_DOC,Wall-mounted validation,YES,Audit evidence,NO,YES,Import validation
+docs/reports/final/artifacts/wall_mounted_model_feature_matrix.csv,UNTRACKED,RELEASE_DOC,Wall-mounted feature reference,YES,Audit evidence,NO,YES,Extraction output
+docs/reports/final/artifacts/wall_mounted_round_trip_verification.csv,UNTRACKED,RELEASE_DOC,Wall-mounted round-trip evidence,YES,Audit evidence,NO,YES,Import validation
+docs/reports/final/artifacts/wall_mounted_schema_field_inventory.csv,UNTRACKED,RELEASE_DOC,Wall-mounted schema inventory,YES,Audit evidence,NO,YES,Schema source
+docs/reports/final/artifacts/wall_mounted_technical_schema_matrix.csv,UNTRACKED,RELEASE_DOC,Wall-mounted schema matrix,YES,Audit evidence,NO,YES,Schema source
+tests/browser/marketing-content.spec.ts,MODIFIED,TEST,Marketing and content browser certification,YES,Required release browser certification,NO,NO,Browser test source
+docs/reports/final/MARKETING_CONTENT_BROWSER_CERTIFICATION_REPORT.md,MODIFIED,RELEASE_DOC,Final browser certification evidence,YES,Updated with combined 9-test release run,NO,NO,Certification report
+docs/reports/final/artifacts/browser/campaign-preview-video.png,MODIFIED,LOCAL_DATA_ARTIFACT,Local browser evidence screenshot,NO,Release evidence kept local and excluded from Git,NO,YES,Browser run output
+VERSION,MODIFIED,CANONICAL_DOC,Canonical application release version,YES,Release metadata,NO,NO,VERSION
+CHANGELOG.md,MODIFIED,RELEASE_DOC,Release change history,YES,Release metadata,NO,NO,Changelog
+docs/release/RELEASE_1.31.0.md,UNTRACKED,RELEASE_DOC,Complete v1.31.0 release notes,YES,Release metadata,NO,NO,Release note
+README.md,MODIFIED,RELEASE_DOC,Canonical version badge,YES,Release metadata consistency,NO,NO,README

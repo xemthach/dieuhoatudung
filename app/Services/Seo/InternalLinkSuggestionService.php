@@ -189,7 +189,10 @@ class InternalLinkSuggestionService
 
         // Product Categories (indexable)
         if (! $source instanceof ProductCategory) {
-            $targets = array_merge($targets, ProductCategory::where('is_indexable', true)
+            // The public category route also requires an active category.
+            // Do not persist suggestions that resolve to a public 404.
+            $targets = array_merge($targets, ProductCategory::where('is_active', true)
+                ->where('is_indexable', true)
                 ->select(['id', 'name', 'slug', 'intro', 'seo_title'])
                 ->limit(50)
                 ->get()

@@ -1,0 +1,8 @@
+label,source_file_or_table,url_source,route,category_relation,hardcoded,admin_configurable,desktop,mobile_footer,cache
+"Trang chủ","resources/views/partials/header.blade.php + PublicNavigationResolver","named route",home,none,"no (fallback/config)",yes,yes,no,"SettingService cache / forever"
+"Sản phẩm","PublicNavigationResolver fallback or navigation.header_primary","named route",products.index,none,"no (fallback/config)",yes,yes,"footer via footer location","SettingService cache / forever"
+"Bảng giá","PublicNavigationResolver fallback or navigation.header_top/footer_products","named route",price-list,none,"no (fallback/config)",yes,yes,yes,"SettingService cache / forever"
+Blog,"PublicNavigationResolver fallback or navigation.header_primary/footer_products","named route",blog.index,none,"no (fallback/config)",yes,yes,yes,"SettingService cache / forever"
+FAQ,"PublicNavigationResolver fallback or navigation.header_top/footer_products","named route",faq.dieu-hoa,none,"no (fallback/config)",yes,yes,yes,"SettingService cache / forever"
+"Liên hệ","PublicNavigationResolver fallback or navigation.header_top","named route",contact,none,"no (fallback/config)",yes,yes,"contact block","SettingService cache / forever"
+"Category item","PublicNavigationResolver + navigation.header_primary JSON","category_id → current slug",category.show,ProductCategory,"yes when configured",yes,yes,optional,"SettingService cache / forever"

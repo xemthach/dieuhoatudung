@@ -309,8 +309,13 @@ class ProductImportHandler implements ImportHandlerInterface
             'outdoor_dimensions', 'weight', 'recommended_area',
         ];
 
+        $category = $this->resolveCategory($row);
+        if ($category?->hasTechnicalSchema()) {
+            $keys = array_merge($keys, $category->technicalSchemaPermittedFields());
+        }
+
         return array_filter(
-            array_intersect_key($row, array_flip($keys)),
+            array_intersect_key($row, array_flip(array_values(array_unique($keys)))),
             fn ($value): bool => $value !== null && $value !== ''
         );
     }
@@ -387,9 +392,11 @@ class ProductImportHandler implements ImportHandlerInterface
     private function validateSpecsAgainstCategorySchema(ProductCategory $category, mixed $specs): array
     {
         $row = is_array($specs) ? $specs : [];
+        // A full import row is not itself specs_json. Treat only the explicit
+        // payload as nested specs, then add non-metadata top-level fields below.
         $rawSpecs = is_array($specs) && array_key_exists('specs_json', $specs)
             ? $specs['specs_json']
-            : $specs;
+            : [];
 
         if (is_string($specs)) {
             $specs = json_decode($specs, true);

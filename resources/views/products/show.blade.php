@@ -7,9 +7,18 @@
     :og-image="$product->og_image ? media_url($product->og_image) : $product->main_image_url"
     og-type="product"
 >
+    @php
+        // Inactive categories intentionally return 404 on the public category route.
+        // Keep the category label for context, but never emit a dead link.
+        $productCategory = $product->category;
+        $productCategoryUrl = $productCategory?->is_active
+            ? route('category.show', $productCategory->slug)
+            : null;
+    @endphp
+
     <x-breadcrumb :skip-schema="true" :items="[
-        ['label' => 'Điều hòa tủ đứng', 'url' => route('products.index')],
-        ['label' => $product->category?->name ?? 'Sản phẩm', 'url' => $product->category ? route('category.show', $product->category->slug) : route('products.index')],
+        ['label' => 'Sản phẩm', 'url' => route('products.index')],
+        ['label' => $productCategory?->name ?? 'Sản phẩm', 'url' => $productCategoryUrl],
         ['label' => $product->name],
     ]" />
 
@@ -459,7 +468,7 @@
     {!! \App\Services\Schema\SchemaService::toScript($schemaService->breadcrumbs([
         ['label' => 'Trang chủ', 'url' => route('home')],
         ['label' => 'Sản phẩm', 'url' => route('products.index')],
-        ['label' => $product->category?->name ?? 'Danh mục', 'url' => $product->category ? route('category.show', $product->category->slug) : route('products.index')],
+        ['label' => $productCategory?->name ?? 'Danh mục', 'url' => $productCategoryUrl],
         ['label' => $product->name],
     ])) !!}
     @endpush

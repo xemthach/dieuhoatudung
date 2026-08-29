@@ -1,0 +1,5 @@
+id,module,scenario,expected,actual,root_cause,fix,status
+CAT-001,Breadcrumb,"Product in inactive category","No dead category link","Inactive category label has no URL after fix","Public category route intentionally excludes inactive categories","Guard breadcrumb URL by is_active",FIXED
+CAT-002,"Internal links","Inactive indexable category","No suggestion to 404","Pool previously filtered only is_indexable","Missing is_active predicate","Require active + indexable",FIXED
+CAT-003,Taxonomy,"Active products attached to inactive category","Publication policy explicit","51 active products in inactive category id 29","Existing data/publication mismatch; not safe to reclassify automatically","Manifest and operator decision required",OPEN_DATA_REVIEW
+CAT-004,Taxonomy,"Active products without category","Category partition documented","80 active products uncategorized","Legacy/catalog data has null category","No automatic category inference",OPEN_DATA_REVIEW

@@ -1,0 +1,325 @@
+﻿series,catalog_matrix_group,feature_key,feature_name_vi,feature_name_en,category,availability,condition,source_page,confidence
+FTKZ,FTKZ,hybrid_cooling,Điều tiết đồng thời độ ẩm và nhiệt độ,Hybrid Cooling,humidity,YES,,4-5,VERIFIED
+FTKM,FTKM,hybrid_cooling,Điều tiết đồng thời độ ẩm và nhiệt độ,Hybrid Cooling,humidity,NO,,4-5,VERIFIED
+FTKY,FTKY,hybrid_cooling,Điều tiết đồng thời độ ẩm và nhiệt độ,Hybrid Cooling,humidity,NO,,4-5,VERIFIED
+FTKF,FTKF_ATKF,hybrid_cooling,Điều tiết đồng thời độ ẩm và nhiệt độ,Hybrid Cooling,humidity,NO,,4-5,VERIFIED
+ATKF,FTKF_ATKF,hybrid_cooling,Điều tiết đồng thời độ ẩm và nhiệt độ,Hybrid Cooling,humidity,NO,,4-5,VERIFIED
+FTKB,FTKB_ATKB,hybrid_cooling,Điều tiết đồng thời độ ẩm và nhiệt độ,Hybrid Cooling,humidity,NO,,4-5,VERIFIED
+ATKB,FTKB_ATKB,hybrid_cooling,Điều tiết đồng thời độ ẩm và nhiệt độ,Hybrid Cooling,humidity,NO,,4-5,VERIFIED
+FTHB,FTHB,hybrid_cooling,Điều tiết đồng thời độ ẩm và nhiệt độ,Hybrid Cooling,humidity,NO,,4-5,VERIFIED
+FTF,FTF,hybrid_cooling,Điều tiết đồng thời độ ẩm và nhiệt độ,Hybrid Cooling,humidity,NO,,4-5,VERIFIED
+FTXM,FTXM,hybrid_cooling,Điều tiết đồng thời độ ẩm và nhiệt độ,Hybrid Cooling,humidity,YES,,4-5,VERIFIED
+FTXV,FTXV,hybrid_cooling,Điều tiết đồng thời độ ẩm và nhiệt độ,Hybrid Cooling,humidity,NO,,4-5,VERIFIED
+FTHF,FTHF,hybrid_cooling,Điều tiết đồng thời độ ẩm và nhiệt độ,Hybrid Cooling,humidity,NO,,4-5,VERIFIED
+FTKZ,FTKZ,humidity_sensor,Cảm biến ẩm,Humidity Sensor,humidity,NO,,4-5,VERIFIED
+FTKM,FTKM,humidity_sensor,Cảm biến ẩm,Humidity Sensor,humidity,NO,,4-5,VERIFIED
+FTKY,FTKY,humidity_sensor,Cảm biến ẩm,Humidity Sensor,humidity,YES,,4-5,VERIFIED
+FTKF,FTKF_ATKF,humidity_sensor,Cảm biến ẩm,Humidity Sensor,humidity,NO,,4-5,VERIFIED
+ATKF,FTKF_ATKF,humidity_sensor,Cảm biến ẩm,Humidity Sensor,humidity,NO,,4-5,VERIFIED
+FTKB,FTKB_ATKB,humidity_sensor,Cảm biến ẩm,Humidity Sensor,humidity,NO,,4-5,VERIFIED
+ATKB,FTKB_ATKB,humidity_sensor,Cảm biến ẩm,Humidity Sensor,humidity,NO,,4-5,VERIFIED
+FTHB,FTHB,humidity_sensor,Cảm biến ẩm,Humidity Sensor,humidity,NO,,4-5,VERIFIED
+FTF,FTF,humidity_sensor,Cảm biến ẩm,Humidity Sensor,humidity,NO,,4-5,VERIFIED
+FTXM,FTXM,humidity_sensor,Cảm biến ẩm,Humidity Sensor,humidity,NO,,4-5,VERIFIED
+FTXV,FTXV,humidity_sensor,Cảm biến ẩm,Humidity Sensor,humidity,NO,,4-5,VERIFIED
+FTHF,FTHF,humidity_sensor,Cảm biến ẩm,Humidity Sensor,humidity,YES,,4-5,VERIFIED
+FTKZ,FTKZ,humi_comfort,Kiểm soát độ ẩm,Humi Comfort,humidity,NO,,4-5,VERIFIED
+FTKM,FTKM,humi_comfort,Kiểm soát độ ẩm,Humi Comfort,humidity,NO,,4-5,VERIFIED
+FTKY,FTKY,humi_comfort,Kiểm soát độ ẩm,Humi Comfort,humidity,NO,,4-5,VERIFIED
+FTKF,FTKF_ATKF,humi_comfort,Kiểm soát độ ẩm,Humi Comfort,humidity,YES,,4-5,VERIFIED
+ATKF,FTKF_ATKF,humi_comfort,Kiểm soát độ ẩm,Humi Comfort,humidity,YES,,4-5,VERIFIED
+FTKB,FTKB_ATKB,humi_comfort,Kiểm soát độ ẩm,Humi Comfort,humidity,YES,,4-5,VERIFIED
+ATKB,FTKB_ATKB,humi_comfort,Kiểm soát độ ẩm,Humi Comfort,humidity,YES,,4-5,VERIFIED
+FTHB,FTHB,humi_comfort,Kiểm soát độ ẩm,Humi Comfort,humidity,YES,,4-5,VERIFIED
+FTF,FTF,humi_comfort,Kiểm soát độ ẩm,Humi Comfort,humidity,NO,,4-5,VERIFIED
+FTXM,FTXM,humi_comfort,Kiểm soát độ ẩm,Humi Comfort,humidity,NO,,4-5,VERIFIED
+FTXV,FTXV,humi_comfort,Kiểm soát độ ẩm,Humi Comfort,humidity,NO,,4-5,VERIFIED
+FTHF,FTHF,humi_comfort,Kiểm soát độ ẩm,Humi Comfort,humidity,NO,,4-5,VERIFIED
+FTKZ,FTKZ,humi_comfort_plus,Kiểm soát độ ẩm,Humi Comfort Plus,humidity,NO,,4-5,VERIFIED
+FTKM,FTKM,humi_comfort_plus,Kiểm soát độ ẩm,Humi Comfort Plus,humidity,YES,,4-5,VERIFIED
+FTKY,FTKY,humi_comfort_plus,Kiểm soát độ ẩm,Humi Comfort Plus,humidity,NO,,4-5,VERIFIED
+FTKF,FTKF_ATKF,humi_comfort_plus,Kiểm soát độ ẩm,Humi Comfort Plus,humidity,NO,,4-5,VERIFIED
+ATKF,FTKF_ATKF,humi_comfort_plus,Kiểm soát độ ẩm,Humi Comfort Plus,humidity,NO,,4-5,VERIFIED
+FTKB,FTKB_ATKB,humi_comfort_plus,Kiểm soát độ ẩm,Humi Comfort Plus,humidity,NO,,4-5,VERIFIED
+ATKB,FTKB_ATKB,humi_comfort_plus,Kiểm soát độ ẩm,Humi Comfort Plus,humidity,NO,,4-5,VERIFIED
+FTHB,FTHB,humi_comfort_plus,Kiểm soát độ ẩm,Humi Comfort Plus,humidity,NO,,4-5,VERIFIED
+FTF,FTF,humi_comfort_plus,Kiểm soát độ ẩm,Humi Comfort Plus,humidity,NO,,4-5,VERIFIED
+FTXM,FTXM,humi_comfort_plus,Kiểm soát độ ẩm,Humi Comfort Plus,humidity,NO,,4-5,VERIFIED
+FTXV,FTXV,humi_comfort_plus,Kiểm soát độ ẩm,Humi Comfort Plus,humidity,NO,,4-5,VERIFIED
+FTHF,FTHF,humi_comfort_plus,Kiểm soát độ ẩm,Humi Comfort Plus,humidity,NO,,4-5,VERIFIED
+FTKZ,FTKZ,streamer,Công nghệ Streamer,Công nghệ Streamer,air_quality,YES,,4-5,VERIFIED
+FTKM,FTKM,streamer,Công nghệ Streamer,Công nghệ Streamer,air_quality,YES,,4-5,VERIFIED
+FTKY,FTKY,streamer,Công nghệ Streamer,Công nghệ Streamer,air_quality,YES,,4-5,VERIFIED
+FTKF,FTKF_ATKF,streamer,Công nghệ Streamer,Công nghệ Streamer,air_quality,YES,,4-5,VERIFIED
+ATKF,FTKF_ATKF,streamer,Công nghệ Streamer,Công nghệ Streamer,air_quality,YES,,4-5,VERIFIED
+FTKB,FTKB_ATKB,streamer,Công nghệ Streamer,Công nghệ Streamer,air_quality,NO,,4-5,VERIFIED
+ATKB,FTKB_ATKB,streamer,Công nghệ Streamer,Công nghệ Streamer,air_quality,NO,,4-5,VERIFIED
+FTHB,FTHB,streamer,Công nghệ Streamer,Công nghệ Streamer,air_quality,NO,,4-5,VERIFIED
+FTF,FTF,streamer,Công nghệ Streamer,Công nghệ Streamer,air_quality,NO,,4-5,VERIFIED
+FTXM,FTXM,streamer,Công nghệ Streamer,Công nghệ Streamer,air_quality,NO,,4-5,VERIFIED
+FTXV,FTXV,streamer,Công nghệ Streamer,Công nghệ Streamer,air_quality,NO,,4-5,VERIFIED
+FTHF,FTHF,streamer,Công nghệ Streamer,Công nghệ Streamer,air_quality,MODEL_SPECIFIC,25/35 only,4-5,VERIFIED
+FTKZ,FTKZ,anti_mold_streamer,Chống ẩm mốc kết hợp Streamer,Chống ẩm mốc kết hợp Streamer,air_quality,YES,,4-5,VERIFIED
+FTKM,FTKM,anti_mold_streamer,Chống ẩm mốc kết hợp Streamer,Chống ẩm mốc kết hợp Streamer,air_quality,YES,,4-5,VERIFIED
+FTKY,FTKY,anti_mold_streamer,Chống ẩm mốc kết hợp Streamer,Chống ẩm mốc kết hợp Streamer,air_quality,YES,,4-5,VERIFIED
+FTKF,FTKF_ATKF,anti_mold_streamer,Chống ẩm mốc kết hợp Streamer,Chống ẩm mốc kết hợp Streamer,air_quality,YES,,4-5,VERIFIED
+ATKF,FTKF_ATKF,anti_mold_streamer,Chống ẩm mốc kết hợp Streamer,Chống ẩm mốc kết hợp Streamer,air_quality,YES,,4-5,VERIFIED
+FTKB,FTKB_ATKB,anti_mold_streamer,Chống ẩm mốc kết hợp Streamer,Chống ẩm mốc kết hợp Streamer,air_quality,NO,,4-5,VERIFIED
+ATKB,FTKB_ATKB,anti_mold_streamer,Chống ẩm mốc kết hợp Streamer,Chống ẩm mốc kết hợp Streamer,air_quality,NO,,4-5,VERIFIED
+FTHB,FTHB,anti_mold_streamer,Chống ẩm mốc kết hợp Streamer,Chống ẩm mốc kết hợp Streamer,air_quality,NO,,4-5,VERIFIED
+FTF,FTF,anti_mold_streamer,Chống ẩm mốc kết hợp Streamer,Chống ẩm mốc kết hợp Streamer,air_quality,NO,,4-5,VERIFIED
+FTXM,FTXM,anti_mold_streamer,Chống ẩm mốc kết hợp Streamer,Chống ẩm mốc kết hợp Streamer,air_quality,NO,,4-5,VERIFIED
+FTXV,FTXV,anti_mold_streamer,Chống ẩm mốc kết hợp Streamer,Chống ẩm mốc kết hợp Streamer,air_quality,NO,,4-5,VERIFIED
+FTHF,FTHF,anti_mold_streamer,Chống ẩm mốc kết hợp Streamer,Chống ẩm mốc kết hợp Streamer,air_quality,MODEL_SPECIFIC,25/35 only,4-5,VERIFIED
+FTKZ,FTKZ,anti_mold_indoor,Chống ẩm mốc bên trong dàn lạnh,Chống ẩm mốc bên trong dàn lạnh,air_quality,NO,,4-5,VERIFIED
+FTKM,FTKM,anti_mold_indoor,Chống ẩm mốc bên trong dàn lạnh,Chống ẩm mốc bên trong dàn lạnh,air_quality,NO,,4-5,VERIFIED
+FTKY,FTKY,anti_mold_indoor,Chống ẩm mốc bên trong dàn lạnh,Chống ẩm mốc bên trong dàn lạnh,air_quality,NO,,4-5,VERIFIED
+FTKF,FTKF_ATKF,anti_mold_indoor,Chống ẩm mốc bên trong dàn lạnh,Chống ẩm mốc bên trong dàn lạnh,air_quality,NO,,4-5,VERIFIED
+ATKF,FTKF_ATKF,anti_mold_indoor,Chống ẩm mốc bên trong dàn lạnh,Chống ẩm mốc bên trong dàn lạnh,air_quality,NO,,4-5,VERIFIED
+FTKB,FTKB_ATKB,anti_mold_indoor,Chống ẩm mốc bên trong dàn lạnh,Chống ẩm mốc bên trong dàn lạnh,air_quality,YES,,4-5,VERIFIED
+ATKB,FTKB_ATKB,anti_mold_indoor,Chống ẩm mốc bên trong dàn lạnh,Chống ẩm mốc bên trong dàn lạnh,air_quality,YES,,4-5,VERIFIED
+FTHB,FTHB,anti_mold_indoor,Chống ẩm mốc bên trong dàn lạnh,Chống ẩm mốc bên trong dàn lạnh,air_quality,YES,,4-5,VERIFIED
+FTF,FTF,anti_mold_indoor,Chống ẩm mốc bên trong dàn lạnh,Chống ẩm mốc bên trong dàn lạnh,air_quality,NO,,4-5,VERIFIED
+FTXM,FTXM,anti_mold_indoor,Chống ẩm mốc bên trong dàn lạnh,Chống ẩm mốc bên trong dàn lạnh,air_quality,NO,,4-5,VERIFIED
+FTXV,FTXV,anti_mold_indoor,Chống ẩm mốc bên trong dàn lạnh,Chống ẩm mốc bên trong dàn lạnh,air_quality,NO,,4-5,VERIFIED
+FTHF,FTHF,anti_mold_indoor,Chống ẩm mốc bên trong dàn lạnh,Chống ẩm mốc bên trong dàn lạnh,air_quality,MODEL_SPECIFIC,50/60/71 only,4-5,VERIFIED
+FTKZ,FTKZ,enzyme_blue_pm25,Phin lọc Enzyme Blue kết hợp PM2.5,Phin lọc Enzyme Blue kết hợp PM2.5,air_quality,MODEL_SPECIFIC,Enzyme Blue; catalog does not mark PM2.5,4-5,VERIFIED
+FTKM,FTKM,enzyme_blue_pm25,Phin lọc Enzyme Blue kết hợp PM2.5,Phin lọc Enzyme Blue kết hợp PM2.5,air_quality,YES,,4-5,VERIFIED
+FTKY,FTKY,enzyme_blue_pm25,Phin lọc Enzyme Blue kết hợp PM2.5,Phin lọc Enzyme Blue kết hợp PM2.5,air_quality,YES,,4-5,VERIFIED
+FTKF,FTKF_ATKF,enzyme_blue_pm25,Phin lọc Enzyme Blue kết hợp PM2.5,Phin lọc Enzyme Blue kết hợp PM2.5,air_quality,MODEL_SPECIFIC,50/60/71 only,4-5,VERIFIED
+ATKF,FTKF_ATKF,enzyme_blue_pm25,Phin lọc Enzyme Blue kết hợp PM2.5,Phin lọc Enzyme Blue kết hợp PM2.5,air_quality,MODEL_SPECIFIC,25/35 only,4-5,VERIFIED
+FTKB,FTKB_ATKB,enzyme_blue_pm25,Phin lọc Enzyme Blue kết hợp PM2.5,Phin lọc Enzyme Blue kết hợp PM2.5,air_quality,NO,,4-5,VERIFIED
+ATKB,FTKB_ATKB,enzyme_blue_pm25,Phin lọc Enzyme Blue kết hợp PM2.5,Phin lọc Enzyme Blue kết hợp PM2.5,air_quality,YES,ATKB25/35,4-5,VERIFIED
+FTHB,FTHB,enzyme_blue_pm25,Phin lọc Enzyme Blue kết hợp PM2.5,Phin lọc Enzyme Blue kết hợp PM2.5,air_quality,OPTIONAL,Tùy chọn,4-5,VERIFIED
+FTF,FTF,enzyme_blue_pm25,Phin lọc Enzyme Blue kết hợp PM2.5,Phin lọc Enzyme Blue kết hợp PM2.5,air_quality,OPTIONAL,Tùy chọn,4-5,VERIFIED
+FTXM,FTXM,enzyme_blue_pm25,Phin lọc Enzyme Blue kết hợp PM2.5,Phin lọc Enzyme Blue kết hợp PM2.5,air_quality,YES,,4-5,VERIFIED
+FTXV,FTXV,enzyme_blue_pm25,Phin lọc Enzyme Blue kết hợp PM2.5,Phin lọc Enzyme Blue kết hợp PM2.5,air_quality,MODEL_SPECIFIC,Enzyme Blue; catalog does not mark PM2.5,4-5,VERIFIED
+FTHF,FTHF,enzyme_blue_pm25,Phin lọc Enzyme Blue kết hợp PM2.5,Phin lọc Enzyme Blue kết hợp PM2.5,air_quality,YES,,4-5,VERIFIED
+FTKZ,FTKZ,powerful,Làm lạnh nhanh,Làm lạnh nhanh Powerful,comfort,YES,,4-5,VERIFIED
+FTKM,FTKM,powerful,Làm lạnh nhanh,Làm lạnh nhanh Powerful,comfort,YES,,4-5,VERIFIED
+FTKY,FTKY,powerful,Làm lạnh nhanh,Làm lạnh nhanh Powerful,comfort,YES,,4-5,VERIFIED
+FTKF,FTKF_ATKF,powerful,Làm lạnh nhanh,Làm lạnh nhanh Powerful,comfort,YES,,4-5,VERIFIED
+ATKF,FTKF_ATKF,powerful,Làm lạnh nhanh,Làm lạnh nhanh Powerful,comfort,YES,,4-5,VERIFIED
+FTKB,FTKB_ATKB,powerful,Làm lạnh nhanh,Làm lạnh nhanh Powerful,comfort,YES,,4-5,VERIFIED
+ATKB,FTKB_ATKB,powerful,Làm lạnh nhanh,Làm lạnh nhanh Powerful,comfort,YES,,4-5,VERIFIED
+FTHB,FTHB,powerful,Làm lạnh nhanh,Làm lạnh nhanh Powerful,comfort,YES,,4-5,VERIFIED
+FTF,FTF,powerful,Làm lạnh nhanh,Làm lạnh nhanh Powerful,comfort,YES,,4-5,VERIFIED
+FTXM,FTXM,powerful,Làm lạnh nhanh,Làm lạnh nhanh Powerful,comfort,YES,,4-5,VERIFIED
+FTXV,FTXV,powerful,Làm lạnh nhanh,Làm lạnh nhanh Powerful,comfort,YES,,4-5,VERIFIED
+FTHF,FTHF,powerful,Làm lạnh nhanh,Làm lạnh nhanh Powerful,comfort,YES,,4-5,VERIFIED
+FTKZ,FTKZ,indoor_quiet,Dàn lạnh yên tĩnh,Chế độ dàn lạnh vận hành yên tĩnh,comfort,YES,,4-5,VERIFIED
+FTKM,FTKM,indoor_quiet,Dàn lạnh yên tĩnh,Chế độ dàn lạnh vận hành yên tĩnh,comfort,YES,,4-5,VERIFIED
+FTKY,FTKY,indoor_quiet,Dàn lạnh yên tĩnh,Chế độ dàn lạnh vận hành yên tĩnh,comfort,YES,,4-5,VERIFIED
+FTKF,FTKF_ATKF,indoor_quiet,Dàn lạnh yên tĩnh,Chế độ dàn lạnh vận hành yên tĩnh,comfort,YES,,4-5,VERIFIED
+ATKF,FTKF_ATKF,indoor_quiet,Dàn lạnh yên tĩnh,Chế độ dàn lạnh vận hành yên tĩnh,comfort,YES,,4-5,VERIFIED
+FTKB,FTKB_ATKB,indoor_quiet,Dàn lạnh yên tĩnh,Chế độ dàn lạnh vận hành yên tĩnh,comfort,YES,,4-5,VERIFIED
+ATKB,FTKB_ATKB,indoor_quiet,Dàn lạnh yên tĩnh,Chế độ dàn lạnh vận hành yên tĩnh,comfort,YES,,4-5,VERIFIED
+FTHB,FTHB,indoor_quiet,Dàn lạnh yên tĩnh,Chế độ dàn lạnh vận hành yên tĩnh,comfort,YES,,4-5,VERIFIED
+FTF,FTF,indoor_quiet,Dàn lạnh yên tĩnh,Chế độ dàn lạnh vận hành yên tĩnh,comfort,YES,,4-5,VERIFIED
+FTXM,FTXM,indoor_quiet,Dàn lạnh yên tĩnh,Chế độ dàn lạnh vận hành yên tĩnh,comfort,YES,,4-5,VERIFIED
+FTXV,FTXV,indoor_quiet,Dàn lạnh yên tĩnh,Chế độ dàn lạnh vận hành yên tĩnh,comfort,YES,,4-5,VERIFIED
+FTHF,FTHF,indoor_quiet,Dàn lạnh yên tĩnh,Chế độ dàn lạnh vận hành yên tĩnh,comfort,YES,,4-5,VERIFIED
+FTKZ,FTKZ,outdoor_quiet,Dàn nóng êm ái,Chế độ dàn nóng vận hành êm ái,comfort,YES,,4-5,VERIFIED
+FTKM,FTKM,outdoor_quiet,Dàn nóng êm ái,Chế độ dàn nóng vận hành êm ái,comfort,YES,,4-5,VERIFIED
+FTKY,FTKY,outdoor_quiet,Dàn nóng êm ái,Chế độ dàn nóng vận hành êm ái,comfort,YES,,4-5,VERIFIED
+FTKF,FTKF_ATKF,outdoor_quiet,Dàn nóng êm ái,Chế độ dàn nóng vận hành êm ái,comfort,YES,,4-5,VERIFIED
+ATKF,FTKF_ATKF,outdoor_quiet,Dàn nóng êm ái,Chế độ dàn nóng vận hành êm ái,comfort,YES,,4-5,VERIFIED
+FTKB,FTKB_ATKB,outdoor_quiet,Dàn nóng êm ái,Chế độ dàn nóng vận hành êm ái,comfort,YES,,4-5,VERIFIED
+ATKB,FTKB_ATKB,outdoor_quiet,Dàn nóng êm ái,Chế độ dàn nóng vận hành êm ái,comfort,YES,,4-5,VERIFIED
+FTHB,FTHB,outdoor_quiet,Dàn nóng êm ái,Chế độ dàn nóng vận hành êm ái,comfort,YES,,4-5,VERIFIED
+FTF,FTF,outdoor_quiet,Dàn nóng êm ái,Chế độ dàn nóng vận hành êm ái,comfort,YES,,4-5,VERIFIED
+FTXM,FTXM,outdoor_quiet,Dàn nóng êm ái,Chế độ dàn nóng vận hành êm ái,comfort,YES,,4-5,VERIFIED
+FTXV,FTXV,outdoor_quiet,Dàn nóng êm ái,Chế độ dàn nóng vận hành êm ái,comfort,YES,,4-5,VERIFIED
+FTHF,FTHF,outdoor_quiet,Dàn nóng êm ái,Chế độ dàn nóng vận hành êm ái,comfort,YES,,4-5,VERIFIED
+FTKZ,FTKZ,night_mode,Chế độ ngủ ban đêm,Chế độ ngủ ban đêm,comfort,YES,,4-5,VERIFIED
+FTKM,FTKM,night_mode,Chế độ ngủ ban đêm,Chế độ ngủ ban đêm,comfort,YES,,4-5,VERIFIED
+FTKY,FTKY,night_mode,Chế độ ngủ ban đêm,Chế độ ngủ ban đêm,comfort,YES,,4-5,VERIFIED
+FTKF,FTKF_ATKF,night_mode,Chế độ ngủ ban đêm,Chế độ ngủ ban đêm,comfort,YES,,4-5,VERIFIED
+ATKF,FTKF_ATKF,night_mode,Chế độ ngủ ban đêm,Chế độ ngủ ban đêm,comfort,YES,,4-5,VERIFIED
+FTKB,FTKB_ATKB,night_mode,Chế độ ngủ ban đêm,Chế độ ngủ ban đêm,comfort,YES,,4-5,VERIFIED
+ATKB,FTKB_ATKB,night_mode,Chế độ ngủ ban đêm,Chế độ ngủ ban đêm,comfort,YES,,4-5,VERIFIED
+FTHB,FTHB,night_mode,Chế độ ngủ ban đêm,Chế độ ngủ ban đêm,comfort,YES,,4-5,VERIFIED
+FTF,FTF,night_mode,Chế độ ngủ ban đêm,Chế độ ngủ ban đêm,comfort,YES,,4-5,VERIFIED
+FTXM,FTXM,night_mode,Chế độ ngủ ban đêm,Chế độ ngủ ban đêm,comfort,YES,,4-5,VERIFIED
+FTXV,FTXV,night_mode,Chế độ ngủ ban đêm,Chế độ ngủ ban đêm,comfort,YES,,4-5,VERIFIED
+FTHF,FTHF,night_mode,Chế độ ngủ ban đêm,Chế độ ngủ ban đêm,comfort,YES,,4-5,VERIFIED
+FTKZ,FTKZ,comfort_sleep,Chế độ ngủ thoải mái,Chế độ ngủ thoải mái - Comfort Sleep,comfort,NO,,4-5,VERIFIED
+FTKM,FTKM,comfort_sleep,Chế độ ngủ thoải mái,Chế độ ngủ thoải mái - Comfort Sleep,comfort,YES,,4-5,VERIFIED
+FTKY,FTKY,comfort_sleep,Chế độ ngủ thoải mái,Chế độ ngủ thoải mái - Comfort Sleep,comfort,NO,,4-5,VERIFIED
+FTKF,FTKF_ATKF,comfort_sleep,Chế độ ngủ thoải mái,Chế độ ngủ thoải mái - Comfort Sleep,comfort,NO,,4-5,VERIFIED
+ATKF,FTKF_ATKF,comfort_sleep,Chế độ ngủ thoải mái,Chế độ ngủ thoải mái - Comfort Sleep,comfort,NO,,4-5,VERIFIED
+FTKB,FTKB_ATKB,comfort_sleep,Chế độ ngủ thoải mái,Chế độ ngủ thoải mái - Comfort Sleep,comfort,NO,,4-5,VERIFIED
+ATKB,FTKB_ATKB,comfort_sleep,Chế độ ngủ thoải mái,Chế độ ngủ thoải mái - Comfort Sleep,comfort,NO,,4-5,VERIFIED
+FTHB,FTHB,comfort_sleep,Chế độ ngủ thoải mái,Chế độ ngủ thoải mái - Comfort Sleep,comfort,NO,,4-5,VERIFIED
+FTF,FTF,comfort_sleep,Chế độ ngủ thoải mái,Chế độ ngủ thoải mái - Comfort Sleep,comfort,NO,,4-5,VERIFIED
+FTXM,FTXM,comfort_sleep,Chế độ ngủ thoải mái,Chế độ ngủ thoải mái - Comfort Sleep,comfort,NO,,4-5,VERIFIED
+FTXV,FTXV,comfort_sleep,Chế độ ngủ thoải mái,Chế độ ngủ thoải mái - Comfort Sleep,comfort,NO,,4-5,VERIFIED
+FTHF,FTHF,comfort_sleep,Chế độ ngủ thoải mái,Chế độ ngủ thoải mái - Comfort Sleep,comfort,NO,,4-5,VERIFIED
+FTKZ,FTKZ,comfort_airflow,Luồng gió thoải mái,Luồng gió thoải mái,airflow,YES,,4-5,VERIFIED
+FTKM,FTKM,comfort_airflow,Luồng gió thoải mái,Luồng gió thoải mái,airflow,YES,,4-5,VERIFIED
+FTKY,FTKY,comfort_airflow,Luồng gió thoải mái,Luồng gió thoải mái,airflow,YES,,4-5,VERIFIED
+FTKF,FTKF_ATKF,comfort_airflow,Luồng gió thoải mái,Luồng gió thoải mái,airflow,YES,,4-5,VERIFIED
+ATKF,FTKF_ATKF,comfort_airflow,Luồng gió thoải mái,Luồng gió thoải mái,airflow,YES,,4-5,VERIFIED
+FTKB,FTKB_ATKB,comfort_airflow,Luồng gió thoải mái,Luồng gió thoải mái,airflow,YES,,4-5,VERIFIED
+ATKB,FTKB_ATKB,comfort_airflow,Luồng gió thoải mái,Luồng gió thoải mái,airflow,YES,,4-5,VERIFIED
+FTHB,FTHB,comfort_airflow,Luồng gió thoải mái,Luồng gió thoải mái,airflow,YES,,4-5,VERIFIED
+FTF,FTF,comfort_airflow,Luồng gió thoải mái,Luồng gió thoải mái,airflow,YES,,4-5,VERIFIED
+FTXM,FTXM,comfort_airflow,Luồng gió thoải mái,Luồng gió thoải mái,airflow,YES,,4-5,VERIFIED
+FTXV,FTXV,comfort_airflow,Luồng gió thoải mái,Luồng gió thoải mái,airflow,YES,,4-5,VERIFIED
+FTHF,FTHF,comfort_airflow,Luồng gió thoải mái,Luồng gió thoải mái,airflow,YES,,4-5,VERIFIED
+FTKZ,FTKZ,airflow_3d,Đảo gió ngang và dọc,Luồng gió 3D,airflow,YES,,4-5,VERIFIED
+FTKM,FTKM,airflow_3d,Đảo gió ngang và dọc,Luồng gió 3D,airflow,YES,,4-5,VERIFIED
+FTKY,FTKY,airflow_3d,Đảo gió ngang và dọc,Luồng gió 3D,airflow,YES,,4-5,VERIFIED
+FTKF,FTKF_ATKF,airflow_3d,Đảo gió ngang và dọc,Luồng gió 3D,airflow,YES,,4-5,VERIFIED
+ATKF,FTKF_ATKF,airflow_3d,Đảo gió ngang và dọc,Luồng gió 3D,airflow,YES,,4-5,VERIFIED
+FTKB,FTKB_ATKB,airflow_3d,Đảo gió ngang và dọc,Luồng gió 3D,airflow,NO,,4-5,VERIFIED
+ATKB,FTKB_ATKB,airflow_3d,Đảo gió ngang và dọc,Luồng gió 3D,airflow,NO,,4-5,VERIFIED
+FTHB,FTHB,airflow_3d,Đảo gió ngang và dọc,Luồng gió 3D,airflow,NO,,4-5,VERIFIED
+FTF,FTF,airflow_3d,Đảo gió ngang và dọc,Luồng gió 3D,airflow,NO,,4-5,VERIFIED
+FTXM,FTXM,airflow_3d,Đảo gió ngang và dọc,Luồng gió 3D,airflow,YES,,4-5,VERIFIED
+FTXV,FTXV,airflow_3d,Đảo gió ngang và dọc,Luồng gió 3D,airflow,YES,,4-5,VERIFIED
+FTHF,FTHF,airflow_3d,Đảo gió ngang và dọc,Luồng gió 3D,airflow,NO,,4-5,VERIFIED
+FTKZ,FTKZ,intelligent_eye,Cảm biến hiện diện tiết kiệm năng lượng,Mắt thần thông minh tiêu chuẩn,energy,YES,,4-5,VERIFIED
+FTKM,FTKM,intelligent_eye,Cảm biến hiện diện tiết kiệm năng lượng,Mắt thần thông minh tiêu chuẩn,energy,YES,,4-5,VERIFIED
+FTKY,FTKY,intelligent_eye,Cảm biến hiện diện tiết kiệm năng lượng,Mắt thần thông minh tiêu chuẩn,energy,YES,,4-5,VERIFIED
+FTKF,FTKF_ATKF,intelligent_eye,Cảm biến hiện diện tiết kiệm năng lượng,Mắt thần thông minh tiêu chuẩn,energy,NO,,4-5,VERIFIED
+ATKF,FTKF_ATKF,intelligent_eye,Cảm biến hiện diện tiết kiệm năng lượng,Mắt thần thông minh tiêu chuẩn,energy,NO,,4-5,VERIFIED
+FTKB,FTKB_ATKB,intelligent_eye,Cảm biến hiện diện tiết kiệm năng lượng,Mắt thần thông minh tiêu chuẩn,energy,NO,,4-5,VERIFIED
+ATKB,FTKB_ATKB,intelligent_eye,Cảm biến hiện diện tiết kiệm năng lượng,Mắt thần thông minh tiêu chuẩn,energy,NO,,4-5,VERIFIED
+FTHB,FTHB,intelligent_eye,Cảm biến hiện diện tiết kiệm năng lượng,Mắt thần thông minh tiêu chuẩn,energy,NO,,4-5,VERIFIED
+FTF,FTF,intelligent_eye,Cảm biến hiện diện tiết kiệm năng lượng,Mắt thần thông minh tiêu chuẩn,energy,NO,,4-5,VERIFIED
+FTXM,FTXM,intelligent_eye,Cảm biến hiện diện tiết kiệm năng lượng,Mắt thần thông minh tiêu chuẩn,energy,YES,,4-5,VERIFIED
+FTXV,FTXV,intelligent_eye,Cảm biến hiện diện tiết kiệm năng lượng,Mắt thần thông minh tiêu chuẩn,energy,YES,,4-5,VERIFIED
+FTHF,FTHF,intelligent_eye,Cảm biến hiện diện tiết kiệm năng lượng,Mắt thần thông minh tiêu chuẩn,energy,YES,,4-5,VERIFIED
+FTKZ,FTKZ,intelligent_eye_2_area,Cảm biến hai khu vực,Mắt thần thông minh 2 khu vực,energy,MODEL_SPECIFIC,25/35 only,4-5,VERIFIED
+FTKM,FTKM,intelligent_eye_2_area,Cảm biến hai khu vực,Mắt thần thông minh 2 khu vực,energy,NO,,4-5,VERIFIED
+FTKY,FTKY,intelligent_eye_2_area,Cảm biến hai khu vực,Mắt thần thông minh 2 khu vực,energy,NO,,4-5,VERIFIED
+FTKF,FTKF_ATKF,intelligent_eye_2_area,Cảm biến hai khu vực,Mắt thần thông minh 2 khu vực,energy,NO,,4-5,VERIFIED
+ATKF,FTKF_ATKF,intelligent_eye_2_area,Cảm biến hai khu vực,Mắt thần thông minh 2 khu vực,energy,NO,,4-5,VERIFIED
+FTKB,FTKB_ATKB,intelligent_eye_2_area,Cảm biến hai khu vực,Mắt thần thông minh 2 khu vực,energy,NO,,4-5,VERIFIED
+ATKB,FTKB_ATKB,intelligent_eye_2_area,Cảm biến hai khu vực,Mắt thần thông minh 2 khu vực,energy,NO,,4-5,VERIFIED
+FTHB,FTHB,intelligent_eye_2_area,Cảm biến hai khu vực,Mắt thần thông minh 2 khu vực,energy,NO,,4-5,VERIFIED
+FTF,FTF,intelligent_eye_2_area,Cảm biến hai khu vực,Mắt thần thông minh 2 khu vực,energy,NO,,4-5,VERIFIED
+FTXM,FTXM,intelligent_eye_2_area,Cảm biến hai khu vực,Mắt thần thông minh 2 khu vực,energy,MODEL_SPECIFIC,25/35 only,4-5,VERIFIED
+FTXV,FTXV,intelligent_eye_2_area,Cảm biến hai khu vực,Mắt thần thông minh 2 khu vực,energy,MODEL_SPECIFIC,25/35 only,4-5,VERIFIED
+FTHF,FTHF,intelligent_eye_2_area,Cảm biến hai khu vực,Mắt thần thông minh 2 khu vực,energy,NO,,4-5,VERIFIED
+FTKZ,FTKZ,standby_saving,Chế độ chờ tiết kiệm điện,Chế độ chờ tiết kiệm điện,energy,YES,,4-5,VERIFIED
+FTKM,FTKM,standby_saving,Chế độ chờ tiết kiệm điện,Chế độ chờ tiết kiệm điện,energy,YES,,4-5,VERIFIED
+FTKY,FTKY,standby_saving,Chế độ chờ tiết kiệm điện,Chế độ chờ tiết kiệm điện,energy,YES,,4-5,VERIFIED
+FTKF,FTKF_ATKF,standby_saving,Chế độ chờ tiết kiệm điện,Chế độ chờ tiết kiệm điện,energy,YES,,4-5,VERIFIED
+ATKF,FTKF_ATKF,standby_saving,Chế độ chờ tiết kiệm điện,Chế độ chờ tiết kiệm điện,energy,YES,,4-5,VERIFIED
+FTKB,FTKB_ATKB,standby_saving,Chế độ chờ tiết kiệm điện,Chế độ chờ tiết kiệm điện,energy,YES,,4-5,VERIFIED
+ATKB,FTKB_ATKB,standby_saving,Chế độ chờ tiết kiệm điện,Chế độ chờ tiết kiệm điện,energy,YES,,4-5,VERIFIED
+FTHB,FTHB,standby_saving,Chế độ chờ tiết kiệm điện,Chế độ chờ tiết kiệm điện,energy,YES,,4-5,VERIFIED
+FTF,FTF,standby_saving,Chế độ chờ tiết kiệm điện,Chế độ chờ tiết kiệm điện,energy,YES,,4-5,VERIFIED
+FTXM,FTXM,standby_saving,Chế độ chờ tiết kiệm điện,Chế độ chờ tiết kiệm điện,energy,YES,,4-5,VERIFIED
+FTXV,FTXV,standby_saving,Chế độ chờ tiết kiệm điện,Chế độ chờ tiết kiệm điện,energy,YES,,4-5,VERIFIED
+FTHF,FTHF,standby_saving,Chế độ chờ tiết kiệm điện,Chế độ chờ tiết kiệm điện,energy,YES,,4-5,VERIFIED
+FTKZ,FTKZ,econo,Chế độ ECONO,Chế độ tiết kiệm điện ECONO,energy,YES,,4-5,VERIFIED
+FTKM,FTKM,econo,Chế độ ECONO,Chế độ tiết kiệm điện ECONO,energy,YES,,4-5,VERIFIED
+FTKY,FTKY,econo,Chế độ ECONO,Chế độ tiết kiệm điện ECONO,energy,YES,,4-5,VERIFIED
+FTKF,FTKF_ATKF,econo,Chế độ ECONO,Chế độ tiết kiệm điện ECONO,energy,YES,,4-5,VERIFIED
+ATKF,FTKF_ATKF,econo,Chế độ ECONO,Chế độ tiết kiệm điện ECONO,energy,YES,,4-5,VERIFIED
+FTKB,FTKB_ATKB,econo,Chế độ ECONO,Chế độ tiết kiệm điện ECONO,energy,YES,,4-5,VERIFIED
+ATKB,FTKB_ATKB,econo,Chế độ ECONO,Chế độ tiết kiệm điện ECONO,energy,YES,,4-5,VERIFIED
+FTHB,FTHB,econo,Chế độ ECONO,Chế độ tiết kiệm điện ECONO,energy,YES,,4-5,VERIFIED
+FTF,FTF,econo,Chế độ ECONO,Chế độ tiết kiệm điện ECONO,energy,YES,,4-5,VERIFIED
+FTXM,FTXM,econo,Chế độ ECONO,Chế độ tiết kiệm điện ECONO,energy,YES,,4-5,VERIFIED
+FTXV,FTXV,econo,Chế độ ECONO,Chế độ tiết kiệm điện ECONO,energy,YES,,4-5,VERIFIED
+FTHF,FTHF,econo,Chế độ ECONO,Chế độ tiết kiệm điện ECONO,energy,YES,,4-5,VERIFIED
+FTKZ,FTKZ,smartphone_control,Điều khiển qua điện thoại,Điều khiển thông minh qua điện thoại,smart_control,YES,,4-5,VERIFIED
+FTKM,FTKM,smartphone_control,Điều khiển qua điện thoại,Điều khiển thông minh qua điện thoại,smart_control,YES,,4-5,VERIFIED
+FTKY,FTKY,smartphone_control,Điều khiển qua điện thoại,Điều khiển thông minh qua điện thoại,smart_control,YES,,4-5,VERIFIED
+FTKF,FTKF_ATKF,smartphone_control,Điều khiển qua điện thoại,Điều khiển thông minh qua điện thoại,smart_control,YES,,4-5,VERIFIED
+ATKF,FTKF_ATKF,smartphone_control,Điều khiển qua điện thoại,Điều khiển thông minh qua điện thoại,smart_control,YES,,4-5,VERIFIED
+FTKB,FTKB_ATKB,smartphone_control,Điều khiển qua điện thoại,Điều khiển thông minh qua điện thoại,smart_control,OPTIONAL_ACCESSORY,Tùy chọn,4-5,VERIFIED
+ATKB,FTKB_ATKB,smartphone_control,Điều khiển qua điện thoại,Điều khiển thông minh qua điện thoại,smart_control,OPTIONAL_ACCESSORY,Tùy chọn,4-5,VERIFIED
+FTHB,FTHB,smartphone_control,Điều khiển qua điện thoại,Điều khiển thông minh qua điện thoại,smart_control,OPTIONAL_ACCESSORY,Tùy chọn,4-5,VERIFIED
+FTF,FTF,smartphone_control,Điều khiển qua điện thoại,Điều khiển thông minh qua điện thoại,smart_control,NO,,4-5,VERIFIED
+FTXM,FTXM,smartphone_control,Điều khiển qua điện thoại,Điều khiển thông minh qua điện thoại,smart_control,OPTIONAL_ACCESSORY,Tùy chọn,4-5,VERIFIED
+FTXV,FTXV,smartphone_control,Điều khiển qua điện thoại,Điều khiển thông minh qua điện thoại,smart_control,OPTIONAL_ACCESSORY,Tùy chọn,4-5,VERIFIED
+FTHF,FTHF,smartphone_control,Điều khiển qua điện thoại,Điều khiển thông minh qua điện thoại,smart_control,OPTIONAL_ACCESSORY,Tùy chọn,4-5,VERIFIED
+FTKZ,FTKZ,backlit_remote,Điều khiển có đèn nền,Điều khiển từ xa không dây có đèn nền,smart_control,YES,,4-5,VERIFIED
+FTKM,FTKM,backlit_remote,Điều khiển có đèn nền,Điều khiển từ xa không dây có đèn nền,smart_control,YES,,4-5,VERIFIED
+FTKY,FTKY,backlit_remote,Điều khiển có đèn nền,Điều khiển từ xa không dây có đèn nền,smart_control,YES,,4-5,VERIFIED
+FTKF,FTKF_ATKF,backlit_remote,Điều khiển có đèn nền,Điều khiển từ xa không dây có đèn nền,smart_control,YES,,4-5,VERIFIED
+ATKF,FTKF_ATKF,backlit_remote,Điều khiển có đèn nền,Điều khiển từ xa không dây có đèn nền,smart_control,YES,,4-5,VERIFIED
+FTKB,FTKB_ATKB,backlit_remote,Điều khiển có đèn nền,Điều khiển từ xa không dây có đèn nền,smart_control,NO,,4-5,VERIFIED
+ATKB,FTKB_ATKB,backlit_remote,Điều khiển có đèn nền,Điều khiển từ xa không dây có đèn nền,smart_control,NO,,4-5,VERIFIED
+FTHB,FTHB,backlit_remote,Điều khiển có đèn nền,Điều khiển từ xa không dây có đèn nền,smart_control,NO,,4-5,VERIFIED
+FTF,FTF,backlit_remote,Điều khiển có đèn nền,Điều khiển từ xa không dây có đèn nền,smart_control,NO,,4-5,VERIFIED
+FTXM,FTXM,backlit_remote,Điều khiển có đèn nền,Điều khiển từ xa không dây có đèn nền,smart_control,YES,,4-5,VERIFIED
+FTXV,FTXV,backlit_remote,Điều khiển có đèn nền,Điều khiển từ xa không dây có đèn nền,smart_control,YES,,4-5,VERIFIED
+FTHF,FTHF,backlit_remote,Điều khiển có đèn nền,Điều khiển từ xa không dây có đèn nền,smart_control,MODEL_SPECIFIC,50/60/71 only,4-5,VERIFIED
+FTKZ,FTKZ,child_lock,Khóa trẻ em,Chế độ khóa trẻ em,smart_control,NO,,4-5,VERIFIED
+FTKM,FTKM,child_lock,Khóa trẻ em,Chế độ khóa trẻ em,smart_control,NO,,4-5,VERIFIED
+FTKY,FTKY,child_lock,Khóa trẻ em,Chế độ khóa trẻ em,smart_control,YES,,4-5,VERIFIED
+FTKF,FTKF_ATKF,child_lock,Khóa trẻ em,Chế độ khóa trẻ em,smart_control,NO,,4-5,VERIFIED
+ATKF,FTKF_ATKF,child_lock,Khóa trẻ em,Chế độ khóa trẻ em,smart_control,NO,,4-5,VERIFIED
+FTKB,FTKB_ATKB,child_lock,Khóa trẻ em,Chế độ khóa trẻ em,smart_control,NO,,4-5,VERIFIED
+ATKB,FTKB_ATKB,child_lock,Khóa trẻ em,Chế độ khóa trẻ em,smart_control,NO,,4-5,VERIFIED
+FTHB,FTHB,child_lock,Khóa trẻ em,Chế độ khóa trẻ em,smart_control,NO,,4-5,VERIFIED
+FTF,FTF,child_lock,Khóa trẻ em,Chế độ khóa trẻ em,smart_control,NO,,4-5,VERIFIED
+FTXM,FTXM,child_lock,Khóa trẻ em,Chế độ khóa trẻ em,smart_control,NO,,4-5,VERIFIED
+FTXV,FTXV,child_lock,Khóa trẻ em,Chế độ khóa trẻ em,smart_control,NO,,4-5,VERIFIED
+FTHF,FTHF,child_lock,Khóa trẻ em,Chế độ khóa trẻ em,smart_control,MODEL_SPECIFIC,50/60/71 only,4-5,VERIFIED
+FTKZ,FTKZ,timer,Hẹn giờ,Cài đặt thời gian tắt/mở hẹn giờ,smart_control,YES,24H,4-5,VERIFIED
+FTKM,FTKM,timer,Hẹn giờ,Cài đặt thời gian tắt/mở hẹn giờ,smart_control,YES,24H,4-5,VERIFIED
+FTKY,FTKY,timer,Hẹn giờ,Cài đặt thời gian tắt/mở hẹn giờ,smart_control,YES,,4-5,VERIFIED
+FTKF,FTKF_ATKF,timer,Hẹn giờ,Cài đặt thời gian tắt/mở hẹn giờ,smart_control,YES,,4-5,VERIFIED
+ATKF,FTKF_ATKF,timer,Hẹn giờ,Cài đặt thời gian tắt/mở hẹn giờ,smart_control,YES,,4-5,VERIFIED
+FTKB,FTKB_ATKB,timer,Hẹn giờ,Cài đặt thời gian tắt/mở hẹn giờ,smart_control,YES,,4-5,VERIFIED
+ATKB,FTKB_ATKB,timer,Hẹn giờ,Cài đặt thời gian tắt/mở hẹn giờ,smart_control,YES,,4-5,VERIFIED
+FTHB,FTHB,timer,Hẹn giờ,Cài đặt thời gian tắt/mở hẹn giờ,smart_control,YES,,4-5,VERIFIED
+FTF,FTF,timer,Hẹn giờ,Cài đặt thời gian tắt/mở hẹn giờ,smart_control,YES,,4-5,VERIFIED
+FTXM,FTXM,timer,Hẹn giờ,Cài đặt thời gian tắt/mở hẹn giờ,smart_control,YES,24H,4-5,VERIFIED
+FTXV,FTXV,timer,Hẹn giờ,Cài đặt thời gian tắt/mở hẹn giờ,smart_control,YES,24H,4-5,VERIFIED
+FTHF,FTHF,timer,Hẹn giờ,Cài đặt thời gian tắt/mở hẹn giờ,smart_control,YES,,4-5,VERIFIED
+FTKZ,FTKZ,super_pcb,Bảo vệ bo mạch,Super PCB bảo vệ bo mạch khi điện áp thay đổi,durability,YES,,4-5,VERIFIED
+FTKM,FTKM,super_pcb,Bảo vệ bo mạch,Super PCB bảo vệ bo mạch khi điện áp thay đổi,durability,YES,,4-5,VERIFIED
+FTKY,FTKY,super_pcb,Bảo vệ bo mạch,Super PCB bảo vệ bo mạch khi điện áp thay đổi,durability,YES,,4-5,VERIFIED
+FTKF,FTKF_ATKF,super_pcb,Bảo vệ bo mạch,Super PCB bảo vệ bo mạch khi điện áp thay đổi,durability,YES,,4-5,VERIFIED
+ATKF,FTKF_ATKF,super_pcb,Bảo vệ bo mạch,Super PCB bảo vệ bo mạch khi điện áp thay đổi,durability,YES,,4-5,VERIFIED
+FTKB,FTKB_ATKB,super_pcb,Bảo vệ bo mạch,Super PCB bảo vệ bo mạch khi điện áp thay đổi,durability,YES,,4-5,VERIFIED
+ATKB,FTKB_ATKB,super_pcb,Bảo vệ bo mạch,Super PCB bảo vệ bo mạch khi điện áp thay đổi,durability,YES,,4-5,VERIFIED
+FTHB,FTHB,super_pcb,Bảo vệ bo mạch,Super PCB bảo vệ bo mạch khi điện áp thay đổi,durability,YES,,4-5,VERIFIED
+FTF,FTF,super_pcb,Bảo vệ bo mạch,Super PCB bảo vệ bo mạch khi điện áp thay đổi,durability,NO,,4-5,VERIFIED
+FTXM,FTXM,super_pcb,Bảo vệ bo mạch,Super PCB bảo vệ bo mạch khi điện áp thay đổi,durability,NO,,4-5,VERIFIED
+FTXV,FTXV,super_pcb,Bảo vệ bo mạch,Super PCB bảo vệ bo mạch khi điện áp thay đổi,durability,NO,,4-5,VERIFIED
+FTHF,FTHF,super_pcb,Bảo vệ bo mạch,Super PCB bảo vệ bo mạch khi điện áp thay đổi,durability,MODEL_SPECIFIC,25/35 only,4-5,VERIFIED
+FTKZ,FTKZ,anti_corrosion_fin,Dàn tản nhiệt chống ăn mòn,Dàn tản nhiệt ống đồng cánh nhôm chống ăn mòn,durability,MODEL_SPECIFIC,25/35 only,4-5,VERIFIED
+FTKM,FTKM,anti_corrosion_fin,Dàn tản nhiệt chống ăn mòn,Dàn tản nhiệt ống đồng cánh nhôm chống ăn mòn,durability,YES,,4-5,VERIFIED
+FTKY,FTKY,anti_corrosion_fin,Dàn tản nhiệt chống ăn mòn,Dàn tản nhiệt ống đồng cánh nhôm chống ăn mòn,durability,MODEL_SPECIFIC,25/35 only,4-5,VERIFIED
+FTKF,FTKF_ATKF,anti_corrosion_fin,Dàn tản nhiệt chống ăn mòn,Dàn tản nhiệt ống đồng cánh nhôm chống ăn mòn,durability,MODEL_SPECIFIC,25/35/50 only,4-5,VERIFIED
+ATKF,FTKF_ATKF,anti_corrosion_fin,Dàn tản nhiệt chống ăn mòn,Dàn tản nhiệt ống đồng cánh nhôm chống ăn mòn,durability,YES,ATKF25/35,4-5,VERIFIED
+FTKB,FTKB_ATKB,anti_corrosion_fin,Dàn tản nhiệt chống ăn mòn,Dàn tản nhiệt ống đồng cánh nhôm chống ăn mòn,durability,MODEL_SPECIFIC,25/35/50 only,4-5,VERIFIED
+ATKB,FTKB_ATKB,anti_corrosion_fin,Dàn tản nhiệt chống ăn mòn,Dàn tản nhiệt ống đồng cánh nhôm chống ăn mòn,durability,YES,ATKB25/35,4-5,VERIFIED
+FTHB,FTHB,anti_corrosion_fin,Dàn tản nhiệt chống ăn mòn,Dàn tản nhiệt ống đồng cánh nhôm chống ăn mòn,durability,YES,,4-5,VERIFIED
+FTF,FTF,anti_corrosion_fin,Dàn tản nhiệt chống ăn mòn,Dàn tản nhiệt ống đồng cánh nhôm chống ăn mòn,durability,YES,,4-5,VERIFIED
+FTXM,FTXM,anti_corrosion_fin,Dàn tản nhiệt chống ăn mòn,Dàn tản nhiệt ống đồng cánh nhôm chống ăn mòn,durability,YES,,4-5,VERIFIED
+FTXV,FTXV,anti_corrosion_fin,Dàn tản nhiệt chống ăn mòn,Dàn tản nhiệt ống đồng cánh nhôm chống ăn mòn,durability,YES,,4-5,VERIFIED
+FTHF,FTHF,anti_corrosion_fin,Dàn tản nhiệt chống ăn mòn,Dàn tản nhiệt ống đồng cánh nhôm chống ăn mòn,durability,YES,,4-5,VERIFIED
+FTKZ,FTKZ,microchannel,Cánh tản nhiệt Microchannel,Cánh tản nhiệt Microchannel chống ăn mòn (MCHE),durability,MODEL_SPECIFIC,50/60/71 only,4-5,VERIFIED
+FTKM,FTKM,microchannel,Cánh tản nhiệt Microchannel,Cánh tản nhiệt Microchannel chống ăn mòn (MCHE),durability,NO,,4-5,VERIFIED
+FTKY,FTKY,microchannel,Cánh tản nhiệt Microchannel,Cánh tản nhiệt Microchannel chống ăn mòn (MCHE),durability,MODEL_SPECIFIC,50/60/71 only,4-5,VERIFIED
+FTKF,FTKF_ATKF,microchannel,Cánh tản nhiệt Microchannel,Cánh tản nhiệt Microchannel chống ăn mòn (MCHE),durability,MODEL_SPECIFIC,60/71 only,4-5,VERIFIED
+ATKF,FTKF_ATKF,microchannel,Cánh tản nhiệt Microchannel,Cánh tản nhiệt Microchannel chống ăn mòn (MCHE),durability,NO,,4-5,VERIFIED
+FTKB,FTKB_ATKB,microchannel,Cánh tản nhiệt Microchannel,Cánh tản nhiệt Microchannel chống ăn mòn (MCHE),durability,MODEL_SPECIFIC,60 only,4-5,VERIFIED
+ATKB,FTKB_ATKB,microchannel,Cánh tản nhiệt Microchannel,Cánh tản nhiệt Microchannel chống ăn mòn (MCHE),durability,NO,,4-5,VERIFIED
+FTHB,FTHB,microchannel,Cánh tản nhiệt Microchannel,Cánh tản nhiệt Microchannel chống ăn mòn (MCHE),durability,NO,,4-5,VERIFIED
+FTF,FTF,microchannel,Cánh tản nhiệt Microchannel,Cánh tản nhiệt Microchannel chống ăn mòn (MCHE),durability,NO,,4-5,VERIFIED
+FTXM,FTXM,microchannel,Cánh tản nhiệt Microchannel,Cánh tản nhiệt Microchannel chống ăn mòn (MCHE),durability,NO,,4-5,VERIFIED
+FTXV,FTXV,microchannel,Cánh tản nhiệt Microchannel,Cánh tản nhiệt Microchannel chống ăn mòn (MCHE),durability,NO,,4-5,VERIFIED
+FTHF,FTHF,microchannel,Cánh tản nhiệt Microchannel,Cánh tản nhiệt Microchannel chống ăn mòn (MCHE),durability,NO,,4-5,VERIFIED
+FTKZ,FTKZ,dual_power_supply,Hỗ trợ cấp nguồn dàn nóng hoặc dàn lạnh,Cấp nguồn dàn nóng / dàn lạnh,installation,NO,,4-5,VERIFIED
+FTKM,FTKM,dual_power_supply,Hỗ trợ cấp nguồn dàn nóng hoặc dàn lạnh,Cấp nguồn dàn nóng / dàn lạnh,installation,YES,,4-5,VERIFIED
+FTKY,FTKY,dual_power_supply,Hỗ trợ cấp nguồn dàn nóng hoặc dàn lạnh,Cấp nguồn dàn nóng / dàn lạnh,installation,NO,,4-5,VERIFIED
+FTKF,FTKF_ATKF,dual_power_supply,Hỗ trợ cấp nguồn dàn nóng hoặc dàn lạnh,Cấp nguồn dàn nóng / dàn lạnh,installation,YES,,4-5,VERIFIED
+ATKF,FTKF_ATKF,dual_power_supply,Hỗ trợ cấp nguồn dàn nóng hoặc dàn lạnh,Cấp nguồn dàn nóng / dàn lạnh,installation,YES,,4-5,VERIFIED
+FTKB,FTKB_ATKB,dual_power_supply,Hỗ trợ cấp nguồn dàn nóng hoặc dàn lạnh,Cấp nguồn dàn nóng / dàn lạnh,installation,YES,,4-5,VERIFIED
+ATKB,FTKB_ATKB,dual_power_supply,Hỗ trợ cấp nguồn dàn nóng hoặc dàn lạnh,Cấp nguồn dàn nóng / dàn lạnh,installation,YES,,4-5,VERIFIED
+FTHB,FTHB,dual_power_supply,Hỗ trợ cấp nguồn dàn nóng hoặc dàn lạnh,Cấp nguồn dàn nóng / dàn lạnh,installation,YES,,4-5,VERIFIED
+FTF,FTF,dual_power_supply,Hỗ trợ cấp nguồn dàn nóng hoặc dàn lạnh,Cấp nguồn dàn nóng / dàn lạnh,installation,NO,,4-5,VERIFIED
+FTXM,FTXM,dual_power_supply,Hỗ trợ cấp nguồn dàn nóng hoặc dàn lạnh,Cấp nguồn dàn nóng / dàn lạnh,installation,NO,,4-5,VERIFIED
+FTXV,FTXV,dual_power_supply,Hỗ trợ cấp nguồn dàn nóng hoặc dàn lạnh,Cấp nguồn dàn nóng / dàn lạnh,installation,NO,,4-5,VERIFIED
+FTHF,FTHF,dual_power_supply,Hỗ trợ cấp nguồn dàn nóng hoặc dàn lạnh,Cấp nguồn dàn nóng / dàn lạnh,installation,NO,,4-5,VERIFIED
