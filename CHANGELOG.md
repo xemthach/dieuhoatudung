@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.31.5] - 2026-08-30
+
+### Added
+- Product Edit actions to reject a reviewable AI draft with a mandatory operator note.
+- Product Edit action to safely cancel queued, processing, or stuck AI requests for the current Product.
+
+### Changed
+- Cancelling active Product AI requests records canonical cancellation reasons and closes the related job when no active items remain.
+
+### Security
+- AI Product content remains draft-only until explicit approval and Apply; no direct status editing or history deletion is exposed.
+
+### Operations
+- Duplicate/in-progress requests can be released from the Product workflow without bulk retrying historical jobs.
+
 ## [1.31.4] - 2026-08-30
 
 ### Changed

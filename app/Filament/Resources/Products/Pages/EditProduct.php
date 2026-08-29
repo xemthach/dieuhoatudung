@@ -20,8 +20,10 @@ use Filament\Actions\RestoreAction;
 use Filament\Forms\Components\CheckboxList;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Select;
+use Filament\Forms\Components\Textarea;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\EditRecord;
+use Illuminate\Support\Facades\DB;
 
 class EditProduct extends EditRecord
 {
@@ -104,6 +106,86 @@ class EditProduct extends EditRecord
                     } catch (\Throwable $e) {
                         Notification::make()->title('Không thể duyệt draft')->body($e->getMessage())->danger()->persistent()->send();
                     }
+                }),
+            Action::make('ai_reject_latest_draft')
+                ->label('Từ chối draft AI')
+                ->icon('heroicon-o-x-circle')
+                ->color('danger')
+                ->authorize(fn (): bool => auth()->user()?->can('product.ai_generate') ?? false)
+                ->visible(fn (): bool => app(AiProductContentStateResolver::class)
+                    ->reviewableDraft($this->record) !== null)
+                ->form([
+                    Textarea::make('review_note')
+                        ->label('Lý do từ chối')
+                        ->required()
+                        ->minLength(3)
+                        ->maxLength(1000),
+                ])
+                ->requiresConfirmation()
+                ->modalHeading('Từ chối bản nháp AI')
+                ->modalSubmitActionLabel('Từ chối draft')
+                ->action(function (array $data): void {
+                    $draft = app(AiProductContentStateResolver::class)->reviewableDraft($this->record);
+                    if (! $draft) {
+                        Notification::make()->title('Chưa có AI draft để từ chối')->warning()->send();
+                        return;
+                    }
+
+                    app(AIProductDraftApplyService::class)->reject(
+                        $draft,
+                        (int) auth()->id(),
+                        (string) $data['review_note'],
+                    );
+                    Notification::make()->title('Đã từ chối draft AI')->success()->send();
+                }),
+            Action::make('ai_cancel_active_requests')
+                ->label('Giải phóng yêu cầu AI đang treo')
+                ->icon('heroicon-o-stop-circle')
+                ->color('danger')
+                ->authorize(fn (): bool => auth()->user()?->can('product.ai_generate') ?? false)
+                ->visible(fn (): bool => $this->record->aiProductJobItems()
+                    ->whereIn('status', ['queued', 'processing', 'stuck'])
+                    ->exists())
+                ->requiresConfirmation()
+                ->modalHeading('Hủy yêu cầu AI đang treo')
+                ->modalDescription('Chỉ các yêu cầu queued/processing/stuck của Product này sẽ được đánh dấu đã hủy. Lịch sử AI và Product content không bị xóa.')
+                ->action(function (): void {
+                    DB::transaction(function (): void {
+                        $items = $this->record->aiProductJobItems()
+                            ->whereIn('status', ['queued', 'processing', 'stuck'])
+                            ->get();
+
+                        foreach ($items as $item) {
+                            $item->update([
+                                'status' => 'cancelled',
+                                'canonical_status' => 'CANCELLED',
+                                'status_reason' => 'CANCELLED_BY_OPERATOR',
+                                'failed_reason' => 'job_cancelled',
+                                'last_error_code' => 'job_cancelled',
+                                'last_error_message' => 'Cancelled by operator from Product.',
+                                'error_message' => 'Cancelled by operator from Product.',
+                                'finished_at' => now(),
+                            ]);
+                        }
+
+                        foreach ($items->groupBy('ai_product_job_id') as $jobItems) {
+                            $job = $jobItems->first()->job;
+                            if (! $job) continue;
+
+                            $remaining = $job->items()->whereIn('status', ['queued', 'processing', 'stuck'])->count();
+                            if ($remaining === 0) {
+                                $job->update([
+                                    'status' => 'cancelled',
+                                    'failed_reason' => 'job_cancelled',
+                                    'last_error_code' => 'job_cancelled',
+                                    'last_error_message' => 'Cancelled by operator from Product.',
+                                    'finished_at' => now(),
+                                ]);
+                            }
+                        }
+                    });
+
+                    Notification::make()->title('Đã giải phóng yêu cầu AI đang treo')->success()->send();
                 }),
             Action::make('ai_apply_latest_draft')
                 ->label('Áp dụng nội dung đã duyệt')
