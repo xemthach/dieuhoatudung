@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.31.4] - 2026-08-30
+
+### Changed
+- Route non-empty AI Product content below the configured length target to `REVIEW_REQUIRED` with an explicit `content_too_short:x/y` warning.
+- Preserve manual review and apply controls; Product content is not automatically changed.
+
+### Security
+- Empty payloads, invalid Product identity, forbidden Product-data fields, and critical fact-check failures remain hard failures/blocks.
+
+### Operations
+- Historical AI jobs are not retried or rewritten by this change.
+
 ## [1.31.3] - 2026-08-30
 
 ### Fixed
