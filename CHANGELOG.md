@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.31.1] - 2026-08-29
+
+### Fixed
+- Fixed XLSX imports under PHP `open_basedir` by safely handling PhpSpreadsheet's internal OOXML archive-path probe without weakening filesystem restrictions.
+
+### Operations
+- Added a regression test proving XLSX loading works with `open_basedir` enabled.
+- No database migration, Product/catalog write, or AI provider call is part of this patch.
+
 ## [1.31.0] - 2026-08-29
 
 ### Added
