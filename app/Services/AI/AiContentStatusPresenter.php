@@ -92,6 +92,17 @@ final class AiContentStatusPresenter
             return null;
         }
 
+        $governanceReasons = [
+            'active_draft_or_apply_conflict' => 'Sản phẩm đang có draft hoặc luồng áp dụng khác.',
+            'duplicate_in_progress' => 'Sản phẩm đang có yêu cầu AI trùng đang xử lý.',
+            'blocked_permission_revoked' => 'Quyền AI của người tạo không còn hợp lệ.',
+            'stale_technical_context' => 'Dữ liệu kỹ thuật đã thay đổi, cần tạo lại yêu cầu.',
+        ];
+        $normalizedCode = strtolower((string) $code);
+        if (isset($governanceReasons[$normalizedCode])) {
+            return $governanceReasons[$normalizedCode];
+        }
+
         return match (strtolower((string) $code)) {
             'content_too_short', 'minimum_length' => 'Nội dung quá ngắn.',
             'missing_heading_structure', 'invalid_heading_structure' => 'Nội dung chưa có cấu trúc H2/H3 hợp lệ.',

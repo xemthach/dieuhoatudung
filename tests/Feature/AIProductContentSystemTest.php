@@ -13,6 +13,7 @@ use App\Models\Faq;
 use App\Models\Product;
 use App\Services\AI\ProductBulkGenerationManifest;
 use App\Services\AI\ProductBulkTargetResolver;
+use App\Services\AI\AIProductIdempotencyService;
 use App\Models\ProductCategory;
 use App\Models\User;
 use Spatie\Permission\Models\Permission;
@@ -29,6 +30,39 @@ use Tests\TestCase;
 class AIProductContentSystemTest extends TestCase
 {
     use RefreshDatabase;
+
+    public function test_single_job_duplicate_guard_records_reason_and_finishes_parent_job(): void
+    {
+        $product = $this->product();
+        $config = $this->config(['operation_generation' => 'duplicate-guard-regression']);
+        $idempotency = app(AIProductIdempotencyService::class);
+
+        $existingJob = AiProductJob::create([
+            'type' => 'generate_ai_content', 'scope' => 'selected', 'status' => 'processing',
+            'total' => 1, 'config_json' => $config,
+        ]);
+        $existingJob->items()->create([
+            'product_id' => $product->id,
+            'status' => 'processing',
+            'idempotency_key' => $idempotency->key($product, $config),
+        ]);
+
+        $job = AiProductJob::create([
+            'type' => 'single_product_preview', 'scope' => 'selected', 'status' => 'processing',
+            'total' => 1, 'config_json' => $config,
+        ]);
+        $item = $job->items()->create(['product_id' => $product->id, 'status' => 'queued']);
+
+        (new AiProductContentSingleJob($product->id, $job->id, $item->id))->handle(app(AIProductContentSystem::class));
+
+        $item->refresh();
+        $job->refresh();
+        $this->assertSame('blocked', $item->status);
+        $this->assertSame('DUPLICATE_IN_PROGRESS', $item->status_reason);
+        $this->assertSame('completed_with_errors', $job->status);
+        $this->assertSame(1, $job->processed);
+        $this->assertSame(1, $job->failed);
+    }
 
     public function test_generate_one_product_with_full_data(): void
     {

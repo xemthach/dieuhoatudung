@@ -76,8 +76,9 @@ class ItemsRelationManager extends RelationManager
                     ->formatStateUsing(fn ($state) => self::formatWarnings($state))
                     ->limit(60)
                     ->tooltip(fn ($record) => self::formatList($record->warnings_json ?? [])),
-                TextColumn::make('failed_reason')
+                TextColumn::make('status_reason')
                     ->label('Lý do')
+                    ->state(fn ($record): ?string => $record->failed_reason ?: $record->status_reason ?: $record->last_error_code)
                     ->formatStateUsing(fn (?string $state): ?string => app(AiContentStatusPresenter::class)->safeReason($state))
                     ->color('warning')
                     ->placeholder('-'),

@@ -57,6 +57,7 @@ class AiProductContentSingleJob implements ShouldQueue
             $allowed = $actor && ($actor->can('bulk_ai_generate') || $actor->can('product.ai_generate'));
             if (! $allowed || ($permitted !== [] && ! in_array((int) $product->id, array_map('intval', $permitted), true))) {
                 $this->updateItem($item, ['status' => 'blocked', 'canonical_status' => AIJobStateMachine::BLOCKED, 'status_reason' => 'BLOCKED_PERMISSION_REVOKED', 'last_error_code' => 'BLOCKED_PERMISSION_REVOKED', 'finished_at' => now()]);
+                $this->refreshJobStats($job?->refresh());
                 return;
             }
         }
@@ -81,6 +82,7 @@ class AiProductContentSingleJob implements ShouldQueue
                 'generated_payload_json' => $isDone ? $existing->generated_payload_json : null,
                 'draft_id' => $isDone ? $existing->draft_id : null,
             ]);
+            $this->refreshJobStats($job?->refresh());
 
             return;
         }
@@ -105,6 +107,7 @@ class AiProductContentSingleJob implements ShouldQueue
                 'canonical_status' => AIJobStateMachine::BLOCKED,
                 'status_reason' => 'DUPLICATE_IN_PROGRESS',
             ]);
+            $this->refreshJobStats($job?->refresh());
 
             return;
         }

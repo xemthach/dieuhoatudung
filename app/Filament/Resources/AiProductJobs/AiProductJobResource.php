@@ -166,8 +166,9 @@ class AiProductJobResource extends Resource
                     ->formatStateUsing(fn (string $state): string => app(AiContentStatusPresenter::class)->present($state)['label'])
                     ->color(fn (string $state): string => app(AiContentStatusPresenter::class)->present($state)['color'])
                     ->sortable(),
-                TextColumn::make('failed_reason')
+                TextColumn::make('status_reason')
                     ->label('Lý do')
+                    ->state(fn (AiProductJob $record): ?string => $record->failed_reason ?: $record->status_reason ?: $record->last_error_code)
                     ->formatStateUsing(fn (?string $state): ?string => app(AiContentStatusPresenter::class)->safeReason($state))
                     ->badge()
                     ->color(fn (AiProductJob $record): string => app(AiContentStatusPresenter::class)->present($record->status)['color'])
