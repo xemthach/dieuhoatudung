@@ -668,6 +668,35 @@ class AIProductContentSystemTest extends TestCase
         $this->assertStringContainsString('Ngắn.', strip_tags($item->generated_payload_json['content_html']));
     }
 
+    public function test_short_content_gets_one_content_only_recovery_attempt(): void
+    {
+        $product = $this->product();
+        $short = $this->validPayload(content: '<h2>Ngắn</h2><h3>Phạm vi</h3><p>Nội dung.</p>');
+        $valid = $this->validPayload(content: $this->content(850));
+        $manager = Mockery::mock(AIManager::class);
+        $manager->shouldReceive('generate')->twice()->andReturn(
+            ['json' => $short, 'content' => json_encode($short), 'tokens_used' => 100, 'latency_ms' => 10, 'provider' => 'custom', 'model' => 'gpt-test'],
+            ['json' => ['content_layer' => ['content_html' => $valid['content_html']]], 'content' => json_encode(['content_layer' => ['content_html' => $valid['content_html']]]), 'tokens_used' => 200, 'latency_ms' => 20, 'provider' => 'custom', 'model' => 'gpt-test'],
+        );
+        $system = new AIProductContentSystem($manager, app(AIProductSeoScorer::class), app(AIProductContentSanitizer::class));
+
+        $result = $system->generate($product, $this->config(['retry_short_content' => true]));
+
+        $this->assertContains($result['status'], ['needs_review', 'completed_with_warnings', 'completed_verified']);
+        $this->assertGreaterThanOrEqual(800, app(AIProductSeoScorer::class)->wordCount($result['payload']['content_html']));
+    }
+
+    public function test_draft_score_and_warnings_use_generated_payload_not_stale_product(): void
+    {
+        $product = $this->product();
+        $result = $this->serviceReturning($this->validPayload())->generate($product, $this->config());
+
+        $this->assertGreaterThan($result['score_before']['score'], $result['score_after']['score']);
+        $this->assertNotContains('missing_content', $result['payload']['warnings']);
+        $this->assertNotContains('missing_seo', $result['payload']['warnings']);
+        $this->assertNotContains('missing_faq', $result['payload']['warnings']);
+    }
+
     public function test_strict_draft_only_keeps_product_row_unchanged_while_persisting_draft(): void
     {
         $product = $this->product(['ai_status' => 'not_generated']);

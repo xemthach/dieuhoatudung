@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.31.3] - 2026-08-30
+
+### Fixed
+- Add one controlled content-only recovery attempt when a real AI response is below the content-length threshold.
+- Recalculate draft warnings and score from generated payload evidence instead of stale Product fields.
+
+### Security
+- Recovery is restricted to `CONTENT_TOO_SHORT`; schema, safety, eligibility and fact-check failures are never retried by this path.
+- Recovery remains draft-only/review-controlled and does not lower the validator threshold or auto-apply Product content.
+
+### Operations
+- Recovery is limited to one additional provider request per generation and does not retry historical jobs or perform bulk generation.
+
 ## [1.31.2] - 2026-08-30
 
 ### Fixed

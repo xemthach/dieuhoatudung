@@ -167,6 +167,7 @@ class AIProductContentSystem
             'fake_5xx_attempts' => (int) ($config['fake_5xx_attempts'] ?? 0),
             'fake_governance_failure' => (bool) ($config['fake_governance_failure'] ?? false),
             'fake_output_case' => $config['fake_output_case'] ?? null,
+            'retry_short_content' => filter_var($config['retry_short_content'] ?? true, FILTER_VALIDATE_BOOL),
             'draft_only_strict' => (bool) ($config['draft_only_strict'] ?? false),
             'content_eligibility_scope' => $config['content_eligibility_scope'] ?? null,
             'current_job_item_id' => isset($config['current_job_item_id']) ? (int) $config['current_job_item_id'] : null,
@@ -302,6 +303,21 @@ class AIProductContentSystem
         try {
             $payload = $this->normalizePayload($payload, $product, $config);
         } catch (\Throwable $exception) {
+            $recovery = $this->isPersistableValidationFailure($exception)
+                ? $this->attemptShortContentRecovery(
+                    $product,
+                    $config,
+                    $input,
+                    $guardContext,
+                    $rawPayload,
+                    $result,
+                )
+                : null;
+            if ($recovery !== null) {
+                $payload = $recovery['payload'];
+                $rawPayload = $recovery['raw_payload'];
+                $result = $recovery['result'];
+            } else {
             // Preserve safe provider output when a downstream content-quality
             // check rejects it. Without this evidence draft persistence never
             // runs, while the job still records provider token usage; the UI
@@ -360,6 +376,7 @@ class AIProductContentSystem
             }
 
             throw $exception;
+            }
         }
         if ($item) {
             AIJobStateMachine::transition($item, AIJobStateMachine::FACT_CHECKING, 'payload_normalized');
@@ -378,7 +395,7 @@ class AIProductContentSystem
             $this->filterAiDeclaredMissingWarnings($payload['warnings'], $guardContext),
             $factCheck['warnings'],
             $this->detectDuplicateWarnings($product, $payload['content_html']),
-            $this->scorer->auditWarnings($product)
+            $this->scorer->auditWarningsForPayload($product, $payload)
         );
         $payload['warnings'] = $warnings;
         $payload['blocked_claims'] = $this->normalizeIssueList($payload['blocked_claims'] ?? [], $factCheck['blocked_claims']);
@@ -506,7 +523,9 @@ class AIProductContentSystem
             $product->refresh()->loadMissing(['brand', 'category', 'tags', 'faqs', 'relatedProducts', 'posts']);
         }
 
-        $after = $this->scorer->score($product, $warnings);
+        $after = $applied
+            ? $this->scorer->score($product, $warnings)
+            : $this->scorer->scorePayload($product, $payload, $warnings);
         $status = $applied
             ? ($after['score'] < 70 ? 'needs_review' : ($warnings === [] ? 'completed_verified' : 'completed_with_warnings'))
             : 'needs_review';
@@ -1205,6 +1224,72 @@ class AIProductContentSystem
     private function isPersistableValidationFailure(\Throwable $exception): bool
     {
         return str_contains(Str::lower($exception->getMessage()), 'content_too_short');
+    }
+
+    private function attemptShortContentRecovery(
+        Product $product,
+        array $config,
+        array $input,
+        array $guardContext,
+        array $rawPayload,
+        array $result,
+    ): ?array {
+        if (! ($config['retry_short_content'] ?? true) || ($config['action'] ?? '') === 'retry_ai_product_field') {
+            return null;
+        }
+
+        try {
+            $retryConfig = $config;
+            $retryConfig['action'] = 'retry_ai_product_field';
+            $retryConfig['outputs'] = [
+                'content' => true,
+                'seo' => false,
+                'merchant' => false,
+                'tags' => false,
+                'faq' => false,
+                'internal_links' => false,
+                'og' => false,
+            ];
+            $retryResult = $this->aiManager->generate([
+                'system' => $this->systemPrompt(),
+                'prompt' => $this->buildPrompt($input, $retryConfig, $guardContext),
+                'temperature' => 0.45,
+            ], [
+                'task_type' => 'product_content',
+                'context_id' => 'ai-product-short-content-retry-'.($product->id),
+                'require_json' => true,
+                'max_tokens' => 12000,
+                'max_attempts' => 1,
+            ]);
+            $retryPayload = $retryResult['json'] ?? [];
+            if ($retryPayload === [] && ! empty($retryResult['content'])) {
+                $retryPayload = json_decode($retryResult['content'], true) ?: [];
+            }
+            $retryPayload = $this->normalizePayload($retryPayload, $product, $retryConfig);
+            if (blank($retryPayload['content_html'] ?? null)) {
+                return null;
+            }
+
+            $recoveredPayload = $rawPayload;
+            $recoveredPayload['content_html'] = $retryPayload['content_html'];
+            $recoveredPayload['warnings'] = $this->normalizeIssueList(
+                $rawPayload['warnings'] ?? [],
+                $retryPayload['warnings'] ?? [],
+                ['short_content_recovered'],
+            );
+            $recoveredPayload = $this->normalizePayload($recoveredPayload, $product, $config);
+
+            return [
+                'payload' => $recoveredPayload,
+                'raw_payload' => $recoveredPayload,
+                'result' => array_merge($result, [
+                    'tokens_used' => (int) ($result['tokens_used'] ?? 0) + (int) ($retryResult['tokens_used'] ?? 0),
+                    'latency_ms' => (int) ($result['latency_ms'] ?? 0) + (int) ($retryResult['latency_ms'] ?? 0),
+                ]),
+            ];
+        } catch (\Throwable) {
+            return null;
+        }
     }
 
     private function validationWarningFromException(\Throwable $exception): array

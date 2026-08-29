@@ -74,6 +74,43 @@ class AIProductSeoScorer
         return array_values(array_unique($warnings));
     }
 
+    public function scorePayload(Product $product, array $payload, array $warnings = []): array
+    {
+        return $this->score($this->virtualProduct($product, $payload), $warnings);
+    }
+
+    public function auditWarningsForPayload(Product $product, array $payload, array $warnings = []): array
+    {
+        return $this->auditWarnings($this->virtualProduct($product, $payload), $warnings);
+    }
+
+    private function virtualProduct(Product $product, array $payload): Product
+    {
+        $virtual = clone $product;
+        foreach ([
+            'short_description' => 'excerpt',
+            'long_description' => 'content_html',
+            'seo_title' => 'seo_title',
+            'seo_description' => 'meta_description',
+            'og_title' => 'og_title',
+            'og_description' => 'og_description',
+            'merchant_title' => 'merchant_title',
+            'merchant_description' => 'merchant_description',
+        ] as $productField => $payloadField) {
+            if (array_key_exists($payloadField, $payload) && filled($payload[$payloadField])) {
+                $virtual->setAttribute($productField, $payload[$payloadField]);
+            }
+        }
+        if (array_key_exists('faq', $payload) && is_array($payload['faq'])) {
+            $virtual->setRelation('faqs', collect($payload['faq']));
+        }
+        if (array_key_exists('tags', $payload) && is_array($payload['tags'])) {
+            $virtual->setRelation('tags', collect($payload['tags']));
+        }
+
+        return $virtual;
+    }
+
     public function wordCount(string $html): int
     {
         preg_match_all('/[\p{L}\p{N}]+/u', $this->plainText($html), $matches);
