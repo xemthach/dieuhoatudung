@@ -61,17 +61,16 @@ class AIProductContentSanitizer
         $payload['tags'] = $this->sanitizeTags($payload['tags'] ?? []);
         $payload['internal_links'] = $this->sanitizeLinks($payload['internal_links'] ?? []);
         $payload['warnings'] = $this->sanitizeStringList($payload['warnings'] ?? []);
+        $payload['warnings'] = array_values(array_diff($payload['warnings'], [
+            'encoding_checked',
+            'vietnamese_verified',
+        ]));
         $payload['faq'] = $this->sanitizeFaq($payload['faq'] ?? []);
 
         $this->assertNoUnsafePlaceholders($payload);
         $this->assertNoInternalLanguage($payload);
         $this->assertCleanEncoding($payload);
         $this->assertVietnameseText($payload);
-
-        $payload['warnings'] = array_values(array_unique(array_merge($payload['warnings'], [
-            'encoding_checked',
-            'vietnamese_verified',
-        ])));
 
         return $payload;
     }

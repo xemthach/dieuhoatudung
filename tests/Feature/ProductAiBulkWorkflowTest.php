@@ -254,7 +254,7 @@ class ProductAiBulkWorkflowTest extends TestCase
         ]);
         $payload = [
             'excerpt' => 'New excerpt',
-            'content_html' => '<h2>Ná»™i dung Ä‘Ã£ kiá»ƒm tra</h2><h3>á»¨ng dá»¥ng</h3><p>Draft an toÃ n cho bulk workflow.</p>',
+            'content_html' => '<h2>Nội dung đã kiểm tra</h2><h3>Ứng dụng</h3><p>Bản nháp an toàn cho bulk workflow.</p>',
             'seo_title' => 'New SEO title',
             'meta_description' => 'New meta description',
             'blocked_claims' => [],

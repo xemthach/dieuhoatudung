@@ -1,0 +1,10 @@
+SCOPE,ENTITY,IDS_OR_FILES,OCCURRENCES,CLASSIFICATION,ACTION,STATUS
+SOURCE,"PHP/Blade/TS","877 files",0,"UTF-8 clean; four intentional detector fixtures",NONE,PASS
+SOURCE_UI,ProductsTable,"warning labels",2,MOJIBAKE_SOURCE,"Correct canonical Vietnamese strings",FIXED
+SOURCE_TEST,FakeBulkAdapter,"fixture variants",MULTIPLE,MOJIBAKE_FIXTURE,"Correct UTF-8 fixtures",FIXED
+DATABASE,brands,"6-13",8,LEGACY_LOW_CONFIDENCE,MANUAL_REVIEW,PRESERVED
+DATABASE,posts,"7-9",11,LEGACY_LOW_CONFIDENCE,MANUAL_REVIEW,PRESERVED
+DATABASE,tags,"2;3;4;8;11;14;44;45;49;50;76",11,LEGACY_LOW_CONFIDENCE,MANUAL_REVIEW,PRESERVED
+DATABASE,TOTAL,"26 detected occurrences / 30 repair candidates",30,LOW_CONFIDENCE,"Do not auto-apply; reconstruct from authoritative source",OPEN_NON_AI_DATA
+HTTP_LOCAL,HTML,ALL,0,"charset=utf-8",NONE,PASS
+HTTP_LIVE,HOME_AND_LOGIN,ALL,0,"Content-Type text/html; charset=utf-8",NONE,PASS

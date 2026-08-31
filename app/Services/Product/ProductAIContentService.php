@@ -70,7 +70,7 @@ class ProductAIContentService
         $prompt .= "}\n\nQuy tắc kiểm soát nội dung:\n";
         $prompt .= "- Chỉ được dùng thông số có trong input. Không tự tạo BTU, kW, HP, diện tích, độ ồn, lưu lượng gió, gas, giá, bảo hành, VAT, CO/CQ.\n";
         $prompt .= "- Nếu thiếu dữ liệu, bỏ qua trường đó hoặc thêm warning missing_technical_data. Không viết claim tuyệt đối như chính hãng 100%, tốt nhất, rẻ nhất, miễn phí.\n";
-        $prompt .= "- Output nên có warnings gồm encoding_checked và vietnamese_verified sau khi tự kiểm tra UTF-8, cùng blocked_claims nếu phát hiện thiếu nguồn.\n\n";
+        $prompt .= "- Chỉ đưa vấn đề thực tế vào warnings; không đưa kết quả kiểm tra đạt yêu cầu vào danh sách cảnh báo. Dùng blocked_claims khi phát hiện claim thiếu nguồn.\n\n";
         $prompt .= "Quy tắc:\n1. Viết bằng tiếng Việt có dấu, UTF-8 sạch, ngôn ngữ kỹ thuật chính xác.\n2. Không trả về tiếng Việt không dấu, ký tự lỗi hoặc text bị vỡ dấu.\n3. Không đưa tên service, class, function, API, biến nội bộ, CamelCase hoặc cú pháp code vào nội dung.\n4. Không bịa ra thông số không có thật.\n5. Nếu thiếu thông tin quan trọng, viết trung lập và cần khảo sát thực tế.\n6. Trả về đúng JSON để hệ thống có thể đọc.";
 
         $contextId = $contextId ?? (string) Str::uuid();
@@ -106,7 +106,7 @@ class ProductAIContentService
         if (! $product) {
             $parsed['warnings'] = IssueList::normalize(
                 $parsed['warnings'] ?? [],
-                ['missing_product_record_for_fact_check', 'encoding_checked', 'vietnamese_verified']
+                ['missing_product_record_for_fact_check']
             );
 
             $this->validateLegacyOutputLanguage($parsed);
@@ -121,7 +121,7 @@ class ProductAIContentService
             throw new Exception('AI output blocked by HVAC fact validation: ' . implode(', ', $blockedClaims));
         }
 
-        $parsed['warnings'] = IssueList::normalize($parsed['warnings'] ?? [], $result['warnings'] ?? [], ['encoding_checked', 'vietnamese_verified']);
+        $parsed['warnings'] = IssueList::normalize($parsed['warnings'] ?? [], $result['warnings'] ?? []);
         $parsed['blocked_claims'] = $blockedClaims;
         $parsed['used_facts'] = IssueList::normalize($result['used_facts'] ?? []);
         $this->validateLegacyOutputLanguage($parsed);

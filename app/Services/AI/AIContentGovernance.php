@@ -333,8 +333,9 @@ class AIContentGovernance
     public function publicContext(array $context): array
     {
         $facts = [];
+        $allowed = (array) ($context['allowed_facts'] ?? []);
 
-        foreach (array_values($context['allowed_facts'] ?? []) as $index => $fact) {
+        foreach (array_values($allowed) as $index => $fact) {
             $facts[] = [
                 'id' => $this->publicFactId($index),
                 'name' => $fact['label'] ?? $this->humanFactName((string) array_keys($context['allowed_facts'] ?? [])[$index]),
@@ -345,9 +346,29 @@ class AIContentGovernance
 
         return [
             'product_identity' => $context['product_identity'] ?? [],
-            'marketing_identity_facts' => $context['marketing_identity_facts'] ?? [],
-            'capacity_semantics' => $context['capacity_semantics'] ?? [],
-            'verified_technical_facts' => $context['verified_technical_facts'] ?? $facts,
+            'marketing_identity_facts' => [
+                'capacity_group_btu' => array_key_exists('product.marketing_capacity_btu', $allowed)
+                    ? data_get($context, 'marketing_identity_facts.capacity_group_btu')
+                    : null,
+            ],
+            'capacity_semantics' => [
+                'marketing_capacity_btu' => [
+                    'value' => array_key_exists('product.marketing_capacity_btu', $allowed)
+                        ? data_get($context, 'capacity_semantics.marketing_capacity_btu.value')
+                        : null,
+                    'meaning' => 'COMMERCIAL_GROUPING_ONLY',
+                ],
+                'technical_capacity_btu' => [
+                    'value' => array_key_exists('product.rated_cooling_capacity_btu', $allowed)
+                        ? data_get($context, 'capacity_semantics.technical_capacity_btu.value')
+                        : null,
+                    'meaning' => 'AUTHORITATIVE_TECHNICAL_RATED_CAPACITY',
+                ],
+            ],
+            // Provider-visible facts use the same public IDs as allowed_facts.
+            // The internal rated-capacity map remains available only inside
+            // the server-side context and must not create a second contract.
+            'verified_technical_facts' => $facts,
             'allowed_facts' => $facts,
             'fact_status' => $context['fact_status'] ?? ['usable_facts' => [], 'omitted_facts' => [], 'conflicted_facts' => []],
             'allowed_claim_scope' => $context['allowed_claim_scope'] ?? [],

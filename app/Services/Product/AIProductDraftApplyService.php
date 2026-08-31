@@ -70,15 +70,15 @@ class AIProductDraftApplyService
         $this->assertSafePayload($payload);
         $this->assertFactCheck($payload);
         $warnings = array_values(array_filter(array_map('strval', (array) ($draft->warnings_json ?? []))));
-        $warningClassification = app(AiProductWarningClassifier::class)->classify($warnings, $payload);
+        $product = $draft->product()->with('brand')->firstOrFail();
+        $warningClassification = app(AiProductWarningClassifier::class)->classify($warnings, $payload, $product);
         if ($warningClassification['hard_blockers'] !== []) {
             throw new RuntimeException('FACT_CHECK_BLOCKED: '.implode(', ', array_column($warningClassification['hard_blockers'], 'code')));
         }
-        if ($warnings !== [] && ! $warningOverride) {
+        if ($warningClassification['soft_warnings'] !== [] && ! $warningOverride) {
             throw new RuntimeException('WARNING_OVERRIDE_CONFIRMATION_REQUIRED');
         }
 
-        $product = $draft->product()->with('brand')->firstOrFail();
         $fields = $approvedFields === null
             ? $this->approvedFieldsForDraft($draft, $payload)
             : array_values(array_intersect($this->approvedFields($payload), array_values(array_unique($approvedFields))));

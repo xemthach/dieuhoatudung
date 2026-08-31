@@ -366,12 +366,12 @@ class AIProductContentSystemTest extends TestCase
         $this->assertStringContainsString('hệ thống xử lý nội dung', $payload['content_html']);
     }
 
-    public function test_product_payload_gets_utf8_and_vietnamese_warnings(): void
+    public function test_product_payload_does_not_count_successful_language_checks_as_warnings(): void
     {
         $payload = app(AIProductContentSanitizer::class)->sanitizePayload($this->validPayload());
 
-        $this->assertContains('encoding_checked', $payload['warnings']);
-        $this->assertContains('vietnamese_verified', $payload['warnings']);
+        $this->assertNotContains('encoding_checked', $payload['warnings']);
+        $this->assertNotContains('vietnamese_verified', $payload['warnings']);
         $this->assertContains('gree', $payload['tags']);
         $this->assertContains('42000btu', $payload['tags']);
     }
@@ -422,8 +422,8 @@ class AIProductContentSystemTest extends TestCase
         $result = $service->generate($product, $this->config(['apply_mode' => 'needs_review']));
 
         $this->assertSame($product->id, $result['payload']['product_id']);
-        $this->assertContains('encoding_checked', $result['payload']['warnings']);
-        $this->assertContains('vietnamese_verified', $result['payload']['warnings']);
+        $this->assertNotContains('encoding_checked', $result['payload']['warnings']);
+        $this->assertNotContains('vietnamese_verified', $result['payload']['warnings']);
     }
 
     public function test_ai_declared_missing_warnings_are_reconciled_with_current_context(): void
@@ -598,14 +598,19 @@ class AIProductContentSystemTest extends TestCase
         $this->assertNotContains('unverified_numeric_claim:0.7 kg', $result['payload']['blocked_claims']);
     }
 
-    public function test_unverified_noise_claim_is_blocked(): void
+    public function test_unverified_noise_claim_is_removed_before_draft_persistence(): void
     {
         $product = $this->product(['noise_level' => null, 'specs_json' => null]);
         $payload = $this->validPayload(content: $this->content(850).'<p>Độ ồn dàn nóng 54 dB cần được xác minh lại.</p>');
 
         $result = $this->serviceReturning($payload)->generate($product, $this->config(['apply_mode' => 'needs_review']));
 
-        $this->assertContains('unverified_technical_claim:54 dB', $result['payload']['warnings']);
+        $this->assertContains(
+            'unverified_claim_removed:54 db',
+            $result['payload']['warnings'],
+            json_encode($result['payload']['warnings'], JSON_UNESCAPED_UNICODE),
+        );
+        $this->assertStringNotContainsString('54 dB', $result['payload']['content_html']);
     }
 
     public function test_vat_claim_without_config_is_removed_before_fact_check(): void

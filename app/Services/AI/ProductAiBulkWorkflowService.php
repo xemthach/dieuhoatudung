@@ -91,8 +91,8 @@ final class ProductAiBulkWorkflowService
             $draft = $resolved['draft'];
             $payload = (array) ($draft?->normalized_output_json ?? []);
             $warningSet = $draft
-                ? $this->warnings->classify((array) ($draft->warnings_json ?? []), $payload)
-                : ['soft_warnings' => [], 'hard_blockers' => [], 'technical_processed' => [], 'counts' => ['soft' => 0, 'hard' => 0, 'technical_processed' => 0]];
+                ? $this->warnings->classify((array) ($draft->warnings_json ?? []), $payload, $product)
+                : ['soft_warnings' => [], 'optional_data' => [], 'hard_blockers' => [], 'technical_processed' => [], 'informational' => [], 'counts' => ['soft' => 0, 'optional' => 0, 'hard' => 0, 'technical_processed' => 0, 'informational' => 0]];
             $readiness = $state === 'APPROVED'
                 ? $this->applyReadiness->resolve($draft)
                 : null;
@@ -126,8 +126,10 @@ final class ProductAiBulkWorkflowService
                 'state' => $state,
                 'generated_fields' => $generatedFields,
                 'soft_warning_count' => count($warningSet['soft_warnings']),
+                'optional_data_count' => count($warningSet['optional_data']),
                 'hard_blocker_count' => count($hardBlockers),
                 'soft_warnings' => $warningSet['soft_warnings'],
+                'optional_data' => $warningSet['optional_data'],
                 'hard_blockers' => $hardBlockers,
                 'score' => $item?->seo_score_after ?? $product->ai_score,
                 'provider_called' => (bool) data_get($draft?->token_usage_json, 'provider_called', ((int) ($item?->tokens_used ?? 0)) > 0),
@@ -488,7 +490,7 @@ final class ProductAiBulkWorkflowService
         return [
             'product_id' => $id, 'product_name' => "Product #{$id}", 'draft_id' => null, 'item_id' => null,
             'state' => 'BLOCKED', 'generated_fields' => 0, 'soft_warning_count' => 0, 'hard_blocker_count' => 1,
-            'soft_warnings' => [], 'hard_blockers' => [['code' => 'INVALID_TARGET', 'type' => 'INVALID_TARGET', 'label' => 'Sáº£n pháº©m khÃ´ng tá»“n táº¡i.']],
+            'soft_warnings' => [], 'hard_blockers' => [['code' => 'INVALID_TARGET', 'type' => 'INVALID_TARGET', 'label' => 'Sản phẩm không tồn tại.']],
             'score' => null, 'provider_called' => false, 'updated_at' => null, 'apply_readiness' => null,
             'ready_to_review' => false, 'ready_to_approve' => false, 'ready_to_apply' => false, 'regenerate_available' => false,
         ];

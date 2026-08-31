@@ -186,6 +186,58 @@ class VerifiedFactRegistry
             }
         }
 
+        // A published range is often stored as two source-native fields
+        // (for example outdoor_noise_low/high). Treat the range as verified
+        // when both boundaries are independently present in the registry.
+        if (isset($claim['min'], $claim['max']) && $unit !== '') {
+            $minMatch = $this->findScalarMatch($registry, (float) $claim['min'], $unit);
+            $maxMatch = $this->findScalarMatch($registry, (float) $claim['max'], $unit);
+
+            if ($minMatch !== null && $maxMatch !== null) {
+                return [
+                    'fact_key' => implode('|', array_values(array_unique([
+                        (string) ($minMatch['fact_key'] ?? ''),
+                        (string) ($maxMatch['fact_key'] ?? ''),
+                    ]))),
+                    'source' => 'verified_fact_registry_range',
+                    'source_field' => implode('|', array_values(array_unique([
+                        (string) ($minMatch['source_field'] ?? ''),
+                        (string) ($maxMatch['source_field'] ?? ''),
+                    ]))),
+                    'normalized_values' => [
+                        $this->normalizer->normalizeClaim((float) $claim['min'], $unit),
+                        $this->normalizer->normalizeClaim((float) $claim['max'], $unit),
+                    ],
+                ];
+            }
+        }
+
+        return null;
+    }
+
+    private function findScalarMatch(array $registry, float $number, string $unit): ?array
+    {
+        $normalized = $this->normalizer->normalizeClaim($number, $unit);
+
+        foreach ($registry as $fact) {
+            if (in_array($normalized, (array) ($fact['normalized_values'] ?? []), true)) {
+                return $fact;
+            }
+
+            foreach ((array) ($fact['normalized_ranges'] ?? []) as $range) {
+                if ($unit !== ($range['unit'] ?? null)) {
+                    continue;
+                }
+
+                $min = (float) ($range['min'] ?? 0);
+                $max = (float) ($range['max'] ?? 0);
+                $tolerance = max(0.01, max(abs($min), abs($max)) * 0.01);
+                if ($number >= ($min - $tolerance) && $number <= ($max + $tolerance)) {
+                    return $fact;
+                }
+            }
+        }
+
         return null;
     }
 

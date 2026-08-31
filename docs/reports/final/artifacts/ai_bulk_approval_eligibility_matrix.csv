@@ -1,0 +1,4 @@
+PRODUCT_ID,STATE,DRAFT,SOFT_WARNINGS,OPTIONAL_DATA,HARD_BLOCKERS,CLASSIFICATION,PROVIDER_CALLED,RESULT
+1319,BLOCKED,NONE,0,0,1,NOT_ACTIONABLE,NO,"Historical duplicate-in-progress evidence; generation readiness independently READY"
+1320,APPROVED,14,4,4,0,READY_TO_APPLY,YES,"Historical false hard blockers resolved from current catalog; Product unchanged"
+2877,REVIEW_REQUIRED,1101,4,4,0,READY_TO_APPROVE,YES,"Controlled real-provider evidence; Product inactive and unchanged"

@@ -44,17 +44,17 @@ class FakeBulkAdapter implements AIAdapterInterface
         if (! empty($options['fake_governance_failure'])) $json['blocked_claims'] = ['FACT_CHECK_BLOCKED'];
         $case = (string) ($options['fake_output_case'] ?? '');
         if ($case === 'h2_only') {
-            $json['content_html'] = '<h2>ThÃ´ng tin kiá»ƒm thá»­</h2><p>'.str_repeat('Ná»™i dung kiá»ƒm thá»­ bulk cÃ´ láº­p. ', 120).'</p>';
+            $json['content_html'] = '<h2>Thông tin kiểm thử</h2><p>'.str_repeat('Nội dung kiểm thử bulk cô lập. ', 120).'</p>';
         } elseif ($case === 'h3_only') {
-            $json['content_html'] = '<h3>ThÃ´ng tin kiá»ƒm thá»­</h3><p>'.str_repeat('Ná»™i dung kiá»ƒm thá»­ bulk cÃ´ láº­p. ', 120).'</p>';
+            $json['content_html'] = '<h3>Thông tin kiểm thử</h3><p>'.str_repeat('Nội dung kiểm thử bulk cô lập. ', 120).'</p>';
         } elseif ($case === 'no_heading') {
-            $json['content_html'] = '<p>'.str_repeat('Ná»™i dung kiá»ƒm thá»­ bulk cÃ´ láº­p. ', 120).'</p>';
+            $json['content_html'] = '<p>'.str_repeat('Nội dung kiểm thử bulk cô lập. ', 120).'</p>';
         } elseif ($case === 'markdown') {
-            $json['content_html'] = '## ThÃ´ng tin kiá»ƒm thá»­'.PHP_EOL.'<p>'.str_repeat('Ná»™i dung kiá»ƒm thá»­ bulk cÃ´ láº­p. ', 120).'</p>';
+            $json['content_html'] = '## Thông tin kiểm thử'.PHP_EOL.'<p>'.str_repeat('Nội dung kiểm thử bulk cô lập. ', 120).'</p>';
         } elseif ($case === 'attributes') {
-            $json['content_html'] = '<h2 class=\"safe\">ThÃ´ng tin kiá»ƒm thá»­</h2><p>'.str_repeat('Ná»™i dung kiá»ƒm thá»­ bulk cÃ´ láº­p. ', 120).'</p><h3 id=\"safe\">Pháº¡m vi</h3>';
+            $json['content_html'] = '<h2 class=\"safe\">Thông tin kiểm thử</h2><p>'.str_repeat('Nội dung kiểm thử bulk cô lập. ', 120).'</p><h3 id=\"safe\">Phạm vi</h3>';
         } elseif ($case === 'too_short') {
-            $json['content_html'] = '<h2>ThÃ´ng tin kiá»ƒm thá»­</h2><h3>Pháº¡m vi</h3><p>Ngáº¯n.</p>';
+            $json['content_html'] = '<h2>Thông tin kiểm thử</h2><h3>Phạm vi</h3><p>Ngắn.</p>';
         }
         $content = json_encode($json, JSON_UNESCAPED_UNICODE);
         return [

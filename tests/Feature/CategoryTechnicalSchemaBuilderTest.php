@@ -109,6 +109,10 @@ class CategoryTechnicalSchemaBuilderTest extends TestCase
 
         $this->assertArrayHasKey('product.rated_cooling_capacity_btu', $context['allowed_facts']);
         $this->assertArrayNotHasKey('product.noise_level', $context['allowed_facts']);
+
+        $public = app(AIContentGovernance::class)->publicContext($context);
+        $this->assertNotContains('45 dB', array_column($public['verified_technical_facts'], 'value'));
+
     }
 
     public function test_frontend_and_compare_render_follow_schema_sort_order(): void

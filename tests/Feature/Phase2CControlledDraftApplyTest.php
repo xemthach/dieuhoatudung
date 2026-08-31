@@ -331,6 +331,41 @@ class Phase2CControlledDraftApplyTest extends TestCase
         $this->assertNull($second[2]->refresh()->applied_at);
     }
 
+    public function test_optional_catalog_gaps_do_not_require_editorial_warning_override(): void
+    {
+        [$reviewer, , $draft] = $this->fixture($this->contentPayload());
+        $draft->update(['warnings_json' => [
+            'missing_refrigerant',
+            'missing_recommended_area',
+            'missing_warranty_policy',
+            'missing_price',
+        ]]);
+
+        $service = app(AIProductDraftApplyService::class);
+        $service->approve($draft->refresh(), $reviewer->id, $reviewer);
+        $readiness = app(ProductAiApplyReadiness::class)->resolve($draft->refresh());
+
+        $this->assertTrue($readiness['can_apply']);
+        $this->assertFalse($readiness['requires_warning_override']);
+        $this->assertSame(0, $readiness['warning_counts']['soft']);
+        $this->assertSame(4, $readiness['warning_counts']['optional']);
+        $this->assertCount(4, $readiness['optional_data']);
+    }
+
+    public function test_positive_validation_evidence_is_not_an_editorial_warning(): void
+    {
+        [$reviewer, , $draft] = $this->fixture($this->contentPayload());
+        $draft->update(['warnings_json' => ['encoding_checked', 'vietnamese_verified']]);
+
+        app(AIProductDraftApplyService::class)->approve($draft->refresh(), $reviewer->id, $reviewer);
+        $readiness = app(ProductAiApplyReadiness::class)->resolve($draft->refresh());
+
+        $this->assertSame(0, $readiness['warning_counts']['soft']);
+        $this->assertSame(0, $readiness['warning_counts']['hard']);
+        $this->assertSame(2, $readiness['warning_counts']['informational']);
+        $this->assertFalse($readiness['requires_warning_override']);
+    }
+
     private function enableSingleOperatorPolicy(int $operatorId): void
     {
         config()->set('ai.single_operator', [

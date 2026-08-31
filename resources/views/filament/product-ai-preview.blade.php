@@ -3,6 +3,7 @@
     $payload = $draft?->normalized_output_json ?: ($item?->generated_payload_json ?? []);
     $readiness ??= app(\App\Services\AI\ProductAiApplyReadiness::class)->resolve($draft);
     $warnings = $readiness['soft_warnings'] ?? [];
+    $optionalData = $readiness['optional_data'] ?? [];
     $processed = $readiness['technical_processed'] ?? [];
     $blockers = $readiness['hard_blockers'] ?? [];
 @endphp
@@ -16,6 +17,7 @@
             <div><p class="text-xs font-medium uppercase text-gray-500">Điểm chất lượng</p><p class="font-semibold">{{ $item->seo_score_before ?? '-' }} → {{ $item->seo_score_after ?? '-' }}</p></div>
             <div class="sm:col-span-2 flex flex-wrap gap-2">
                 <span class="rounded bg-warning-50 px-2 py-1 text-warning-700">Cảnh báo chất lượng: {{ count($warnings) }}</span>
+                <span class="rounded bg-gray-50 px-2 py-1 text-gray-700">Dữ liệu tùy chọn còn thiếu: {{ count($optionalData) }}</span>
                 <span class="rounded bg-info-50 px-2 py-1 text-info-700">Cảnh báo kỹ thuật đã xử lý: {{ count($processed) }}</span>
                 <span class="rounded bg-danger-50 px-2 py-1 text-danger-700">Hard blockers: {{ count($blockers) }}</span>
             </div>
@@ -69,11 +71,19 @@
             </section>
         @endif
 
+        @if ($optionalData !== [])
+            <section class="rounded-lg border border-gray-200 bg-gray-50 p-4">
+                <h3 class="font-semibold text-gray-800">Dữ liệu tùy chọn chưa có</h3>
+                <p class="mt-1 text-gray-600">Không chặn duyệt hoặc áp dụng nội dung AI.</p>
+                <ul class="mt-2 list-disc space-y-1 pl-5 text-gray-700">@foreach ($optionalData as $warning)<li>{{ $warning['label'] }}</li>@endforeach</ul>
+            </section>
+        @endif
+
         <details class="rounded-lg border border-gray-200 p-4">
             <summary class="cursor-pointer font-semibold">Chi tiết kỹ thuật</summary>
             <div class="mt-3 space-y-3 break-words text-xs text-gray-600">
                 <p><strong>Job item:</strong> #{{ $item->id }} · <strong>Job:</strong> #{{ $item->ai_product_job_id }}</p><p><strong>Trạng thái:</strong> {{ $item->canonical_status ?? $item->status }}</p>
-                <p><strong>Raw warning codes:</strong> {{ implode(', ', array_map(fn ($warning) => $warning['code'], array_merge($warnings, $processed, $blockers))) ?: '-' }}</p>
+                <p><strong>Raw warning codes:</strong> {{ implode(', ', array_map(fn ($warning) => $warning['code'], array_merge($warnings, $optionalData, $processed, $blockers))) ?: '-' }}</p>
                 <p><strong>Used verified facts:</strong> {{ implode(', ', $payload['used_facts'] ?? []) ?: '-' }}</p>
             </div>
         </details>

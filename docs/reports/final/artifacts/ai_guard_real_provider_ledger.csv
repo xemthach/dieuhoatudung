@@ -3,4 +3,5 @@ RP-01,"Expose baseline range false block",2840,1083,1202,1016,265,custom,gemini-
 RP-02,"Verify range classifier and expose registry filtering",2841,1084,1203,1017,266,custom,gemini-2.5-flash,11815,BLOCKED,NO,"Preserved inactive evidence"
 RP-03,"Verify full registry and expose final rated-capacity ambiguity",2842,1085,1204,1018,267,custom,gemini-2.5-flash,5468,BLOCKED_THEN_READ_ONLY_REPLAY_WITH_ZERO_BLOCKERS,NO,"Preserved inactive evidence"
 RP-04,"Final governed worker end-to-end proof",2875,1116,1235,1049,268,custom,gemini-2.5-flash,5495,REVIEW_REQUIRED,NO,"Preserved inactive evidence"
-TOTAL,"Controlled calls",,, ,,,custom,gemini-2.5-flash,33510,"1 REVIEW_REQUIRED; 3 diagnostic BLOCKED",NO,"No bulk retry"
+RP-05,"Local/live parity governed browser proof after prompt and warning fixes",2877,1118,1289,1101,320,custom,gemini-2.5-flash,6564,REVIEW_REQUIRED,NO,"Preserved inactive evidence"
+TOTAL,"Controlled calls",,, ,,,custom,gemini-2.5-flash,40074,"2 REVIEW_REQUIRED; 3 diagnostic BLOCKED",NO,"No bulk retry"

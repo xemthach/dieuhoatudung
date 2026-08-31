@@ -1,0 +1,9 @@
+PRODUCT_ID,CLAIM,NORMALIZED,SOURCE_FIELD,VERIFIED,CLASSIFICATION,APPLY_BLOCK
+1320,"242 mm",242_mm,ProductTechnicalFactResolver::indoor_dimensions,YES,TECHNICAL_PROCESSED,NO
+1320,"244 mm",244_mm,ProductTechnicalFactResolver::outdoor_dimensions,YES,TECHNICAL_PROCESSED,NO
+1320,"40 đến 46 dB","40_db..46_db","products.specs_json.outdoor_noise_cooling_low_db|products.specs_json.outdoor_noise_cooling_high_db",YES,TECHNICAL_PROCESSED,NO
+1320,"0.7 kW",0.7_kw,products.specs_json.cooling_capacity_kw_min,YES,TECHNICAL_PROCESSED,NO
+1320,"19 dB",19_db,ProductTechnicalFactResolver::noise_level,YES,TECHNICAL_PROCESSED,NO
+1320,"46 dB",46_db,products.specs_json.outdoor_noise_cooling_high_db,YES,TECHNICAL_PROCESSED,NO
+1320,"16mm",16_mm,products.specs_json.drain_pipe_mm,YES,TECHNICAL_PROCESSED,NO
+TEST_FIXTURE,"54 dB",54_db,NONE,NO,TECHNICAL_FACT_BLOCK_OR_REMOVED_BEFORE_PERSIST,YES_IF_REMAINS

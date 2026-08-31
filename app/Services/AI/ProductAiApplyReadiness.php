@@ -35,10 +35,10 @@ final class ProductAiApplyReadiness
         }
 
         $payload = (array) ($draft->normalized_output_json ?? []);
-        $classification = $this->warnings->classify((array) ($draft->warnings_json ?? []), $payload);
         $product = $draft->relationLoaded('product')
             ? $draft->product
             : $draft->product()->with(['brand', 'tags', 'faqs'])->first();
+        $classification = $this->warnings->classify((array) ($draft->warnings_json ?? []), $payload, $product);
         $approved = $draft->approval_status === 'APPROVED_FOR_APPLY';
         $applied = $draft->applied_at !== null || $draft->approval_status === 'APPLIED';
         $fields = array_values(array_intersect(
@@ -78,7 +78,9 @@ final class ProductAiApplyReadiness
             'requires_warning_override' => $classification['soft_warnings'] !== [] && ! (bool) $draft->warning_override,
             'hard_blockers' => $hard,
             'soft_warnings' => $classification['soft_warnings'],
+            'optional_data' => $classification['optional_data'],
             'technical_processed' => $classification['technical_processed'],
+            'informational' => $classification['informational'],
             'warning_counts' => $classification['counts'],
             'fields_to_apply' => $fields,
             'field_labels' => array_map(fn (string $field): string => self::FIELD_LABELS[$field], $fields),
@@ -101,8 +103,10 @@ final class ProductAiApplyReadiness
             'requires_warning_override' => false,
             'hard_blockers' => [],
             'soft_warnings' => [],
+            'optional_data' => [],
             'technical_processed' => [],
-            'warning_counts' => ['soft' => 0, 'technical_processed' => 0, 'hard' => 0],
+            'informational' => [],
+            'warning_counts' => ['soft' => 0, 'optional' => 0, 'technical_processed' => 0, 'hard' => 0, 'informational' => 0],
             'fields_to_apply' => [],
             'field_labels' => [],
             'protected_fields' => [],

@@ -45,6 +45,21 @@ class AIGovernanceThreeLayerTest extends TestCase
         $this->assertContains('product.cooling_capacity_btu_max', $result['used_facts'], json_encode($result, JSON_UNESCAPED_UNICODE));
     }
 
+    public function test_verified_range_can_resolve_across_separate_low_and_high_facts(): void
+    {
+        $registry = app(\App\Services\AI\Governance\VerifiedFactRegistry::class)->buildFromAllowedFacts([
+            'product.outdoor_noise_low' => ['value' => 40, 'unit' => 'dB', 'source' => 'verified_fixture'],
+            'product.outdoor_noise_high' => ['value' => 46, 'unit' => 'dB', 'source' => 'verified_fixture'],
+        ]);
+        $claims = app(HVACUnitNormalizer::class)->extractTechnicalClaims('40 đến 46 dB', 'độ ồn dàn nóng 40 đến 46 dB');
+        $range = collect($claims)->first(fn (array $claim): bool => isset($claim['min'], $claim['max']));
+
+        $this->assertNotNull($range);
+        $this->assertNotNull(
+            app(\App\Services\AI\Governance\VerifiedFactRegistry::class)->findMatchingFact($registry, $range),
+        );
+    }
+
     // =========================================================================
     // Product Tests
     // =========================================================================

@@ -146,7 +146,7 @@ class AIProductContentSystem
         $applyMode = match ($config['apply_mode'] ?? 'draft_only') {
             'needs_review' => 'draft_only',
             'auto_apply' => 'auto_apply_safe_fields',
-            'draft_only', 'auto_apply_safe_fields', 'full_auto_if_passed' => $config['apply_mode'],
+            'draft_only', 'auto_apply_safe_fields', 'full_auto_if_passed' => $config['apply_mode'] ?? 'draft_only',
             default => 'draft_only',
         };
 
@@ -192,11 +192,11 @@ class AIProductContentSystem
         if (! $contentEligibility['eligible']) {
             throw new RuntimeException('CONTENT_ELIGIBILITY_BLOCKED:'.implode('|', $contentEligibility['reasons']));
         }
-        $input = $this->buildInput($product);
         $context = $this->governance->buildProductContext($product, [
             'action' => $config['action'], 'outputs' => $config['outputs'], 'mode' => $config['mode'],
             'depth' => $config['depth'], 'tone' => $config['tone'],
         ]);
+        $input = $this->buildInput($product, $context);
         $payload = [
             'system' => $this->systemPrompt(),
             'prompt' => $this->buildPrompt($input, $config, $context),
@@ -259,7 +259,6 @@ class AIProductContentSystem
             ]);
         }
 
-        $input = $this->buildInput($product);
         $guardContext = $this->governance->buildProductContext($product, [
             'action' => $config['action'],
             'outputs' => $config['outputs'],
@@ -267,6 +266,7 @@ class AIProductContentSystem
             'depth' => $config['depth'],
             'tone' => $config['tone'],
         ]);
+        $input = $this->buildInput($product, $guardContext);
         $contextId = 'ai-product-'.$product->id.'-'.($job?->id ?? Str::uuid());
         $result = $this->aiManager->generate([
             'system' => $this->systemPrompt(),
@@ -395,6 +395,20 @@ class AIProductContentSystem
             'merchant_title',
             'merchant_description',
         ]);
+        $repair = $this->repairRewritableTechnicalClaims($payload, $factCheck, $product, $config);
+        if ($repair['changed']) {
+            $payload = $repair['payload'];
+            $factCheck = $this->governance->validatePayload($payload, $guardContext, [
+                'excerpt',
+                'content_html',
+                'seo_title',
+                'meta_description',
+                'og_title',
+                'og_description',
+                'merchant_title',
+                'merchant_description',
+            ]);
+        }
         $warnings = $this->normalizeIssueList(
             $this->filterAiDeclaredMissingWarnings($payload['warnings'], $guardContext),
             $factCheck['warnings'],
@@ -1117,13 +1131,18 @@ class AIProductContentSystem
         return $items;
     }
 
-    private function buildInput(Product $product): array
+    private function buildInput(Product $product, array $guardContext = []): array
     {
-        $verifiedFacts = $this->technicalFacts->allVerified($product);
-        unset($verifiedFacts['marketing_capacity_btu'], $verifiedFacts['technical_capacity_btu']);
-        $verifiedFacts = array_merge([
-            'rated_cooling_capacity_btu' => $this->technicalFacts->value($product, 'technical_capacity_btu'),
-        ], $verifiedFacts);
+        $publicContext = $this->governance->publicContext($guardContext);
+        $verifiedFacts = collect($publicContext['allowed_facts'] ?? [])
+            ->mapWithKeys(fn (array $fact): array => [
+                (string) ($fact['id'] ?? '') => [
+                    'name' => (string) ($fact['name'] ?? ''),
+                    'value' => $fact['value'] ?? null,
+                ],
+            ])
+            ->filter(fn (mixed $fact, string $id): bool => $id !== '')
+            ->all();
 
         return [
             'product_id' => $product->id,
@@ -1135,20 +1154,9 @@ class AIProductContentSystem
                 'model_code' => $product->model_code,
                 'sku' => $product->sku,
             ],
-            'marketing_identity_facts' => [
-                'capacity_group_btu' => $this->technicalFacts->value($product, 'marketing_capacity_btu'),
-            ],
+            'marketing_identity_facts' => $publicContext['marketing_identity_facts'] ?? [],
             'verified_technical_facts' => $verifiedFacts,
-            'capacity_semantics' => [
-                'marketing_capacity_btu' => [
-                    'value' => $this->technicalFacts->value($product, 'marketing_capacity_btu'),
-                    'meaning' => 'COMMERCIAL_GROUPING_ONLY',
-                ],
-                'technical_capacity_btu' => [
-                    'value' => $this->technicalFacts->value($product, 'technical_capacity_btu'),
-                    'meaning' => 'AUTHORITATIVE_TECHNICAL_RATED_CAPACITY',
-                ],
-            ],
+            'capacity_semantics' => $publicContext['capacity_semantics'] ?? [],
             'existing_excerpt' => $product->short_description,
             'existing_content' => Str::limit(strip_tags((string) $product->long_description), 1200),
             'existing_seo' => [
@@ -1801,6 +1809,173 @@ class AIProductContentSystem
         return $payload;
     }
 
+    /**
+     * Deterministically remove unsupported claims before draft persistence.
+     * Contradicted claims are intentionally absent from rewritable_claims and
+     * therefore remain fail-closed in the normal hard-block path.
+     *
+     * @return array{payload:array,changed:bool,removed:array<int,string>}
+     */
+    private function repairRewritableTechnicalClaims(array $payload, array $factCheck, Product $product, array $config): array
+    {
+        $claims = collect((array) ($factCheck['rewritable_claims'] ?? []))
+            ->pluck('claim')
+            ->filter(fn (mixed $claim): bool => is_scalar($claim) && trim((string) $claim) !== '')
+            ->map(fn (mixed $claim): string => trim((string) $claim))
+            ->unique()
+            ->values()
+            ->all();
+
+        if ($claims === []) {
+            return ['payload' => $payload, 'changed' => false, 'removed' => []];
+        }
+
+        $original = $payload;
+        $removed = [];
+
+        foreach ($claims as $claim) {
+            $before = $this->payloadApplicableText($payload);
+            if (mb_stripos($before, $claim) === false) {
+                continue;
+            }
+
+            $payload['content_html'] = $this->removeClaimFromHtml((string) ($payload['content_html'] ?? ''), $claim);
+            foreach (['excerpt', 'seo_title', 'meta_description', 'og_title', 'og_description', 'merchant_title', 'merchant_description'] as $field) {
+                $payload[$field] = $this->removeClaimFromText((string) ($payload[$field] ?? ''), $claim);
+            }
+            $payload['tags'] = array_values(array_filter(
+                (array) ($payload['tags'] ?? []),
+                fn (mixed $tag): bool => ! is_scalar($tag) || mb_stripos((string) $tag, $claim) === false,
+            ));
+            $payload['faq'] = array_values(array_filter(
+                (array) ($payload['faq'] ?? []),
+                function (mixed $faq) use ($claim): bool {
+                    if (! is_array($faq)) {
+                        return true;
+                    }
+
+                    $text = strip_tags((string) ($faq['question'] ?? '').' '.(string) ($faq['answer'] ?? ''));
+
+                    return mb_stripos($text, $claim) === false;
+                },
+            ));
+
+            if (mb_stripos($this->payloadApplicableText($payload), $claim) === false) {
+                $removed[] = $claim;
+            }
+        }
+
+        if ($removed === []) {
+            return ['payload' => $original, 'changed' => false, 'removed' => []];
+        }
+
+        $payload['warnings'] = array_values(array_filter(
+            (array) ($payload['warnings'] ?? []),
+            fn (mixed $warning): bool => ! $this->issueReferencesAnyClaim((string) $warning, $removed),
+        ));
+        $payload['blocked_claims'] = array_values(array_filter(
+            (array) ($payload['blocked_claims'] ?? []),
+            fn (mixed $blocked): bool => ! $this->issueReferencesAnyClaim((string) $blocked, $removed),
+        ));
+        $payload['warnings'] = $this->normalizeIssueList(
+            $payload['warnings'],
+            array_map(fn (string $claim): string => 'unverified_claim_removed:'.$claim, $removed),
+        );
+        $payload = $this->sanitizer->sanitizePayload($payload);
+
+        try {
+            $this->validatePayload($payload, $product, $config);
+        } catch (\Throwable) {
+            return ['payload' => $original, 'changed' => false, 'removed' => []];
+        }
+
+        return ['payload' => $payload, 'changed' => true, 'removed' => $removed];
+    }
+
+    private function issueReferencesAnyClaim(string $issue, array $claims): bool
+    {
+        foreach ($claims as $claim) {
+            if ($claim !== '' && str_ends_with($issue, ':'.$claim)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function payloadApplicableText(array $payload): string
+    {
+        $values = [];
+        foreach (['excerpt', 'content_html', 'seo_title', 'meta_description', 'og_title', 'og_description', 'merchant_title', 'merchant_description', 'tags', 'faq'] as $field) {
+            $value = $payload[$field] ?? null;
+            $values[] = is_scalar($value)
+                ? (string) $value
+                : (json_encode($value, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?: '');
+        }
+
+        return html_entity_decode(strip_tags(implode(' ', $values)), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+    }
+
+    private function removeClaimFromText(string $text, string $claim): string
+    {
+        if ($text === '' || mb_stripos($text, $claim) === false) {
+            return $text;
+        }
+
+        $sentences = preg_split('/(?<=[.!?。！？])\s+/u', $text, -1, PREG_SPLIT_NO_EMPTY) ?: [$text];
+
+        return trim(implode(' ', array_filter(
+            $sentences,
+            fn (string $sentence): bool => mb_stripos($sentence, $claim) === false,
+        )));
+    }
+
+    private function removeClaimFromHtml(string $html, string $claim): string
+    {
+        if ($html === '' || mb_stripos(strip_tags($html), $claim) === false) {
+            return $html;
+        }
+
+        $dom = new \DOMDocument('1.0', 'UTF-8');
+        $previous = libxml_use_internal_errors(true);
+        $loaded = $dom->loadHTML(
+            '<?xml encoding="UTF-8"><div data-ai-claim-root="1">'.$html.'</div>',
+            LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD,
+        );
+        libxml_clear_errors();
+        libxml_use_internal_errors($previous);
+
+        if (! $loaded) {
+            return $this->removeClaimFromText($html, $claim);
+        }
+
+        $xpath = new \DOMXPath($dom);
+        $nodes = $xpath->query('//*[@data-ai-claim-root="1"]//*[self::p or self::li or self::h1 or self::h2 or self::h3 or self::h4 or self::blockquote]');
+        if ($nodes) {
+            $targets = [];
+            foreach ($nodes as $node) {
+                if (mb_stripos((string) $node->textContent, $claim) !== false) {
+                    $targets[] = $node;
+                }
+            }
+            foreach ($targets as $node) {
+                $node->parentNode?->removeChild($node);
+            }
+        }
+
+        $root = $xpath->query('//*[@data-ai-claim-root="1"]')->item(0);
+        if (! $root) {
+            return $html;
+        }
+
+        $result = '';
+        foreach ($root->childNodes as $child) {
+            $result .= $dom->saveHTML($child);
+        }
+
+        return trim($result);
+    }
+
     private function productType(Product $product): string
     {
         return collect(['Điều hòa', $product->category?->name, $product->brand?->name])
@@ -1871,7 +2046,7 @@ JSON output bắt buộc:
     "media_metadata": []
   },
   "used_verified_facts": ["fact_id trong verified_technical_facts, ví dụ fact_1"],
-  "warnings": ["encoding_checked", "vietnamese_verified"],
+  "warnings": [],
   "blocked_claims": []
 }
 

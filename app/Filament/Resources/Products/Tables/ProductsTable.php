@@ -1048,9 +1048,9 @@ class ProductsTable
     {
         $preflight = app(ProductAiBulkWorkflowService::class)->preflight($records->pluck('id')->all());
         $options = collect($preflight['rows'])->mapWithKeys(fn (array $row): array => [
-            (string) $row['product_id'] => $row['product_name'].' Â· '.$row['state']
-                .($row['soft_warning_count'] ? " Â· {$row['soft_warning_count']} cáº£nh bÃ¡o" : '')
-                .($row['hard_blocker_count'] ? " Â· {$row['hard_blocker_count']} blocker" : ''),
+            (string) $row['product_id'] => $row['product_name'].' · '.$row['state']
+                .($row['soft_warning_count'] ? " · {$row['soft_warning_count']} cảnh báo" : '')
+                .($row['hard_blocker_count'] ? " · {$row['hard_blocker_count']} blocker" : ''),
         ])->all();
 
         $default = $eligibleFlag

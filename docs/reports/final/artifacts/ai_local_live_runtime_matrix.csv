@@ -1,0 +1,11 @@
+DIMENSION,LOCAL,LIVE,EVIDENCE,VERDICT
+VERSION,1.32.1,1.32.1,"php artisan about; public footer HTTP 200",PASS
+HEAD,8afea4f78a8ecb7526f25180542f1fb53fcc0903,UNVERIFIED,"Local git; SSH port 22 timeout",BLOCKED
+HTTP,"local browser harness PASS","200 home and login; protected Product route redirects","Playwright and curl",PASS
+MIGRATIONS,"95 ran / 0 pending",UNVERIFIED,"No Live shell or authenticated operations session",BLOCKED
+DATABASE,"MySQL utf8mb4 / utf8mb4_unicode_ci",UNVERIFIED,"Local SQL only",BLOCKED
+PROVIDER,"custom / gemini-2.5-flash connected",UNVERIFIED,"Local DB/request #320 only",BLOCKED
+GUARD_POLICY,ai-guard-policy-v1:96dd130eae61,UNVERIFIED,"Live settings/cache unavailable",BLOCKED
+QUEUE,"database / ai_governed / drained",UNVERIFIED,"Live health page requires valid Live operator session",BLOCKED
+SCHEDULER,"offline local limitation",UNVERIFIED,"No Live shell/health session",BLOCKED
+ENCODING,"source PASS; DB historical manual review","public HTML UTF-8","encoding audits and HTTP Content-Type",PARTIAL
