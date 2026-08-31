@@ -1,0 +1,11 @@
+SCENARIO,ACTOR,SELECTION,RESULT,EVIDENCE
+Filtered single preflight,Non-operator RBAC fixture,1 filtered Product,PASS,Only the checked Product appeared in browser preflight.
+Select all filtered,Operator ID 1,16 AI MATRIX Products,PASS,ALL_MATCHING selection snapshot recorded in operation 36.
+Approve,Operator ID 1,1 clean review draft,PASS,Operation 37 completed with one success.
+Approve with warning,Operator ID 1,1 soft-warning draft,PASS,Operation 38 completed with explicit warning override.
+Reject,Operator ID 1,1 review draft,PASS,Operation 39 completed with required reason.
+Discard,Operator ID 1,1 review draft,PASS,Operation 40 completed logically without deleting evidence.
+Regenerate,Operator ID 1,1 rejected fixture,PASS,Operation 41 completed through ai_governed; custom/gemini-2.5-flash request log 256 recorded 8454 total tokens.
+Apply mixed state,Operator ID 1,16 filtered Products,PASS,Operation 36: success=2 skipped=13 blocked=1 failed=0.
+Stale target,Operator ID 1,Included in mixed apply,PASS,Skipped; no overwrite.
+Hard technical block,Operator ID 1,Included in mixed apply,PASS,Blocked; no editorial override.

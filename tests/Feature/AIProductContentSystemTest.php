@@ -60,8 +60,55 @@ class AIProductContentSystemTest extends TestCase
         $this->assertSame('blocked', $item->status);
         $this->assertSame('DUPLICATE_IN_PROGRESS', $item->status_reason);
         $this->assertSame('completed_with_errors', $job->status);
+        $this->assertSame('FAILED', $job->canonical_status);
         $this->assertSame(1, $job->processed);
         $this->assertSame(1, $job->failed);
+    }
+
+    public function test_queue_retry_reopens_failed_item_through_valid_state_transitions(): void
+    {
+        $product = $this->product();
+        $job = AiProductJob::create([
+            'type' => 'single_product_preview', 'scope' => 'selected', 'status' => 'processing',
+            'canonical_status' => 'RUNNING', 'total' => 1, 'config_json' => $this->config(),
+        ]);
+        $item = $job->items()->create([
+            'product_id' => $product->id,
+            'status' => 'failed',
+            'canonical_status' => 'FAILED',
+        ]);
+        $system = Mockery::mock(AIProductContentSystem::class);
+        $system->shouldReceive('generate')->once()->andThrow(new \RuntimeException('controlled retry failure'));
+
+        (new AiProductContentSingleJob($product->id, $job->id, $item->id))->handle($system);
+
+        $this->assertSame('failed', $item->refresh()->status);
+        $this->assertSame('FAILED', $item->canonical_status);
+        $this->assertSame('completed_with_errors', $job->refresh()->status);
+        $this->assertSame('FAILED', $job->canonical_status);
+    }
+
+    public function test_parent_job_with_terminal_review_item_is_not_left_processing(): void
+    {
+        $product = $this->product();
+        $job = AiProductJob::create([
+            'type' => 'single_product_preview', 'scope' => 'selected', 'status' => 'processing',
+            'canonical_status' => 'RUNNING', 'total' => 1, 'config_json' => $this->config(),
+        ]);
+        $job->items()->create([
+            'product_id' => $product->id,
+            'status' => 'needs_review',
+            'canonical_status' => 'REVIEW_REQUIRED',
+        ]);
+        $queuedJob = new AiProductContentSingleJob($product->id, $job->id);
+        $method = new \ReflectionMethod($queuedJob, 'refreshJobStats');
+        $method->invoke($queuedJob, $job);
+
+        $this->assertSame('needs_review', $job->refresh()->status);
+        $this->assertSame('REVIEW_REQUIRED', $job->canonical_status);
+        $this->assertSame(1, $job->processed);
+        $this->assertSame(1, $job->needs_review);
+        $this->assertNotNull($job->finished_at);
     }
 
     public function test_generate_one_product_with_full_data(): void

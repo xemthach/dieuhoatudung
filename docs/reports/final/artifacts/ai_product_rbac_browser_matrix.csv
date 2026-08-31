@@ -1,0 +1,6 @@
+ACTOR,GENERATE,PREVIEW,APPROVE,APPROVE_WARNING,REJECT,REGENERATE,DISCARD,APPLY,UI_RESULT,SERVER_RESULT,STATUS
+FULL_ADMIN,ALLOW,ALLOW,ALLOW,ALLOW,ALLOW,ALLOW,ALLOW,ALLOW,Actions shown according to draft state,Authorized services persist authenticated actor,PASS
+GENERATE_ONLY,ALLOW,ALLOW,DENY,DENY,DENY,ALLOW,DENY,DENY,Only Generate Preview and Regenerate shown,Unauthorized review/apply service calls rejected,PASS
+APPROVE_ONLY,DENY,ALLOW,ALLOW,ALLOW,ALLOW,DENY,ALLOW,DENY,Only Preview and review disposition actions shown,Approve reject discard authorized and actor audited,PASS
+APPLY_ONLY,DENY,DENY,DENY,DENY,DENY,DENY,DENY,ALLOW,Only Apply shown for an approved draft,Apply authorized while other service calls rejected,PASS
+NO_AI_PERMISSION,DENY,DENY,DENY,DENY,DENY,DENY,DENY,DENY,All AI mutation actions hidden,Manipulated hidden Generate creates no job or dispatch; services reject mutation,PASS

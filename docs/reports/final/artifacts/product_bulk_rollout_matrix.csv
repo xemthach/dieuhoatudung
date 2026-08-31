@@ -1,0 +1,4 @@
+ACTOR,ROLLOUT_ENABLED,CONFIGURED_OPERATOR_ID,MUTATION_UI,SERVER_SIDE_MUTATION,RESULT
+Non-operator fixture,YES,1,Disabled,Denied by focused authorization certification,PASS
+Configured operator,YES,1,Enabled,Permitted for authorized actions,PASS
+Policy changed for browser test,NO,1,Not applicable,Not applicable,PASS

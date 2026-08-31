@@ -1,0 +1,12 @@
+STATE,REVIEW,APPROVE,REJECT,DISCARD,REGENERATE,APPLY,EXPECTED_RESULT
+NOT_GENERATED,VIEW_ONLY,NO,NO,NO,NO,NO,No draft to mutate.
+QUEUED,VIEW_ONLY,NO,NO,NO,NO,NO,In-progress work is never duplicated.
+PROCESSING,VIEW_ONLY,NO,NO,NO,NO,NO,In-progress work is never duplicated.
+VALIDATING,VIEW_ONLY,NO,NO,NO,NO,NO,Validation must finish first.
+REVIEW_REQUIRED,YES,YES_IF_NO_HARD_BLOCK,YES,YES,YES_IF_NO_HARD_BLOCK,NO,Human review state.
+APPROVED,YES,NO,NO,NO,NO,YES_IF_FRESH_AND_SAFE,Typed batch confirmation required.
+REJECTED,HISTORY,NO,NO,NO,YES,NO,Historical evidence retained.
+DISCARDED,HISTORY,NO,NO,NO,YES,NO,Logical discard retained.
+APPLIED,HISTORY,NO,NO,NO,NO,NO,Terminal idempotent history.
+BLOCKED,VIEW_REASON,NO,NO,NO,NO,NO,Hard/concurrency blocks fail closed.
+FAILED,VIEW_REASON,NO,NO,NO,YES_IF_NO_HARD_BLOCK,NO,Regeneration creates new operation only.

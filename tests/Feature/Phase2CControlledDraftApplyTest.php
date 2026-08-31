@@ -9,6 +9,8 @@ use App\Models\Product;
 use App\Models\User;
 use Spatie\Permission\Models\Permission;
 use App\Services\Product\AIProductDraftApplyService;
+use App\Services\AI\ProductAiApplyReadiness;
+use App\Services\AI\SingleOperatorControlledRolloutPolicy;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use RuntimeException;
 use Tests\TestCase;
@@ -79,6 +81,62 @@ class Phase2CControlledDraftApplyTest extends TestCase
         $service->apply($draft, $reviewer->id);
     }
 
+    public function test_single_operator_apply_requires_and_accepts_exact_confirmation(): void
+    {
+        [$reviewer, $product, $draft] = $this->fixture($this->contentPayload());
+        $reviewer->forceFill(['is_active' => true])->save();
+        $this->enableSingleOperatorPolicy($reviewer->id);
+        $service = app(AIProductDraftApplyService::class);
+        $service->approve($draft, $reviewer->id, $reviewer);
+
+        try {
+            $service->apply($draft->refresh(), $reviewer->id);
+            $this->fail('Apply without explicit confirmation must be blocked.');
+        } catch (RuntimeException $e) {
+            $this->assertSame('APPLY_CONFIRMATION_REQUIRED', $e->getMessage());
+        }
+
+        $confirmation = 'APPLY '.$product->model_code.'#'.$product->id;
+        $result = $service->apply($draft->refresh(), $reviewer->id, false, $confirmation);
+
+        $this->assertSame('APPLIED', $result['result']);
+        $this->assertSame($product->id, $draft->refresh()->product_id);
+        $this->assertNotNull($draft->applied_at);
+    }
+
+    public function test_apply_readiness_blocks_unverified_technical_claim_that_remains_in_content(): void
+    {
+        [$reviewer, , $draft] = $this->fixture($this->contentPayload([
+            'content_html' => '<h2>Vận hành êm</h2><p>Độ ồn dàn lạnh là 19 dB.</p>',
+        ]));
+        $service = app(AIProductDraftApplyService::class);
+        $service->approve($draft, $reviewer->id, $reviewer);
+        $draft->update(['warnings_json' => ['unverified_technical_claim:19 dB']]);
+
+        $readiness = app(ProductAiApplyReadiness::class)->resolve($draft->refresh());
+
+        $this->assertFalse($readiness['can_apply']);
+        $this->assertSame(1, $readiness['warning_counts']['hard']);
+        $this->expectExceptionMessage('FACT_CHECK_BLOCKED');
+        $service->apply($draft->refresh(), $reviewer->id);
+    }
+
+    public function test_removed_unverified_claim_is_audited_but_does_not_hard_block_apply(): void
+    {
+        [$reviewer, , $draft] = $this->fixture($this->contentPayload([
+            'content_html' => '<h2>Vận hành ổn định</h2><p>Vui lòng tham khảo bảng thông số đã xác minh.</p>',
+        ]));
+        $draft->update(['warnings_json' => ['unverified_technical_claim:19 dB']]);
+        $service = app(AIProductDraftApplyService::class);
+        $service->approve($draft->refresh(), $reviewer->id, $reviewer, '[WARNING_OVERRIDE] claim removed', null, true);
+
+        $readiness = app(ProductAiApplyReadiness::class)->resolve($draft->refresh());
+
+        $this->assertTrue($readiness['can_apply']);
+        $this->assertSame(0, $readiness['warning_counts']['hard']);
+        $this->assertSame(1, $readiness['warning_counts']['technical_processed']);
+    }
+
     public function test_corrected_persisted_version_is_eligible_but_not_approved(): void
     {
         [$reviewer, , $draft] = $this->fixture($this->contentPayload());
@@ -86,6 +144,30 @@ class Phase2CControlledDraftApplyTest extends TestCase
         $this->assertTrue($eligibility['eligible_for_approval']);
         $this->assertFalse($eligibility['approved']);
         $this->assertSame('needs_review', $draft->status);
+    }
+
+    public function test_soft_warning_can_be_explicitly_approved_and_applied_with_audit_note(): void
+    {
+        [$reviewer, $product, $draft] = $this->fixture($this->contentPayload());
+        $draft->update(['warnings_json' => ['content_too_short:390/800', 'missing_h2_h3']]);
+        $service = app(AIProductDraftApplyService::class);
+
+        $service->approve(
+            $draft->refresh(),
+            $reviewer->id,
+            $reviewer,
+            '[WARNING_OVERRIDE] Approved with warnings: content_too_short:390/800, missing_h2_h3',
+            null,
+            true,
+        );
+        $result = $service->apply($draft->refresh(), $reviewer->id);
+
+        $this->assertSame('APPLIED', $result['result']);
+        $this->assertStringContainsString('[WARNING_OVERRIDE]', (string) $draft->refresh()->review_note);
+        $this->assertSame(['content_too_short:390/800', 'missing_h2_h3'], $draft->warnings_json);
+        $this->assertTrue($draft->warning_override);
+        $this->assertSame(['content_too_short:390/800', 'missing_h2_h3'], $draft->warnings_at_approval);
+        $this->assertSame($product->id, $draft->product_id);
     }
 
     public function test_persisted_blocked_version_cannot_become_eligible(): void
@@ -113,6 +195,11 @@ class Phase2CControlledDraftApplyTest extends TestCase
         $this->assertSame($technicalBefore, [$applied->btu, $applied->marketing_capacity_btu, $applied->technical_capacity_btu, $applied->specs_json]);
         $this->assertSame($updatedAtBefore, $applied->updated_at?->format('Y-m-d H:i:s.u'));
         $this->assertNotSame($before, $service->contentHash($applied));
+        $this->assertSame('applied', $applied->ai_status);
+        $this->assertSame('APPLIED', $draft->refresh()->field_status_json['content_html']);
+        $this->assertSame('completed', $draft->job->items()->where('draft_id', $draft->id)->value('status'));
+        $this->assertSame('DONE', $draft->job->items()->where('draft_id', $draft->id)->value('canonical_status'));
+        $this->assertSame('completed', $draft->job->refresh()->status);
         $this->assertSame('NOOP_ALREADY_APPLIED', $service->apply($draft->refresh(), $reviewer->id)['result']);
 
         $this->assertTrue($service->rollback($draft->refresh(), $reviewer));
@@ -162,6 +249,27 @@ class Phase2CControlledDraftApplyTest extends TestCase
         try { $service->apply($fresh[2], $fresh[0]->id, true); $this->fail('injected failure must throw'); } catch (RuntimeException $e) { $this->assertSame('CONTROLLED_APPLY_FAILURE', $e->getMessage()); }
         $this->assertSame($hash, $service->contentHash($fresh[1]->refresh()));
         $this->assertNull($fresh[2]->refresh()->applied_at);
+    }
+
+    public function test_apply_blocks_when_product_content_changed_after_approval(): void
+    {
+        [$reviewer, $product, $draft] = $this->fixture($this->contentPayload());
+        $service = app(AIProductDraftApplyService::class);
+        $service->approve($draft, $reviewer->id, $reviewer);
+
+        $product->forceFill(['long_description' => 'Biên tập thủ công sau khi duyệt'])->save();
+
+        $this->expectExceptionMessage('STALE_PRODUCT_CONTENT');
+        $service->apply($draft->refresh(), $reviewer->id);
+    }
+
+    public function test_warning_requires_explicit_override(): void
+    {
+        [$reviewer, , $draft] = $this->fixture($this->contentPayload());
+        $draft->update(['warnings_json' => ['content_too_short:459/800']]);
+
+        $this->expectExceptionMessage('WARNING_OVERRIDE_CONFIRMATION_REQUIRED');
+        app(AIProductDraftApplyService::class)->approve($draft->refresh(), $reviewer->id, $reviewer);
     }
 
     public function test_three_selected_drafts_apply_individually_and_restore_exactly(): void
@@ -221,5 +329,18 @@ class Phase2CControlledDraftApplyTest extends TestCase
         $this->assertSame($beforeSecond, $service->contentHash($second[1]->refresh()));
         $this->assertNull($first[2]->refresh()->applied_at);
         $this->assertNull($second[2]->refresh()->applied_at);
+    }
+
+    private function enableSingleOperatorPolicy(int $operatorId): void
+    {
+        config()->set('ai.single_operator', [
+            'enabled' => true,
+            'operator_user_id' => $operatorId,
+            'policy' => SingleOperatorControlledRolloutPolicy::NAME,
+            'super_admin_exception' => true,
+            'enforce_in_testing' => true,
+            'auto_approve' => false,
+            'auto_apply' => false,
+        ]);
     }
 }

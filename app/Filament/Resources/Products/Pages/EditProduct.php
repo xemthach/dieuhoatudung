@@ -2,14 +2,20 @@
 
 namespace App\Filament\Resources\Products\Pages;
 
+use App\Filament\Resources\AiProductJobs\AiProductJobResource;
 use App\Filament\Resources\Products\ProductResource;
 use App\Jobs\AiProductContentSingleJob;
 use App\Models\AiProductJob;
 use App\Models\AiProductJobItem;
+use App\Models\AiProductDraft;
+use App\Models\Product;
 use App\Services\Product\AIProductContentSystem;
 use App\Services\Product\AIProductDraftApplyService;
 use App\Services\AI\AIWorkerReadinessService;
 use App\Services\AI\AiProductContentStateResolver;
+use App\Services\AI\ProductAiApplyReadiness;
+use App\Services\AI\ProductAiActionResolver;
+use App\Services\AI\SingleOperatorControlledRolloutPolicy;
 use App\Services\Seo\InternalLinkSuggestionService;
 use App\Support\SchemaColumns;
 use Filament\Actions\Action;
@@ -21,9 +27,11 @@ use Filament\Forms\Components\CheckboxList;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
+use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\EditRecord;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 class EditProduct extends EditRecord
 {
@@ -46,54 +54,78 @@ class EditProduct extends EditRecord
     {
         return [
             Action::make('ai_product_generate')
-                ->label(fn (): string => filled($this->record->long_description) ? 'Tạo lại nội dung AI' : 'Tạo nội dung AI')
+                ->label('Tạo nội dung AI')
                 ->icon('heroicon-o-sparkles')
                 ->color('primary')
+                ->authorize(fn (): bool => auth()->user()?->can('product.ai_generate') ?? false)
+                ->visible(fn (): bool => $this->aiActionPolicy()['can_generate_primary'] && $this->canRunAiMutation('GENERATE'))
                 ->modalDescription('AI chỉ tạo Nội dung, SEO, Google Merchant, Tags, FAQ và Internal links. AI không tạo hoặc sửa Thông tin cơ bản, giá, model/SKU, brand/category hay Thông số kỹ thuật.')
                 ->form($this->aiConfigForm())
                 ->action(function (array $data) {
-                    $config = $this->normalizeAiConfig($data);
-                    $job = AiProductJob::create(array_merge([
-                        'type' => 'single_product_preview',
-                        'scope' => 'selected',
-                        'status' => 'queued',
-                        'total' => 1,
-                        'config_json' => $config,
-                        'created_by' => auth()->id(),
-                    ], SchemaColumns::existing('ai_product_jobs', [
-                        'module' => 'ai_product_content',
-                        'queue_name' => config('ai.governed_queue', 'ai_governed'),
-                    ])));
-                    $item = $job->items()->create(array_merge([
-                        'product_id' => $this->record->id,
-                        'status' => 'queued',
-                    ], SchemaColumns::existing('ai_product_job_items', [
-                        'module' => 'ai_product_content',
-                        'queue_name' => config('ai.governed_queue', 'ai_governed'),
-                    ])));
-
-                    AiProductContentSingleJob::dispatch($this->record->id, $job->id, $item->id)->onQueue(config('ai.governed_queue', 'ai_governed'));
-                    $worker = app(AIWorkerReadinessService::class)->snapshot();
-                    $notification = Notification::make()
-                        ->title('Đã gửi yêu cầu tạo nội dung')
-                        ->body("Job #{$job->id} đang chờ xử lý. Draft không ghi đè Product cho tới khi được duyệt và Apply. {$worker['message']}")
-                        ->status($worker['ready'] ? 'success' : 'warning')
-                        ->persistent();
-                    if (! $worker['ready'] && auth()->user()?->can('ai_worker.manage')) {
-                        $notification->actions([
-                            Action::make('manage_ai_worker')->label('Bật AI Worker')->url(\App\Filament\Pages\AIQueueHealth::getUrl()),
-                        ]);
+                    $reviewDraft = app(AiProductContentStateResolver::class)->reviewableDraft($this->record);
+                    if ($reviewDraft) {
+                        Notification::make()
+                            ->title("Draft AI #{$reviewDraft->id} đang chờ duyệt")
+                            ->body('Hãy xem, duyệt hoặc từ chối draft hiện tại trước khi tạo yêu cầu mới.')
+                            ->warning()
+                            ->persistent()
+                            ->send();
+                        return;
                     }
-                    $notification->send();
+
+                    $activeItem = $this->record->aiProductJobItems()
+                        ->whereIn('status', ['queued', 'processing', 'stuck'])
+                        ->latest('id')
+                        ->first();
+                    if ($activeItem) {
+                        Notification::make()
+                            ->title('Product đang có yêu cầu AI hoạt động')
+                            ->body("Job #{$activeItem->ai_product_job_id} đang xử lý. Hãy chờ hoặc dùng 'Giải phóng yêu cầu AI đang treo'.")
+                            ->warning()
+                            ->persistent()
+                            ->send();
+                        return;
+                    }
+
+                    $this->queueAiGeneration($data);
                 }),
+            Action::make('ai_preview_latest_draft')
+                ->label(fn (): string => match ($this->aiActionPolicy()['current_state']) {
+                    'BLOCKED', 'HARD_BLOCKED' => 'Xem lý do bị chặn',
+                    'APPLIED' => 'Xem nội dung AI',
+                    default => 'Xem bản nháp',
+                })
+                ->icon('heroicon-o-eye')
+                ->color('gray')
+                ->authorize(fn (): bool => (auth()->user()?->can('product.ai_generate') ?? false)
+                    || (auth()->user()?->can('bulk_ai_approve') ?? false)
+                    || (auth()->user()?->can('bulk_ai_apply') ?? false)
+                    || (auth()->user()?->can('bulk_ai_view') ?? false))
+                ->visible(fn (): bool => $this->aiActionPolicy()['can_preview']
+                    || $this->aiActionPolicy()['can_view_block_reason'])
+                ->modalHeading('Xem trước bản nháp AI')
+                ->modalSubmitAction(false)
+                ->modalCancelActionLabel('Đóng')
+                ->modalContent(fn () => view('filament.product-ai-preview', [
+                    'item' => $this->latestAiDraftItem(),
+                    'readiness' => $this->latestApplyReadiness(),
+                ])),
             Action::make('ai_approve_latest_draft')
-                ->label('Duyệt nội dung AI')
+                ->label(fn (): string => $this->latestDraftWarnings() === []
+                    ? 'Duyệt'
+                    : 'Duyệt kèm cảnh báo')
                 ->icon('heroicon-o-check-circle')
                 ->color('warning')
+                ->authorize(fn (): bool => auth()->user()?->can('bulk_ai_approve') ?? false)
                 ->requiresConfirmation()
-                ->visible(fn (): bool => app(AiProductContentStateResolver::class)
-                    ->reviewableDraft($this->record) !== null)
-                ->modalDescription('Approval chỉ ghi nhận quyết định review; draft vẫn chưa được apply cho tới khi bấm Apply approved draft.')
+                ->visible(fn (): bool => $this->aiActionPolicy()['can_approve'] && $this->canRunAiMutation('APPROVE'))
+                ->modalDescription(fn (): string => $this->latestDraftWarnings() === []
+                    ? 'Approval chỉ ghi nhận quyết định review; draft vẫn chưa được apply cho tới khi bấm Apply.'
+                    : 'Nội dung còn cảnh báo chất lượng: '.implode(', ', $this->latestDraftWarnings()).'. Bạn vẫn muốn duyệt? Cảnh báo sẽ được giữ trong audit.')
+                ->modalContent(fn () => view('filament.product-ai-preview', [
+                    'item' => $this->latestAiDraftItem(),
+                    'readiness' => $this->latestApplyReadiness(),
+                ]))
                 ->action(function () {
                     $draft = app(AiProductContentStateResolver::class)->reviewableDraft($this->record);
                     if (! $draft) {
@@ -101,105 +133,47 @@ class EditProduct extends EditRecord
                         return;
                     }
                     try {
-                        app(AIProductDraftApplyService::class)->approve($draft, (int) auth()->id(), auth()->user(), 'Approved from Product review UI');
+                        $warnings = (array) ($draft->warnings_json ?? []);
+                        $note = $warnings === []
+                            ? 'Approved from Product review UI'
+                            : '[WARNING_OVERRIDE] Approved with warnings: '.implode(', ', $warnings);
+                        app(AIProductDraftApplyService::class)->approve($draft, (int) auth()->id(), auth()->user(), $note, null, $warnings !== []);
                         Notification::make()->title('Draft đã được duyệt, chưa apply')->success()->send();
                     } catch (\Throwable $e) {
                         Notification::make()->title('Không thể duyệt draft')->body($e->getMessage())->danger()->persistent()->send();
                     }
                 }),
-            Action::make('ai_reject_latest_draft')
-                ->label('Từ chối draft AI')
-                ->icon('heroicon-o-x-circle')
-                ->color('danger')
-                ->authorize(fn (): bool => auth()->user()?->can('product.ai_generate') ?? false)
-                ->visible(fn (): bool => app(AiProductContentStateResolver::class)
-                    ->reviewableDraft($this->record) !== null)
-                ->form([
-                    Textarea::make('review_note')
-                        ->label('Lý do từ chối')
-                        ->required()
-                        ->minLength(3)
-                        ->maxLength(1000),
-                ])
-                ->requiresConfirmation()
-                ->modalHeading('Từ chối bản nháp AI')
-                ->modalSubmitActionLabel('Từ chối draft')
-                ->action(function (array $data): void {
-                    $draft = app(AiProductContentStateResolver::class)->reviewableDraft($this->record);
-                    if (! $draft) {
-                        Notification::make()->title('Chưa có AI draft để từ chối')->warning()->send();
-                        return;
-                    }
-
-                    app(AIProductDraftApplyService::class)->reject(
-                        $draft,
-                        (int) auth()->id(),
-                        (string) $data['review_note'],
-                    );
-                    Notification::make()->title('Đã từ chối draft AI')->success()->send();
-                }),
-            Action::make('ai_cancel_active_requests')
-                ->label('Giải phóng yêu cầu AI đang treo')
-                ->icon('heroicon-o-stop-circle')
-                ->color('danger')
-                ->authorize(fn (): bool => auth()->user()?->can('product.ai_generate') ?? false)
-                ->visible(fn (): bool => $this->record->aiProductJobItems()
-                    ->whereIn('status', ['queued', 'processing', 'stuck'])
-                    ->exists())
-                ->requiresConfirmation()
-                ->modalHeading('Hủy yêu cầu AI đang treo')
-                ->modalDescription('Chỉ các yêu cầu queued/processing/stuck của Product này sẽ được đánh dấu đã hủy. Lịch sử AI và Product content không bị xóa.')
-                ->action(function (): void {
-                    DB::transaction(function (): void {
-                        $items = $this->record->aiProductJobItems()
-                            ->whereIn('status', ['queued', 'processing', 'stuck'])
-                            ->get();
-
-                        foreach ($items as $item) {
-                            $item->update([
-                                'status' => 'cancelled',
-                                'canonical_status' => 'CANCELLED',
-                                'status_reason' => 'CANCELLED_BY_OPERATOR',
-                                'failed_reason' => 'job_cancelled',
-                                'last_error_code' => 'job_cancelled',
-                                'last_error_message' => 'Cancelled by operator from Product.',
-                                'error_message' => 'Cancelled by operator from Product.',
-                                'finished_at' => now(),
-                            ]);
-                        }
-
-                        foreach ($items->groupBy('ai_product_job_id') as $jobItems) {
-                            $job = $jobItems->first()->job;
-                            if (! $job) continue;
-
-                            $remaining = $job->items()->whereIn('status', ['queued', 'processing', 'stuck'])->count();
-                            if ($remaining === 0) {
-                                $job->update([
-                                    'status' => 'cancelled',
-                                    'failed_reason' => 'job_cancelled',
-                                    'last_error_code' => 'job_cancelled',
-                                    'last_error_message' => 'Cancelled by operator from Product.',
-                                    'finished_at' => now(),
-                                ]);
-                            }
-                        }
-                    });
-
-                    Notification::make()->title('Đã giải phóng yêu cầu AI đang treo')->success()->send();
-                }),
+            Action::make('ai_processing_status')
+                ->label('AI đang tạo nội dung…')
+                ->icon('heroicon-o-arrow-path')
+                ->color('info')
+                ->disabled()
+                ->visible(fn (): bool => $this->aiActionPolicy()['show_processing_status']),
             Action::make('ai_apply_latest_draft')
-                ->label('Áp dụng nội dung đã duyệt')
+                ->label('Áp dụng')
                 ->icon('heroicon-o-eye')
                 ->color('gray')
-                ->visible(fn (): bool => app(AiProductContentStateResolver::class)
-                    ->approvedUnappliedDraft($this->record) !== null)
-                ->modalHeading('Xem trước nội dung AI')
-                ->modalDescription('Chỉ các field thuộc Content Layer được apply. Thông tin cơ bản và Thông số kỹ thuật luôn bị bỏ qua nếu xuất hiện trong payload.')
+                ->authorize(fn (): bool => auth()->user()?->can('bulk_ai_apply') ?? false)
+                ->visible(fn (): bool => $this->aiActionPolicy()['can_apply'] && $this->canRunAiMutation('APPLY'))
+                ->requiresConfirmation()
+                ->modalHeading('Xác nhận áp dụng nội dung AI')
+                ->modalDescription('Đây là bước xác nhận ghi dữ liệu riêng biệt với quyết định Duyệt. Product sẽ được khóa và kiểm tra stale-content trước khi cập nhật.')
                 ->modalContent(fn () => view('filament.product-ai-preview', [
                     'item' => $this->latestAiDraftItem(),
+                    'readiness' => $this->latestApplyReadiness(),
+                    'applyConfirmation' => true,
                 ]))
-                ->modalSubmitActionLabel('Áp dụng nội dung đã duyệt')
-                ->action(function () {
+                ->form([
+                    Placeholder::make('confirmation_instruction')
+                        ->label('Xác nhận bắt buộc')
+                        ->content(fn (): string => 'Nhập chính xác: '.($this->latestApplyReadiness()['confirmation'] ?? '')),
+                    TextInput::make('apply_confirmation')
+                        ->label('Mã xác nhận áp dụng')
+                        ->required()
+                        ->autocomplete(false),
+                ])
+                ->modalSubmitActionLabel('Xác nhận và áp dụng')
+                ->action(function (array $data) {
                     $draftModel = app(AiProductContentStateResolver::class)
                         ->approvedUnappliedDraft($this->record);
 
@@ -212,13 +186,29 @@ class EditProduct extends EditRecord
                         return;
                     }
                     try {
-                        $result = app(AIProductDraftApplyService::class)->apply($draftModel, (int) auth()->id());
-                        Notification::make()->title($result['result'] === 'NOOP_ALREADY_APPLIED' ? 'Draft đã apply trước đó' : 'Đã apply draft đã duyệt')->success()->send();
+                        $result = app(AIProductDraftApplyService::class)->apply(
+                            $draftModel,
+                            (int) auth()->id(),
+                            false,
+                            (string) ($data['apply_confirmation'] ?? ''),
+                        );
+                        Notification::make()->title($result['result'] === 'NOOP_ALREADY_APPLIED' ? 'Nội dung AI đã được áp dụng trước đó.' : 'Nội dung AI đã được áp dụng.')->success()->send();
                     } catch (\Throwable $e) {
-                        Notification::make()->title('Apply bị chặn')->body($e->getMessage())->danger()->persistent()->send();
+                        Notification::make()
+                            ->title($this->applyErrorMessage($e->getMessage()))
+                            ->body('Mã kỹ thuật: '.$e->getMessage())
+                            ->danger()
+                            ->persistent()
+                            ->send();
                     }
                 }),
             ActionGroup::make([
+                $this->generateNewAiAction(),
+                $this->regenerateAiAction(),
+                $this->viewAiJobAction(),
+                $this->rejectAiDraftAction(),
+                $this->discardAiDraftAction(),
+                $this->recoverAiRequestAction(),
                 Action::make('ai_rollback_latest')
                     ->label('Rollback AI Content')
                     ->icon('heroicon-o-arrow-uturn-left')
@@ -266,9 +256,303 @@ class EditProduct extends EditRecord
         ];
     }
 
+    /** @return array<string,mixed> */
+    private function aiActionPolicy(): array
+    {
+        return app(ProductAiActionResolver::class)->resolve($this->record);
+    }
+
+    private function canRunAiMutation(string $action): bool
+    {
+        $actor = auth()->user();
+        if (! $actor) {
+            return false;
+        }
+
+        $rollout = app(SingleOperatorControlledRolloutPolicy::class);
+        if (! $rollout->active()) {
+            return true;
+        }
+
+        try {
+            $rollout->assertAction($actor, $action);
+
+            return true;
+        } catch (\RuntimeException) {
+            return false;
+        }
+    }
+
+    /** @return array<string,mixed> */
+    private function latestApplyReadiness(): array
+    {
+        $draft = $this->latestAiDraftItem()?->draft;
+
+        return app(ProductAiApplyReadiness::class)->resolve($draft);
+    }
+
+    private function applyErrorMessage(string $code): string
+    {
+        return match (true) {
+            str_contains($code, 'APPLY_CONFIRMATION_REQUIRED') => 'Bạn cần xác nhận trước khi áp dụng nội dung AI.',
+            str_contains($code, 'STALE_PRODUCT_CONTENT') => 'Sản phẩm đã được chỉnh sửa sau khi AI tạo bản nháp.',
+            str_contains($code, 'STALE_TECHNICAL_CONTEXT') => 'Thông số kỹ thuật đã thay đổi sau khi bản nháp được duyệt.',
+            str_contains($code, 'FACT_CHECK_BLOCKED') => 'Bản nháp còn claim kỹ thuật chưa được xác minh.',
+            str_contains($code, 'FORBIDDEN') => 'Bạn không có quyền áp dụng nội dung AI.',
+            default => 'Không thể áp dụng nội dung AI.',
+        };
+    }
+
+    private function generateNewAiAction(): Action
+    {
+        return Action::make('ai_product_generate_new')
+            ->label('Tạo nội dung AI mới')
+            ->icon('heroicon-o-sparkles')
+            ->authorize(fn (): bool => auth()->user()?->can('product.ai_generate') ?? false)
+            ->visible(fn (): bool => $this->aiActionPolicy()['can_generate_more'] && $this->canRunAiMutation('GENERATE'))
+            ->form($this->aiConfigForm())
+            ->action(fn (array $data) => $this->queueAiGeneration($data));
+    }
+
+    private function regenerateAiAction(): Action
+    {
+        return Action::make('ai_regenerate_latest_draft')
+            ->label('Tạo lại')
+            ->icon('heroicon-o-arrow-path')
+            ->authorize(fn (): bool => auth()->user()?->can('product.ai_generate') ?? false)
+            ->visible(fn (): bool => $this->aiActionPolicy()['can_regenerate'] && $this->canRunAiMutation('GENERATE'))
+            ->form($this->aiConfigForm())
+            ->requiresConfirmation()
+            ->modalHeading('Tạo bản nháp AI mới')
+            ->modalDescription('Bản nháp hiện tại sẽ được đánh dấu REJECTED với lý do tạo lại; lịch sử và provider evidence vẫn được giữ nguyên.')
+            ->action(function (array $data): void {
+                $draft = app(AiProductContentStateResolver::class)->reviewableDraft($this->record);
+                if (! $draft) {
+                    Notification::make()->title('Không còn draft đang chờ duyệt')->warning()->send();
+                    return;
+                }
+
+                $this->queueAiGeneration($data, $draft);
+            });
+    }
+
+    private function viewAiJobAction(): Action
+    {
+        return Action::make('ai_view_job')
+            ->label('Xem công việc AI')
+            ->icon('heroicon-o-clipboard-document-list')
+            ->authorize(fn (): bool => auth()->user()?->can('bulk_ai_view') ?? false)
+            ->visible(fn (): bool => $this->aiActionPolicy()['can_view_job'])
+            ->url(function (): ?string {
+                $item = $this->aiActionPolicy()['item'];
+
+                return $item
+                    ? AiProductJobResource::getUrl('edit', ['record' => $item->ai_product_job_id])
+                    : null;
+            });
+    }
+
+    private function rejectAiDraftAction(): Action
+    {
+        return Action::make('ai_reject_latest_draft')
+            ->label('Từ chối')
+            ->icon('heroicon-o-x-circle')
+            ->color('danger')
+            ->authorize(fn (): bool => auth()->user()?->can('bulk_ai_approve') ?? false)
+            ->visible(fn (): bool => $this->aiActionPolicy()['can_reject'] && $this->canRunAiMutation('REVIEW'))
+            ->form([
+                Textarea::make('review_note')
+                    ->label('Lý do từ chối')
+                    ->required()
+                    ->minLength(3)
+                    ->maxLength(1000),
+            ])
+            ->requiresConfirmation()
+            ->modalHeading('Từ chối bản nháp AI')
+            ->modalSubmitActionLabel('Từ chối')
+            ->action(function (array $data): void {
+                $draft = app(AiProductContentStateResolver::class)->reviewableDraft($this->record);
+                if (! $draft) {
+                    Notification::make()->title('Chưa có AI draft để từ chối')->warning()->send();
+                    return;
+                }
+
+                app(AIProductDraftApplyService::class)->reject(
+                    $draft,
+                    (int) auth()->id(),
+                    (string) $data['review_note'],
+                    auth()->user(),
+                );
+                Notification::make()->title('Đã từ chối draft AI')->success()->send();
+            });
+    }
+
+    private function discardAiDraftAction(): Action
+    {
+        return Action::make('ai_discard_latest_draft')
+            ->label('Loại bỏ')
+            ->icon('heroicon-o-archive-box-x-mark')
+            ->color('danger')
+            ->authorize(fn (): bool => auth()->user()?->can('bulk_ai_approve') ?? false)
+            ->visible(fn (): bool => $this->aiActionPolicy()['can_discard'] && $this->canRunAiMutation('REVIEW'))
+            ->form([
+                Textarea::make('review_note')
+                    ->label('Lý do loại bỏ')
+                    ->required()
+                    ->minLength(3)
+                    ->maxLength(1000),
+            ])
+            ->requiresConfirmation()
+            ->modalDescription('Chỉ lưu trạng thái loại bỏ logic. Draft, job, token và provider evidence không bị xóa.')
+            ->action(function (array $data): void {
+                $draft = app(AiProductContentStateResolver::class)->reviewableDraft($this->record);
+                if (! $draft) {
+                    Notification::make()->title('Không còn draft đang chờ duyệt')->warning()->send();
+                    return;
+                }
+
+                app(AIProductDraftApplyService::class)->discard(
+                    $draft,
+                    (int) auth()->id(),
+                    (string) $data['review_note'],
+                    auth()->user(),
+                );
+                Notification::make()->title('Đã loại bỏ draft AI; lịch sử vẫn được giữ')->success()->send();
+            });
+    }
+
+    private function recoverAiRequestAction(): Action
+    {
+        return Action::make('ai_cancel_active_requests')
+            ->label('Giải phóng yêu cầu đang treo')
+            ->icon('heroicon-o-stop-circle')
+            ->color('danger')
+            ->authorize(fn (): bool => auth()->user()?->can('product.ai_generate') ?? false)
+            ->visible(fn (): bool => $this->aiActionPolicy()['can_recover'] && $this->canRunAiMutation('GENERATE'))
+            ->requiresConfirmation()
+            ->modalHeading('Hủy yêu cầu AI đang treo')
+            ->modalDescription('Chỉ các yêu cầu queued/processing/stuck của Product này sẽ được đánh dấu đã hủy. Lịch sử AI và Product content không bị xóa.')
+            ->action(function (): void {
+                DB::transaction(function (): void {
+                    $items = $this->record->aiProductJobItems()
+                        ->whereIn('status', ['queued', 'processing', 'stuck'])
+                        ->get();
+
+                    foreach ($items as $item) {
+                        $item->update([
+                            'status' => 'cancelled',
+                            'canonical_status' => 'CANCELLED',
+                            'status_reason' => 'CANCELLED_BY_OPERATOR',
+                            'failed_reason' => 'job_cancelled',
+                            'last_error_code' => 'job_cancelled',
+                            'last_error_message' => 'Cancelled by operator from Product.',
+                            'error_message' => 'Cancelled by operator from Product.',
+                            'finished_at' => now(),
+                        ]);
+                    }
+
+                    foreach ($items->groupBy('ai_product_job_id') as $jobItems) {
+                        $job = $jobItems->first()->job;
+                        if (! $job) {
+                            continue;
+                        }
+
+                        if ($job->items()->whereIn('status', ['queued', 'processing', 'stuck'])->count() === 0) {
+                            $job->update([
+                                'status' => 'cancelled',
+                                'failed_reason' => 'job_cancelled',
+                                'last_error_code' => 'job_cancelled',
+                                'last_error_message' => 'Cancelled by operator from Product.',
+                                'finished_at' => now(),
+                            ]);
+                        }
+                    }
+                });
+
+                Notification::make()->title('Đã giải phóng yêu cầu AI đang treo')->success()->send();
+            });
+    }
+
     private function latestAiDraftItem(): ?AiProductJobItem
     {
         return app(AiProductContentStateResolver::class)->resolve($this->record)['item'];
+    }
+
+    /** @return array<int,string> */
+    private function latestDraftWarnings(): array
+    {
+        $draft = app(AiProductContentStateResolver::class)->reviewableDraft($this->record);
+
+        return array_values(array_filter(array_map('strval', (array) ($draft?->warnings_json ?? []))));
+    }
+
+    private function queueAiGeneration(array $data, ?AiProductDraft $supersededDraft = null): AiProductJob
+    {
+        [$job, $item, $created] = DB::transaction(function () use ($data, $supersededDraft): array {
+            Product::query()->whereKey($this->record->id)->lockForUpdate()->firstOrFail();
+            $activeItem = $this->record->aiProductJobItems()
+                ->whereIn('status', ['queued', 'processing', 'stuck'])
+                ->latest('id')
+                ->first();
+            if ($activeItem) {
+                return [$activeItem->job, $activeItem, false];
+            }
+
+            if ($supersededDraft) {
+                app(AIProductDraftApplyService::class)->supersedeForRegeneration($supersededDraft, auth()->user());
+            }
+
+            $config = $this->normalizeAiConfig($data);
+            $config['operation_generation'] = (string) Str::uuid();
+            $job = AiProductJob::create(array_merge([
+                'type' => 'single_product_preview',
+                'scope' => 'selected',
+                'status' => 'queued',
+                'total' => 1,
+                'config_json' => $config,
+                'created_by' => auth()->id(),
+            ], SchemaColumns::existing('ai_product_jobs', [
+                'module' => 'ai_product_content',
+                'queue_name' => config('ai.governed_queue', 'ai_governed'),
+            ])));
+            $item = $job->items()->create(array_merge([
+                'product_id' => $this->record->id,
+                'status' => 'queued',
+            ], SchemaColumns::existing('ai_product_job_items', [
+                'module' => 'ai_product_content',
+                'queue_name' => config('ai.governed_queue', 'ai_governed'),
+            ])));
+
+            return [$job, $item, true];
+        });
+
+        if (! $created) {
+            Notification::make()
+                ->title('Product đang có yêu cầu AI hoạt động')
+                ->body("Job #{$job->id} đã được tạo trước đó; không tạo thêm job trùng.")
+                ->warning()
+                ->persistent()
+                ->send();
+
+            return $job;
+        }
+
+        AiProductContentSingleJob::dispatch($this->record->id, $job->id, $item->id)
+            ->onQueue(config('ai.governed_queue', 'ai_governed'));
+        $worker = app(AIWorkerReadinessService::class)->snapshot();
+        $notification = Notification::make()
+            ->title('Đã gửi yêu cầu tạo nội dung')
+            ->body("Job #{$job->id} đang chờ xử lý. Draft không ghi đè Product cho tới khi được duyệt và Apply. {$worker['message']}")
+            ->status($worker['ready'] ? 'success' : 'warning')
+            ->persistent();
+        if (! $worker['ready'] && auth()->user()?->can('ai_worker.manage')) {
+            $notification->actions([
+                Action::make('manage_ai_worker')->label('Bật AI Worker')->url(\App\Filament\Pages\AIQueueHealth::getUrl()),
+            ]);
+        }
+        $notification->send();
+
+        return $job;
     }
 
     private function aiConfigForm(): array

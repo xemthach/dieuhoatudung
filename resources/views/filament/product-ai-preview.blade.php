@@ -1,79 +1,81 @@
 @php
-    $payload = $item?->generated_payload_json ?? [];
+    $draft = $item?->draft;
+    $payload = $draft?->normalized_output_json ?: ($item?->generated_payload_json ?? []);
+    $readiness ??= app(\App\Services\AI\ProductAiApplyReadiness::class)->resolve($draft);
+    $warnings = $readiness['soft_warnings'] ?? [];
+    $processed = $readiness['technical_processed'] ?? [];
+    $blockers = $readiness['hard_blockers'] ?? [];
 @endphp
 
-<div class="space-y-4 text-sm">
+<div class="space-y-5 text-sm">
     @if (! $item)
-        <p>Chưa có AI draft cho sản phẩm này. Hãy chạy Generate AI Content và đợi queue hoàn thành.</p>
+        <p>Chưa có bản nháp AI cho sản phẩm này.</p>
     @else
-        @if (! empty($payload['blocked_claims'] ?? []))
-            <div class="rounded border border-danger-200 bg-danger-50 p-3 text-danger-700">
-                <strong>Draft bị fact-check chặn:</strong>
-                {{ implode(', ', $payload['blocked_claims'] ?? []) }}
+        <section class="grid gap-3 rounded-lg border border-gray-200 p-4 sm:grid-cols-2">
+            <div><p class="text-xs font-medium uppercase text-gray-500">Trạng thái</p><p class="font-semibold">Bản nháp #{{ $draft?->id ?? '-' }} · {{ $draft?->approval_status ?? $item->canonical_status ?? $item->status }}</p></div>
+            <div><p class="text-xs font-medium uppercase text-gray-500">Điểm chất lượng</p><p class="font-semibold">{{ $item->seo_score_before ?? '-' }} → {{ $item->seo_score_after ?? '-' }}</p></div>
+            <div class="sm:col-span-2 flex flex-wrap gap-2">
+                <span class="rounded bg-warning-50 px-2 py-1 text-warning-700">Cảnh báo chất lượng: {{ count($warnings) }}</span>
+                <span class="rounded bg-info-50 px-2 py-1 text-info-700">Cảnh báo kỹ thuật đã xử lý: {{ count($processed) }}</span>
+                <span class="rounded bg-danger-50 px-2 py-1 text-danger-700">Hard blockers: {{ count($blockers) }}</span>
             </div>
+        </section>
+
+        @if ($blockers !== [])
+            <section class="rounded-lg border border-danger-300 bg-danger-50 p-4 text-danger-800">
+                <h3 class="font-semibold">Không thể áp dụng bản nháp này</h3>
+                <ul class="mt-2 list-disc space-y-1 pl-5">@foreach ($blockers as $blocker)<li>{{ $blocker['label'] }}</li>@endforeach</ul>
+            </section>
         @endif
 
-        @if (! empty($payload['blocked_product_data_fields'] ?? []))
-            <div class="rounded border border-warning-200 bg-warning-50 p-3 text-warning-800">
-                <strong>Field dữ liệu gốc bị bỏ qua:</strong>
-                {{ implode(', ', $payload['blocked_product_data_fields'] ?? []) }}
-            </div>
+        @if ($readiness['stale_target'] ?? false)
+            <section class="rounded-lg border border-warning-300 bg-warning-50 p-4 text-warning-800">
+                <h3 class="font-semibold">Sản phẩm đã được chỉnh sửa sau khi AI tạo bản nháp.</h3>
+                <p class="mt-1">Không thể ghi đè thay đổi mới. Hãy xem khác biệt hoặc tạo lại bản nháp.</p>
+            </section>
         @endif
 
-        <div>
-            <p><strong>Job item:</strong> #{{ $item->id }}</p>
-            <p><strong>Status:</strong> {{ $item->status }}</p>
-            <p><strong>Score:</strong> {{ $item->seo_score_before ?? '-' }} -> {{ $item->seo_score_after ?? '-' }}</p>
-            <p><strong>Warnings:</strong> {{ implode(', ', $item->warnings_json ?? []) ?: '-' }}</p>
-        </div>
-
-        <div class="rounded border border-gray-200 p-3">
-            <h3 class="font-semibold">Fields sẽ được apply</h3>
-            <p>short_description, long_description, seo_title, seo_description, og_title, og_description, merchant_title, merchant_description, tags, FAQ.</p>
-            <p class="mt-2"><strong>Không apply:</strong> name, slug, model, SKU, brand, category, giá, stock_status, technical specs, specs_json.</p>
-        </div>
-
-        <div>
-            <h3 class="font-semibold">Used verified facts</h3>
-            <p>{{ implode(', ', $payload['used_facts'] ?? []) ?: '-' }}</p>
-        </div>
-
-        <div>
-            <h3 class="font-semibold">Excerpt</h3>
-            <p>{{ $payload['excerpt'] ?? '-' }}</p>
-        </div>
-
-        <div>
-            <h3 class="font-semibold">SEO / OG / Merchant</h3>
-            <ul class="list-disc pl-5">
-                <li>SEO title: {{ $payload['seo_title'] ?? '-' }}</li>
-                <li>Meta: {{ $payload['meta_description'] ?? '-' }}</li>
-                <li>OG title: {{ $payload['og_title'] ?? '-' }}</li>
-                <li>OG description: {{ $payload['og_description'] ?? '-' }}</li>
-                <li>Merchant title: {{ $payload['merchant_title'] ?? '-' }}</li>
-                <li>Merchant description: {{ $payload['merchant_description'] ?? '-' }}</li>
-            </ul>
-        </div>
-
-        <div>
-            <h3 class="font-semibold">Tags</h3>
-            <p>{{ implode(', ', $payload['tags'] ?? []) ?: '-' }}</p>
-        </div>
-
-        <div>
-            <h3 class="font-semibold">FAQ</h3>
-            <ul class="list-disc pl-5">
-                @foreach (($payload['faq'] ?? []) as $faq)
-                    <li><strong>{{ $faq['question'] ?? '' }}</strong> {!! $faq['answer'] ?? '' !!}</li>
-                @endforeach
-            </ul>
-        </div>
-
-        <div>
-            <h3 class="font-semibold">Content HTML</h3>
-            <div class="max-h-96 overflow-auto rounded border p-3">
-                {!! $payload['content_html'] ?? '' !!}
+        <section class="space-y-4">
+            <h3 class="text-base font-semibold">Nội dung AI</h3>
+            @if (filled($payload['excerpt'] ?? null))
+                <div class="rounded-lg border border-gray-200 p-3"><h4 class="font-medium">Mô tả ngắn</h4><p class="mt-1">{{ $payload['excerpt'] }}</p></div>
+            @endif
+            @if (filled($payload['content_html'] ?? null))
+                <div class="rounded-lg border border-gray-200 p-3"><h4 class="font-medium">Nội dung dài</h4><div class="prose mt-2 max-h-80 max-w-none overflow-auto">{!! $payload['content_html'] !!}</div></div>
+            @endif
+            <div class="grid gap-3 md:grid-cols-2">
+                <div class="rounded-lg border border-gray-200 p-3">
+                    <h4 class="font-medium">SEO / Open Graph</h4>
+                    <p class="mt-1"><strong>SEO title:</strong> {{ $payload['seo_title'] ?? '-' }}</p><p><strong>Meta:</strong> {{ $payload['meta_description'] ?? '-' }}</p>
+                    <p><strong>OG title:</strong> {{ $payload['og_title'] ?? '-' }}</p><p><strong>OG description:</strong> {{ $payload['og_description'] ?? '-' }}</p>
+                </div>
+                <div class="rounded-lg border border-gray-200 p-3">
+                    <h4 class="font-medium">Google Merchant</h4><p class="mt-1"><strong>Title:</strong> {{ $payload['merchant_title'] ?? '-' }}</p><p><strong>Description:</strong> {{ $payload['merchant_description'] ?? '-' }}</p>
+                </div>
             </div>
-        </div>
+            @if (! empty($payload['faq'] ?? []))
+                <div class="rounded-lg border border-gray-200 p-3"><h4 class="font-medium">FAQ</h4><ul class="mt-2 space-y-2">@foreach ($payload['faq'] as $faq)<li><strong>{{ $faq['question'] ?? '' }}</strong><div>{!! $faq['answer'] ?? '' !!}</div></li>@endforeach</ul></div>
+            @endif
+        </section>
+
+        <section class="rounded-lg border border-gray-200 p-4">
+            <h3 class="font-semibold">Bản nháp AI sẽ cập nhật các trường sau</h3><p class="mt-2">{{ implode(', ', $readiness['field_labels'] ?? []) ?: 'Chưa có trường được duyệt để áp dụng.' }}</p>
+            <p class="mt-3 font-medium">Không thay đổi</p><p>{{ implode(', ', $readiness['protected_fields'] ?? []) }}</p>
+        </section>
+
+        @if ($warnings !== [])
+            <section class="rounded-lg border border-warning-200 bg-warning-50 p-4">
+                <h3 class="font-semibold text-warning-800">Cảnh báo cần operator xem xét</h3><ul class="mt-2 list-disc space-y-1 pl-5 text-warning-800">@foreach ($warnings as $warning)<li>{{ $warning['label'] }}</li>@endforeach</ul>
+            </section>
+        @endif
+
+        <details class="rounded-lg border border-gray-200 p-4">
+            <summary class="cursor-pointer font-semibold">Chi tiết kỹ thuật</summary>
+            <div class="mt-3 space-y-3 break-words text-xs text-gray-600">
+                <p><strong>Job item:</strong> #{{ $item->id }} · <strong>Job:</strong> #{{ $item->ai_product_job_id }}</p><p><strong>Trạng thái:</strong> {{ $item->canonical_status ?? $item->status }}</p>
+                <p><strong>Raw warning codes:</strong> {{ implode(', ', array_map(fn ($warning) => $warning['code'], array_merge($warnings, $processed, $blockers))) ?: '-' }}</p>
+                <p><strong>Used verified facts:</strong> {{ implode(', ', $payload['used_facts'] ?? []) ?: '-' }}</p>
+            </div>
+        </details>
     @endif
 </div>

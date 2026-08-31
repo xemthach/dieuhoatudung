@@ -14,6 +14,12 @@ class EditAiProductJob extends EditRecord
 {
     protected static string $resource = AiProductJobResource::class;
 
+    protected function getFormActions(): array
+    {
+        // Runtime records are projections and audit evidence, not editable CMS data.
+        return [];
+    }
+
     protected function getHeaderActions(): array
     {
         return [

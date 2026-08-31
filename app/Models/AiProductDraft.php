@@ -21,7 +21,11 @@ class AiProductDraft extends Model
             'token_usage_json' => 'array',
             'approved_identity_json' => 'array',
             'approved_fields_json' => 'array',
+            'warnings_at_approval' => 'array',
+            'warning_override' => 'boolean',
             'approved_at' => 'datetime',
+            'rejected_at' => 'datetime',
+            'discarded_at' => 'datetime',
             'applied_at' => 'datetime',
         ];
     }

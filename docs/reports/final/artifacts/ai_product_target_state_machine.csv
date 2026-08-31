@@ -1,0 +1,12 @@
+CONCERN,STATE,MEANING,ADMIN_ACTIONS,TERMINAL
+GENERATION,SUCCESS,Provider output parsed and persisted,Preview,YES
+GENERATION,FAILED,System provider parse or persistence failure,Retry when safe,YES
+QUALITY,PASS,No editorial warning,Approve or reject,YES
+QUALITY,WARNING,Usable output has editorial warnings,Approve with warning reject regenerate discard,YES
+QUALITY,ERROR,Hard technical safety violation,Inspect only,YES
+REVIEW,PENDING,Human decision required,Approve approve-with-warning reject regenerate discard,NO
+REVIEW,APPROVED,Explicit approval captured,Apply,YES
+REVIEW,REJECTED,Explicit rejection with reason captured,Regenerate,YES
+REVIEW,DISCARDED,Logical archive without evidence deletion,Regenerate,YES
+APPLY,NOT_APPLIED,Product remains unchanged,Apply approved draft,NO
+APPLY,APPLIED,Approved fields applied to same Product,Rollback under policy,YES

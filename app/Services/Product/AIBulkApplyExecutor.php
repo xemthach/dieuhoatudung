@@ -12,7 +12,7 @@ class AIBulkApplyExecutor
 {
     public function __construct(private readonly AIBulkApplyManifestService $manifests, private readonly AIProductDraftApplyService $applyService) {}
 
-    public function apply(string $applyBatchUuid, int $actorId, User $actor, int $chunkSize = 1, bool $injectFailure = false): array
+    public function apply(string $applyBatchUuid, int $actorId, User $actor, int $chunkSize = 1, bool $injectFailure = false, ?string $confirmation = null): array
     {
         if ($chunkSize < 1) throw new RuntimeException('INVALID_CHUNK_SIZE');
         app(\App\Services\AI\BulkRuntimeAuthorizationService::class)->requireApply($actor);
@@ -20,13 +20,17 @@ class AIBulkApplyExecutor
         if (! $this->manifests->verify($batch)) throw new RuntimeException('MANIFEST_TAMPERED');
         $items = $batch->items()->where('status', 'READY')->orderBy('id')->get();
         if ($items->isEmpty()) {
-            return ['status' => $batch->items()->where('status', 'APPLIED')->exists() ? 'NOOP_ALREADY_APPLIED' : 'NOOP_EMPTY'];
+            return ['status' => $batch->items()->where('status', 'APPLIED')->exists() ? 'NOOP_ALREADY_APPLIED' : 'NOOP_EMPTY', 'items' => []];
         }
+        $expected = 'APPLY '.$items->count().' PRODUCTS';
+        if (! is_string($confirmation) || trim($confirmation) !== $expected) {
+            throw new RuntimeException('BULK_APPLY_CONFIRMATION_REQUIRED');
+        }
+
         $results = [];
-        foreach ($items->chunk($chunkSize) as $chunkNo => $chunk) {
-            $results[] = DB::transaction(function () use ($batch, $chunk, $chunkNo, $actorId, $injectFailure): array {
-                $chunkResults = [];
-                foreach ($chunk->values() as $index => $item) {
+        foreach ($items as $index => $item) {
+            try {
+                $result = DB::transaction(function () use ($batch, $item, $index, $actorId, $injectFailure): array {
                     $draft = \App\Models\AiProductDraft::findOrFail($item->draft_id);
                     $product = $draft->product()->with(['tags', 'faqs'])->firstOrFail();
                     if (! hash_equals((string) $item->before_product_hash, $this->applyService->contentHash($product))) {
@@ -38,26 +42,48 @@ class AIBulkApplyExecutor
                     $snapshot = app(AIProductContentSystem::class)->contentSnapshot($product);
                     $snapshotId = DB::table('ai_bulk_apply_snapshots')->insertGetId([
                         'apply_batch_id' => $batch->id, 'apply_item_id' => $item->id, 'product_id' => $product->id,
-                        'chunk_no' => $chunkNo + 1, 'before_payload_json' => json_encode($snapshot, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+                        'chunk_no' => $index + 1, 'before_payload_json' => json_encode($snapshot, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
                         'before_hash' => $this->applyService->contentHash($product), 'status' => 'CAPTURED', 'created_at' => now(), 'updated_at' => now(),
                     ]);
-                    $result = $this->applyService->apply($draft, $actorId, false);
+                    $singleConfirmation = app(\App\Services\AI\SingleOperatorControlledRolloutPolicy::class)
+                        ->expectedApplyConfirmation(($product->model_code ?: 'UNKNOWN').'#'.$product->id);
+                    $result = $this->applyService->apply($draft, $actorId, false, $singleConfirmation);
                     DB::table('ai_bulk_apply_snapshots')->where('id', $snapshotId)->update(['after_hash' => $result['after_hash'], 'status' => 'APPLIED', 'updated_at' => now()]);
-                    $item->update(['status' => 'APPLIED', 'chunk_no' => $chunkNo + 1, 'reason' => null]);
-                    $chunkResults[] = $result;
-                    if ($injectFailure && $index === 1) throw new RuntimeException('CONTROLLED_CHUNK_FAILURE');
-                }
-                return $chunkResults;
-            });
+                    $item->update(['status' => 'APPLIED', 'chunk_no' => $index + 1, 'reason' => null]);
+                    if ($injectFailure && $index === 1) throw new RuntimeException('CONTROLLED_ITEM_FAILURE');
+
+                    return $result;
+                });
+                $results[] = [
+                    'product_id' => (int) $item->product_id,
+                    'draft_id' => (int) $item->draft_id,
+                    'result' => 'SUCCESS',
+                    'reason' => $result['result'] ?? 'APPLIED',
+                    'after_state' => 'APPLIED',
+                    'fields_applied' => $result['fields_applied'] ?? [],
+                ];
+            } catch (\Throwable $exception) {
+                $blocked = \Illuminate\Support\Str::contains($exception->getMessage(), ['STALE', 'BLOCK', 'CONFLICT', 'FORBIDDEN', 'CONFIRMATION']);
+                $item->update(['status' => $blocked ? 'BLOCKED' : 'FAILED', 'chunk_no' => $index + 1, 'reason' => $exception->getMessage()]);
+                $results[] = [
+                    'product_id' => (int) $item->product_id,
+                    'draft_id' => (int) $item->draft_id,
+                    'result' => $blocked ? 'BLOCKED' : 'FAILED',
+                    'reason' => $exception->getMessage(),
+                    'after_state' => 'APPROVED',
+                    'fields_applied' => [],
+                ];
+            }
         }
-        $batch->update(['status' => 'APPLIED']);
-        return ['status' => 'APPLIED', 'chunks' => $results];
+        $failed = collect($results)->whereIn('result', ['BLOCKED', 'FAILED'])->count();
+        $batch->update(['status' => $failed > 0 ? 'COMPLETED_PARTIAL' : 'APPLIED']);
+        return ['status' => $failed > 0 ? 'COMPLETED_PARTIAL' : 'APPLIED', 'items' => $results];
     }
 
-    public function applyAsActor(string $applyBatchUuid, User $actor, int $chunkSize = 1, bool $injectFailure = false): array
+    public function applyAsActor(string $applyBatchUuid, User $actor, int $chunkSize = 1, bool $injectFailure = false, ?string $confirmation = null): array
     {
         app(\App\Services\AI\BulkRuntimeAuthorizationService::class)->requireApply($actor);
-        return $this->apply($applyBatchUuid, (int) $actor->id, $actor, $chunkSize, $injectFailure);
+        return $this->apply($applyBatchUuid, (int) $actor->id, $actor, $chunkSize, $injectFailure, $confirmation);
     }
 
     public function rollbackItem(AiBulkApplyItem $item, User $actor): bool

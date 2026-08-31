@@ -83,10 +83,15 @@ final class SingleOperatorControlledRolloutPolicy
 
     public function assertExplicitApplyConfirmation(?string $confirmation, string $productLabel): void
     {
-        $expected = 'APPLY '.$productLabel;
+        $expected = $this->expectedApplyConfirmation($productLabel);
         if (! is_string($confirmation) || trim($confirmation) !== $expected) {
             throw new RuntimeException('APPLY_CONFIRMATION_REQUIRED');
         }
+    }
+
+    public function expectedApplyConfirmation(string $productLabel): string
+    {
+        return 'APPLY '.$productLabel;
     }
 
     public function assertExplicitRollbackConfirmation(?string $reason, ?string $confirmation, string $productLabel): void

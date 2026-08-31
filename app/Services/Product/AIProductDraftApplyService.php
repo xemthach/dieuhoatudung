@@ -11,6 +11,8 @@ use Illuminate\Support\Str;
 use RuntimeException;
 use App\Models\User;
 use App\Services\AI\SingleOperatorControlledRolloutPolicy;
+use App\Services\AI\AiProductWarningClassifier;
+use App\Services\AI\ProductAiApplyReadiness;
 
 /**
  * Explicit human-approved, content-layer-only draft application boundary.
@@ -51,9 +53,12 @@ class AIProductDraftApplyService
         ));
     }
 
-    public function approve(AiProductDraft $draft, int $approvedBy, User $actor, string $reviewNote = '', ?array $approvedFields = null): AiProductDraft
+    public function approve(AiProductDraft $draft, int $approvedBy, User $actor, string $reviewNote = '', ?array $approvedFields = null, bool $warningOverride = false): AiProductDraft
     {
         app(\App\Services\AI\BulkRuntimeAuthorizationService::class)->requireApprove($actor);
+        if ($approvedBy !== (int) $actor->getKey()) {
+            throw new RuntimeException('APPROVAL_ACTOR_MISMATCH');
+        }
         if (app(SingleOperatorControlledRolloutPolicy::class)->active()) {
             app(SingleOperatorControlledRolloutPolicy::class)->assertAction($actor, 'APPROVE');
         }
@@ -64,6 +69,14 @@ class AIProductDraftApplyService
         $payload = $this->payload($draft);
         $this->assertSafePayload($payload);
         $this->assertFactCheck($payload);
+        $warnings = array_values(array_filter(array_map('strval', (array) ($draft->warnings_json ?? []))));
+        $warningClassification = app(AiProductWarningClassifier::class)->classify($warnings, $payload);
+        if ($warningClassification['hard_blockers'] !== []) {
+            throw new RuntimeException('FACT_CHECK_BLOCKED: '.implode(', ', array_column($warningClassification['hard_blockers'], 'code')));
+        }
+        if ($warnings !== [] && ! $warningOverride) {
+            throw new RuntimeException('WARNING_OVERRIDE_CONFIRMATION_REQUIRED');
+        }
 
         $product = $draft->product()->with('brand')->firstOrFail();
         $fields = $approvedFields === null
@@ -77,7 +90,10 @@ class AIProductDraftApplyService
             'approved_by' => $approvedBy,
             'approved_at' => now(),
             'review_note' => $reviewNote,
+            'warning_override' => $warningOverride,
+            'warnings_at_approval' => $warnings,
             'approved_payload_hash' => $this->payloadHash($payload),
+            'approved_content_hash' => $this->contentHash($product),
             'approved_technical_context_hash' => $this->contentSystem->technicalContextHash($product),
             'approved_identity_json' => $identity,
             'approved_fields_json' => $fields,
@@ -86,18 +102,84 @@ class AIProductDraftApplyService
         return $draft->refresh();
     }
 
-    public function reject(AiProductDraft $draft, int $reviewer, string $note = ''): AiProductDraft
+    public function reject(AiProductDraft $draft, int $reviewer, string $note = '', ?User $actor = null): AiProductDraft
     {
+        $actor ??= User::findOrFail($reviewer);
+        app(\App\Services\AI\BulkRuntimeAuthorizationService::class)->requireApprove($actor);
+        if ($reviewer !== (int) $actor->getKey()) throw new RuntimeException('REJECTION_ACTOR_MISMATCH');
+        if (trim($note) === '') throw new RuntimeException('REJECTION_REASON_REQUIRED');
         if ($draft->approval_status === 'APPROVED_FOR_APPLY' || $draft->applied_at) {
             throw new RuntimeException('APPROVAL_ALREADY_COMMITTED');
         }
+        if (! in_array((string) $draft->status, ['needs_review', 'REVIEW_REQUIRED'], true)) {
+            throw new RuntimeException('DRAFT_NOT_REVIEWABLE');
+        }
 
         $draft->forceFill([
+            'status' => 'rejected',
             'approval_status' => 'REJECTED',
             'approved_by' => null,
             'approved_at' => null,
+            'rejected_by' => $reviewer,
+            'rejected_at' => now(),
             'review_note' => $note,
         ])->save();
+
+        return $draft->refresh();
+    }
+
+    public function discard(AiProductDraft $draft, int $reviewer, string $note, ?User $actor = null): AiProductDraft
+    {
+        $actor ??= User::findOrFail($reviewer);
+        app(\App\Services\AI\BulkRuntimeAuthorizationService::class)->requireApprove($actor);
+        if ($reviewer !== (int) $actor->getKey()) throw new RuntimeException('DISCARD_ACTOR_MISMATCH');
+        if ($draft->approval_status === 'APPROVED_FOR_APPLY' || $draft->applied_at) {
+            throw new RuntimeException('APPROVAL_ALREADY_COMMITTED');
+        }
+        if (! in_array((string) $draft->status, ['needs_review', 'REVIEW_REQUIRED'], true)) {
+            throw new RuntimeException('DRAFT_NOT_REVIEWABLE');
+        }
+        if (trim($note) === '') {
+            throw new RuntimeException('DISCARD_REASON_REQUIRED');
+        }
+
+        $draft->forceFill([
+            'status' => 'discarded',
+            'approval_status' => 'DISCARDED',
+            'approved_by' => null,
+            'approved_at' => null,
+            'discarded_by' => $reviewer,
+            'discarded_at' => now(),
+            'review_note' => $note,
+        ])->save();
+
+        return $draft->refresh();
+    }
+
+    public function supersedeForRegeneration(AiProductDraft $draft, User $actor): AiProductDraft
+    {
+        app(\App\Services\AI\BulkRuntimeAuthorizationService::class)->requireGenerate($actor);
+        if (! in_array((string) $draft->status, ['needs_review', 'REVIEW_REQUIRED'], true)) {
+            throw new RuntimeException('DRAFT_NOT_REVIEWABLE');
+        }
+
+        $draft->forceFill([
+            'status' => 'rejected',
+            'approval_status' => 'REJECTED',
+            'rejected_by' => $actor->getKey(),
+            'rejected_at' => now(),
+            'review_note' => 'Superseded by an explicit regenerate action',
+        ])->save();
+
+        $item = $draft->job?->items()->where('draft_id', $draft->id)->first();
+        if ($item) {
+            $item->forceFill([
+                'status' => 'completed',
+                'canonical_status' => 'DONE',
+                'status_reason' => 'SUPERSEDED_FOR_REGENERATION',
+                'finished_at' => now(),
+            ])->save();
+        }
 
         return $draft->refresh();
     }
@@ -145,6 +227,10 @@ class AIProductDraftApplyService
         if ($draft->approval_status !== 'APPROVED_FOR_APPLY') {
             throw new RuntimeException('DRAFT_NOT_APPROVED');
         }
+        $readiness = app(ProductAiApplyReadiness::class)->resolve($draft);
+        if ($readiness['hard_blockers'] !== []) {
+            throw new RuntimeException('FACT_CHECK_BLOCKED: '.implode(', ', array_column($readiness['hard_blockers'], 'code')));
+        }
         if (app(SingleOperatorControlledRolloutPolicy::class)->active()) {
             app(SingleOperatorControlledRolloutPolicy::class)->assertExplicitApplyConfirmation($confirmation, $this->productLabel($draft));
         }
@@ -162,6 +248,9 @@ class AIProductDraftApplyService
         if (! $this->sameIdentity($this->identity($product), (array) ($draft->approved_identity_json ?? []))) {
             throw new RuntimeException('PRODUCT_IDENTITY_MISMATCH');
         }
+        if (! $draft->approved_content_hash || ! hash_equals((string) $draft->approved_content_hash, $this->contentHash($product))) {
+            throw new RuntimeException('STALE_PRODUCT_CONTENT');
+        }
         $this->assertSafePayload($payload);
         $this->assertFactCheck($payload);
 
@@ -170,7 +259,22 @@ class AIProductDraftApplyService
         $versionId = null;
         $afterHash = null;
 
-        DB::transaction(function () use ($draft, $actorId, $product, $payload, $fields, $beforeHash, $currentContext, $injectFailure, &$versionId, &$afterHash): void {
+        try {
+            DB::transaction(function () use ($draft, $actorId, $product, $payload, $fields, $beforeHash, $currentContext, $injectFailure, &$versionId, &$afterHash): void {
+            $lockedDraft = AiProductDraft::query()->whereKey($draft->id)->lockForUpdate()->firstOrFail();
+            if ($lockedDraft->applied_at) {
+                throw new RuntimeException('NOOP_ALREADY_APPLIED');
+            }
+            Product::query()->whereKey($product->id)->lockForUpdate()->firstOrFail();
+            $draft->refresh();
+            $product->refresh()->load(['brand', 'tags', 'faqs']);
+            if ($draft->approval_status !== 'APPROVED_FOR_APPLY') {
+                throw new RuntimeException('DRAFT_NOT_APPROVED');
+            }
+            if (! hash_equals((string) $draft->approved_content_hash, $this->contentHash($product))) {
+                throw new RuntimeException('STALE_PRODUCT_CONTENT');
+            }
+
             $version = AiProductContentVersion::create([
                 'product_id' => $product->id,
                 'old_excerpt' => $product->short_description,
@@ -227,7 +331,42 @@ class AIProductDraftApplyService
                 'approval_status' => 'APPLIED',
                 'applied_by' => $actorId,
                 'applied_at' => now(),
+                'field_status_json' => collect((array) $draft->field_status_json)
+                    ->map(fn ($status, $field) => in_array((string) $field, $fields, true) ? 'APPLIED' : $status)
+                    ->all(),
             ])->save();
+
+            $item = $draft->job?->items()->where('draft_id', $draft->id)->lockForUpdate()->first();
+            if ($item) {
+                $fieldStates = collect((array) $item->field_status_json)
+                    ->map(fn ($status, $field) => in_array((string) $field, $fields, true) ? 'APPLIED' : $status)
+                    ->all();
+                $item->forceFill([
+                    'status' => 'completed',
+                    'canonical_status' => 'DONE',
+                    'status_reason' => 'APPLIED',
+                    'field_status_json' => $fieldStates,
+                    'finished_at' => now(),
+                ])->save();
+            }
+
+            if ($draft->job) {
+                $draft->job->forceFill([
+                    'status' => 'completed',
+                    'processed' => max((int) $draft->job->processed, (int) $draft->job->total),
+                    'success' => max((int) $draft->job->success, 1),
+                    'needs_review' => 0,
+                    'finished_at' => now(),
+                ])->save();
+            }
+
+            $timestamps = $product->timestamps;
+            $product->timestamps = false;
+            try {
+                $product->forceFill(['ai_status' => 'applied', 'ai_last_run_at' => now()])->save();
+            } finally {
+                $product->timestamps = $timestamps;
+            }
 
             if (DB::getSchemaBuilder()->hasTable('ai_product_draft_apply_audits')) {
                 AiProductDraftApplyAudit::create([
@@ -243,7 +382,13 @@ class AIProductDraftApplyService
                     'result' => 'APPLIED',
                 ]);
             }
-        });
+            });
+        } catch (RuntimeException $e) {
+            if ($e->getMessage() === 'NOOP_ALREADY_APPLIED') {
+                return ['result' => 'NOOP_ALREADY_APPLIED', 'fields_applied' => $draft->approved_fields_json ?? [], 'before_hash' => '', 'after_hash' => null, 'version_id' => null];
+            }
+            throw $e;
+        }
 
         return ['result' => 'APPLIED', 'fields_applied' => $fields, 'before_hash' => $beforeHash, 'after_hash' => $afterHash, 'version_id' => $versionId];
     }

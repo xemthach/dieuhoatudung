@@ -115,6 +115,12 @@ class AiProductContentSingleJob implements ShouldQueue
         if ($strictDraftOnly) {
             \App\Services\AI\DraftOnlyWriteGuard::begin('queued_draft_only_strict');
         }
+        // A queue retry may re-enter after the previous attempt recorded FAILED.
+        // Re-open the canonical state through QUEUED before entering RUNNING;
+        // never bypass the state machine with a direct FAILED -> RUNNING jump.
+        if ($item && $item->canonical_status === AIJobStateMachine::FAILED) {
+            AIJobStateMachine::transition($item->refresh(), AIJobStateMachine::QUEUED, 'queue_retry');
+        }
         $this->updateItem($item, [
             'status' => 'processing',
             'module' => 'ai_product_content',
@@ -304,6 +310,12 @@ class AiProductContentSingleJob implements ShouldQueue
             'finished_at' => now(),
             ...$technical,
         ]);
+        if ($item) {
+            $item->refresh();
+            if ($item->canonical_status !== AIJobStateMachine::FAILED) {
+                AIJobStateMachine::transition($item, AIJobStateMachine::FAILED, $technical['last_error_code'] ?? 'queue_job_failed');
+            }
+        }
 
         $strictDraftOnly = (bool) ($job?->config_json['draft_only_strict'] ?? false);
         if (! $strictDraftOnly) {
@@ -385,13 +397,28 @@ class AiProductContentSingleJob implements ShouldQueue
     private function refreshJobStats(AiProductJob $job): void
     {
         $completedStatuses = ['completed', 'completed_verified', 'completed_with_warnings'];
-        $processed = $job->items()->whereIn('status', array_merge($completedStatuses, ['failed', 'needs_review', 'blocked']))->count();
+        $terminalStatuses = array_merge($completedStatuses, ['failed', 'needs_review', 'blocked', 'cancelled']);
+        $processed = $job->items()->whereIn('status', $terminalStatuses)->count();
         $success = $job->items()->whereIn('status', $completedStatuses)->count();
         $failed = $job->items()->whereIn('status', ['failed', 'blocked'])->count();
         $needsReview = $job->items()->where('status', 'needs_review')->count();
-        $status = $processed >= $job->total
-            ? ($failed > 0 ? 'completed_with_errors' : 'completed')
-            : 'processing';
+        $cancelled = $job->items()->where('status', 'cancelled')->count();
+        $terminal = $processed >= $job->total;
+        $status = ! $terminal
+            ? 'processing'
+            : ($failed > 0 || ($cancelled > 0 && $success > 0)
+                ? 'completed_with_errors'
+                : ($needsReview > 0
+                    ? 'needs_review'
+                    : ($cancelled > 0 ? 'cancelled' : 'completed')));
+        $canonicalStatus = AIJobStateMachine::fromLegacy($status);
+        $statusReason = match ($canonicalStatus) {
+            AIJobStateMachine::FAILED => 'ITEM_FAILURE',
+            AIJobStateMachine::REVIEW_REQUIRED => 'ITEM_REVIEW_REQUIRED',
+            AIJobStateMachine::CANCELLED => 'ITEMS_CANCELLED',
+            AIJobStateMachine::DONE => 'ALL_ITEMS_DONE',
+            default => 'ITEMS_ACTIVE',
+        };
 
         $job->update([
             'processed' => $processed,
@@ -399,9 +426,12 @@ class AiProductContentSingleJob implements ShouldQueue
             'failed' => $failed,
             'needs_review' => $needsReview,
             'status' => $status,
-            'finished_at' => $processed >= $job->total ? now() : null,
+            'canonical_status' => $canonicalStatus,
+            'status_reason' => $statusReason,
+            'state_changed_at' => now(),
+            'finished_at' => $terminal ? now() : null,
         ]);
-        if ($processed >= $job->total && \Illuminate\Support\Facades\Schema::hasTable('ai_bulk_runtime_batches') && $job->batch_uuid) {
+        if ($terminal && \Illuminate\Support\Facades\Schema::hasTable('ai_bulk_runtime_batches') && $job->batch_uuid) {
             $runtime = \App\Models\AiBulkRuntimeBatch::where('batch_uuid', $job->batch_uuid)->first();
             if ($runtime && ! in_array($runtime->status, ['PAUSED', 'CANCELLED'], true)) {
                 $runtime->update(['status' => $failed > 0 ? 'COMPLETED_WITH_ERRORS' : 'COMPLETED', 'status_reason' => $failed > 0 ? 'ITEM_FAILURE' : null]);

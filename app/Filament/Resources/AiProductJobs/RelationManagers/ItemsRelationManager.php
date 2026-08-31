@@ -7,9 +7,11 @@ use Filament\Schemas\Schema;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
+use Filament\Actions\Action;
 use Illuminate\Database\Eloquent\Builder;
 use App\Services\AI\BulkRuntimeAuthorizationService;
 use App\Services\AI\AiContentStatusPresenter;
+use App\Filament\Resources\Products\ProductResource;
 
 class ItemsRelationManager extends RelationManager
 {
@@ -102,6 +104,22 @@ class ItemsRelationManager extends RelationManager
                         'needs_review' => 'Cần duyệt',
                         'failed' => 'Thất bại',
                     ]),
+            ])
+            ->recordActions([
+                Action::make('view_draft')
+                    ->label('Xem bản nháp')
+                    ->icon('heroicon-o-eye')
+                    ->visible(fn ($record): bool => filled($record->draft_id))
+                    ->modalHeading('Bản nháp AI')
+                    ->modalSubmitAction(false)
+                    ->modalCancelActionLabel('Đóng')
+                    ->modalContent(fn ($record) => view('filament.product-ai-preview', [
+                        'item' => $record->loadMissing('draft'),
+                    ])),
+                Action::make('review_product')
+                    ->label('Mở Product để duyệt')
+                    ->icon('heroicon-o-arrow-top-right-on-square')
+                    ->url(fn ($record): string => ProductResource::getUrl('edit', ['record' => $record->product_id])),
             ]);
     }
 

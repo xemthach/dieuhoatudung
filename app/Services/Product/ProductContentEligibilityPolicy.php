@@ -74,12 +74,17 @@ final class ProductContentEligibilityPolicy
 
     private function hasActiveConflict(Product $product, ?int $currentJobItemId = null): bool
     {
-        $draftStatuses = ['draft', 'needs_review', 'approved', 'approved_for_apply', 'applying', 'applied'];
-        if (Schema::hasTable('ai_product_drafts') && AiProductDraft::query()->where('product_id', $product->id)->whereIn('status', $draftStatuses)->exists()) {
+        $draftStatuses = ['draft', 'needs_review', 'approved', 'approved_for_apply', 'applying'];
+        if (Schema::hasTable('ai_product_drafts') && AiProductDraft::query()
+            ->where('product_id', $product->id)
+            ->whereIn('status', $draftStatuses)
+            ->whereNull('applied_at')
+            ->whereNotIn('approval_status', ['REJECTED', 'DISCARDED', 'APPLIED'])
+            ->exists()) {
             return true;
         }
 
-        if (Schema::hasTable('ai_bulk_apply_items') && DB::table('ai_bulk_apply_items')->where('product_id', $product->id)->whereIn('status', ['pending', 'authorized', 'applying', 'applied'])->exists()) {
+        if (Schema::hasTable('ai_bulk_apply_items') && DB::table('ai_bulk_apply_items')->where('product_id', $product->id)->whereIn('status', ['pending', 'authorized', 'applying'])->exists()) {
             return true;
         }
 

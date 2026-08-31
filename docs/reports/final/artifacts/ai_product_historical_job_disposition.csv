@@ -1,0 +1,5 @@
+JOB_ID,ITEM_ID,PRODUCT_ID,STATUS,EVIDENCE,DISPOSITION,RECLASSIFIED
+56,178,1319,FAILED,"Usable draft 12; 11 field states; 5537 total tokens; old content-too-short behavior",HISTORICAL_ONLY_NO_AUTOMATIC_RETRY,NO
+58,180,1319,BLOCKED,"No provider call; zero tokens; false duplicate against terminal failed request",HISTORICAL_BLOCK_EVIDENCE,NO
+59,181,1319,BLOCKED,"Real provider; draft 13; hard ambiguous capacity claims; 5432 total tokens",HARD_TECHNICAL_BLOCK_KEEP,NO
+60,182,1320,NEEDS_REVIEW,"Real provider; draft 14; editorial warnings; 5740 total tokens",OPERATOR_REVIEW_PENDING,NO

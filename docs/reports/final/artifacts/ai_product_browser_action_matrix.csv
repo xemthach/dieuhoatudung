@@ -1,0 +1,15 @@
+ACTION,TEST_DATA,BROWSER_INTERACTION,EXPECTED,ACTUAL,PRODUCT_MUTATED,ACTOR_AUDIT,STATUS
+GENERATE,Existing real-provider Job 60,Product Edit Generate through managed queue,REVIEW_REQUIRED draft without Product write,Job 60 and draft 14 preserved as prior authorized browser proof,NO,created_by retained,PASS
+PREVIEW,Isolated review draft,Open Product Edit and Xem bản nháp AI,Generated fields visible,Content SEO Merchant FAQ and OG visible,NO,N/A,PASS
+APPROVE,Isolated clean draft,Click Duyệt nội dung AI and confirm,Approved but not applied,APPROVED_FOR_APPLY with approved_by and approved_at,NO,YES,PASS
+APPROVE_WARNING,Isolated warning draft,Click Duyệt kèm cảnh báo and confirm,Warning evidence retained,warning_override true and warning snapshot retained,NO,YES,PASS
+REJECT,Isolated review draft,Enter required reason and reject,Logical rejected terminal state,REJECTED with rejected_by rejected_at and reason,NO,YES,PASS
+REGENERATE,Isolated review draft,Click Tạo lại bản nháp AI,Old evidence retained and new operation created,Old draft rejected as superseded and new item identity created,NO,YES,PASS
+DISCARD,Isolated review draft,Enter required note and discard,Logical discard only,DISCARDED with discarded_by discarded_at and original evidence retained,NO,YES,PASS
+APPLY,Isolated approved draft,Preview and confirm Apply,Approved fields applied to same Product,Same Product ID and count with expected content hash change,YES_EXPECTED,applied_by retained,PASS
+DOUBLE_APPLY,Already applied isolated draft,Reload and attempt repeat workflow,No second side effect,Apply action absent and service idempotency regression remains PASS,NO_ADDITIONAL,original audit retained,PASS
+STALE_APPLY,Approved draft then manual Product edit,Attempt Apply,Safe conflict without overwrite,STALE_PRODUCT_CONTENT and no applied_at,NO,approval retained,PASS
+DUPLICATE_GENERATE,Product with reviewable draft,Click normal Generate and submit,No useless blocked job,Latest job and item IDs unchanged,NO,N/A,PASS
+HARD_FACT_BLOCK,Isolated blocked fact-check draft,Inspect Product and job detail,No soft override or Apply,Blocked reason visible and review/apply actions absent,NO,N/A,PASS
+JOB_DETAIL,Isolated blocked job,Open AI Product Job detail,System-managed truthful diagnostics,No generic Save and readable status/reason,NO,N/A,PASS
+PANEL_STATES,Isolated state fixtures,Open Product Edit for canonical states,Truthful badge message and actions,NOT_GENERATED PROCESSING FAILED BLOCKED APPLIED verified,NO,N/A,PASS

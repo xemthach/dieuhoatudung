@@ -1,0 +1,17 @@
+ACTION_ID,GROUP,SCOPE,AUTHORIZATION,MUTATION,ASYNC,MANIFEST_OR_LEDGER,STATUS,NOTES
+ai_bulk_review,AI Product System,checked_records,bulk_ai_view|bulk_ai_approve|bulk_ai_apply,NO,NO,preflight_only,PASS,Read-only state and eligibility preview.
+ai_bulk_approve,AI Product System,checked_records,bulk_ai_approve,YES,NO,product_bulk_operations,PASS,Soft warnings require explicit override; hard blockers fail closed.
+ai_bulk_reject,AI Product System,checked_records,bulk_ai_approve,YES,NO,product_bulk_operations,PASS,Reason required; evidence is retained.
+ai_bulk_discard,AI Product System,checked_records,bulk_ai_approve,YES,NO,product_bulk_operations,PASS,Logical discard only; no job/draft deletion.
+ai_bulk_regenerate,AI Product System,checked_records,product.ai_generate,YES,YES,product_bulk_operations+ai_product_job_manifest,PASS,Creates a fresh operation identity and governed queue job.
+ai_bulk_apply,AI Product System,checked_records,bulk_ai_apply,YES,NO,product_bulk_operations+ai_bulk_apply_manifest,PASS,Typed batch confirmation; per-item stale/fact/allowlist gates.
+ai_generate_content,AI Product System,selected/current_page/filter,product.ai_generate,YES,YES,ai_product_job_manifest,PASS,Existing governed draft-only generation.
+ai_rewrite_weak,AI Product System,selected/current_page/filter,product.ai_generate,YES,YES,ai_product_job_manifest,PASS,Existing governed draft-only generation.
+ai_audit_seo,AI Product System,selected/current_page/filter,product.ai_generate,YES,YES,ai_product_job_manifest,PASS,Existing governed audit action.
+ai_generate_merchant,AI Product System,selected/current_page/filter,product.ai_generate,YES,YES,ai_product_job_manifest,PASS,Existing governed draft-only generation.
+ai_generate_faq,AI Product System,selected/current_page/filter,product.ai_generate,YES,YES,ai_product_job_manifest,PASS,Existing governed draft-only generation.
+ai_generate_tags,AI Product System,selected/current_page/filter,product.ai_generate,YES,YES,ai_product_job_manifest,PASS,Existing governed draft-only generation.
+ai_retry_selected_failed,REMOVED,legacy_product_history,product.ai_generate,YES,YES,NONE,REMOVED,Could retry non-current historical failed rows; replaced by canonical regenerate preflight.
+export_selected_products,Data,checked_records,product.export|super_admin,NO,YES,export_job,PASS,Selected-record export only.
+tag_attach_detach,Tag,checked_records,existing_Filament_policy,YES,NO,NONE,EXISTING,Outside AI scope; retains current Filament confirmation semantics.
+delete_restore_force_delete,Destructive,checked_records,existing_Filament_policy,YES,NO,NONE,EXISTING,Outside AI scope; existing Filament destructive actions.

@@ -38,7 +38,7 @@ final class AIJobStateMachine
     {
         $from = (string) ($model->canonical_status ?: self::fromLegacy($model->status ?? null));
         $allowed = [
-            self::QUEUED => [self::RUNNING, self::VALIDATING, self::CANCELLED, self::BLOCKED],
+            self::QUEUED => [self::RUNNING, self::VALIDATING, self::FAILED, self::CANCELLED, self::BLOCKED],
             self::RUNNING => [self::QUEUED, self::VALIDATING, self::FAILED, self::BLOCKED, self::CANCELLED],
             self::VALIDATING => [self::FACT_CHECKING, self::FAILED, self::BLOCKED],
             self::FACT_CHECKING => [self::REVIEW_REQUIRED, self::DONE, self::FAILED, self::BLOCKED],

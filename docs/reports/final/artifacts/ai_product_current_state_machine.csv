@@ -1,0 +1,10 @@
+STATE,MEANING,ENTER_CONDITION,EXIT_CONDITION,PROVIDER_CALLED,DRAFT_EXISTS,ADMIN_ACTIONS,TERMINAL
+QUEUED,Queued for governed worker,Explicit authorized generation,Worker claim or cancel,NO,NO,Cancel,NO
+RUNNING,Worker is generating,Worker claim,Provider output or runtime failure,MAYBE,NO,Recovery only,NO
+VALIDATING,Provider output is normalized,Provider output received,Fact check or hard failure,YES,MAYBE,None,NO
+FACT_CHECKING,Technical claims are checked,Normalized payload,Review or hard block,YES,YES,None,NO
+REVIEW_REQUIRED,Usable draft awaits human decision,Generation succeeds with or without editorial warnings,Approve reject regenerate or discard,YES,YES,Preview approve reject regenerate discard,YES
+DONE,Generation completed without review requirement,Validation completed,No transition,YES,MAYBE,View,YES
+FAILED,System provider parse persistence or unrecoverable processing failure,Hard runtime failure,Explicit retry creates QUEUED transition,MAYBE,MAYBE,Retry when classified safe,YES
+BLOCKED,Concurrency business or technical safety gate denied progression,Eligibility or fact check block,Cancel or explicit recovery depending code,MAYBE,MAYBE,View reason,YES
+CANCELLED,Operator cancelled queued or stuck work,Explicit authorized cancellation,No transition,NO,MAYBE,View history,YES

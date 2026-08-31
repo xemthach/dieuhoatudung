@@ -7,3 +7,5 @@ Open Graph,og,og_title/og_description,og_title/og_description,og_title/og_descri
 Merchant,merchant,merchant_title/merchant_description,merchant_title/merchant_description,merchant_title/merchant_description,fieldStatus,merchant_title/merchant_description
 FAQ,faq,faq,faq,faqs relation,validatePayload + fieldStatus,faqs relation
 Tags,tags,tags,tags,tags relation,fieldStatus,tags relation
+Internal links,internal_links,internal_links,internal_links,related content suggestions,InternalLinkSuggestionService,validated suggestion mapping
+Media metadata,content,media_metadata,media_metadata,none,fieldStatus,not applied to Product identity/media

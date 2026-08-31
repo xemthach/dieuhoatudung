@@ -151,3 +151,18 @@ Live 50-item classification, live provider-response correlation and browser cert
 A second, single controlled call was dispatched through `ai_governed` and claimed by the managed worker. The worker and application were both `1.31.1`, `UP_TO_DATE`, and the request log was retained as ID `239`. The real response was accepted by the gateway/parser, reported `4553` total provider tokens, and produced `CONTENT_TOO_SHORT: 376/800`. The item persisted a failed draft (`draft_id=9`), provider metadata, and validation evidence; the temporary Product, job, item, and draft were then removed after the evidence was captured. No Product or catalog mutation remained. The call ledger is `artifacts/ai_product_real_provider_test_ledger.csv`.
 
 No bulk retry, historical mutation, catalog mutation, history deletion, commit, tag, or push was performed for this audit. One authorized real-provider probe was performed as documented above.
+
+## Current superseding certification — 2026-08-30
+
+The earlier `PARTIAL / STOP` chronology above is preserved. Current code/runtime evidence is superseded by `AI_PRODUCT_MODULE_FULL_CERTIFICATION_REPORT.md`:
+
+- real Product Edit provider flow now reaches `needs_review / REVIEW_REQUIRED` with a persisted previewable draft;
+- `CONTENT_TOO_SHORT` is advisory when usable output exists;
+- hard technical fact-check remains blocking;
+- terminal historical failures no longer create false `DUPLICATE_IN_PROGRESS` for a new explicit operation;
+- retry and parent canonical-state reconciliation regressions are fixed;
+- Product review exposes preview, approve-with-warning, reject, regenerate, logical discard, and approved Apply;
+- full PHPUnit is 487 tests, 486 passed, 1 skipped, 3,004 assertions, 0 failures/errors;
+- ordinary Playwright is 9 passed, 1 intentional provider skip; the separately authorized real-provider browser test is 1 passed.
+
+Current module verdict is `PARTIAL`, not `STOP`: generation/runtime is working, while the complete browser action/RBAC matrix remains pending. No commit/tag/push was performed.

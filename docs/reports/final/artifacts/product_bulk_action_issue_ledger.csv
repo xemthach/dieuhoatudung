@@ -1,0 +1,3 @@
+ISSUE_ID,SYMPTOM,ROOT_CAUSE,FIX,VERIFICATION,STATUS
+BULK-ROLLOUT-001,Disposable browser actor could not mutate while rollout was enabled,The canonical single-operator policy correctly permits only configured user ID 1,Browser certification authenticates as local configured operator without changing policy or operator ID,Playwright 2 passed; focused authorization tests passed,CLOSED
+BULK-PHPUNIT-001,Previous full-suite runner did not return a final summary,Terminal wrapper output was not retained,Captured full suite to a project log and separate exit-code file,513 tests 512 passed 1 skipped 3182 assertions exit 0,CLOSED

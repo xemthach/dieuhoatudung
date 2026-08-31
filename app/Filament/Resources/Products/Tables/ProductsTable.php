@@ -7,9 +7,11 @@ use App\Jobs\AiProductContentSingleJob;
 use App\Jobs\AiProductContentBatchJob;
 use App\Services\AI\ProductBulkGenerationManifest;
 use App\Services\AI\ProductBulkTargetResolver;
+use App\Services\AI\SingleOperatorControlledRolloutPolicy;
 use App\Services\AI\AiContentStatusPresenter;
 use App\Services\AI\AiProductContentStateResolver;
 use App\Services\AI\AIWorkerReadinessService;
+use App\Services\AI\ProductAiBulkWorkflowService;
 use App\Services\Media\MediaDiskService;
 use App\Models\AiProductJob;
 use App\Models\AiProductJobItem;
@@ -33,6 +35,7 @@ use Filament\Forms\Components\CheckboxList;
 use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\Textarea;
 use Filament\Notifications\Notification;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\ImageColumn;
@@ -334,6 +337,12 @@ class ProductsTable
             ->bulkActions([
                 BulkActionGroup::make([
                     BulkActionGroup::make([
+                        self::aiBulkReviewAction(),
+                        self::aiBulkApproveAction(),
+                        self::aiBulkRejectAction(),
+                        self::aiBulkDiscardAction(),
+                        self::aiBulkRegenerateAction(),
+                        self::aiBulkApplyAction(),
                         self::aiBulkAction('ai_generate_content', 'Generate AI Content', 'heroicon-o-sparkles', 'generate_ai_content', [
                             'content', 'seo', 'merchant', 'tags', 'faq', 'internal_links', 'og',
                         ]),
@@ -350,34 +359,6 @@ class ProductsTable
                         self::aiBulkAction('ai_generate_tags', 'Generate Tags', 'heroicon-o-hashtag', 'generate_tags', [
                             'tags',
                         ]),
-                        BulkAction::make('ai_retry_selected_failed')
-                            ->label('Retry selected failed')
-                            ->icon('heroicon-o-arrow-path')
-                            ->color('warning')
-                            ->visible(fn () => auth()->user()?->can('product.ai_generate') ?? false)
-                            ->requiresConfirmation()
-                            ->action(function (Collection $records) {
-                                abort_unless(auth()->user()?->can('product.ai_generate'), 403);
-
-                                $items = AiProductJobItem::query()
-                                    ->whereIn('product_id', $records->pluck('id')->all())
-                                    ->whereIn('status', ['failed', 'stuck', 'cancelled'])
-                                    ->latest('id')
-                                    ->get();
-                                $count = self::retryAiProductItems($items);
-
-                                Log::info('AI product retry selected payload', [
-                                    'source' => 'products_bulk_action',
-                                    'selected_product_count' => $records->count(),
-                                    'selected_product_ids_sample' => $records->pluck('id')->take(25)->values()->all(),
-                                    'item_count' => $count,
-                                ]);
-
-                                Notification::make()
-                                    ->title($count > 0 ? "Đã retry {$count} AI item" : 'Không có AI item lỗi để retry')
-                                    ->status($count > 0 ? 'success' : 'warning')
-                                    ->send();
-                            }),
                     ])->label('AI Product System')->icon('heroicon-o-cpu-chip'),
 
                     BulkActionGroup::make([
@@ -854,6 +835,255 @@ class ProductsTable
                 $notification->send();
             })
             ->deselectRecordsAfterCompletion();
+    }
+
+    private static function aiBulkReviewAction(): BulkAction
+    {
+        return BulkAction::make('ai_bulk_review')
+            ->label("Duy\u{1EC7}t n\u{1ED9}i dung AI")
+            ->icon('heroicon-o-clipboard-document-check')
+            ->color('gray')
+            ->visible(fn (): bool => (bool) (auth()->user()?->can('bulk_ai_view')
+                || auth()->user()?->can('bulk_ai_approve')
+                || auth()->user()?->can('bulk_ai_apply')))
+            ->modalHeading("Ki\u{1EC3}m tra tr\u{01B0}\u{1EDB}c n\u{1ED9}i dung AI \u{0111}\u{00E3} ch\u{1ECD}n")
+            ->modalWidth('7xl')
+            ->modalSubmitAction(false)
+            ->modalCancelActionLabel("\u{0110}\u{00F3}ng")
+            ->modalContent(fn (Collection $records) => view('filament.product-ai-bulk-preflight', [
+                'preflight' => app(ProductAiBulkWorkflowService::class)->preflight($records->pluck('id')->all()),
+                'mode' => 'review',
+            ]))
+            ->action(static fn (): null => null);
+    }
+
+    private static function aiBulkApproveAction(): BulkAction
+    {
+        return BulkAction::make('ai_bulk_approve')
+            ->label("Duy\u{1EC7}t c\u{00E1}c b\u{1EA3}n nh\u{00E1}p")
+            ->icon('heroicon-o-check-badge')
+            ->color('success')
+            ->visible(fn (): bool => auth()->user()?->can('bulk_ai_approve') ?? false)
+            ->disabled(fn (): bool => ! self::canRunBulkAiMutation('APPROVE'))
+            ->tooltip(fn (): ?string => self::bulkAiMutationBlockMessage('APPROVE'))
+            ->modalHeading("Duy\u{1EC7}t b\u{1EA3}n nh\u{00E1}p AI \u{0111}\u{00E3} ch\u{1ECD}n")
+            ->modalWidth('7xl')
+            ->modalSubmitActionLabel("Duy\u{1EC7}t c\u{00E1}c b\u{1EA3}n nh\u{00E1}p \u{0111}\u{1EE7} \u{0111}i\u{1EC1}u ki\u{1EC7}n")
+            ->modalContent(fn (Collection $records) => view('filament.product-ai-bulk-preflight', [
+                'preflight' => app(ProductAiBulkWorkflowService::class)->preflight($records->pluck('id')->all()),
+                'mode' => 'approve',
+            ]))
+            ->form(fn (Collection $records): array => [
+                self::bulkProductSelection($records, "Ch\u{1ECD}n b\u{1EA3}n nh\u{00E1}p s\u{1EBD} duy\u{1EC7}t", 'ready_to_approve'),
+                Checkbox::make('warning_override')
+                    ->label("T\u{00F4}i \u{0111}\u{00E3} xem c\u{1EA3}nh b\u{00E1}o ch\u{1EA5}t l\u{01B0}\u{1EE3}ng v\u{00E0} v\u{1EAB}n mu\u{1ED1}n duy\u{1EC7}t c\u{00E1}c b\u{1EA3}n nh\u{00E1}p c\u{00F3} soft warning."),
+                Textarea::make('reason')->label("Ghi ch\u{00FA} duy\u{1EC7}t")->maxLength(1000),
+            ])
+            ->action(function (Collection $records, array $data, mixed $livewire): void {
+                self::runAiBulkWorkflow(ProductAiBulkWorkflowService::ACTION_APPROVE, $records, $data, $livewire);
+            });
+    }
+
+    private static function aiBulkRejectAction(): BulkAction
+    {
+        return BulkAction::make('ai_bulk_reject')
+            ->label("T\u{1EEB} ch\u{1ED1}i b\u{1EA3}n nh\u{00E1}p")
+            ->icon('heroicon-o-x-circle')
+            ->color('danger')
+            ->visible(fn (): bool => auth()->user()?->can('bulk_ai_approve') ?? false)
+            ->disabled(fn (): bool => ! self::canRunBulkAiMutation('APPROVE'))
+            ->tooltip(fn (): ?string => self::bulkAiMutationBlockMessage('APPROVE'))
+            ->modalHeading("T\u{1EEB} ch\u{1ED1}i b\u{1EA3}n nh\u{00E1}p AI")
+            ->modalWidth('5xl')
+            ->modalSubmitActionLabel("T\u{1EEB} ch\u{1ED1}i c\u{00E1}c b\u{1EA3}n nh\u{00E1}p \u{0111}\u{1EE7} \u{0111}i\u{1EC1}u ki\u{1EC7}n")
+            ->form(fn (Collection $records): array => [
+                self::bulkProductSelection($records, "Ch\u{1ECD}n b\u{1EA3}n nh\u{00E1}p s\u{1EBD} t\u{1EEB} ch\u{1ED1}i", 'ready_to_review'),
+                Textarea::make('reason')->label("L\u{00FD} do t\u{1EEB} ch\u{1ED1}i")->required()->minLength(3)->maxLength(1000),
+            ])
+            ->requiresConfirmation()
+            ->action(function (Collection $records, array $data, mixed $livewire): void {
+                self::runAiBulkWorkflow(ProductAiBulkWorkflowService::ACTION_REJECT, $records, $data, $livewire);
+            });
+    }
+
+    private static function aiBulkDiscardAction(): BulkAction
+    {
+        return BulkAction::make('ai_bulk_discard')
+            ->label("Lo\u{1EA1}i b\u{1ECF} b\u{1EA3}n nh\u{00E1}p")
+            ->icon('heroicon-o-archive-box-x-mark')
+            ->color('danger')
+            ->visible(fn (): bool => auth()->user()?->can('bulk_ai_approve') ?? false)
+            ->disabled(fn (): bool => ! self::canRunBulkAiMutation('APPROVE'))
+            ->tooltip(fn (): ?string => self::bulkAiMutationBlockMessage('APPROVE'))
+            ->modalHeading("Lo\u{1EA1}i b\u{1ECF} logic b\u{1EA3}n nh\u{00E1}p AI")
+            ->modalDescription("Draft, job, token v\u{00E0} provider evidence v\u{1EAB}n \u{0111}\u{01B0}\u{1EE3}c gi\u{1EEF} nguy\u{00EA}n.")
+            ->modalWidth('5xl')
+            ->form(fn (Collection $records): array => [
+                self::bulkProductSelection($records, "Ch\u{1ECD}n b\u{1EA3}n nh\u{00E1}p s\u{1EBD} lo\u{1EA1}i b\u{1ECF}", 'ready_to_review'),
+                Textarea::make('reason')->label("L\u{00FD} do lo\u{1EA1}i b\u{1ECF}")->required()->minLength(3)->maxLength(1000),
+            ])
+            ->requiresConfirmation()
+            ->action(function (Collection $records, array $data, mixed $livewire): void {
+                self::runAiBulkWorkflow(ProductAiBulkWorkflowService::ACTION_DISCARD, $records, $data, $livewire);
+            });
+    }
+
+    private static function aiBulkRegenerateAction(): BulkAction
+    {
+        return BulkAction::make('ai_bulk_regenerate')
+            ->label("T\u{1EA1}o l\u{1EA1}i n\u{1ED9}i dung AI")
+            ->icon('heroicon-o-arrow-path')
+            ->color('warning')
+            ->visible(fn (): bool => auth()->user()?->can('product.ai_generate') ?? false)
+            ->disabled(fn (): bool => ! self::canRunBulkAiMutation('GENERATE'))
+            ->tooltip(fn (): ?string => self::bulkAiMutationBlockMessage('GENERATE'))
+            ->modalHeading("T\u{1EA1}o l\u{1EA1}i n\u{1ED9}i dung AI")
+            ->modalWidth('7xl')
+            ->modalSubmitActionLabel("G\u{1EED}i c\u{00E1}c y\u{00EA}u c\u{1EA7}u \u{0111}\u{1EE7} \u{0111}i\u{1EC1}u ki\u{1EC7}n")
+            ->modalContent(fn (Collection $records) => view('filament.product-ai-bulk-preflight', [
+                'preflight' => app(ProductAiBulkWorkflowService::class)->preflight($records->pluck('id')->all()),
+                'mode' => 'regenerate',
+            ]))
+            ->form(fn (Collection $records): array => [
+                self::bulkProductSelection($records, "Ch\u{1ECD}n s\u{1EA3}n ph\u{1EA9}m s\u{1EBD} t\u{1EA1}o l\u{1EA1}i", 'regenerate_available'),
+                CheckboxList::make('outputs')
+                    ->label("Tr\u{01B0}\u{1EDD}ng c\u{1EA7}n t\u{1EA1}o")
+                    ->options([
+                        'content' => "N\u{1ED9}i dung", 'seo' => 'SEO', 'merchant' => 'Merchant',
+                        'tags' => 'Tags', 'faq' => 'FAQ', 'internal_links' => "Li\u{00EA}n k\u{1EBF}t n\u{1ED9}i b\u{1ED9}", 'og' => 'Open Graph',
+                    ])
+                    ->default(['content', 'seo', 'merchant', 'tags', 'faq', 'internal_links', 'og'])
+                    ->columns(2),
+            ])
+            ->requiresConfirmation()
+            ->action(function (Collection $records, array $data, mixed $livewire): void {
+                self::runAiBulkWorkflow(ProductAiBulkWorkflowService::ACTION_REGENERATE, $records, $data, $livewire);
+            });
+    }
+
+    private static function aiBulkApplyAction(): BulkAction
+    {
+        return BulkAction::make('ai_bulk_apply')
+            ->label("\u{00C1}p d\u{1EE5}ng n\u{1ED9}i dung \u{0111}\u{00E3} duy\u{1EC7}t")
+            ->icon('heroicon-o-cloud-arrow-up')
+            ->color('primary')
+            ->visible(fn (): bool => auth()->user()?->can('bulk_ai_apply') ?? false)
+            ->disabled(fn (): bool => ! self::canRunBulkAiMutation('APPLY'))
+            ->tooltip(fn (): ?string => self::bulkAiMutationBlockMessage('APPLY'))
+            ->modalHeading("\u{00C1}p d\u{1EE5}ng n\u{1ED9}i dung AI \u{0111}\u{00E3} duy\u{1EC7}t")
+            ->modalWidth('7xl')
+            ->modalSubmitActionLabel("X\u{00E1}c nh\u{1EAD}n \u{00E1}p d\u{1EE5}ng")
+            ->modalContent(fn (Collection $records) => view('filament.product-ai-bulk-preflight', [
+                'preflight' => app(ProductAiBulkWorkflowService::class)->preflight($records->pluck('id')->all()),
+                'mode' => 'apply',
+            ]))
+            ->form(fn (Collection $records): array => self::bulkApplyForm($records))
+            ->action(function (Collection $records, array $data, mixed $livewire): void {
+                self::runAiBulkWorkflow(ProductAiBulkWorkflowService::ACTION_APPLY, $records, $data, $livewire);
+            });
+    }
+
+    private static function canRunBulkAiMutation(string $action): bool
+    {
+        $actor = auth()->user();
+        if (! $actor) {
+            return false;
+        }
+
+        $policy = app(SingleOperatorControlledRolloutPolicy::class);
+        if (! $policy->active()) {
+            return true;
+        }
+
+        try {
+            $policy->assertAction($actor, $action);
+
+            return true;
+        } catch (\RuntimeException) {
+            return false;
+        }
+    }
+
+    private static function bulkAiMutationBlockMessage(string $action): ?string
+    {
+        if (self::canRunBulkAiMutation($action)) {
+            return null;
+        }
+
+        $policy = app(SingleOperatorControlledRolloutPolicy::class);
+        if ($policy->active()) {
+            return "Ch\u{1EC9} operator \u{0111}\u{01B0}\u{1EE3}c ch\u{1EC9} \u{0111}\u{1ECB}nh m\u{1EDB}i c\u{00F3} th\u{1EC3} th\u{1EF1}c hi\u{1EC7}n thao t\u{00E1}c AI trong \u{0111}\u{1EE3}t rollout n\u{00E0}y.";
+        }
+
+        return "B\u{1EA1}n kh\u{00F4}ng c\u{00F3} quy\u{1EC1}n th\u{1EF1}c hi\u{1EC7}n thao t\u{00E1}c n\u{00E0}y.";
+    }
+
+    private static function bulkProductSelection(Collection $records, string $label, ?string $eligibleFlag = null): CheckboxList
+    {
+        $preflight = app(ProductAiBulkWorkflowService::class)->preflight($records->pluck('id')->all());
+        $options = collect($preflight['rows'])->mapWithKeys(fn (array $row): array => [
+            (string) $row['product_id'] => $row['product_name'].' Â· '.$row['state']
+                .($row['soft_warning_count'] ? " Â· {$row['soft_warning_count']} cáº£nh bÃ¡o" : '')
+                .($row['hard_blocker_count'] ? " Â· {$row['hard_blocker_count']} blocker" : ''),
+        ])->all();
+
+        $default = $eligibleFlag
+            ? collect($preflight['rows'])->filter(fn (array $row): bool => (bool) ($row[$eligibleFlag] ?? false))->pluck('product_id')->map(fn ($id): string => (string) $id)->all()
+            : array_keys($options);
+
+        return CheckboxList::make('product_ids')
+            ->label($label)
+            ->options($options)
+            ->default($default)
+            ->columns(1)
+            ->required();
+    }
+
+    private static function bulkApplyForm(Collection $records): array
+    {
+        $preflight = app(ProductAiBulkWorkflowService::class)->preflight($records->pluck('id')->all());
+        $ready = collect($preflight['rows'])->where('ready_to_apply', true);
+        $expected = app(ProductAiBulkWorkflowService::class)->expectedApplyConfirmation($ready->count());
+        $selection = self::bulkProductSelection($records, "Ch\u{1ECD}n s\u{1EA3}n ph\u{1EA9}m s\u{1EBD} \u{00E1}p d\u{1EE5}ng");
+        $selection->default($ready->pluck('product_id')->map(fn ($id): string => (string) $id)->all());
+
+        return [
+            $selection,
+            TextInput::make('confirmation')
+                ->label("M\u{00E3} x\u{00E1}c nh\u{1EAD}n \u{00E1}p d\u{1EE5}ng")
+                ->helperText("Nh\u{1EAD}p ch\u{00ED}nh x\u{00E1}c: {$expected}. Kh\u{00F4}ng thay \u{0111}\u{1ED5}i SKU, gi\u{00E1}, danh m\u{1EE5}c ho\u{1EB7}c th\u{00F4}ng s\u{1ED1} k\u{1EF9} thu\u{1EAD}t.")
+                ->required(),
+        ];
+    }
+
+    private static function runAiBulkWorkflow(string $action, Collection $records, array $data, mixed $livewire): void
+    {
+        $recordIds = $records->pluck('id')->map(fn ($id): int => (int) $id)->all();
+        $requestedIds = array_values(array_intersect(
+            $recordIds,
+            array_map('intval', (array) ($data['product_ids'] ?? $recordIds)),
+        ));
+        $selectionMode = (bool) ($livewire->isTrackingDeselectedTableRecords ?? false)
+            ? ProductBulkTargetResolver::ALL_MATCHING
+            : ProductBulkTargetResolver::SELECTED;
+        $result = app(ProductAiBulkWorkflowService::class)->execute(
+            $action,
+            $requestedIds,
+            auth()->user(),
+            $data,
+            $selectionMode,
+            [
+                'table_filters' => $livewire->tableFilters ?? [],
+                'table_search' => $livewire->tableSearch ?? null,
+            ],
+        );
+        $summary = $result['summary'];
+        Notification::make()
+            ->title("{$action}: {$summary['success']}/{$summary['selected']} th\u{00E0}nh c\u{00F4}ng")
+            ->body("B\u{1ECF} qua {$summary['skipped']} \u{00B7} B\u{1ECB} ch\u{1EB7}n {$summary['blocked']} \u{00B7} Th\u{1EA5}t b\u{1EA1}i {$summary['failed']} \u{00B7} Operation {$result['operation']->operation_uuid}")
+            ->status(($summary['failed'] + $summary['blocked']) > 0 ? 'warning' : 'success')
+            ->persistent()
+            ->send();
     }
 
     public static function aiConfigForm(

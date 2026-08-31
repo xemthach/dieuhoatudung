@@ -35,6 +35,10 @@ final class AiProductContentStateResolver
             return $this->result('REJECTED', $item, $draft, false, false, false, null);
         }
 
+        if ($draft?->approval_status === 'DISCARDED' || $draft?->status === 'discarded') {
+            return $this->result('DISCARDED', $item, $draft, false, false, false, null);
+        }
+
         $raw = (string) ($item->canonical_status ?: $item->status ?: 'NOT_GENERATED');
         $normalized = app(AiContentStatusPresenter::class)->normalize($raw);
         $reviewable = $draft !== null
