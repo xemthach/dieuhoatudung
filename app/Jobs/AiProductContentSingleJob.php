@@ -57,6 +57,7 @@ class AiProductContentSingleJob implements ShouldQueue
             $allowed = $actor && ($actor->can('bulk_ai_generate') || $actor->can('product.ai_generate'));
             if (! $allowed || ($permitted !== [] && ! in_array((int) $product->id, array_map('intval', $permitted), true))) {
                 $this->updateItem($item, ['status' => 'blocked', 'canonical_status' => AIJobStateMachine::BLOCKED, 'status_reason' => 'BLOCKED_PERMISSION_REVOKED', 'last_error_code' => 'BLOCKED_PERMISSION_REVOKED', 'finished_at' => now()]);
+                $this->logTerminalOutcome($technicalLogger, $item?->refresh(), $job, $product);
                 $this->refreshJobStats($job?->refresh());
                 return;
             }
@@ -83,6 +84,7 @@ class AiProductContentSingleJob implements ShouldQueue
                 'draft_id' => $isDone ? $existing->draft_id : null,
             ]);
             $this->refreshJobStats($job?->refresh());
+            $this->logTerminalOutcome($technicalLogger, $item?->refresh(), $job, $product);
 
             return;
         }
@@ -108,6 +110,7 @@ class AiProductContentSingleJob implements ShouldQueue
                 'status_reason' => 'DUPLICATE_IN_PROGRESS',
             ]);
             $this->refreshJobStats($job?->refresh());
+            $this->logTerminalOutcome($technicalLogger, $item?->refresh(), $job, $product);
 
             return;
         }
@@ -234,6 +237,7 @@ class AiProductContentSingleJob implements ShouldQueue
                 'error' => $message,
             ]);
         } finally {
+            $this->logTerminalOutcome($technicalLogger, $item?->refresh(), $job, $product);
             if (isset($runtime) && is_array($runtime)) {
                 $runtimeBatch = $runtime['batch'];
                 $item?->refresh();
@@ -447,5 +451,36 @@ class AiProductContentSingleJob implements ShouldQueue
         return (is_array($decoded) && ! empty($decoded['is_rate_limit']))
             || str_contains($message, '429')
             || stripos($message, 'rate limit') !== false;
+    }
+
+    private function logTerminalOutcome(
+        AITechnicalLogger $logger,
+        ?AiProductJobItem $item,
+        ?AiProductJob $job,
+        Product $product,
+    ): void {
+        if (! $item) return;
+
+        $canonical = strtoupper((string) ($item->canonical_status ?: AIJobStateMachine::fromLegacy((string) $item->status)));
+        $event = match ($canonical) {
+            AIJobStateMachine::BLOCKED => 'item_blocked',
+            AIJobStateMachine::FAILED => 'item_failed',
+            AIJobStateMachine::REVIEW_REQUIRED => 'item_review_required',
+            AIJobStateMachine::DONE => 'item_completed',
+            AIJobStateMachine::CANCELLED => 'item_cancelled',
+            default => null,
+        };
+        if (! $event) return;
+
+        $logger->event('ai_product_content', $event, 'AI product item reached a terminal or actionable state.', [
+            'job_id' => $job?->id,
+            'item_id' => $item->id,
+            'product_id' => $product->id,
+            'reason_code' => $item->status_reason ?: $item->last_error_code ?: $item->failed_reason,
+            'guard_code' => $item->last_error_code ?: $item->status_reason,
+            'stage' => $canonical,
+            'provider_called' => (bool) data_get($item->token_usage_json, 'provider_called', ((int) $item->tokens_used) > 0),
+            'draft_id' => $item->draft_id,
+        ], $item, in_array($canonical, [AIJobStateMachine::BLOCKED, AIJobStateMachine::FAILED], true) ? 'warning' : 'info');
     }
 }

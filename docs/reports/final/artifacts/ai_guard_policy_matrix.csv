@@ -1,0 +1,10 @@
+RULE,CONFIGURABLE_MODES,DEFAULT,LOCKED,ADMIN_FIELD,RUNTIME_EFFECT
+CONTENT_TOO_SHORT,"BLOCK|WARN|IGNORE",WARN,NO,ai_guard_policy__CONTENT_TOO_SHORT,"BLOCK stops; WARN review; IGNORE omits operator warning but retains diagnostics"
+MISSING_H2_H3,"BLOCK|WARN|IGNORE",WARN,NO,ai_guard_policy__MISSING_H2_H3,"Field/content validation"
+MISSING_SEO,"BLOCK|WARN|IGNORE",WARN,NO,ai_guard_policy__MISSING_SEO,"SEO validation"
+MISSING_MERCHANT,"BLOCK|WARN|IGNORE",WARN,NO,ai_guard_policy__MISSING_MERCHANT,"Merchant validation"
+MISSING_FAQ,"BLOCK|WARN|IGNORE",WARN,NO,ai_guard_policy__MISSING_FAQ,"FAQ validation"
+TECHNICAL_FACT_SAFETY,BLOCK,BLOCK,YES,disabled_read_only,"Cannot be weakened by setting or crafted request"
+AUTHORIZATION,BLOCK,BLOCK,YES,disabled_read_only,"Server-side gate"
+STALE_AND_CONCURRENCY,BLOCK,BLOCK,YES,disabled_read_only,"No stale overwrite or duplicate work"
+PARSER_AND_SCHEMA_INTEGRITY,BLOCK,BLOCK,YES,disabled_read_only,"No invalid payload continuation"

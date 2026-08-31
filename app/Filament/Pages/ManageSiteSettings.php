@@ -321,6 +321,20 @@ class ManageSiteSettings extends Page
                     ]),
 
                     /* ── Tab 6: Cloudflare R2 ── */
+                    Tabs\Tab::make('AI Guard Policy')->icon('heroicon-o-shield-check')->schema([
+                        \Filament\Schemas\Components\Section::make('Chính sách kiểm tra AI Product')
+                            ->description('BLOCK dừng luồng; WARN vẫn tạo draft để duyệt; IGNORE không ảnh hưởng kết quả nhưng bằng chứng kỹ thuật vẫn được giữ.')
+                            ->schema([
+                                Select::make('ai_guard_policy__CONTENT_TOO_SHORT')->label('Nội dung ngắn hơn khuyến nghị')->options($this->guardModeOptions())->default('WARN')->required(),
+                                Select::make('ai_guard_policy__MISSING_H2_H3')->label('Thiếu cấu trúc H2/H3')->options($this->guardModeOptions())->default('WARN')->required(),
+                                Select::make('ai_guard_policy__MISSING_SEO')->label('Thiếu nội dung SEO')->options($this->guardModeOptions())->default('WARN')->required(),
+                                Select::make('ai_guard_policy__MISSING_MERCHANT')->label('Thiếu nội dung Merchant')->options($this->guardModeOptions())->default('WARN')->required(),
+                                Select::make('ai_guard_policy__MISSING_FAQ')->label('Thiếu FAQ')->options($this->guardModeOptions())->default('WARN')->required(),
+                                TextInput::make('ai_guard_locked_fact')->label('Xung đột thông số kỹ thuật')->default('Bắt buộc — BLOCK')->disabled()->dehydrated(false),
+                                TextInput::make('ai_guard_locked_integrity')->label('Quyền, stale target, duplicate và Apply integrity')->default('Bắt buộc — BLOCK')->disabled()->dehydrated(false),
+                            ])->columns(2),
+                    ]),
+
                     Tabs\Tab::make('R2 Storage')->icon('heroicon-o-cloud')->schema([
                         \Filament\Schemas\Components\Section::make('Trạng thái R2')
                             ->description('Bật/tắt Cloudflare R2 Storage cho toàn hệ thống. Khi TẮT, hệ thống dùng local disk.')
@@ -805,6 +819,7 @@ class ManageSiteSettings extends Page
                 ->label('Lưu cấu hình')
                 ->icon('heroicon-o-document-check')
                 ->color('primary')
+                ->visible(fn (): bool => auth()->user()?->can('settings.edit') ?? false)
                 ->action('saveSettings'),
 
             Action::make('clear_cache')
@@ -894,6 +909,7 @@ class ManageSiteSettings extends Page
 
     public function saveSettings(SettingService $svc): void
     {
+        abort_unless(auth()->user()?->can('settings.edit'), 403);
         // CRITICAL: Use getState() to trigger Filament's beforeStateDehydrated
         // hooks on all schema components. This is what moves TemporaryUploadedFile
         // objects from livewire-tmp/ to their permanent disk location (branding/)
@@ -917,6 +933,7 @@ class ManageSiteSettings extends Page
             }
 
             $type = is_array($value) ? 'json' : (is_bool($value) ? 'boolean' : 'text');
+            $oldValue = $group === 'ai_guard_policy' ? $svc->get($settingKey, null, $group) : null;
             $svc->set(
                 $settingKey,
                 is_array($value) ? $value : (is_bool($value) ? ($value ? '1' : '0') : (string) $value),
@@ -924,10 +941,25 @@ class ManageSiteSettings extends Page
                 $isEncrypted,
                 $type
             );
+            if ($group === 'ai_guard_policy' && (string) $oldValue !== (string) $value) {
+                app(\App\Services\AI\AITechnicalLogger::class)->event('ai_guard_policy', 'policy_changed', 'AI guard policy changed.', [
+                    'guard_code' => $settingKey,
+                    'old_value' => $oldValue,
+                    'new_value' => $value,
+                    'actor_id' => auth()->id(),
+                    'policy_version' => 'ai-guard-policy-v1',
+                ]);
+            }
         }
 
         $svc->clearAllCache();
 
         Notification::make()->title('Đã lưu cấu hình. Cache đã được xóa.')->success()->send();
+    }
+
+    /** @return array<string,string> */
+    private function guardModeOptions(): array
+    {
+        return ['BLOCK' => 'Chặn', 'WARN' => 'Cảnh báo', 'IGNORE' => 'Bỏ qua'];
     }
 }

@@ -13,6 +13,7 @@ use App\Models\Tag;
 use App\Models\User;
 use App\Services\AI\AIContentGovernance;
 use App\Services\AI\AIContentPatchService;
+use App\Services\AI\AiGuardPolicy;
 use App\Services\AI\AIJobStateMachine;
 use App\Services\AI\Governance\ForbiddenClaimEngine;
 use App\Services\AI\AIManager;
@@ -116,6 +117,7 @@ class AIProductContentSystem
     private AITechnicalLogger $technicalLogger;
     private ProductTechnicalFactResolver $technicalFacts;
     private AIContentStructureValidator $structureValidator;
+    private AiGuardPolicy $guardPolicy;
 
     public function __construct(
         private readonly AIManager $aiManager,
@@ -125,11 +127,13 @@ class AIProductContentSystem
         ?AITechnicalLogger $technicalLogger = null,
         ?ProductTechnicalFactResolver $technicalFacts = null,
         ?AIContentStructureValidator $structureValidator = null,
+        ?AiGuardPolicy $guardPolicy = null,
     ) {
         $this->governance = $governance ?? app(AIContentGovernance::class);
         $this->technicalLogger = $technicalLogger ?? app(AITechnicalLogger::class);
         $this->technicalFacts = $technicalFacts ?? app(ProductTechnicalFactResolver::class);
         $this->structureValidator = $structureValidator ?? app(AIContentStructureValidator::class);
+        $this->guardPolicy = $guardPolicy ?? app(AiGuardPolicy::class);
     }
 
     public function normalizeConfig(array $config): array
@@ -399,6 +403,20 @@ class AIProductContentSystem
         );
         $payload['warnings'] = $warnings;
         $payload['blocked_claims'] = $this->normalizeIssueList($payload['blocked_claims'] ?? [], $factCheck['blocked_claims']);
+        $guardDiagnostics = [];
+        $effectiveWarnings = [];
+        foreach ($payload['warnings'] as $warning) {
+            $decision = $this->guardPolicy->evaluate((string) $warning);
+            $guardDiagnostics[] = $decision + ['issue' => (string) $warning];
+            if ($decision['effect'] === AiGuardPolicy::BLOCK) {
+                $payload['blocked_claims'][] = (string) $warning;
+            } elseif ($decision['effect'] === AiGuardPolicy::WARN) {
+                $effectiveWarnings[] = (string) $warning;
+            }
+        }
+        $payload['warnings'] = $warnings = $this->normalizeIssueList($effectiveWarnings);
+        $payload['blocked_claims'] = $this->normalizeIssueList($payload['blocked_claims']);
+        $payload['guard_diagnostics'] = $guardDiagnostics;
         $payload['used_facts'] = $factCheck['used_facts'];
         $payload['fact_check'] = $factCheck;
         $payload['governance_context'] = $this->governance->publicContext($guardContext);
@@ -414,6 +432,8 @@ class AIProductContentSystem
             'job_id' => $job?->id,
             'prompt_version' => $guardContext['prompt_version'] ?? null,
             'technical_context_hash' => $this->technicalContextHash($product),
+            'guard_policy_version' => data_get($job?->config_json, 'guard_policy_version', $this->guardPolicy->version()),
+            'guard_policy_snapshot' => data_get($job?->config_json, 'guard_policy_snapshot', $this->guardPolicy->snapshot()),
         ];
         $draft = $this->persistDraft($product, $job, $item, $rawPayload, $payload, $fieldStatus, $validationErrors, $warnings, $tokenUsage, 'draft');
         foreach ($fieldStatus as $fieldName => $statusForField) {
@@ -465,6 +485,10 @@ class AIProductContentSystem
                     'seo_score_before' => $before['score'],
                     'seo_score_after' => $before['score'],
                     'warnings_json' => $warnings,
+                    // The job-item detail/UI reads structured evidence from this column.
+                    // Persist it on the terminal hard-fact path as well, otherwise a
+                    // BLOCKED item can incorrectly render as having zero hard blockers.
+                    'validation_errors' => $validationErrors,
                     'error_message' => $message,
                     'generated_payload_json' => $payload,
                     'tokens_used' => (int) ($result['tokens_used'] ?? 0),
@@ -1686,6 +1710,9 @@ class AIProductContentSystem
         ];
 
         foreach ($blockedClaims as $claim) {
+            if ($this->guardPolicy->evaluate((string) $claim)['effect'] === AiGuardPolicy::BLOCK) {
+                return true;
+            }
             foreach ($criticalPrefixes as $prefix) {
                 if (str_starts_with($claim, $prefix) || $claim === $prefix) {
                     return true;

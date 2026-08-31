@@ -12,6 +12,7 @@ use App\Services\AI\AiContentStatusPresenter;
 use App\Services\AI\AiProductContentStateResolver;
 use App\Services\AI\AIWorkerReadinessService;
 use App\Services\AI\ProductAiBulkWorkflowService;
+use App\Services\AI\ProductAiGenerationReadiness;
 use App\Services\Media\MediaDiskService;
 use App\Models\AiProductJob;
 use App\Models\AiProductJobItem;
@@ -796,7 +797,32 @@ class ProductsTable
                     return;
                 }
 
+                $preflight = app(ProductAiGenerationReadiness::class)->resolveMany(
+                    $productIds,
+                    [\App\Services\Product\ProductContentEligibilityPolicy::LONG_DESCRIPTION],
+                );
+                if ($preflight['blocked'] > 0) {
+                    app(\App\Services\AI\AITechnicalLogger::class)->event('ai_product_preflight', 'generation_preflight_blocked', 'Selected generation excluded Products with mandatory blockers.', [
+                        'selected' => $preflight['selected'],
+                        'ready' => $preflight['ready'],
+                        'blocked' => $preflight['blocked'],
+                        'blocked_products' => collect($preflight['rows'])->filter(fn (array $row): bool => ! $row['can_generate'])->map(fn (array $row): array => [
+                            'product_id' => $row['product_id'],
+                            'guard_codes' => array_column($row['mandatory_blockers'], 'code'),
+                        ])->values()->all(),
+                        'actor_id' => auth()->id(),
+                    ], null, 'warning');
+                }
+                $productIds = $preflight['ready_ids'];
+                if ($productIds === []) {
+                    Notification::make()->title('Không có sản phẩm sẵn sàng tạo AI')
+                        ->body('Không tạo job vì tất cả mục đã bị chặn ở preflight.')->warning()->persistent()->send();
+                    return;
+                }
+
                 $config = self::normalizeAiActionData($data, $action);
+                $config['guard_policy_version'] = app(\App\Services\AI\AiGuardPolicy::class)->version();
+                $config['guard_policy_snapshot'] = app(\App\Services\AI\AiGuardPolicy::class)->snapshot();
                 $job = AiProductJob::create(array_merge([
                     'type' => $action,
                     'scope' => $data['scope'] ?? 'selected',
@@ -824,7 +850,7 @@ class ProductsTable
                 $worker = app(AIWorkerReadinessService::class)->snapshot();
                 $notification = Notification::make()
                     ->title('Đã đưa AI Product Job vào queue')
-                    ->body("Job #{$job->id} sẽ xử lý ".count($productIds)." sản phẩm. {$worker['message']}")
+                    ->body("Job #{$job->id} sẽ xử lý ".count($productIds)." sản phẩm; preflight loại {$preflight['blocked']}. {$worker['message']}")
                     ->status($worker['ready'] ? 'success' : 'warning')
                     ->persistent();
                 if (! $worker['ready'] && auth()->user()?->can('ai_worker.manage')) {

@@ -1,0 +1,8 @@
+ISSUE_ID,SEVERITY,SYMPTOM,ROOT_CAUSE,FIX,TEST,STATUS
+AI-GUARD-001,HIGH,"No central configurable editorial guard policy","Decisions spread across validators","AiGuardPolicy with versioned snapshot and locked safety families",AiGuardPolicyTest,CLOSED
+AI-GUARD-002,HIGH,"Known blockers could create useless job rows","Readiness was evaluated after dispatch in legacy entry points","Shared ProductAiGenerationReadiness in single and bulk entry points",ProductAiGenerationReadinessTest,CLOSED
+AI-GUARD-003,HIGH,"BLOCKED UI showed zero hard blockers","Hard fact branch did not persist validation_errors","Persist structured critical and warning evidence",AIProductContentSystemTest,CLOSED
+AI-GUARD-004,CRITICAL,"Verified facts were invisible to validator","Prompt use_for_ai allowlist was reused as validator authority filter","Separate prompt exposure from full verified registry",AIGovernanceRuleEngineTest,CLOSED
+AI-GUARD-005,HIGH,"Valid 2400-9900 BTU range and 9200 BTU rated value blocked","Range/ambiguity semantic handling incomplete","Range classification plus unique verified rated-capacity resolution",AIGovernanceThreeLayerTest,CLOSED
+AI-GUARD-006,MEDIUM,"Legacy category capacity_btu regression","New schema key technical_capacity_btu lacked compatibility alias","Accept either schema key for rated capacity",CategoryTechnicalSchemaBuilderTest,CLOSED
+AI-GUARD-007,LOW,"Local scheduler/watchdog offline","Local environment does not run production scheduler",Document deployment gate; queue path independently certified,ai:queue-health,OPEN_NON_BLOCKING_LOCAL_LIMITATION

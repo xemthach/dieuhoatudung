@@ -23,8 +23,14 @@ final class ProductContentEligibilityPolicy
     public function evaluate(Product $product, string|array $scope = self::LONG_DESCRIPTION): array
     {
         $currentJobItemId = $this->currentJobItemId($scope);
+        $supersededDraftId = $this->supersededDraftId($scope);
+        $knownActiveConflict = $this->knownActiveConflict($scope);
         if (is_array($scope)) {
-            $scope = array_values(array_diff_key($scope, ['_current_job_item_id' => true]));
+            $scope = array_values(array_diff_key($scope, [
+                '_current_job_item_id' => true,
+                '_superseded_draft_id' => true,
+                '_active_conflict' => true,
+            ]));
         }
         $scopes = is_array($scope) ? array_values(array_unique($scope)) : [$scope];
         $reasons = [];
@@ -40,7 +46,7 @@ final class ProductContentEligibilityPolicy
         if ((! $identity['name'] && ! $identity['model_code']) || ! $identity['brand_or_context']) {
             $reasons[] = 'MINIMUM_PRODUCT_IDENTITY_INSUFFICIENT';
         }
-        if ($this->hasActiveConflict($product, $currentJobItemId)) {
+        if (($knownActiveConflict ?? $this->hasActiveConflict($product, $currentJobItemId, $supersededDraftId))) {
             $reasons[] = 'ACTIVE_DRAFT_OR_APPLY_CONFLICT';
         }
 
@@ -72,11 +78,63 @@ final class ProductContentEligibilityPolicy
             : null;
     }
 
-    private function hasActiveConflict(Product $product, ?int $currentJobItemId = null): bool
+    private function supersededDraftId(string|array $scope): ?int
+    {
+        return is_array($scope) && ! empty($scope['_superseded_draft_id'])
+            ? (int) $scope['_superseded_draft_id']
+            : null;
+    }
+
+    private function knownActiveConflict(string|array $scope): ?bool
+    {
+        return is_array($scope) && array_key_exists('_active_conflict', $scope)
+            ? (bool) $scope['_active_conflict']
+            : null;
+    }
+
+    /**
+     * Resolve active conflicts for a whole bulk selection with bounded queries.
+     * The excluded IDs are the current evidence being intentionally superseded.
+     *
+     * @return array<int,true>
+     */
+    public function activeConflictProductIds(array $productIds, array $excludedDraftIds = [], array $excludedItemIds = []): array
+    {
+        $ids = array_values(array_unique(array_map('intval', $productIds)));
+        if ($ids === []) return [];
+
+        $conflicts = [];
+        if (Schema::hasTable('ai_product_drafts')) {
+            foreach (AiProductDraft::query()
+                ->whereIn('product_id', $ids)
+                ->when($excludedDraftIds !== [], fn ($query) => $query->whereNotIn('id', array_map('intval', $excludedDraftIds)))
+                ->whereIn('status', ['draft', 'needs_review', 'approved', 'approved_for_apply', 'applying'])
+                ->whereNull('applied_at')
+                ->whereNotIn('approval_status', ['REJECTED', 'DISCARDED', 'APPLIED'])
+                ->pluck('product_id') as $id) $conflicts[(int) $id] = true;
+        }
+        if (Schema::hasTable('ai_bulk_apply_items')) {
+            foreach (DB::table('ai_bulk_apply_items')->whereIn('product_id', $ids)->whereIn('status', ['pending', 'authorized', 'applying'])->pluck('product_id') as $id) {
+                $conflicts[(int) $id] = true;
+            }
+        }
+        if (Schema::hasTable('ai_product_job_items')) {
+            foreach (DB::table('ai_product_job_items')
+                ->whereIn('product_id', $ids)
+                ->when($excludedItemIds !== [], fn ($query) => $query->whereNotIn('id', array_map('intval', $excludedItemIds)))
+                ->whereIn('status', ['queued', 'processing', 'needs_review'])
+                ->pluck('product_id') as $id) $conflicts[(int) $id] = true;
+        }
+
+        return $conflicts;
+    }
+
+    private function hasActiveConflict(Product $product, ?int $currentJobItemId = null, ?int $supersededDraftId = null): bool
     {
         $draftStatuses = ['draft', 'needs_review', 'approved', 'approved_for_apply', 'applying'];
         if (Schema::hasTable('ai_product_drafts') && AiProductDraft::query()
             ->where('product_id', $product->id)
+            ->when($supersededDraftId, fn ($query) => $query->where('id', '!=', $supersededDraftId))
             ->whereIn('status', $draftStatuses)
             ->whereNull('applied_at')
             ->whereNotIn('approval_status', ['REJECTED', 'DISCARDED', 'APPLIED'])

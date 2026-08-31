@@ -63,6 +63,11 @@ class AIProductContentSystemTest extends TestCase
         $this->assertSame('FAILED', $job->canonical_status);
         $this->assertSame(1, $job->processed);
         $this->assertSame(1, $job->failed);
+        $this->assertDatabaseHas('ai_technical_logs', [
+            'module' => 'ai_product_content',
+            'event' => 'item_blocked',
+            'ai_job_id' => $item->id,
+        ]);
     }
 
     public function test_queue_retry_reopens_failed_item_through_valid_state_transitions(): void
@@ -476,6 +481,9 @@ class AIProductContentSystemTest extends TestCase
         $this->assertSame('blocked', $item->refresh()->status);
         $this->assertSame('BLOCKED', $item->canonical_status);
         $this->assertSame('fact_check_failed', $item->status_reason);
+        $this->assertNotEmpty($item->validation_errors);
+        $this->assertSame('FACT_CHECK_BLOCKED', $item->validation_errors[0]['claim']);
+        $this->assertSame('critical', $item->validation_errors[0]['severity']);
     }
 
     public function test_ai_payload_with_capacity_btu_is_rejected_before_persistence(): void
@@ -492,6 +500,32 @@ class AIProductContentSystemTest extends TestCase
 
         $product->refresh();
         $this->assertSame(42000, $product->btu);
+    }
+
+    public function test_editorial_guard_ignore_mode_keeps_diagnostic_but_not_review_warning(): void
+    {
+        app(\App\Services\Settings\SettingService::class)->set('CONTENT_TOO_SHORT', 'IGNORE', 'ai_guard_policy');
+        $product = $this->product();
+        $payload = $this->validPayload(content: $this->content(850));
+        $payload['warnings'][] = 'content_too_short:459/800';
+
+        $result = $this->serviceReturning($payload)->generate($product, $this->config(['apply_mode' => 'needs_review']));
+
+        $this->assertNotContains('content_too_short:459/800', $result['payload']['warnings']);
+        $this->assertContains('IGNORE', array_column($result['payload']['guard_diagnostics'], 'effect'));
+    }
+
+    public function test_editorial_guard_block_mode_preserves_evidence_and_blocks_review(): void
+    {
+        app(\App\Services\Settings\SettingService::class)->set('CONTENT_TOO_SHORT', 'BLOCK', 'ai_guard_policy');
+        $product = $this->product();
+        $payload = $this->validPayload(content: $this->content(850));
+        $payload['warnings'][] = 'content_too_short:459/800';
+
+        $result = $this->serviceReturning($payload)->generate($product, $this->config(['apply_mode' => 'needs_review']));
+
+        $this->assertSame('blocked', $result['status']);
+        $this->assertContains('content_too_short:459/800', $result['payload']['blocked_claims']);
     }
 
     public function test_legacy_draft_without_technical_context_snapshot_is_blocked(): void

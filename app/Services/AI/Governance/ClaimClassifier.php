@@ -62,7 +62,15 @@ class ClaimClassifier
         // classification must happen before generic fact-registry matching so
         // a product name or marketing number cannot satisfy a rated claim.
         if (preg_match('/\b(?:btu|kw)\b/iu', $sentenceContext)
+            && preg_match('/\b(?:den|toi da|maximum)\s+[\d.,]+\s*(?:btu|kw)\b/iu', $ascii)) {
+            return 'technical_capacity_range_claim';
+        }
+        if (preg_match('/\b(?:btu|kw)\b/iu', $sentenceContext)
             && (str_contains($ascii, 'cong suat') || preg_match('/\b(?:nhom cong suat|phan khuc|dong may|model thuong mai|commercial grouping|commercial capacity|marketing capacity)\b/iu', $ascii))) {
+            if (preg_match('/\b(?:dai cong suat|pham vi cong suat|dao dong|toi thieu|toi da|minimum|maximum|capacity range)\b/iu', $ascii)
+                || preg_match('/\btu\s+[\d.,]+\s*(?:btu|kw)?\s+den\s+[\d.,]+\s*(?:btu|kw)\b/iu', $ascii)) {
+                return 'technical_capacity_range_claim';
+            }
             if (preg_match('/\b(?:nhom cong suat|cong suat thuong mai|phan khuc|dong may|model thuong mai|commercial grouping|commercial capacity|marketing capacity)\b/iu', $ascii)) {
                 return 'marketing_capacity_claim';
             }

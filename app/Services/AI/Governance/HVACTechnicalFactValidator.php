@@ -178,7 +178,7 @@ class HVACTechnicalFactValidator
                 continue;
             }
 
-            if (in_array($classification, ['marketing_capacity_claim', 'technical_capacity_claim', 'ambiguous_capacity_claim'], true)
+            if (in_array($classification, ['marketing_capacity_claim', 'technical_capacity_claim', 'technical_capacity_range_claim', 'ambiguous_capacity_claim'], true)
                 && ($claim['unit'] ?? null) === 'btu') {
                 $claimValue = (float) ($claim['number'] ?? 0);
                 $marketingValue = $this->capacityValue($context, 'marketing_capacity_btu');
@@ -237,6 +237,61 @@ class HVACTechnicalFactValidator
                         'classification' => $classification,
                         'action' => 'blocked_contradicted_technical_capacity',
                         'verified_value' => $technicalValue,
+                    ];
+                    continue;
+                }
+
+                if ($classification === 'technical_capacity_range_claim') {
+                    $rangeClaims = [$claim];
+                    if (isset($claim['min'], $claim['max'])) {
+                        $rangeClaims = [];
+                        foreach ([(float) $claim['min'], (float) $claim['max']] as $bound) {
+                            $boundClaim = $claim;
+                            unset($boundClaim['min'], $boundClaim['max']);
+                            $boundClaim['number'] = $bound;
+                            $boundClaim['normalized_value'] = $this->normalizer->normalizeClaim($bound, (string) $claim['unit']);
+                            $rangeClaims[] = $boundClaim;
+                        }
+                    }
+                    $matches = array_map(fn (array $rangeClaim): ?array => $this->registry->findMatchingFact($registry, $rangeClaim), $rangeClaims);
+                    if (! in_array(null, $matches, true)) {
+                        foreach ($matches as $match) {
+                            $used[] = $match['fact_key'] ?? $match['source_field'] ?? $claimText;
+                        }
+                        $classified[] = array_merge($claim, [
+                            'status' => 'verified',
+                            'classification' => $classification,
+                            'source' => $matches[0]['source'] ?? 'verified_fact_registry',
+                        ]);
+                        $log[] = [
+                            'validator' => 'TechnicalFactValidator',
+                            'claim' => $claimText,
+                            'classification' => $classification,
+                            'action' => 'verified_capacity_range_bound',
+                            'source' => array_values(array_unique(array_filter(array_column($matches, 'source_field')))),
+                        ];
+                        continue;
+                    }
+
+                    $blocked[] = 'contradicted_technical_capacity_range:'.$claimText;
+                    $classified[] = array_merge($claim, ['status' => 'contradicted', 'classification' => $classification]);
+                    continue;
+                }
+
+                if ($technicalValue !== null
+                    && $claimValue === $technicalValue) {
+                    $used[] = 'product.rated_cooling_capacity_btu';
+                    $classified[] = array_merge($claim, [
+                        'status' => 'verified',
+                        'classification' => 'technical_capacity_claim',
+                        'source' => 'ProductTechnicalFactResolver::technical_capacity_btu',
+                        'original_classification' => $classification,
+                    ]);
+                    $log[] = [
+                        'validator' => 'TechnicalFactValidator',
+                        'claim' => $claimText,
+                        'classification' => $classification,
+                        'action' => 'resolved_against_unique_verified_technical_capacity',
                     ];
                     continue;
                 }

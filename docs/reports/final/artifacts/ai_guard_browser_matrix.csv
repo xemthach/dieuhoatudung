@@ -1,0 +1,17 @@
+SCENARIO,ACTOR,EXPECTED,ACTUAL,RESULT
+Edit editorial policy,operator_1,"Save BLOCK/WARN/IGNORE and restore WARN",Saved and restored,PASS
+Edit locked safety policy,operator_1,Disabled,Disabled,PASS
+Direct settings access,non_operator,403,403,PASS
+Preview,operator_1,Generated fields visible and Product unchanged,As expected,PASS
+Approve clean,operator_1,Actor persisted and Product unchanged,As expected,PASS
+Approve warning,operator_1,Explicit confirmation and warning snapshot,As expected,PASS
+Reject,operator_1,Reason and actor persisted,As expected,PASS
+Discard,operator_1,Logical discard,As expected,PASS
+Apply and double apply,operator_1,Allowlist mutation and idempotent UI,As expected,PASS
+Stale target,operator_1,Apply unavailable with reason,As expected,PASS
+Duplicate generate,operator_1,No new blocked job spam,As expected,PASS
+Hard fact block,operator_1,No approve/apply,As expected,PASS
+Single-operator rollout,non_operator,Mutation denied while preview remains,As expected,PASS
+Responsive header,operator_1,No overflow and compact hierarchy,As expected,PASS
+Real provider generation,operator_1,Governed queue to REVIEW_REQUIRED,Job 1116 draft 1049,PASS
+LEGACY_NON_ROLLOUT_RBAC,legacy_fixture,Not applicable under enforced rollout,Skipped intentionally,SKIP

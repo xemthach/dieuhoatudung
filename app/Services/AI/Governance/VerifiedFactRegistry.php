@@ -53,14 +53,13 @@ class VerifiedFactRegistry
             }
         }
 
-        $aiSchemaKeys = $this->aiSchemaKeys($product);
+        // The category `use_for_ai` flag controls what may be sent to the
+        // provider. It must not reduce the validator's authority: a provider
+        // can still emit a claim that was not present in the prompt, and that
+        // claim must be checked against every source-verified Product fact.
         $verifiedSpecs = $this->technicalFacts->allVerified($product);
         foreach ($verifiedSpecs as $index => $verifiedValue) {
             $spec = ['key' => $index, 'label' => $index, 'value' => $verifiedValue];
-            if ($aiSchemaKeys !== [] && ! in_array($product->category?->normalizeTechnicalSchemaKey((string) $spec['key']), $aiSchemaKeys, true)) {
-                continue;
-            }
-
             $key = 'product.technical_specs_json.'.$index;
             $value = trim(($spec['label'] ?: $spec['key']).' '.$spec['value']);
             $this->addFact(
@@ -225,46 +224,7 @@ class VerifiedFactRegistry
             $technical['product.'.$field] = ['value' => $value, 'source_field' => 'ProductTechnicalFactResolver::'.$field, 'label' => $label];
         }
 
-        $aiSchemaKeys = $this->aiSchemaKeys($product);
-        if ($aiSchemaKeys !== []) {
-            $factToSchemaKey = [
-                'product.rated_cooling_capacity_btu' => 'capacity_btu',
-                'product.capacity_kw' => 'capacity_kw',
-                'product.hp' => 'hp',
-                'product.cooling_type' => 'cooling_type',
-                'product.inverter' => 'inverter',
-                'product.phase' => 'voltage',
-                'product.refrigerant' => 'refrigerant',
-                'product.airflow' => 'airflow',
-                'product.noise_level' => 'noise_level',
-                'product.indoor_dimensions' => 'indoor_dimensions',
-                'product.outdoor_dimensions' => 'outdoor_dimensions',
-                'product.weight' => 'weight',
-                'product.recommended_area' => 'recommended_area',
-            ];
-
-            $technical = array_filter(
-                $technical,
-                fn (string $factKey): bool => in_array($factToSchemaKey[$factKey] ?? '', $aiSchemaKeys, true),
-                ARRAY_FILTER_USE_KEY
-            );
-        }
-
         return $identity + $technical;
-    }
-
-    private function aiSchemaKeys(Product $product): array
-    {
-        $category = $product->category;
-
-        if (! $category?->hasTechnicalSchema()) {
-            return [];
-        }
-
-        return array_values(array_map(
-            fn (array $field): string => $field['key'],
-            $category->technicalSchemaFieldsFor('ai')
-        ));
     }
 
     private function addFact(

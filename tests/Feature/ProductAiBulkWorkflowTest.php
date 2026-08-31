@@ -7,6 +7,7 @@ use App\Jobs\AiProductContentBatchJob;
 use App\Models\AiProductDraft;
 use App\Models\AiProductJob;
 use App\Models\AiProductJobItem;
+use App\Models\AiProvider;
 use App\Models\Product;
 use App\Models\ProductBulkOperation;
 use App\Models\User;
@@ -171,6 +172,15 @@ class ProductAiBulkWorkflowTest extends TestCase
             'worker_heartbeat' => ['health_status' => 'ONLINE', 'accepting_new_jobs' => true],
         ]);
         $this->app->forgetInstance(AIWorkerReadinessService::class);
+        AiProvider::create([
+            'provider' => 'custom',
+            'name' => 'Bulk preflight fixture',
+            'model' => 'fixture-model',
+            'api_key' => 'fixture-only',
+            'status' => 'active',
+            'priority' => 'primary',
+            'weight' => 1,
+        ]);
 
         $ids = collect($fixture)->pluck('id')->all();
         $result = app(ProductAiBulkWorkflowService::class)->execute('REGENERATE', $ids, $this->actor);

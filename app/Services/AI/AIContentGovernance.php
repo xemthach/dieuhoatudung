@@ -508,7 +508,9 @@ class AIContentGovernance
         );
 
         $factToSchemaKey = [
-            'product.rated_cooling_capacity_btu' => 'capacity_btu',
+            // `capacity_btu` is the legacy schema key; source-backed wall
+            // mounted schemas use the explicit `technical_capacity_btu` key.
+            'product.rated_cooling_capacity_btu' => ['technical_capacity_btu', 'capacity_btu'],
             'product.capacity_kw' => 'capacity_kw',
             'product.hp' => 'hp',
             'product.cooling_type' => 'cooling_type',
@@ -529,9 +531,9 @@ class AIContentGovernance
                 return true;
             }
 
-            $schemaKey = $factToSchemaKey[$factKey] ?? null;
+            $schemaKeys = (array) ($factToSchemaKey[$factKey] ?? []);
 
-            return $schemaKey !== null && in_array($schemaKey, $allowedSchemaKeys, true);
+            return array_intersect($schemaKeys, $allowedSchemaKeys) !== [];
         }, ARRAY_FILTER_USE_BOTH);
     }
 

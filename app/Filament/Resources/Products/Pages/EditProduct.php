@@ -15,6 +15,7 @@ use App\Services\AI\AIWorkerReadinessService;
 use App\Services\AI\AiProductContentStateResolver;
 use App\Services\AI\ProductAiApplyReadiness;
 use App\Services\AI\ProductAiActionResolver;
+use App\Services\AI\ProductAiGenerationReadiness;
 use App\Services\AI\SingleOperatorControlledRolloutPolicy;
 use App\Services\Seo\InternalLinkSuggestionService;
 use App\Support\SchemaColumns;
@@ -486,8 +487,37 @@ class EditProduct extends EditRecord
         return array_values(array_filter(array_map('strval', (array) ($draft?->warnings_json ?? []))));
     }
 
-    private function queueAiGeneration(array $data, ?AiProductDraft $supersededDraft = null): AiProductJob
+    private function queueAiGeneration(array $data, ?AiProductDraft $supersededDraft = null): ?AiProductJob
     {
+        if (! $supersededDraft) {
+            $readiness = app(ProductAiGenerationReadiness::class)->resolve(
+                $this->record->fresh(['brand', 'category']),
+                \App\Services\Product\ProductContentEligibilityPolicy::LONG_DESCRIPTION,
+            );
+            if (! $readiness['can_generate']) {
+                $blockers = $readiness['mandatory_blockers'] ?: [['message' => 'AI chưa sẵn sàng.', 'code' => 'NOT_READY']];
+                app(\App\Services\AI\AITechnicalLogger::class)->event(
+                    'ai_product_preflight',
+                    'generation_preflight_blocked',
+                    'Single Product generation stopped before job creation.',
+                    [
+                        'product_id' => $this->record->id,
+                        'actor_id' => auth()->id(),
+                        'guard_codes' => array_values(array_column($blockers, 'code')),
+                        'next_actions' => $readiness['next_actions'] ?? [],
+                        'provider_called' => false,
+                    ],
+                );
+                Notification::make()
+                    ->title('Chưa thể tạo nội dung AI')
+                    ->body(collect($blockers)->map(
+                        fn (array $blocker, int $index): string => ($index + 1).'. '.$blocker['message'].' ['.$blocker['code'].']'
+                    )->implode("\n"))
+                    ->warning()->persistent()->send();
+                return null;
+            }
+        }
+
         [$job, $item, $created] = DB::transaction(function () use ($data, $supersededDraft): array {
             Product::query()->whereKey($this->record->id)->lockForUpdate()->firstOrFail();
             $activeItem = $this->record->aiProductJobItems()
@@ -504,6 +534,8 @@ class EditProduct extends EditRecord
 
             $config = $this->normalizeAiConfig($data);
             $config['operation_generation'] = (string) Str::uuid();
+            $config['guard_policy_version'] = app(\App\Services\AI\AiGuardPolicy::class)->version();
+            $config['guard_policy_snapshot'] = app(\App\Services\AI\AiGuardPolicy::class)->snapshot();
             $job = AiProductJob::create(array_merge([
                 'type' => 'single_product_preview',
                 'scope' => 'selected',

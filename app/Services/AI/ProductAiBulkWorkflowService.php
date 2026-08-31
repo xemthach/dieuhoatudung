@@ -34,11 +34,12 @@ final class ProductAiBulkWorkflowService
         private readonly AiProductContentStateResolver $states,
         private readonly AiProductWarningClassifier $warnings,
         private readonly ProductAiApplyReadiness $applyReadiness,
+        private readonly ProductAiGenerationReadiness $generationReadiness,
         private readonly AIProductDraftApplyService $drafts,
     ) {}
 
     /** @return array{selected:int,counts:array<string,int>,classifications:array<string,int>,rows:array<int,array<string,mixed>>} */
-    public function preflight(array $productIds): array
+    public function preflight(array $productIds, bool $includeGenerationReadiness = false): array
     {
         $ids = $this->normalizeIds($productIds);
         $products = Product::query()
@@ -63,6 +64,18 @@ final class ProductAiBulkWorkflowService
             'REGENERATE_AVAILABLE', 'NOT_ACTIONABLE',
         ], 0);
         $rows = [];
+        // Runtime readiness is invariant for the whole selection. Resolve it once
+        // so a 358-product preflight does not query worker/provider per Product.
+        $generationRuntime = $includeGenerationReadiness ? $this->generationReadiness->runtimeSnapshot() : null;
+        $excludedDraftIds = $includeGenerationReadiness
+            ? $products->pluck('latestAiProductJobItem.draft.id')->filter()->map(fn ($id): int => (int) $id)->all()
+            : [];
+        $excludedItemIds = $includeGenerationReadiness
+            ? $products->pluck('latestAiProductJobItem.id')->filter()->map(fn ($id): int => (int) $id)->all()
+            : [];
+        $activeConflicts = $includeGenerationReadiness
+            ? $this->generationReadiness->activeConflictProductIds($ids, $excludedDraftIds, $excludedItemIds)
+            : [];
 
         foreach ($ids as $id) {
             $product = $products->get($id);
@@ -84,6 +97,15 @@ final class ProductAiBulkWorkflowService
                 ? $this->applyReadiness->resolve($draft)
                 : null;
             $item = $resolved['item'];
+            $generationScope = [
+                'LONG_DESCRIPTION',
+                '_current_job_item_id' => $item?->id,
+                '_superseded_draft_id' => $draft?->id,
+                '_active_conflict' => isset($activeConflicts[$id]),
+            ];
+            $generation = $includeGenerationReadiness
+                ? $this->generationReadiness->resolve($product, $generationScope, $generationRuntime)
+                : null;
             $generatedFields = collect((array) ($draft?->field_status_json ?? $item?->field_status_json ?? []))
                 ->filter(fn (mixed $status): bool => in_array(strtoupper((string) $status), ['GENERATED', 'VALID', 'APPLIED'], true))
                 ->count();
@@ -111,10 +133,13 @@ final class ProductAiBulkWorkflowService
                 'provider_called' => (bool) data_get($draft?->token_usage_json, 'provider_called', ((int) ($item?->tokens_used ?? 0)) > 0),
                 'updated_at' => $item?->state_changed_at ?: $item?->updated_at,
                 'apply_readiness' => $readiness,
+                'generation_readiness' => $generation,
                 'ready_to_review' => $state === 'REVIEW_REQUIRED' && $draft !== null,
                 'ready_to_approve' => $state === 'REVIEW_REQUIRED' && $draft !== null && $hardBlockers === [],
                 'ready_to_apply' => $state === 'APPROVED' && (bool) ($readiness['can_apply'] ?? false),
-                'regenerate_available' => in_array($state, ['REVIEW_REQUIRED', 'REJECTED', 'DISCARDED', 'FAILED'], true) && $hardBlockers === [],
+                'regenerate_available' => in_array($state, ['REVIEW_REQUIRED', 'REJECTED', 'DISCARDED', 'FAILED'], true)
+                    && $hardBlockers === []
+                    && (! $includeGenerationReadiness || (bool) $generation['can_generate']),
             ];
             $rows[] = $row;
             $counts[$state] = ($counts[$state] ?? 0) + 1;
@@ -144,7 +169,7 @@ final class ProductAiBulkWorkflowService
         $action = strtoupper($action);
         $this->authorize($action, $actor);
         $ids = $this->normalizeIds($productIds);
-        $preflight = $this->preflight($ids);
+        $preflight = $this->preflight($ids, $action === self::ACTION_REGENERATE);
         $operation = $this->createOperation($action, $ids, $actor, $selectionMode, $filters, $preflight);
 
         if ($action === self::ACTION_REGENERATE) {
@@ -260,7 +285,14 @@ final class ProductAiBulkWorkflowService
 
         foreach ($preflight['rows'] as $row) {
             if (! $row['regenerate_available']) {
-                $this->recordResult($operation, $row, $row['hard_blocker_count'] > 0 ? 'BLOCKED' : 'SKIPPED', 'REGENERATE_NOT_ELIGIBLE');
+                $generationBlocker = data_get($row, 'generation_readiness.mandatory_blockers.0.code');
+                $reason = $generationBlocker ?: 'REGENERATE_NOT_ELIGIBLE';
+                $this->recordResult(
+                    $operation,
+                    $row,
+                    ($row['hard_blocker_count'] > 0 || $generationBlocker) ? 'BLOCKED' : 'SKIPPED',
+                    $reason,
+                );
             }
         }
         if (! $worker['ready']) {
@@ -297,6 +329,8 @@ final class ProductAiBulkWorkflowService
                     'outputs' => collect(['content', 'seo', 'merchant', 'tags', 'faq', 'internal_links', 'og'])
                         ->mapWithKeys(fn (string $field): array => [$field => isset($selectedOutputs[$field])])->all(),
                     'operation_generation' => (string) Str::uuid(),
+                    'guard_policy_version' => app(AiGuardPolicy::class)->version(),
+                    'guard_policy_snapshot' => app(AiGuardPolicy::class)->snapshot(),
                 ];
                 $job = AiProductJob::create(array_merge([
                     'type' => 'regenerate_ai_content',

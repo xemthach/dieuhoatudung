@@ -13,6 +13,7 @@ use App\Models\Product;
 use App\Services\AI\ProductBulkGenerationManifest;
 use App\Services\AI\ProductBulkTargetResolver;
 use App\Services\AI\AIWorkerReadinessService;
+use App\Services\AI\ProductAiGenerationReadiness;
 use App\Support\SchemaColumns;
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
@@ -192,7 +193,32 @@ class ListProducts extends ListRecords
             return;
         }
 
+        $preflight = app(ProductAiGenerationReadiness::class)->resolveMany(
+            $productIds,
+            [\App\Services\Product\ProductContentEligibilityPolicy::LONG_DESCRIPTION],
+        );
+        if ($preflight['blocked'] > 0) {
+            app(\App\Services\AI\AITechnicalLogger::class)->event('ai_product_preflight', 'generation_preflight_blocked', 'Bulk generation excluded Products with mandatory blockers.', [
+                'selected' => $preflight['selected'],
+                'ready' => $preflight['ready'],
+                'blocked' => $preflight['blocked'],
+                'blocked_products' => collect($preflight['rows'])->filter(fn (array $row): bool => ! $row['can_generate'])->map(fn (array $row): array => [
+                    'product_id' => $row['product_id'],
+                    'guard_codes' => array_column($row['mandatory_blockers'], 'code'),
+                ])->values()->all(),
+                'actor_id' => auth()->id(),
+            ], null, 'warning');
+        }
+        $productIds = $preflight['ready_ids'];
+        if ($productIds === []) {
+            Notification::make()->title('Không có sản phẩm sẵn sàng tạo AI')
+                ->body('Tất cả sản phẩm đã bị loại ở bước kiểm tra trước khi tạo job.')->warning()->persistent()->send();
+            return;
+        }
+
         $config = ProductsTable::normalizeAiActionData($data, 'generate_ai_content');
+        $config['guard_policy_version'] = app(\App\Services\AI\AiGuardPolicy::class)->version();
+        $config['guard_policy_snapshot'] = app(\App\Services\AI\AiGuardPolicy::class)->snapshot();
         $job = AiProductJob::create(array_merge([
             'type' => 'generate_ai_content',
             'scope' => $scope === 'all_filtered' ? 'filter' : $scope,
@@ -224,7 +250,7 @@ class ListProducts extends ListRecords
         $worker = app(AIWorkerReadinessService::class)->snapshot();
         $notification = Notification::make()
             ->title('Đã tạo AI Product Job')
-            ->body("Job #{$job->id} sẽ xử lý ".count($productIds)." sản phẩm. {$worker['message']}")
+            ->body("Job #{$job->id} sẽ xử lý ".count($productIds)." sản phẩm; preflight loại {$preflight['blocked']}. {$worker['message']}")
             ->status($worker['ready'] ? 'success' : 'warning')
             ->persistent();
         if (! $worker['ready'] && auth()->user()?->can('ai_worker.manage')) {

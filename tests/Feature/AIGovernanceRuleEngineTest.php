@@ -6,6 +6,7 @@ use App\Models\Product;
 use App\Services\AI\AIContentGovernance;
 use App\Services\AI\Governance\AICodeLeakDetector;
 use App\Services\AI\Governance\ForbiddenClaimEngine;
+use App\Services\AI\Governance\HVACTechnicalFactValidator;
 use App\Services\AI\Governance\HVACUnitNormalizer;
 use App\Services\AI\Governance\UTF8ContentValidator;
 use App\Services\AI\Governance\VerifiedFactRegistry;
@@ -178,6 +179,59 @@ class AIGovernanceRuleEngineTest extends TestCase
         $this->assertSame(42650, $technical['product.rated_cooling_capacity_btu'] ?? null);
         $this->assertSame(42000, $allowed['product.marketing_capacity_btu']['value'] ?? null);
         $this->assertNotSame($allowed['product.marketing_capacity_btu']['value'] ?? null, $technical['product.rated_cooling_capacity_btu'] ?? null);
+    }
+
+    public function test_validator_registry_keeps_verified_facts_not_exposed_to_provider_by_schema(): void
+    {
+        $category = \App\Models\ProductCategory::factory()->create([
+            'technical_schema_status' => 'active',
+            'technical_schema_json' => [
+                'version' => 'test-v1',
+                'status' => 'active',
+                'fields' => [[
+                    'key' => 'technical_capacity_btu',
+                    'label' => 'Rated capacity',
+                    'type' => 'measurement',
+                    'unit' => 'BTU',
+                    'use_for_ai' => true,
+                    'visible_frontend' => true,
+                    'visible_compare' => true,
+                ]],
+            ],
+        ]);
+        $product = Product::factory()->create([
+            'product_category_id' => $category->id,
+            'technical_capacity_btu' => 9200,
+            'technical_capacity_status' => 'verified_candidate',
+            'specs_json' => [[
+                'key' => 'cooling_capacity_btu_min',
+                'value' => 2400,
+                'source_section' => 'TECHNICAL_APPENDIX',
+                'verification_status' => 'verified_candidate',
+            ], [
+                'key' => 'cooling_capacity_btu_max',
+                'value' => 9900,
+                'source_section' => 'TECHNICAL_APPENDIX',
+                'verification_status' => 'verified_candidate',
+            ]],
+        ]);
+
+        $context = app(AIContentGovernance::class)->buildProductContext($product);
+        $registryKeys = collect($context['verified_fact_registry'])->pluck('fact_key')->all();
+
+        $this->assertArrayNotHasKey('product.technical_specs_json.cooling_capacity_btu_min', $context['allowed_facts']);
+        $this->assertContains('product.technical_specs_json.cooling_capacity_btu_min', $registryKeys);
+        $this->assertContains('product.technical_specs_json.cooling_capacity_btu_max', $registryKeys);
+
+        $result = app(HVACTechnicalFactValidator::class)->validateText(
+            '<p>Công suất 9.200 BTU, dải công suất từ 2.400 BTU đến 9.900 BTU.</p>',
+            $context
+        );
+
+        $this->assertSame([], $result['blocked_claims'], json_encode($result, JSON_UNESCAPED_UNICODE));
+        $this->assertContains('product.rated_cooling_capacity_btu', $result['used_facts']);
+        $this->assertContains('product.technical_specs_json.cooling_capacity_btu_min', $result['used_facts']);
+        $this->assertContains('product.technical_specs_json.cooling_capacity_btu_max', $result['used_facts']);
     }
 
     public function test_registry_format_contains_required_governance_fields(): void

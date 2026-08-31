@@ -8,11 +8,14 @@ use App\Jobs\AiProductContentBatchJob;
 use App\Jobs\AiProductContentSingleJob;
 use App\Models\AiProductJob;
 use App\Models\AiProductJobItem;
+use App\Models\AiProvider;
 use App\Models\DataExportJob;
 use App\Models\Product;
 use Database\Factories\UserFactory;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Bus;
+use App\Services\AI\AIQueueMonitor;
+use App\Services\AI\AIWorkerReadinessService;
 use Livewire\Livewire;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\PermissionRegistrar;
@@ -27,6 +30,16 @@ class AIProductHeaderActionTest extends TestCase
         parent::setUp();
 
         app(PermissionRegistrar::class)->forgetCachedPermissions();
+        $monitor = $this->mock(AIQueueMonitor::class);
+        $monitor->shouldReceive('liveStatusHealth')->andReturn([
+            'worker_desired_state' => 'ENABLED',
+            'worker_heartbeat' => ['health_status' => 'ONLINE', 'accepting_new_jobs' => true],
+        ]);
+        $this->app->forgetInstance(AIWorkerReadinessService::class);
+        AiProvider::create([
+            'provider' => 'custom', 'name' => 'Header action fixture', 'model' => 'fixture-model',
+            'api_key' => 'fixture-only', 'status' => 'active', 'priority' => 'primary', 'weight' => 1,
+        ]);
     }
 
     public function test_table_bulk_ai_generate_selected_scope_uses_checked_products_only(): void

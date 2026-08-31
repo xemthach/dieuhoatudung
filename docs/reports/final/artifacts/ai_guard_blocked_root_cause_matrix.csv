@@ -1,0 +1,8 @@
+JOB_ID,ITEM_ID,PRODUCT_ID,STATUS,PROVIDER_CALLED,TOKENS,ROOT_CAUSE,DISPOSITION
+59,181,1319,BLOCKED,YES,5432,"Ambiguous capacity values treated as hard technical claims; validation_errors were absent",HISTORICAL_EVIDENCE
+58,180,1319,BLOCKED,NO,0,DUPLICATE_IN_PROGRESS,HISTORICAL_EVIDENCE
+55,177,1320,BLOCKED,NO,0,DUPLICATE_IN_PROGRESS,HISTORICAL_EVIDENCE
+1083,1202,2840,BLOCKED,YES,10732,"Range wording/classification and validator registry filtering",INACTIVE_TEST_EVIDENCE
+1084,1203,2841,BLOCKED,YES,11815,"Schema prompt allowlist incorrectly reduced validator authority",INACTIVE_TEST_EVIDENCE
+1085,1204,2842,BLOCKED,YES,5468,"Unique verified rated capacity still classified ambiguous",INACTIVE_TEST_EVIDENCE_REPLAY_PASSED
+1116,1235,2875,REVIEW_REQUIRED,YES,5495,"No hard blocker; short content and Merchant gap are editorial warnings",REVIEW_EVIDENCE

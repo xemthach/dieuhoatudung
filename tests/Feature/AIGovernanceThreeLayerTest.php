@@ -26,6 +26,25 @@ class AIGovernanceThreeLayerTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_verified_capacity_range_bounds_are_not_misclassified_as_ambiguous_rated_capacity(): void
+    {
+        $registry = app(\App\Services\AI\Governance\VerifiedFactRegistry::class)->buildFromAllowedFacts([
+            'product.cooling_capacity_btu_min' => ['value' => 2400, 'unit' => 'BTU', 'source' => 'verified_fixture'],
+            'product.cooling_capacity_btu_max' => ['value' => 9900, 'unit' => 'BTU', 'source' => 'verified_fixture'],
+        ]);
+        $result = app(AIContentGovernance::class)->validateText(
+            '<p>Dải công suất dao động từ 2.400 BTU đến 9.900 BTU.</p>',
+            ['verified_fact_registry' => $registry, 'allowed_facts' => [], 'missing_facts' => []],
+        );
+
+        $this->assertSame([], array_values(array_filter(
+            $result['blocked_claims'],
+            fn (string $code): bool => str_contains($code, 'capacity'),
+        )), json_encode(['registry' => $registry, 'result' => $result], JSON_UNESCAPED_UNICODE));
+        $this->assertContains('product.cooling_capacity_btu_min', $result['used_facts']);
+        $this->assertContains('product.cooling_capacity_btu_max', $result['used_facts'], json_encode($result, JSON_UNESCAPED_UNICODE));
+    }
+
     // =========================================================================
     // Product Tests
     // =========================================================================
