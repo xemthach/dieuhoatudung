@@ -2,6 +2,32 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.32.1] - 2026-08-31
+
+### Added
+- Central AI Product guard policy with configurable `BLOCK`, `WARN`, and `IGNORE` modes for editorial quality rules.
+- Shared single/bulk generation readiness preflight for Product identity, active draft/apply conflicts, provider readiness, and governed-worker health.
+- Versioned guard-policy snapshots and terminal technical events for reproducible job evidence.
+
+### Fixed
+- Separated provider prompt exposure from validator authority so every source-verified Product fact remains available to fact-checking.
+- Corrected wall-mounted capacity range and rated-capacity classification, including legacy `capacity_btu` schema compatibility.
+- Persisted structured critical validation errors on hard fact blocks and prevented known preflight blockers from creating useless job rows.
+
+### Security
+- Authorization, technical fact safety, parser/schema integrity, stale targets, concurrency, duplicate and Apply guards remain locked fail-closed and cannot be weakened through settings.
+- Product content remains unchanged until authorized approval and explicitly confirmed Apply.
+
+### Validation
+- Focused AI/guard/catalog suite: 162 tests, 161 passed, 1 skipped, 572 assertions.
+- Full PHPUnit: 525 tests, 524 passed, 1 skipped, 3,231 assertions, 0 failures/errors.
+- Browser certification: 14 passed, 1 intentional policy-superseded skip, 0 failures.
+- Final real-provider proof reached `REVIEW_REQUIRED` through `ai_governed` with no Product mutation before Apply.
+
+### Operations
+- No migration and no bulk retry are included.
+- Historical failed/blocked AI evidence remains unchanged.
+
 ## [1.31.5] - 2026-08-30
 
 ### Added
