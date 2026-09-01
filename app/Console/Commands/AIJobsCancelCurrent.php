@@ -50,27 +50,19 @@ class AIJobsCancelCurrent extends Command
             ]);
         }
 
-        if (Schema::hasTable('ai_product_jobs')) {
-            $productJobs = AiProductJob::whereIn('status', ['queued', 'processing', 'stuck'])
-                ->update($this->existingColumns('ai_product_jobs', [
-                    'status' => 'cancelled',
-                    'failed_reason' => 'job_cancelled',
-                    'last_error_code' => 'job_cancelled',
-                    'last_error_message' => 'Cancelled by admin command.',
-                    'finished_at' => now(),
-                ]));
-        }
-
-        if (Schema::hasTable('ai_product_job_items')) {
-            $items = AiProductJobItem::whereIn('status', ['queued', 'processing', 'stuck'])
-                ->update($this->existingColumns('ai_product_job_items', [
-                    'status' => 'cancelled',
-                    'failed_reason' => 'job_cancelled',
-                    'last_error_code' => 'job_cancelled',
-                    'last_error_message' => 'Cancelled by admin command.',
-                    'error_message' => 'Cancelled by admin command.',
-                    'finished_at' => now(),
-                ]));
+        if (Schema::hasTable('ai_product_jobs') && Schema::hasTable('ai_product_job_items')) {
+            $activeJobs = AiProductJob::query()
+                ->whereHas('items', fn ($query) => $query->whereIn(
+                    'canonical_status',
+                    \App\Services\AI\AiProductStateCompatibility::ACTIVE,
+                ))->get();
+            foreach ($activeJobs as $job) {
+                $items += $job->items()->whereIn('canonical_status', \App\Services\AI\AiProductStateCompatibility::ACTIVE)->count();
+                app(\App\Services\AI\AiProductLifecycleService::class)->requestCancel(
+                    $job, null, 'Cancelled by explicit ai:jobs-cancel-current command.',
+                );
+                $productJobs++;
+            }
         }
 
         Product::whereIn('ai_status', ['queued', 'processing', 'stuck'])->update([
@@ -80,7 +72,9 @@ class AIJobsCancelCurrent extends Command
         ]);
 
         if ($this->option('flush-queue') && Schema::hasTable('jobs')) {
-            $queueRows = DB::table('jobs')->whereIn('queue', ['ai', 'default'])->delete();
+            $queueRows = DB::table('jobs')->whereIn('queue', array_values(array_unique([
+                config('ai.governed_queue', 'ai_governed'), 'ai', 'default',
+            ])))->delete();
         }
 
         $this->table(['AI content jobs', 'AI product jobs', 'AI product items', 'Queue rows deleted'], [[

@@ -16,6 +16,7 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 class AiProductContentBatchJob implements ShouldQueue
 {
@@ -61,8 +62,9 @@ class AiProductContentBatchJob implements ShouldQueue
 
         $job->update(SchemaColumns::existing('ai_product_jobs', [
             'status' => 'processing',
+            'canonical_status' => 'RUNNING',
             'module' => 'ai_product_bulk',
-            'queue_name' => $this->queue ?: 'ai',
+            'queue_name' => $this->queue ?: config('ai.governed_queue', 'ai_governed'),
             'attempts' => $this->attempts(),
             'total' => count($productIds),
             'started_at' => $job->started_at ?? now(),
@@ -71,7 +73,7 @@ class AiProductContentBatchJob implements ShouldQueue
             'last_error_message' => null,
         ]));
         $technicalLogger->event('ai_product_bulk', 'job_started', 'AI product batch job started.', [
-            'queue' => $this->queue ?: 'ai',
+            'queue' => $this->queue ?: config('ai.governed_queue', 'ai_governed'),
             'total' => count($productIds),
             'batch_size' => $batchSize,
         ], $job);
@@ -86,10 +88,18 @@ class AiProductContentBatchJob implements ShouldQueue
 
         foreach (array_chunk($productIds, $batchSize) as $chunkIndex => $chunk) {
             foreach ($chunk as $productId) {
-                $item = $job->items()->updateOrCreate(
+                $item = $job->items()->firstOrCreate(
                     ['product_id' => $productId],
-                    ['status' => 'queued', 'error_message' => null]
+                    SchemaColumns::existing('ai_product_job_items', [
+                        'status' => 'queued', 'canonical_status' => 'QUEUED',
+                        'error_message' => null, 'dispatch_uuid' => (string) Str::uuid(),
+                    ])
                 );
+                if (! $item->wasRecentlyCreated) {
+                    $effective = app(\App\Services\AI\AiProductStateCompatibility::class)->item($item)['status'];
+                    if (! app(\App\Services\AI\AiProductStateCompatibility::class)->isActive($effective)) continue;
+                    if (! $item->dispatch_uuid) $item->update(['dispatch_uuid' => (string) Str::uuid()]);
+                }
 
                 $product = Product::find($productId);
                 $key = $product ? $idempotency->key($product, $config) : null;
@@ -146,15 +156,17 @@ class AiProductContentBatchJob implements ShouldQueue
                     }
                 }
 
-                AiProductContentSingleJob::dispatch($productId, $job->id, $item->id)
+                AiProductContentSingleJob::dispatch($productId, $job->id, $item->id, $item->dispatch_uuid)
                     ->onQueue(config('ai.governed_queue', 'ai_governed'))
                     ->delay(now()->addSeconds($chunkIndex * 5));
             }
         }
 
         if ($productIds === []) {
-            $job->update(['status' => 'completed', 'finished_at' => now()]);
+            app(\App\Services\AI\AiProductLifecycleService::class)->reconcile($job);
         }
+
+        app(\App\Services\AI\AiProductLifecycleService::class)->reconcile($job);
 
         $technicalLogger->event('ai_product_bulk', 'job_dispatched', 'AI product item jobs dispatched.', [
             'total' => count($productIds),

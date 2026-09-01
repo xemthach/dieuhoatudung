@@ -164,6 +164,36 @@ class ProductTechnicalFactResolver
         return $facts;
     }
 
+    /**
+     * Format a BTU scalar or a source range without passing an unchecked
+     * string to number_format(). Ambiguous localized/business text is rejected.
+     */
+    public function formatBtuDisplay(mixed $value): ?string
+    {
+        if (is_int($value) || is_float($value)) {
+            return $this->formatStrictNumber((string) $value);
+        }
+
+        if (! is_string($value)) {
+            return null;
+        }
+
+        $value = trim($value);
+        if ($value === '') {
+            return null;
+        }
+
+        if (preg_match('/^\d+(?:\.\d+)?$/D', $value)) {
+            return $this->formatStrictNumber($value);
+        }
+
+        if (preg_match('/^(\d+(?:\.\d+)?)\s*\/\s*(\d+(?:\.\d+)?)$/D', $value, $matches)) {
+            return $this->formatStrictNumber($matches[1]).' / '.$this->formatStrictNumber($matches[2]);
+        }
+
+        return null;
+    }
+
     public function hasVerifiedSourcePage(Product $product): bool
     {
         foreach ((array) ($product->getAttribute('specs_json') ?? []) as $item) {
@@ -205,5 +235,12 @@ class ProductTechnicalFactResolver
     private function present(mixed $value, string $fieldKey, string $storage): ?array
     {
         return $value === null || $value === '' ? null : ['field' => $fieldKey, 'value' => $value, 'storage' => $storage];
+    }
+
+    private function formatStrictNumber(string $value): string
+    {
+        $decimals = str_contains($value, '.') ? strlen(rtrim(substr(strrchr($value, '.'), 1), '0')) : 0;
+
+        return number_format((float) $value, $decimals, '.', ',');
     }
 }

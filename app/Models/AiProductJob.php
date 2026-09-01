@@ -23,6 +23,8 @@ class AiProductJob extends Model
             'validation_errors' => 'array',
             'started_at' => 'datetime',
             'finished_at' => 'datetime',
+            'cancel_requested_at' => 'datetime',
+            'cancelled_at' => 'datetime',
             'manifest_frozen_at' => 'datetime',
             'state_changed_at' => 'datetime',
         ];

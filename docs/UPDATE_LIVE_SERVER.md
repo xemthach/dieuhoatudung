@@ -1,14 +1,14 @@
 # Live Server Update Guide
 
-Current release candidate: `v1.32.2`
+Current release candidate: `v1.33.0`
 
 Use the release-specific runbook:
 
-[LIVE_DEPLOYMENT_RUNBOOK_1.32.2.md](release/LIVE_DEPLOYMENT_RUNBOOK_1.32.2.md)
+[LIVE_DEPLOYMENT_RUNBOOK_1.33.0.md](release/LIVE_DEPLOYMENT_RUNBOOK_1.33.0.md)
 
 ## Quick command sequence
 
-Run only after `v1.32.2` has been committed, tagged and pushed:
+Run only after `v1.33.0` has been committed, tagged and pushed:
 
 ```bash
 cd /home/dieuhoatudungcom/dieuhoatudung.com/public_html
@@ -22,12 +22,13 @@ supervisorctl status
 runuser -u dieuhoatudungcom -- php artisan down --retry=60
 
 git fetch origin --tags --prune
-git checkout v1.32.2
+git checkout v1.33.0
 git rev-parse HEAD
 cat VERSION
 
 runuser -u dieuhoatudungcom -- composer install --no-dev --prefer-dist --optimize-autoloader --no-interaction
 runuser -u dieuhoatudungcom -- php artisan migrate:status
+runuser -u dieuhoatudungcom -- php artisan migrate --force
 runuser -u dieuhoatudungcom -- php artisan optimize:clear
 runuser -u dieuhoatudungcom -- php artisan config:cache
 runuser -u dieuhoatudungcom -- php artisan route:cache
@@ -51,14 +52,14 @@ runuser -u dieuhoatudungcom -- php artisan up
 
 Mandatory result:
 
-- web and worker both report `1.32.2`;
+- web and worker both report `1.33.0`;
 - build ID and worker code hash match;
 - deployment is `UP_TO_DATE`;
 - queue is `ai_governed`;
 - pending/processing/stuck are all zero;
 - managed health probe completes without provider or Product mutation;
 - scheduler/watchdog are healthy on production;
-- no pending migration;
+- the v1.33.0 additive AI Product lifecycle migration is applied and no migration remains pending;
 - public and authenticated Product AI smoke tests pass.
 
 Do not bulk retry historical AI jobs and do not call the real provider merely for deployment smoke.

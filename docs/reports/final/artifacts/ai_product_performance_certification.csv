@@ -1,0 +1,5 @@
+SURFACE,SAMPLE,BOUND,RESULT,EVIDENCE
+Product AI status polling,20 Products,15 queries maximum,PASS,"AiContentLiveStatusUxTest passed after eager canonical lineage loading"
+Product list,Canonical eager relations,No per-row lineage query,PASS,"ProductsTable eager loads AI items and drafts"
+Integrity scanner,All AI jobs/items/drafts,Chunked read-only scan,PASS,"21 known violations; 0 unknown"
+Queue runtime,Post-browser drain,0 pending processing stuck,PASS,"Worker ONLINE and UP_TO_DATE"

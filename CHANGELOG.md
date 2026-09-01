@@ -2,6 +2,39 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.33.0] - 2026-09-01
+
+### Added
+- Canonical AI Product lineage resolution for active operations, actionable drafts, approved drafts, historical evidence, blockers, next actions, and invariant violations.
+- Shared AI Product lifecycle and parent reconciliation services for generation, cancellation, retry, recovery, regeneration, and terminal parent aggregation.
+- Read-only `ai:product-integrity-audit` diagnostics with JSON/CSV output and additive lifecycle audit columns, dispatch UUID integrity, and canonical lookup indexes.
+- Frozen AI Product target architecture, remediation plan, forensic report, issue ledger, and runtime/database certification artifacts.
+
+### Changed
+- Product Edit, bulk operations, queue workers, monitoring, and recovery now use the canonical lifecycle contracts instead of independent status mutations.
+- Terminal historical jobs and drafts no longer block a new generation; genuinely active operations and actionable drafts retain concurrency protection.
+- Queue workers observe cancellation before provider execution and at lifecycle checkpoints, while preserving historical evidence and reconciling parent state.
+
+### Fixed
+- `PRODUCT-DETAIL-001`: Product detail rendering now normalizes validated BTU scalar/range values and monetary values before numeric formatting, preventing `number_format()` TypeErrors from legacy decimal/range strings.
+- Product cards and quote modals use the same strict BTU display contract; null, empty, contact-price, formatted-string, and non-numeric values follow explicit business fallbacks instead of unsafe coercion.
+- Parent AI jobs no longer remain processing after terminal child outcomes, and failed terminal items are not reopened by queue retry.
+
+### Security
+- Apply allowlists, stale-target protection, hard technical fact blocks, RBAC, and single-operator rollout remain fail-closed.
+- Product identity, protected catalog fields, historical AI evidence, and provider request logs are preserved.
+
+### Validation
+- Focused release suite: 93 tests, 93 passed, 412 assertions.
+- Full PHPUnit: 546 tests, 545 passed, 1 skipped, 3,333 assertions, 0 failures/errors; exit code 0.
+- Final deterministic Playwright matrix: 23 passed, 4 intentional environment/provider-policy skips, 0 outstanding failures after correcting a stale active-category assertion.
+- Composer validation/audit, npm high audit, production build, Laravel cache builds, PHP lint, secret signature scan, and `git diff --check`: PASS.
+- AI Product integrity audit: 0 unknown violations; 21 preserved legacy anomalies are classified `KNOWN` and remain non-mutating audit evidence.
+
+### Operations
+- Includes one additive migration for AI Product cancellation audit fields, dispatch identity, and canonical resolver indexes.
+- Deployment must run migrations before restarting web/worker processes; no bulk retry or historical status rewrite is included.
+
 ## [1.32.1] - 2026-08-31
 
 ### Added

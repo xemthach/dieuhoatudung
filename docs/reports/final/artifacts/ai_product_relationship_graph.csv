@@ -1,0 +1,12 @@
+FROM_ENTITY,RELATION,TO_ENTITY,CARDINALITY,FOREIGN_KEY,CURRENTNESS_AUTHORITY,NOTES
+Product,has,AI Product Job Item,1:N,ai_product_job_items.product_id,No,"Current resolver uses latest Item and must be replaced"
+AI Product Job,has,AI Product Job Item,1:N,ai_product_job_items.ai_product_job_id,Parent reconciler,"Parent is aggregate operation"
+AI Product Job Item,references,AI Product Draft,N:1,ai_product_job_items.draft_id,Canonical lineage resolver,"Nullable until draft persistence"
+Product,has,AI Product Draft,1:N,ai_product_drafts.product_id,approval_status plus applied_at,"Multiple historical drafts expected"
+AI Product Draft,references,AI Product Job,N:1,ai_product_drafts.job_id,History only,"Nullable on delete"
+AI Product Job,has,Runtime Batch,1:1,ai_bulk_runtime_batches.ai_product_job_id,Lifecycle service,"Bulk cancellation/runtime gate"
+AI Product Job/Item,has,Technical Log,1:N,ai_technical_logs.ai_job_id,Structured event chronology,"Polymorphic by ai_job_type"
+Provider request,records,AI Request Log,1:1+,ai_request_logs context identifiers,request identity,"No raw secret publication"
+Bulk Operation,has,Bulk Operation Item,1:N,product_bulk_operation_items.product_bulk_operation_id,Frozen manifest,"Per-Product result ledger"
+AI Product Draft,has,Apply Audit,1:N,ai_product_draft_apply_audits.ai_product_draft_id,Apply service,"Idempotency and actor evidence"
+AI Product Item,dispatches,Database Queue Job,1:0..N,dispatch_uuid target,dispatch_uuid,"Target architecture; absent at baseline"

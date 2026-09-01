@@ -59,7 +59,13 @@ test.describe('Product listing and public navigation certification', () => {
         await productLink.click();
         await expect(page).toHaveURL(/\/san-pham\/[^/]+$/);
         await expect(page.locator('main')).toBeVisible();
-        await expect(page.locator('a[href*="/danh-muc/dieu-hoa-treo-tuong"]')).toHaveCount(0);
+        const productCategoryLink = page.locator('main a[href*="/danh-muc/"]').first();
+        if (await productCategoryLink.count()) {
+            const categoryUrl = await productCategoryLink.getAttribute('href');
+            expect(categoryUrl).toBeTruthy();
+            const categoryResponse = await page.request.get(categoryUrl!);
+            expect(categoryResponse.status(), categoryUrl!).toBeLessThan(400);
+        }
     });
 
     test('desktop and mobile consume the same safe navigation targets', async ({ page, request }) => {

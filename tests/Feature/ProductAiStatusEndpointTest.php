@@ -126,7 +126,7 @@ class ProductAiStatusEndpointTest extends TestCase
         $this->assertStringContainsString("/admin/products/{$product->id}/ai-retry", $response->json('products.0.retry_url'));
     }
 
-    public function test_ai_retry_endpoint_requeues_failed_items_without_reloading_page(): void
+    public function test_ai_retry_endpoint_creates_new_operation_without_reloading_page(): void
     {
         Bus::fake();
         $this->actingAsAiProductUser();
@@ -164,8 +164,11 @@ class ProductAiStatusEndpointTest extends TestCase
             ->assertJsonPath('product_id', $product->id)
             ->assertJsonPath('status', 'queued');
 
-        $this->assertSame('queued', $item->refresh()->status);
-        $this->assertNull($item->failed_reason);
+        $this->assertSame('failed', $item->refresh()->status);
+        $this->assertSame('missing_api_key', $item->failed_reason);
+        $newItem = AiProductJobItem::query()->whereKeyNot($item->id)->latest('id')->firstOrFail();
+        $this->assertSame('queued', $newItem->status);
+        $this->assertNotNull($newItem->dispatch_uuid);
         $this->assertSame('failed', $product->refresh()->ai_status);
         Bus::assertDispatched(AiProductContentSingleJob::class);
     }

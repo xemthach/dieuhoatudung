@@ -258,7 +258,7 @@ class AIProductHeaderActionTest extends TestCase
         $this->assertStringNotContainsString(json_decode('"\\u00c3"'), $source);
     }
 
-    public function test_retry_ai_product_items_resets_failed_items_and_dispatches_single_jobs(): void
+    public function test_retry_ai_product_items_preserves_terminal_history_and_dispatches_new_operation(): void
     {
         Bus::fake();
         $this->actingAsAiProductUser();
@@ -285,12 +285,15 @@ class AIProductHeaderActionTest extends TestCase
         $count = ProductsTable::retryAiProductItems([$item]);
 
         $this->assertSame(1, $count);
-        $this->assertSame('queued', $item->refresh()->status);
-        $this->assertNull($item->failed_reason);
+        $this->assertSame('failed', $item->refresh()->status);
+        $this->assertSame('missing_api_key', $item->failed_reason);
         $this->assertSame('failed', $product->refresh()->ai_status);
-        $this->assertSame('processing', $job->refresh()->status);
+        $this->assertSame('completed_with_errors', $job->refresh()->status);
+        $newItem = AiProductJobItem::query()->whereKeyNot($item->id)->latest('id')->firstOrFail();
+        $this->assertSame('queued', $newItem->status);
+        $this->assertNotNull($newItem->dispatch_uuid);
 
-        Bus::assertDispatched(AiProductContentSingleJob::class, fn (AiProductContentSingleJob $singleJob): bool => $singleJob->aiProductJobItemId === $item->id);
+        Bus::assertDispatched(AiProductContentSingleJob::class, fn (AiProductContentSingleJob $singleJob): bool => $singleJob->aiProductJobItemId === $newItem->id);
     }
 
     private function actingAsAiProductUser(array $extraPermissions = []): void

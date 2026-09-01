@@ -434,41 +434,18 @@ class EditProduct extends EditRecord
             ->modalHeading('Hủy yêu cầu AI đang treo')
             ->modalDescription('Chỉ các yêu cầu queued/processing/stuck của Product này sẽ được đánh dấu đã hủy. Lịch sử AI và Product content không bị xóa.')
             ->action(function (): void {
-                DB::transaction(function (): void {
-                    $items = $this->record->aiProductJobItems()
-                        ->whereIn('status', ['queued', 'processing', 'stuck'])
-                        ->get();
-
-                    foreach ($items as $item) {
-                        $item->update([
-                            'status' => 'cancelled',
-                            'canonical_status' => 'CANCELLED',
-                            'status_reason' => 'CANCELLED_BY_OPERATOR',
-                            'failed_reason' => 'job_cancelled',
-                            'last_error_code' => 'job_cancelled',
-                            'last_error_message' => 'Cancelled by operator from Product.',
-                            'error_message' => 'Cancelled by operator from Product.',
-                            'finished_at' => now(),
-                        ]);
-                    }
-
-                    foreach ($items->groupBy('ai_product_job_id') as $jobItems) {
-                        $job = $jobItems->first()->job;
-                        if (! $job) {
-                            continue;
-                        }
-
-                        if ($job->items()->whereIn('status', ['queued', 'processing', 'stuck'])->count() === 0) {
-                            $job->update([
-                                'status' => 'cancelled',
-                                'failed_reason' => 'job_cancelled',
-                                'last_error_code' => 'job_cancelled',
-                                'last_error_message' => 'Cancelled by operator from Product.',
-                                'finished_at' => now(),
-                            ]);
-                        }
-                    }
-                });
+                $jobs = \App\Models\AiProductJob::query()
+                    ->whereHas('items', fn ($query) => $query
+                        ->where('product_id', $this->record->id)
+                        ->whereIn('canonical_status', \App\Services\AI\AiProductStateCompatibility::ACTIVE))
+                    ->get();
+                foreach ($jobs as $job) {
+                    app(\App\Services\AI\AiProductLifecycleService::class)->requestCancel(
+                        $job,
+                        auth()->id(),
+                        'Cancelled by operator from Product Edit recovery action.',
+                    );
+                }
 
                 Notification::make()->title('Đã giải phóng yêu cầu AI đang treo')->success()->send();
             });
@@ -518,45 +495,13 @@ class EditProduct extends EditRecord
             }
         }
 
-        [$job, $item, $created] = DB::transaction(function () use ($data, $supersededDraft): array {
-            Product::query()->whereKey($this->record->id)->lockForUpdate()->firstOrFail();
-            $activeItem = $this->record->aiProductJobItems()
-                ->whereIn('status', ['queued', 'processing', 'stuck'])
-                ->latest('id')
-                ->first();
-            if ($activeItem) {
-                return [$activeItem->job, $activeItem, false];
-            }
-
-            if ($supersededDraft) {
-                app(AIProductDraftApplyService::class)->supersedeForRegeneration($supersededDraft, auth()->user());
-            }
-
-            $config = $this->normalizeAiConfig($data);
-            $config['operation_generation'] = (string) Str::uuid();
-            $config['guard_policy_version'] = app(\App\Services\AI\AiGuardPolicy::class)->version();
-            $config['guard_policy_snapshot'] = app(\App\Services\AI\AiGuardPolicy::class)->snapshot();
-            $job = AiProductJob::create(array_merge([
-                'type' => 'single_product_preview',
-                'scope' => 'selected',
-                'status' => 'queued',
-                'total' => 1,
-                'config_json' => $config,
-                'created_by' => auth()->id(),
-            ], SchemaColumns::existing('ai_product_jobs', [
-                'module' => 'ai_product_content',
-                'queue_name' => config('ai.governed_queue', 'ai_governed'),
-            ])));
-            $item = $job->items()->create(array_merge([
-                'product_id' => $this->record->id,
-                'status' => 'queued',
-            ], SchemaColumns::existing('ai_product_job_items', [
-                'module' => 'ai_product_content',
-                'queue_name' => config('ai.governed_queue', 'ai_governed'),
-            ])));
-
-            return [$job, $item, true];
-        });
+        [$job, $item, $created] = app(\App\Services\AI\AiProductLifecycleService::class)
+            ->createGenerationOperation(
+                $this->record,
+                $this->normalizeAiConfig($data),
+                auth()->user(),
+                $supersededDraft,
+            );
 
         if (! $created) {
             Notification::make()
@@ -569,7 +514,7 @@ class EditProduct extends EditRecord
             return $job;
         }
 
-        AiProductContentSingleJob::dispatch($this->record->id, $job->id, $item->id)
+        AiProductContentSingleJob::dispatch($this->record->id, $job->id, $item->id, $item->dispatch_uuid)
             ->onQueue(config('ai.governed_queue', 'ai_governed'));
         $worker = app(AIWorkerReadinessService::class)->snapshot();
         $notification = Notification::make()

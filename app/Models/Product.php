@@ -200,6 +200,11 @@ class Product extends Model
         return $this->hasOne(AiProductJobItem::class)->latestOfMany();
     }
 
+    public function aiProductDrafts(): HasMany
+    {
+        return $this->hasMany(AiProductDraft::class);
+    }
+
     public function aiContentVersions(): HasMany
     {
         return $this->hasMany(AiProductContentVersion::class);

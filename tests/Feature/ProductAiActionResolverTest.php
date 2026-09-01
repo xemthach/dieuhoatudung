@@ -29,8 +29,19 @@ class ProductAiActionResolverTest extends TestCase
         $policy = $this->resolve($product);
 
         $this->assertSame(['processing_status'], $policy['direct_actions']);
-        $this->assertSame(['view_job', 'recover'], $policy['menu_actions']);
+        $this->assertSame(['view_job'], $policy['menu_actions']);
         $this->assertFalse($policy['can_generate_primary']);
+    }
+
+    public function test_stale_processing_without_queue_or_lease_exposes_recovery(): void
+    {
+        [$product, , $item] = $this->state('PROCESSING', 'processing');
+        $item->forceFill(['updated_at' => now()->subMinutes(20)])->saveQuietly();
+
+        $policy = $this->resolve($product);
+
+        $this->assertSame(['view_job', 'recover'], $policy['menu_actions']);
+        $this->assertTrue($policy['can_recover']);
     }
 
     public function test_review_with_warning_exposes_preview_approve_and_secondary_menu(): void

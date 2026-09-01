@@ -108,13 +108,13 @@ class Phase2AArchitectureTest extends TestCase
         $this->assertNotSame($failedKey, $freshKey);
     }
 
-    public function test_historical_product_1241_remains_blocked_for_content_generation(): void
+    public function test_historical_product_ids_do_not_receive_hard_coded_generation_dispositions(): void
     {
         $product = Product::factory()->make(['id' => 1241, 'name' => 'Gree', 'model_code' => 'GDC36S6I/GMC36S6I']);
         $result = app(ProductContentEligibilityPolicy::class)->evaluate($product, ProductContentEligibilityPolicy::LONG_DESCRIPTION);
 
-        $this->assertFalse($result['eligible']);
-        $this->assertContains('HISTORICAL_ROLLOUT_DISPOSITION_PRESERVED', $result['reasons']);
+        $this->assertTrue($result['eligible']);
+        $this->assertNotContains('HISTORICAL_ROLLOUT_DISPOSITION_PRESERVED', $result['reasons']);
     }
 
     public function test_terminal_state_cannot_be_recycled(): void

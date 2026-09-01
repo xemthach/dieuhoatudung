@@ -2,7 +2,6 @@
 
 namespace App\Services\AI;
 
-use App\Models\AiProductJobItem;
 use App\Models\Product;
 use Illuminate\Support\Collection;
 
@@ -24,28 +23,20 @@ final class AiProductLiveStatusService
             'health' => data_get($health, 'worker_heartbeat.health_status', 'UNKNOWN'),
         ];
 
-        $latestItemIds = $ids->isEmpty() ? collect() : AiProductJobItem::query()
-            ->selectRaw('MAX(id) as id')
-            ->whereIn('product_id', $ids->all())
-            ->groupBy('product_id')
-            ->pluck('id');
-
-        $items = AiProductJobItem::query()
-            ->whereIn('id', $latestItemIds)
-            ->with([
-                'job:id,total,processed,success,failed,needs_review,status,config_json,updated_at',
-                'draft:id,status,field_status_json,approval_status,approved_at,approved_by,applied_at',
-            ])
-            ->get()
-            ->keyBy('product_id');
-
         return Product::query()
             ->whereKey($ids->all())
             ->select(['id', 'name', 'model_code', 'ai_status', 'ai_score', 'ai_warning_count', 'ai_last_run_at'])
+            ->with([
+                'aiProductJobItems' => fn ($query) => $query->latest('id')->with([
+                    'job:id,total,processed,success,failed,needs_review,status,config_json,updated_at',
+                    'draft:id,status,field_status_json,approval_status,approved_at,approved_by,applied_at',
+                ]),
+                'aiProductDrafts' => fn ($query) => $query->latest('id'),
+            ])
             ->get()
-            ->map(function (Product $product) use ($items, $worker): array {
-                $item = $items->get($product->id);
-                $resolved = $this->stateResolver->resolve($product, $item);
+            ->map(function (Product $product) use ($worker): array {
+                $resolved = $this->stateResolver->resolve($product);
+                $item = $resolved['item'];
                 $draft = $resolved['draft'];
                 $internal = $resolved['status'];
                 $status = $this->presenter->present($internal, $worker);

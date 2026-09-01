@@ -1,0 +1,32 @@
+ENTITY,FROM_STATE,TO_STATE,CURRENT_ALLOWED,TARGET_ALLOWED,RISK,ISSUE
+Item,QUEUED,RUNNING,YES,YES,Normal worker start,
+Item,QUEUED,VALIDATING,YES,YES,Compatibility path requires audit,AI-STATE-010
+Item,QUEUED,FAILED,YES,YES,Terminal failure,
+Item,QUEUED,CANCELLED,YES,YES,Queued cancel,
+Item,QUEUED,BLOCKED,YES,YES,Preflight/runtime hard block,
+Item,RUNNING,QUEUED,YES,CONDITIONAL,"Queue retry conflated with lifecycle",AI-RETRY-005
+Item,RUNNING,VALIDATING,YES,YES,Provider output received,
+Item,RUNNING,FAILED,YES,YES,Provider/system failure,
+Item,RUNNING,BLOCKED,YES,YES,Hard block,
+Item,RUNNING,CANCELLED,YES,YES,Checkpointed cancel required,AI-LIFE-004
+Item,VALIDATING,FACT_CHECKING,YES,YES,Validation pass,
+Item,VALIDATING,FAILED,YES,YES,System/parse failure,
+Item,VALIDATING,BLOCKED,YES,YES,Hard validation block,
+Item,FACT_CHECKING,REVIEW_REQUIRED,YES,YES,Human review,
+Item,FACT_CHECKING,DONE,YES,YES,Auto terminal where policy allows,
+Item,FACT_CHECKING,FAILED,YES,YES,System failure,
+Item,FACT_CHECKING,BLOCKED,YES,YES,Verified contradiction,
+Item,REVIEW_REQUIRED,DONE,YES,YES,Approval/apply terminal mapping requires canonical service,AI-PARITY-012
+Item,REVIEW_REQUIRED,BLOCKED,YES,YES,Hard fact decision,
+Item,REVIEW_REQUIRED,CANCELLED,YES,CONDITIONAL,Actionable draft should use reject/discard semantics,AI-LIFE-004
+Item,FAILED,QUEUED,YES,NO,Terminal reopen overwrites history,AI-RETRY-005
+Item,FAILED,CANCELLED,YES,NO,Terminal-to-terminal mutation unnecessary,AI-RETRY-005
+Item,FAILED,BLOCKED,YES,NO,Terminal reclassification hides original result,AI-RETRY-005
+Item,BLOCKED,REVIEW_REQUIRED,YES,CONDITIONAL,Only explicit resolved guard lineage may produce new operation,AI-RETRY-005
+Item,BLOCKED,CANCELLED,YES,NO,Historical terminal should remain immutable,AI-RETRY-005
+Draft,REVIEW_REQUIRED,APPROVED_FOR_APPLY,YES,YES,Human approval,
+Draft,REVIEW_REQUIRED,REJECTED,YES,YES,Reason and actor required,
+Draft,REVIEW_REQUIRED,DISCARDED,YES,YES,Logical discard,
+Draft,APPROVED_FOR_APPLY,APPLYING,IMPLICIT,YES,Atomic apply,
+Draft,APPLYING,APPLIED,YES,YES,Successful apply,
+Draft,APPLYING,APPROVED_FOR_APPLY,IMPLICIT,CONDITIONAL,Rollback only before Product mutation,

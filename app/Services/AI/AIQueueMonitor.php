@@ -255,24 +255,16 @@ class AIQueueMonitor
                         $result['checked']++;
                         $retryCount = (int) ($item->retry_count ?? 0);
 
-                        if ($retryCount < $maxRetry) {
-                            $item->update($this->existingColumns('ai_product_job_items', [
-                                'status' => 'queued',
-                                'retry_count' => $retryCount + 1,
-                                'failed_reason' => 'queue_job_stuck_timeout',
-                                'last_error_code' => 'queue_job_stuck_timeout',
-                                'last_error_message' => 'Processing too long; redispatched by recovery command.',
-                            ]));
-                            AiProductContentSingleJob::dispatch($item->product_id, $item->ai_product_job_id, $item->id)->onQueue(config('ai.governed_queue', 'ai_governed'));
+                        if (app(AiProductLifecycleService::class)->recoverStaleItem($item, $maxRetry)) {
+                            $item->refresh();
+                            AiProductContentSingleJob::dispatch(
+                                $item->product_id,
+                                $item->ai_product_job_id,
+                                $item->id,
+                                $item->dispatch_uuid,
+                            )->onQueue(config('ai.governed_queue', 'ai_governed'));
                             $result['redispatched']++;
-                        } else {
-                            $item->update($this->existingColumns('ai_product_job_items', [
-                                'status' => 'failed',
-                                'failed_reason' => 'queue_job_stuck_timeout',
-                                'last_error_code' => 'queue_job_stuck_timeout',
-                                'last_error_message' => 'Processing too long and max retry exceeded.',
-                                'finished_at' => now(),
-                            ]));
+                        } elseif ($item->refresh()->canonical_status === AIJobStateMachine::FAILED) {
                             $result['failed']++;
                         }
                     }

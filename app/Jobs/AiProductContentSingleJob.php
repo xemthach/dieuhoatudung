@@ -9,6 +9,8 @@ use App\Models\User;
 use App\Services\AI\AITechnicalLogger;
 use App\Services\AI\AIJobStateMachine;
 use App\Services\AI\AIProductIdempotencyService;
+use App\Services\AI\AiProductLifecycleService;
+use App\Services\AI\AiProductStateCompatibility;
 use App\Services\Product\AIProductContentSystem;
 use App\Services\Product\AIProductSeoScorer;
 use App\Support\SchemaColumns;
@@ -33,6 +35,7 @@ class AiProductContentSingleJob implements ShouldQueue
         public int $productId,
         public ?int $aiProductJobId = null,
         public ?int $aiProductJobItemId = null,
+        public ?string $dispatchUuid = null,
     ) {}
 
     public function backoff(): array
@@ -40,14 +43,21 @@ class AiProductContentSingleJob implements ShouldQueue
         return [60, 180, 300];
     }
 
-    public function handle(AIProductContentSystem $system, ?AITechnicalLogger $technicalLogger = null, ?AIProductIdempotencyService $idempotency = null): void
+    public function handle(AIProductContentSystem $system, ?AITechnicalLogger $technicalLogger = null, ?AIProductIdempotencyService $idempotency = null, ?AiProductLifecycleService $lifecycle = null): void
     {
         $technicalLogger ??= app(AITechnicalLogger::class);
         $idempotency ??= app(AIProductIdempotencyService::class);
+        $lifecycle ??= app(AiProductLifecycleService::class);
         $product = Product::with(['brand', 'category', 'tags', 'faqs', 'relatedProducts', 'posts'])->findOrFail($this->productId);
         $job = $this->aiProductJobId ? AiProductJob::find($this->aiProductJobId) : null;
         $item = $this->resolveItem($job, $product);
-        if ($item && $item->status_reason === 'BLOCKED_FINAL') return;
+        if ($item && $this->dispatchUuid && $item->dispatch_uuid && ! hash_equals($item->dispatch_uuid, $this->dispatchUuid)) return;
+        if ($item && ($item->status_reason === 'BLOCKED_FINAL'
+            || in_array((string) $item->canonical_status, [AIJobStateMachine::DONE, AIJobStateMachine::FAILED, AIJobStateMachine::BLOCKED, AIJobStateMachine::CANCELLED], true))) {
+            if ($job) $lifecycle->reconcile($job);
+            return;
+        }
+        if ($item && $lifecycle->checkpointCancellation($item, 'WORKER_ENTRY')) return;
         $resumeAllowlist = (array) data_get($job?->config_json, 'controlled_resume_allowlist', []);
         if ($resumeAllowlist !== [] && ! in_array((int) $product->id, array_map('intval', $resumeAllowlist), true)) return;
         if ($job?->created_by) {
@@ -58,7 +68,7 @@ class AiProductContentSingleJob implements ShouldQueue
             if (! $allowed || ($permitted !== [] && ! in_array((int) $product->id, array_map('intval', $permitted), true))) {
                 $this->updateItem($item, ['status' => 'blocked', 'canonical_status' => AIJobStateMachine::BLOCKED, 'status_reason' => 'BLOCKED_PERMISSION_REVOKED', 'last_error_code' => 'BLOCKED_PERMISSION_REVOKED', 'finished_at' => now()]);
                 $this->logTerminalOutcome($technicalLogger, $item?->refresh(), $job, $product);
-                $this->refreshJobStats($job?->refresh());
+                if ($job) $lifecycle->reconcile($job->refresh());
                 return;
             }
         }
@@ -83,7 +93,7 @@ class AiProductContentSingleJob implements ShouldQueue
                 'generated_payload_json' => $isDone ? $existing->generated_payload_json : null,
                 'draft_id' => $isDone ? $existing->draft_id : null,
             ]);
-            $this->refreshJobStats($job?->refresh());
+            if ($job) $lifecycle->reconcile($job->refresh());
             $this->logTerminalOutcome($technicalLogger, $item?->refresh(), $job, $product);
 
             return;
@@ -109,7 +119,7 @@ class AiProductContentSingleJob implements ShouldQueue
                 'canonical_status' => AIJobStateMachine::BLOCKED,
                 'status_reason' => 'DUPLICATE_IN_PROGRESS',
             ]);
-            $this->refreshJobStats($job?->refresh());
+            if ($job) $lifecycle->reconcile($job->refresh());
             $this->logTerminalOutcome($technicalLogger, $item?->refresh(), $job, $product);
 
             return;
@@ -118,16 +128,10 @@ class AiProductContentSingleJob implements ShouldQueue
         if ($strictDraftOnly) {
             \App\Services\AI\DraftOnlyWriteGuard::begin('queued_draft_only_strict');
         }
-        // A queue retry may re-enter after the previous attempt recorded FAILED.
-        // Re-open the canonical state through QUEUED before entering RUNNING;
-        // never bypass the state machine with a direct FAILED -> RUNNING jump.
-        if ($item && $item->canonical_status === AIJobStateMachine::FAILED) {
-            AIJobStateMachine::transition($item->refresh(), AIJobStateMachine::QUEUED, 'queue_retry');
-        }
         $this->updateItem($item, [
             'status' => 'processing',
             'module' => 'ai_product_content',
-            'queue_name' => $this->queue ?: 'ai',
+            'queue_name' => $this->queue ?: config('ai.governed_queue', 'ai_governed'),
             'attempts' => $this->attempts(),
             'started_at' => $item->started_at ?? now(),
             'finished_at' => null,
@@ -137,7 +141,7 @@ class AiProductContentSingleJob implements ShouldQueue
             'last_error_message' => null,
         ]);
         $technicalLogger->event('ai_product_content', 'job_started', 'AI product item job started.', [
-            'queue' => $this->queue ?: 'ai',
+            'queue' => $this->queue ?: config('ai.governed_queue', 'ai_governed'),
             'attempts' => $this->attempts(),
             'product_id' => $product->id,
         ], $item);
@@ -153,6 +157,7 @@ class AiProductContentSingleJob implements ShouldQueue
                 $runtime = null;
                 return;
             }
+            if ($item && $lifecycle->checkpointCancellation($item, 'BEFORE_PROVIDER')) return;
             if ($item && $this->shouldPatchExistingDraft($item)) {
                 $patched = $system->retryDraftPatch($product, $item, $job);
                 if ($patched !== null) {
@@ -161,6 +166,7 @@ class AiProductContentSingleJob implements ShouldQueue
             }
 
             $system->generate($product, $config, $job, $item, $job?->created_by);
+            if ($item && $lifecycle->checkpointCancellation($item, 'AFTER_PROVIDER')) return;
             if (is_array($runtime ?? null) && Schema::hasTable('ai_bulk_field_operations')) {
                 \Illuminate\Support\Facades\DB::table('ai_bulk_field_operations')->where('runtime_batch_id', $runtime['batch']->id)->where('item_id', $item->id)->where('field', 'content_html')->update(['status' => 'DONE', 'tokens_consumed' => (int) ($item->refresh()->tokens_used ?? 0), 'updated_at' => now()]);
             }
@@ -175,6 +181,7 @@ class AiProductContentSingleJob implements ShouldQueue
                     'last_error_message' => 'Rate limited, retrying later.',
                     'error_message' => 'Rate limited, retrying later.',
                 ]);
+                AIJobStateMachine::transition($item->refresh(), AIJobStateMachine::QUEUED, 'provider_rate_limit_retry');
                 $product->update(['ai_status' => 'queued', 'ai_error_message' => 'Rate limited, retrying later.']);
                 $technicalLogger->event('ai_product_content', 'job_retried', 'Provider rate limit; job released for retry.', [
                     'failed_reason' => 'provider_rate_limit',
@@ -286,9 +293,7 @@ class AiProductContentSingleJob implements ShouldQueue
                 app(\App\Services\AI\BulkRuntimeSlotService::class)->release($runtimeBatch, (int) $item->id, $runtime['worker']);
                 app(\App\Services\AI\BulkRuntimeLeaseService::class)->release($runtimeBatch, (int) $item->id, $runtime['worker']);
             }
-            if ($job) {
-                $this->refreshJobStats($job->refresh());
-            }
+            if ($job) $lifecycle->reconcile($job->refresh());
             if ($strictDraftOnly) {
                 \App\Services\AI\DraftOnlyWriteGuard::end();
             }
@@ -316,7 +321,7 @@ class AiProductContentSingleJob implements ShouldQueue
         ]);
         if ($item) {
             $item->refresh();
-            if ($item->canonical_status !== AIJobStateMachine::FAILED) {
+            if (! in_array($item->canonical_status, [AIJobStateMachine::FAILED, AIJobStateMachine::CANCELLED], true)) {
                 AIJobStateMachine::transition($item, AIJobStateMachine::FAILED, $technical['last_error_code'] ?? 'queue_job_failed');
             }
         }
@@ -333,7 +338,7 @@ class AiProductContentSingleJob implements ShouldQueue
         }
 
         if ($this->aiProductJobId && ($job = AiProductJob::find($this->aiProductJobId))) {
-            $this->refreshJobStats($job);
+            app(AiProductLifecycleService::class)->reconcile($job);
         }
     }
 
@@ -400,45 +405,13 @@ class AiProductContentSingleJob implements ShouldQueue
 
     private function refreshJobStats(AiProductJob $job): void
     {
-        $completedStatuses = ['completed', 'completed_verified', 'completed_with_warnings'];
-        $terminalStatuses = array_merge($completedStatuses, ['failed', 'needs_review', 'blocked', 'cancelled']);
-        $processed = $job->items()->whereIn('status', $terminalStatuses)->count();
-        $success = $job->items()->whereIn('status', $completedStatuses)->count();
-        $failed = $job->items()->whereIn('status', ['failed', 'blocked'])->count();
-        $needsReview = $job->items()->where('status', 'needs_review')->count();
-        $cancelled = $job->items()->where('status', 'cancelled')->count();
-        $terminal = $processed >= $job->total;
-        $status = ! $terminal
-            ? 'processing'
-            : ($failed > 0 || ($cancelled > 0 && $success > 0)
-                ? 'completed_with_errors'
-                : ($needsReview > 0
-                    ? 'needs_review'
-                    : ($cancelled > 0 ? 'cancelled' : 'completed')));
-        $canonicalStatus = AIJobStateMachine::fromLegacy($status);
-        $statusReason = match ($canonicalStatus) {
-            AIJobStateMachine::FAILED => 'ITEM_FAILURE',
-            AIJobStateMachine::REVIEW_REQUIRED => 'ITEM_REVIEW_REQUIRED',
-            AIJobStateMachine::CANCELLED => 'ITEMS_CANCELLED',
-            AIJobStateMachine::DONE => 'ALL_ITEMS_DONE',
-            default => 'ITEMS_ACTIVE',
-        };
-
-        $job->update([
-            'processed' => $processed,
-            'success' => $success,
-            'failed' => $failed,
-            'needs_review' => $needsReview,
-            'status' => $status,
-            'canonical_status' => $canonicalStatus,
-            'status_reason' => $statusReason,
-            'state_changed_at' => now(),
-            'finished_at' => $terminal ? now() : null,
-        ]);
+        $job = app(AiProductLifecycleService::class)->reconcile($job);
+        $terminal = ! in_array($job->canonical_status, AiProductStateCompatibility::ACTIVE, true);
         if ($terminal && \Illuminate\Support\Facades\Schema::hasTable('ai_bulk_runtime_batches') && $job->batch_uuid) {
             $runtime = \App\Models\AiBulkRuntimeBatch::where('batch_uuid', $job->batch_uuid)->first();
             if ($runtime && ! in_array($runtime->status, ['PAUSED', 'CANCELLED'], true)) {
-                $runtime->update(['status' => $failed > 0 ? 'COMPLETED_WITH_ERRORS' : 'COMPLETED', 'status_reason' => $failed > 0 ? 'ITEM_FAILURE' : null]);
+                $hasErrors = in_array($job->canonical_status, [AIJobStateMachine::FAILED, AIJobStateMachine::BLOCKED], true);
+                $runtime->update(['status' => $hasErrors ? 'COMPLETED_WITH_ERRORS' : 'COMPLETED', 'status_reason' => $hasErrors ? 'ITEM_FAILURE' : null]);
             }
         }
     }

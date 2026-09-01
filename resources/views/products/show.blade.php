@@ -28,6 +28,8 @@
         $sourceNativeCapacity = $technicalFactResolver->unitAwareFacts($product)['capacity_kw'] ?? null;
         $marketingCapacity = $technicalFactResolver->getDisplay($product, 'marketing_capacity_btu');
         $technicalCapacity = $technicalFactResolver->getDisplay($product, 'technical_capacity_btu');
+        $marketingCapacityDisplay = $technicalFactResolver->formatBtuDisplay($marketingCapacity['value'] ?? null);
+        $technicalCapacityDisplay = $technicalFactResolver->formatBtuDisplay($technicalCapacity['value'] ?? null);
     @endphp
 
     <section class="py-8 lg:py-12">
@@ -145,10 +147,10 @@
                                 <p class="text-xs text-surface-500">Công suất định mức</p>
                                 <p class="text-sm font-semibold text-surface-800">{{ $sourceNativeCapacity['value'] }} {{ $sourceNativeCapacity['unit'] }}</p>
                             </div>
-                        @elseif($marketingCapacity)
+                        @elseif($marketingCapacityDisplay)
                             <div class="rounded-lg bg-white p-3 ring-1 ring-surface-200">
                                 <p class="text-xs text-surface-500">Công suất</p>
-                                <p class="text-sm font-semibold text-surface-800">{{ number_format($marketingCapacity['value']) }} BTU</p>
+                                <p class="text-sm font-semibold text-surface-800">{{ $marketingCapacityDisplay }} BTU</p>
                             </div>
                         @endif
                         @if($product->inverter !== null)
@@ -259,7 +261,7 @@
                                 @endforeach
                             @else
                             @if($sourceNativeCapacity)<tr><td class="bg-surface-50 px-4 py-3 font-medium text-surface-700 w-1/3">Công suất định mức</td><td class="px-4 py-3 text-surface-600">{{ $sourceNativeCapacity['value'] }} {{ $sourceNativeCapacity['unit'] }}</td></tr>
-                            @elseif($technicalCapacity)<tr><td class="bg-surface-50 px-4 py-3 font-medium text-surface-700 w-1/3">Công suất kỹ thuật</td><td class="px-4 py-3 text-surface-600">{{ number_format($technicalCapacity['value']) }} BTU</td></tr>@endif
+                            @elseif($technicalCapacityDisplay)<tr><td class="bg-surface-50 px-4 py-3 font-medium text-surface-700 w-1/3">Công suất kỹ thuật</td><td class="px-4 py-3 text-surface-600">{{ $technicalCapacityDisplay }} BTU</td></tr>@endif
                             @if($product->inverter !== null)<tr><td class="bg-surface-50 px-4 py-3 font-medium text-surface-700">Inverter</td><td class="px-4 py-3 text-surface-600">{{ $product->inverter ? 'Có' : 'Không' }}</td></tr>@endif
                             @if($product->cooling_type)<tr><td class="bg-surface-50 px-4 py-3 font-medium text-surface-700">Kiểu</td><td class="px-4 py-3 text-surface-600">{{ $product->cooling_type === '2_chieu' ? '2 chiều (Nóng/Lạnh)' : '1 chiều (Lạnh)' }}</td></tr>@endif
                             @if($product->voltage)<tr><td class="bg-surface-50 px-4 py-3 font-medium text-surface-700">Điện áp</td><td class="px-4 py-3 text-surface-600">{{ $product->voltage }}</td></tr>@endif

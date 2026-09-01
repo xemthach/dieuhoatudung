@@ -91,8 +91,10 @@ class AIQueueOperationsTest extends TestCase
         $this->artisan('ai:jobs-cancel-current --force --flush-queue')->assertSuccessful();
 
         $this->assertSame(AIContentJobStatus::Cancelled, AiContentJob::first()->status);
-        $this->assertSame('cancelled', $job->refresh()->status);
-        $this->assertSame('cancelled', $job->items()->first()->status);
+        $this->assertSame('processing', $job->refresh()->status);
+        $this->assertNotNull($job->cancel_requested_at);
+        $this->assertSame('processing', $job->items()->first()->status);
+        $this->assertNotNull($job->items()->first()->cancel_requested_at);
         $this->assertSame('cancelled', $product->refresh()->ai_status);
         $this->assertSame(0, DB::table('jobs')->where('queue', 'ai')->count());
     }

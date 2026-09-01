@@ -57,7 +57,8 @@ class ProductsTable
     {
         return $table
             ->modifyQueryUsing(fn (Builder $query): Builder => $query->with([
-                'latestAiProductJobItem.draft:id,status,field_status_json,approval_status,approved_at,approved_by,applied_at',
+                'aiProductJobItems.draft',
+                'aiProductDrafts',
             ]))
             ->columns([
                 TextColumn::make('name')
@@ -89,8 +90,8 @@ class ProductsTable
                     ->sortable(),
                 TextColumn::make('ai_content_updated_at')
                     ->label('Cập nhật AI')
-                    ->state(fn (Product $record) => $record->latestAiProductJobItem?->state_changed_at
-                        ?: $record->latestAiProductJobItem?->updated_at
+                    ->state(fn (Product $record) => self::resolvedAiState($record)['latest_history']['item']?->state_changed_at
+                        ?: self::resolvedAiState($record)['latest_history']['item']?->updated_at
                         ?: $record->ai_last_run_at)
                     ->extraCellAttributes(fn (Product $record): array => [
                         'data-ai-product-id' => (string) $record->id,
@@ -1239,6 +1240,7 @@ class ProductsTable
     public static function retryAiProductItems(iterable $items): int
     {
         $count = 0;
+        $actor = auth()->user() ?? throw new \RuntimeException('AUTHENTICATED_RETRY_ACTOR_REQUIRED');
 
         foreach ($items as $item) {
             if (! $item instanceof AiProductJobItem) {
@@ -1249,37 +1251,11 @@ class ProductsTable
                 continue;
             }
 
-            $item->update(SchemaColumns::existing('ai_product_job_items', [
-                'status' => 'queued',
-                'canonical_status' => 'QUEUED',
-                'status_reason' => 'AUTHORIZED_RETRY',
-                'state_changed_at' => now(),
-                'retry_count' => (int) ($item->retry_count ?? 0) + 1,
-                'error_message' => null,
-                'failed_reason' => null,
-                'last_error_code' => null,
-                'last_error_message' => null,
-                'exception_class' => null,
-                'exception_file' => null,
-                'exception_line' => null,
-                'stack_trace' => null,
-                'finished_at' => null,
-            ]));
-
-            if ($item->job) {
-                $item->job->update(SchemaColumns::existing('ai_product_jobs', [
-                    'status' => 'processing',
-                    'canonical_status' => 'RUNNING',
-                    'status_reason' => 'AUTHORIZED_FIELD_RETRY',
-                    'state_changed_at' => now(),
-                    'finished_at' => null,
-                    'failed_reason' => null,
-                    'last_error_code' => null,
-                    'last_error_message' => null,
-                ]));
-            }
-
-            AiProductContentSingleJob::dispatch($item->product_id, $item->ai_product_job_id, $item->id)->onQueue(config('ai.governed_queue', 'ai_governed'));
+            [$newJob, $newItem] = app(\App\Services\AI\AiProductLifecycleService::class)
+                ->retryAsNewOperation($item, $actor);
+            AiProductContentSingleJob::dispatch(
+                $newItem->product_id, $newJob->id, $newItem->id, $newItem->dispatch_uuid,
+            )->onQueue(config('ai.governed_queue', 'ai_governed'));
             $count++;
         }
 
@@ -1288,10 +1264,7 @@ class ProductsTable
 
     private static function aiStatusView(Product $record): array
     {
-        $resolved = app(AiProductContentStateResolver::class)->resolve(
-            $record,
-            $record->latestAiProductJobItem,
-        );
+        $resolved = self::resolvedAiState($record);
 
         return app(AiContentStatusPresenter::class)->present(
             $resolved['status'],
@@ -1352,9 +1325,9 @@ class ProductsTable
 
     private static function aiStatusTooltip(Product $record): ?string
     {
-        $item = $record->latestAiProductJobItem;
+        $resolved = self::resolvedAiState($record);
+        $item = $resolved['item'];
         $view = self::aiStatusView($record);
-        $resolved = app(AiProductContentStateResolver::class)->resolve($record, $item);
         $parts = array_filter([
             $view['warning'],
             $resolved['state_issue'] === 'REVIEWABLE_DRAFT_MISSING'
@@ -1369,7 +1342,7 @@ class ProductsTable
 
     private static function aiStatusDetailHtml(Product $record): string
     {
-        $item = $record->latestAiProductJobItem;
+        $item = self::resolvedAiState($record)['item'];
         $factCheck = $item?->generated_payload_json['fact_check'] ?? [];
         $blocked = $item?->generated_payload_json['blocked_claims'] ?? [];
         $blockedFields = $item?->generated_payload_json['blocked_product_data_fields'] ?? [];
@@ -1417,6 +1390,12 @@ class ProductsTable
         $html .= '</div>';
 
         return $html;
+    }
+
+    /** @return array<string,mixed> */
+    private static function resolvedAiState(Product $record): array
+    {
+        return app(AiProductContentStateResolver::class)->resolve($record);
     }
 
     private static function aiTechnicalLogsText(Product $record): string

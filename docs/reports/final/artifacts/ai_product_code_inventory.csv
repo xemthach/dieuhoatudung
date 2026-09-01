@@ -1,0 +1,66 @@
+FILE,CLASS,PURPOSE,READS,WRITES,STATE_MUTATION,QUEUE,USED_BY,TEST_COVERAGE
+app/Services/AI/AIJobStateMachine.php,AIJobStateMachine,"Canonical Item/Job transitions","status canonical_status","canonical_status status_reason state_changed_at",YES,NO,"worker/services","AiProductStateConsistencyTest"
+app/Services/AI/AiProductContentStateResolver.php,AiProductContentStateResolver,"Product AI presentation state","Product Items Drafts",NONE,NO,NO,"Product panel/actions/status API","ProductAiActionResolverTest; AiProductStateConsistencyTest"
+app/Services/AI/ProductAiActionResolver.php,ProductAiActionResolver,"Header action policy","canonical state permissions",NONE,NO,NO,"EditProduct","AIProductHeaderActionTest; ProductAiActionResolverTest"
+app/Services/AI/ProductAiGenerationReadiness.php,ProductAiGenerationReadiness,"Generate blockers and next actions","Product eligibility state",NONE,NO,NO,"single/bulk UI","ProductAiGenerationReadinessTest"
+app/Services/AI/ProductAiApplyReadiness.php,ProductAiApplyReadiness,"Apply confirmation/hard/stale readiness","Draft Product hashes warnings",NONE,NO,NO,"single/bulk Apply","AIProductEditDraftActionTest"
+app/Services/AI/ProductAiBulkWorkflowService.php,ProductAiBulkWorkflowService,"Bulk review lifecycle","Products Drafts Jobs ledger","Drafts Jobs ledgers",YES,ai_governed,"Products table bulk actions","ProductAiBulkWorkflowTest"
+app/Services/AI/ProductBulkGenerationManifest.php,ProductBulkGenerationManifest,"Immutable selection manifest","selection context","manifest",NO,NO,"bulk generation","ProductAiBulkWorkflowTest"
+app/Services/AI/ProductBulkTargetResolver.php,ProductBulkTargetResolver,"Resolve selected/filter/search targets","Products query filters",NONE,NO,NO,"bulk preflight","ProductAiBulkWorkflowTest"
+app/Services/AI/AIProductIdempotencyService.php,AIProductIdempotencyService,"Operation/runtime deduplication","leases Items Jobs","leases/keys",YES,NO,"worker/generation","AIProductContentSystemTest"
+app/Services/AI/AiProductLiveStatusService.php,AiProductLiveStatusService,"Live Product/Job status DTO","Jobs Items Drafts queue",NONE,NO,NO,"Livewire/status endpoint","ProductAiStatusEndpointTest"
+app/Services/AI/AiProductWarningClassifier.php,AiProductWarningClassifier,"Warning categories and labels","warning codes",NONE,NO,NO,"preview/apply/actions","AiGuardPolicyTest"
+app/Services/AI/AiGuardPolicy.php,AiGuardPolicy,"Editorial and technical safety policy","settings facts warnings",NONE,NO,NO,"content system/apply","AiGuardPolicyTest"
+app/Services/AI/AIQueueMonitor.php,AIQueueMonitor,"Worker health and stuck recovery","heartbeats queue Jobs Items","heartbeats Jobs Items dispatch",YES,ai_governed,"commands/ops UI","AIQueueOperationsTest"
+app/Services/AI/SingleOperatorControlledRolloutPolicy.php,SingleOperatorControlledRolloutPolicy,"Rollout and mutation authorization","settings user permissions",NONE,NO,NO,"single/bulk Filament","Phase2I2SingleOperatorPolicyTest; AIProductActionRbacCertificationTest"
+app/Services/Product/AIProductContentSystem.php,AIProductContentSystem,"Prompt/provider/parser/normalize/validate/draft","Product facts config provider","request logs Items Drafts",YES,ai_governed,"worker/content service","AIProductContentSystemTest"
+app/Services/Product/ProductAIContentService.php,ProductAIContentService,"Product generation orchestration","Product/config/provider","generation evidence",YES,ai_governed,"AIProductContentSystem","AIProductContentSystemTest"
+app/Services/Product/ProductContentEligibilityPolicy.php,ProductContentEligibilityPolicy,"Scope identity and conflict eligibility","Product Drafts Items bulk apply",NONE,NO,NO,"generation preflight","ProductAiGenerationReadinessTest"
+app/Services/Product/AIProductContentSanitizer.php,AIProductContentSanitizer,"Sanitize generated HTML/payload","provider payload",NONE,NO,NO,"content system/apply","AIProductContentSystemTest"
+app/Services/Product/AIContentStructureValidator.php,AIContentStructureValidator,"Content structure/length validation","normalized payload",NONE,NO,NO,"content system","AIProductContentSystemTest"
+app/Services/Product/AIProductSeoScorer.php,AIProductSeoScorer,"Score generated draft","Product/draft content",NONE,NO,NO,"content system/UI","AIProductContentSystemTest"
+app/Services/Product/AIProductDraftApplyService.php,AIProductDraftApplyService,"Approve/apply allowlisted fields atomically","Draft Product hashes","Product Draft audit/version",YES,NO,"single/bulk actions","AIProductEditDraftActionTest; ProductAiBulkWorkflowTest"
+app/Services/Product/AIBulkApplyManifestService.php,AIBulkApplyManifestService,"Bulk Apply frozen manifest/preflight","Drafts Products selection","apply manifests",NO,NO,"bulk apply","ProductAiBulkWorkflowTest"
+app/Services/Product/AIBulkApplyExecutor.php,AIBulkApplyExecutor,"Execute per-Product Apply","manifests Drafts Products","Product Draft audit ledger",YES,NO,"bulk workflow","ProductAiBulkWorkflowTest"
+app/Jobs/AiProductContentSingleJob.php,AiProductContentSingleJob,"Single queue worker execution","Job Item Product runtime gates","Job Item Draft parent stats logs",YES,ai_governed,"single/batch dispatch","AIProductContentSystemTest; AIQueueOperationsTest"
+app/Jobs/AiProductContentBatchJob.php,AiProductContentBatchJob,"Dispatch batch Items","Job manifest Products","Items queue payloads",YES,ai_governed,"bulk generation","ProductAiBulkWorkflowTest"
+app/Jobs/AiProductFieldRetryJob.php,AiProductFieldRetryJob,"Field-level retry","Item Draft Product","Item/Draft evidence",YES,ai_governed,"retry flow","AIProductContentSystemTest"
+app/Models/AiProductJob.php,AiProductJob,"Parent operation model","ai_product_jobs","ai_product_jobs",POSSIBLE,NO,"all AI Product flows","feature suites"
+app/Models/AiProductJobItem.php,AiProductJobItem,"Per-Product operation model","ai_product_job_items","ai_product_job_items",POSSIBLE,NO,"worker/resolvers/UI","feature suites"
+app/Models/AiProductDraft.php,AiProductDraft,"Generated/review/apply evidence","ai_product_drafts","ai_product_drafts",POSSIBLE,NO,"review/apply/UI","feature suites"
+app/Models/AiProductDraftApplyAudit.php,AiProductDraftApplyAudit,"Apply audit record","apply audits","apply audits",NO,NO,"Apply service","AIProductEditDraftActionTest"
+app/Models/AiProductContentVersion.php,AiProductContentVersion,"Pre-Apply Product rollback evidence","Product content versions","content versions",NO,NO,"Apply service","AIProductEditDraftActionTest"
+app/Filament/Resources/Products/Pages/EditProduct.php,EditProduct,"Primary single Product AI workflow","resolver/readiness/Product/Draft","Jobs Items Drafts via actions and direct recovery",YES,ai_governed,"admin Product Edit","AIProductHeaderActionTest; AIProductEditDraftActionTest"
+app/Filament/Resources/AiProductJobs/AiProductJobResource.php,AiProductJobResource,"Operations/history resource","Jobs",NONE,NO,NO,"admin navigation","AIQueueOperationsTest"
+app/Filament/Resources/AiProductJobs/Pages/ListAiProductJobs.php,ListAiProductJobs,"Job list/dashboard","Jobs Items queue",NONE,NO,NO,"admin ops","browser workflow"
+app/Filament/Resources/AiProductJobs/Pages/EditAiProductJob.php,EditAiProductJob,"Job diagnostics/detail","Job Items Draft logs",NONE,NO,NO,"admin ops","browser workflow"
+app/Filament/Resources/AiProductJobs/RelationManagers/ItemsRelationManager.php,ItemsRelationManager,"Per-item evidence table","Items Products Drafts",NONE,NO,NO,"Job detail","browser workflow"
+app/Filament/Pages/AIQueueHealth.php,AIQueueHealth,"Worker/queue operations UI","queue monitor health","desired state/ops where authorized",POSSIBLE,ai_governed,"admin ops","AIQueueOperationsTest"
+app/Livewire/AiProductLiveStatus.php,AiProductLiveStatus,"Product live panel","live status service",NONE,NO,NO,"Product Edit","ProductAiStatusEndpointTest"
+app/Livewire/AiProductJobLiveStatus.php,AiProductJobLiveStatus,"Job live progress","Jobs Items",NONE,NO,NO,"Job detail","AIQueueOperationsTest"
+app/Http/Controllers/Admin/ProductAiStatusController.php,ProductAiStatusController,"Authorized status endpoint","Product live status",NONE,NO,NO,"browser polling","ProductAiStatusEndpointTest"
+app/Console/Commands/AIQueueHealth.php,AIQueueHealth,"Read worker/queue health","monitor/heartbeat",NONE,NO,ai_governed,"operators/runbook","AIQueueOperationsTest"
+app/Console/Commands/AIQueueDisposition.php,AIQueueDisposition,"Classify queue/runtime disposition","queue Jobs Items","operational disposition",POSSIBLE,ai_governed,"operators","AIQueueOperationsTest"
+config/ai_product_allowed_fields.php,Configuration,"Canonical AI field allowlist",NONE,NONE,NO,NO,"prompt/parser/apply/tests","AIProductContentSystemTest"
+database/migrations/2026_05_14_000001_add_ai_product_content_fields_to_products.php,Migration,"Product AI fields",schema,products,NO,NO,"deployment","migration suite"
+database/migrations/2026_05_14_000002_create_ai_product_content_tables.php,Migration,"Jobs Items Versions schema",schema,AI tables,NO,NO,"deployment","migration suite"
+database/migrations/2026_05_18_070800_add_scope_payload_to_ai_product_jobs.php,Migration,"Job frozen scope payload",schema,ai_product_jobs,NO,NO,"deployment","migration suite"
+database/migrations/2026_05_20_000001_create_ai_product_drafts_and_governance_columns.php,Migration,"Draft/evidence schema",schema,Drafts/Items,NO,NO,"deployment","migration suite"
+database/migrations/2026_08_30_000001_add_ai_product_draft_review_audit_columns.php,Migration,"Review/reject/discard audit",schema,Drafts,NO,NO,"deployment","migration suite"
+tests/Feature/AIProductContentSystemTest.php,FeatureTest,"Provider/parser/draft/validation regression",AI Product services,test DB,YES,fake,"CI",SELF
+tests/Feature/AiProductStateConsistencyTest.php,FeatureTest,"State resolver consistency",resolver/test DB,test DB,YES,fake,"CI",SELF
+tests/Feature/ProductAiGenerationReadinessTest.php,FeatureTest,"Generate readiness/blockers",readiness/test DB,test DB,YES,fake,"CI",SELF
+tests/Feature/ProductAiActionResolverTest.php,FeatureTest,"State/action matrix",action resolver,test DB,NO,fake,"CI",SELF
+tests/Feature/AIProductHeaderActionTest.php,FeatureTest,"Filament header action visibility",EditProduct/test DB,test DB,YES,fake,"CI",SELF
+tests/Feature/AIProductEditDraftActionTest.php,FeatureTest,"Single review/apply actions",EditProduct/services,test DB,YES,fake,"CI",SELF
+tests/Feature/AIProductActionRbacCertificationTest.php,FeatureTest,"Server-side action RBAC",policies/actions,test DB,YES,fake,"CI",SELF
+tests/Feature/ProductAiBulkWorkflowTest.php,FeatureTest,"Bulk lifecycle/parity/ledger",bulk services,test DB,YES,fake,"CI",SELF
+tests/Feature/AIQueueOperationsTest.php,FeatureTest,"Worker/queue operations",monitor/jobs,test DB,YES,fake,"CI",SELF
+tests/Feature/ProductAiStatusEndpointTest.php,FeatureTest,"Authorized live status DTO",endpoint/resolver,test DB,NO,fake,"CI",SELF
+tests/Feature/AiGuardPolicyTest.php,FeatureTest,"Warning/hard-guard classification",guard policy,test DB,NO,fake,"CI",SELF
+tests/Unit/Phase2I2SingleOperatorPolicyTest.php,UnitTest,"Single operator rollout contract",rollout policy,NONE,NO,NO,"CI",SELF
+tests/browser/ai-product-workflow.spec.ts,Playwright,"Single Product browser workflow",Filament/local DB,fixture state,YES,controlled,"browser certification",SELF
+tests/browser/ai-product-action-matrix.spec.ts,Playwright,"Header state/action matrix",Filament/local DB,fixture state,YES,fake,"browser certification",SELF
+tests/browser/ai-product-action-matrix-fixture.php,Fixture,"Deterministic action states",factories/services,test DB,YES,fake,"Playwright",SELF
+tests/browser/ai-product-bulk-workflow.spec.ts,Playwright,"Bulk selection/mutation workflow",Filament/local DB,fixture state,YES,controlled,"browser certification",SELF
+tests/browser/ai-product-fixture.php,Fixture,"Single workflow fixtures",factories/services,test DB,YES,fake,"Playwright",SELF

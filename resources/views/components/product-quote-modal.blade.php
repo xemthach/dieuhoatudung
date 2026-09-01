@@ -251,8 +251,9 @@
                 {{-- Product chip --}}
                 @if($product)
                 <div class="pqm-product-chip">
-                    @if(app(\App\Services\Product\ProductTechnicalFactResolver::class)->getDisplay($product, 'marketing_capacity_btu'))
-                    <span class="pqm-chip pqm-chip--blue">{{ number_format(app(\App\Services\Product\ProductTechnicalFactResolver::class)->getDisplay($product, 'marketing_capacity_btu')['value']) }} BTU</span>
+                    @php($quoteCapacity = app(\App\Services\Product\ProductTechnicalFactResolver::class)->formatBtuDisplay(app(\App\Services\Product\ProductTechnicalFactResolver::class)->getDisplay($product, 'marketing_capacity_btu')['value'] ?? null))
+                    @if($quoteCapacity)
+                    <span class="pqm-chip pqm-chip--blue">{{ $quoteCapacity }} BTU</span>
                     @endif
                     @if($product->brand?->name)
                     <span class="pqm-chip pqm-chip--gray">{{ $product->brand->name }}</span>

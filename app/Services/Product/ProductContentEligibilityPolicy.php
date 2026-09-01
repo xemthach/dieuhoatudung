@@ -18,8 +18,6 @@ final class ProductContentEligibilityPolicy
     public const FAQ = 'FAQ';
     public const ARTICLE = 'ARTICLE';
 
-    private const HISTORICAL_EXCLUSIONS = [1237, 1241, 1242, 1261];
-
     public function evaluate(Product $product, string|array $scope = self::LONG_DESCRIPTION): array
     {
         $currentJobItemId = $this->currentJobItemId($scope);
@@ -40,9 +38,6 @@ final class ProductContentEligibilityPolicy
             'brand_or_context' => filled($product->brand_id) || filled($product->product_type) || filled($product->category?->name),
         ];
 
-        if (in_array((int) $product->id, self::HISTORICAL_EXCLUSIONS, true)) {
-            $reasons[] = 'HISTORICAL_ROLLOUT_DISPOSITION_PRESERVED';
-        }
         if ((! $identity['name'] && ! $identity['model_code']) || ! $identity['brand_or_context']) {
             $reasons[] = 'MINIMUM_PRODUCT_IDENTITY_INSUFFICIENT';
         }
@@ -67,7 +62,7 @@ final class ProductContentEligibilityPolicy
             'identity' => $identity,
             'technical_authority_required' => false,
             'manufacturer_source_required' => false,
-            'historical_exclusion' => in_array((int) $product->id, self::HISTORICAL_EXCLUSIONS, true),
+            'historical_exclusion' => false,
         ];
     }
 
@@ -108,9 +103,14 @@ final class ProductContentEligibilityPolicy
             foreach (AiProductDraft::query()
                 ->whereIn('product_id', $ids)
                 ->when($excludedDraftIds !== [], fn ($query) => $query->whereNotIn('id', array_map('intval', $excludedDraftIds)))
-                ->whereIn('status', ['draft', 'needs_review', 'approved', 'approved_for_apply', 'applying'])
                 ->whereNull('applied_at')
-                ->whereNotIn('approval_status', ['REJECTED', 'DISCARDED', 'APPLIED'])
+                ->where(function ($query): void {
+                    $query->where(function ($review): void {
+                        $review->where('approval_status', 'REVIEW_REQUIRED')
+                            ->whereIn('status', ['needs_review', 'REVIEW_REQUIRED']);
+                    })->orWhere('approval_status', 'APPROVED_FOR_APPLY')
+                        ->orWhere('status', 'applying');
+                })
                 ->pluck('product_id') as $id) $conflicts[(int) $id] = true;
         }
         if (Schema::hasTable('ai_bulk_apply_items')) {
@@ -122,7 +122,8 @@ final class ProductContentEligibilityPolicy
             foreach (DB::table('ai_product_job_items')
                 ->whereIn('product_id', $ids)
                 ->when($excludedItemIds !== [], fn ($query) => $query->whereNotIn('id', array_map('intval', $excludedItemIds)))
-                ->whereIn('status', ['queued', 'processing', 'needs_review'])
+                ->whereIn('canonical_status', ['QUEUED', 'RUNNING', 'VALIDATING', 'FACT_CHECKING'])
+                ->whereNotIn('status', ['needs_review', 'completed', 'completed_verified', 'failed', 'blocked', 'cancelled', 'completed_with_errors'])
                 ->pluck('product_id') as $id) $conflicts[(int) $id] = true;
         }
 
@@ -131,29 +132,10 @@ final class ProductContentEligibilityPolicy
 
     private function hasActiveConflict(Product $product, ?int $currentJobItemId = null, ?int $supersededDraftId = null): bool
     {
-        $draftStatuses = ['draft', 'needs_review', 'approved', 'approved_for_apply', 'applying'];
-        if (Schema::hasTable('ai_product_drafts') && AiProductDraft::query()
-            ->where('product_id', $product->id)
-            ->when($supersededDraftId, fn ($query) => $query->where('id', '!=', $supersededDraftId))
-            ->whereIn('status', $draftStatuses)
-            ->whereNull('applied_at')
-            ->whereNotIn('approval_status', ['REJECTED', 'DISCARDED', 'APPLIED'])
-            ->exists()) {
-            return true;
-        }
-
-        if (Schema::hasTable('ai_bulk_apply_items') && DB::table('ai_bulk_apply_items')->where('product_id', $product->id)->whereIn('status', ['pending', 'authorized', 'applying'])->exists()) {
-            return true;
-        }
-
-        if (! Schema::hasTable('ai_product_job_items')) {
-            return false;
-        }
-
-        return DB::table('ai_product_job_items')
-            ->where('product_id', $product->id)
-            ->when($currentJobItemId, fn ($query) => $query->where('id', '!=', $currentJobItemId))
-            ->whereIn('status', ['queued', 'processing', 'needs_review'])
-            ->exists();
+        return isset($this->activeConflictProductIds(
+            [(int) $product->id],
+            $supersededDraftId ? [$supersededDraftId] : [],
+            $currentJobItemId ? [$currentJobItemId] : [],
+        )[(int) $product->id]);
     }
 }

@@ -93,7 +93,19 @@ class PromotionPriceResolver
 
     protected function toFloat(mixed $value): ?float
     {
-        if ($value === null || $value === '') {
+        if (is_int($value) || is_float($value)) {
+            return (float) $value;
+        }
+
+        if (! is_string($value)) {
+            return null;
+        }
+
+        $value = trim($value);
+
+        // DECIMAL casts yield plain decimal strings. Localized/formatted text
+        // and business labels such as "Liên hệ" have no safe numeric meaning.
+        if ($value === '' || ! preg_match('/^\d+(?:\.\d+)?$/D', $value)) {
             return null;
         }
 
@@ -102,11 +114,21 @@ class PromotionPriceResolver
 
     protected function toInt(mixed $value): int
     {
-        if ($value === null || $value === '') {
+        if (is_int($value)) {
+            return $value;
+        }
+
+        if (is_float($value)) {
+            return (int) $value;
+        }
+
+        if (! is_string($value)) {
             return 0;
         }
 
-        return (int) $value;
+        $value = trim($value);
+
+        return preg_match('/^\d+$/D', $value) ? (int) $value : 0;
     }
 
     protected function matchingPromotions(Product $product)

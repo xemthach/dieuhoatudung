@@ -1,0 +1,12 @@
+ENTITY,BEFORE,AFTER,DELTA,DISPOSITION
+products,364,364,0,"No catalog Product retained"
+ai_product_jobs,54,54,0,"Fixture jobs cleaned; historical rows untouched"
+ai_product_job_items,92,92,0,"Fixture items cleaned; historical rows untouched"
+ai_product_drafts,70,70,0,"Fixture drafts cleaned; historical rows untouched"
+ai_request_logs,320,323,3,"Provider audit evidence retained"
+product_bulk_operations,46,52,6,"Browser operation ledger retained"
+product_bulk_operation_items,160,181,21,"Per-Product browser ledger retained"
+catalog_models,36453,36453,0,"No catalog mutation"
+catalog_model_fields,656507,656507,0,"No catalog mutation"
+jobs,5,5,0,"No governed queue residue"
+failed_jobs,17,17,0,"No failed queue history deletion"

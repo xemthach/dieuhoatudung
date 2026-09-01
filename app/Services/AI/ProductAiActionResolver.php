@@ -44,7 +44,7 @@ final class ProductAiActionResolver
             $review ? 'discard' : null,
             $applied ? 'generate_new' : null,
             $item ? 'view_job' : null,
-            $active && in_array((string) $item?->status, ['queued', 'processing', 'stuck'], true) ? 'recover' : null,
+            $active && $item && app(AiProductLifecycleService::class)->isRecoverable($item) ? 'recover' : null,
         ]));
 
         return array_merge($resolved, [

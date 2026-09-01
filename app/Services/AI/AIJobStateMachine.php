@@ -40,12 +40,12 @@ final class AIJobStateMachine
         $allowed = [
             self::QUEUED => [self::RUNNING, self::VALIDATING, self::FAILED, self::CANCELLED, self::BLOCKED],
             self::RUNNING => [self::QUEUED, self::VALIDATING, self::FAILED, self::BLOCKED, self::CANCELLED],
-            self::VALIDATING => [self::FACT_CHECKING, self::FAILED, self::BLOCKED],
-            self::FACT_CHECKING => [self::REVIEW_REQUIRED, self::DONE, self::FAILED, self::BLOCKED],
+            self::VALIDATING => [self::QUEUED, self::FACT_CHECKING, self::FAILED, self::BLOCKED, self::CANCELLED],
+            self::FACT_CHECKING => [self::QUEUED, self::REVIEW_REQUIRED, self::DONE, self::FAILED, self::BLOCKED, self::CANCELLED],
             self::REVIEW_REQUIRED => [self::DONE, self::BLOCKED, self::CANCELLED],
             self::DONE => [],
-            self::FAILED => [self::QUEUED, self::CANCELLED, self::BLOCKED],
-            self::BLOCKED => [self::REVIEW_REQUIRED, self::CANCELLED],
+            self::FAILED => [],
+            self::BLOCKED => [],
             self::CANCELLED => [],
         ];
         if ($from !== $to && ! in_array($to, $allowed[$from] ?? [], true)) {

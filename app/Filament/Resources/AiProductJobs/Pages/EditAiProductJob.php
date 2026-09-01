@@ -50,20 +50,13 @@ class EditAiProductJob extends EditRecord
                         ->get();
 
                     foreach ($items as $item) {
-                        $item->update([
-                            'status' => 'queued',
-                            'retry_count' => (int) ($item->retry_count ?? 0) + 1,
-                            'error_message' => null,
-                            'failed_reason' => null,
-                            'last_error_code' => null,
-                            'last_error_message' => null,
-                        ]);
-                        AiProductContentSingleJob::dispatch($item->product_id, $this->record->id, $item->id)->onQueue(config('ai.governed_queue', 'ai_governed'));
+                        [$newJob, $newItem] = app(\App\Services\AI\AiProductLifecycleService::class)
+                            ->retryAsNewOperation($item, auth()->user());
+                        AiProductContentSingleJob::dispatch(
+                            $newItem->product_id, $newJob->id, $newItem->id, $newItem->dispatch_uuid,
+                        )->onQueue(config('ai.governed_queue', 'ai_governed'));
                     }
-
-                    $this->record->update(['status' => 'processing', 'finished_at' => null]);
                     Notification::make()->title('Đã retry '.$items->count().' item')->success()->send();
-                    $this->refreshFormData(['status']);
                 }),
 
             Action::make('cancel_job')
@@ -73,21 +66,9 @@ class EditAiProductJob extends EditRecord
                 ->requiresConfirmation()
                 ->visible(fn () => in_array($this->record->status, ['queued', 'processing', 'stuck'], true))
                 ->action(function () {
-                    $this->record->update([
-                        'status' => 'cancelled',
-                        'failed_reason' => 'job_cancelled',
-                        'last_error_code' => 'job_cancelled',
-                        'last_error_message' => 'Cancelled by admin.',
-                        'finished_at' => now(),
-                    ]);
-                    $this->record->items()->whereIn('status', ['queued', 'processing', 'stuck'])->update([
-                        'status' => 'cancelled',
-                        'error_message' => 'Cancelled by admin.',
-                        'failed_reason' => 'job_cancelled',
-                        'last_error_code' => 'job_cancelled',
-                        'last_error_message' => 'Cancelled by admin.',
-                        'finished_at' => now(),
-                    ]);
+                    app(\App\Services\AI\AiProductLifecycleService::class)->requestCancel(
+                        $this->record, auth()->id(), 'Cancelled by operator from AI Product Job detail.',
+                    );
                     Notification::make()->title('Job đã hủy')->warning()->send();
                     $this->refreshFormData(['status']);
                 }),

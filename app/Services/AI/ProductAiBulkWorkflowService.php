@@ -48,9 +48,8 @@ final class ProductAiBulkWorkflowService
                 'brand:id,name',
                 'tags:id,name,slug',
                 'faqs:id,question,answer',
-                'latestAiProductJobItem.draft.product.brand:id,name',
-                'latestAiProductJobItem.draft.product.tags:id,name,slug',
-                'latestAiProductJobItem.draft.product.faqs:id,question,answer',
+                'aiProductJobItems.draft',
+                'aiProductDrafts',
             ])
             ->get()
             ->keyBy(fn (Product $product): int => (int) $product->id);
@@ -86,7 +85,7 @@ final class ProductAiBulkWorkflowService
                 continue;
             }
 
-            $resolved = $this->states->resolve($product, $product->latestAiProductJobItem);
+            $resolved = $this->states->resolve($product);
             $state = $this->normalizeState((string) $resolved['status']);
             $draft = $resolved['draft'];
             $payload = (array) ($draft?->normalized_output_json ?? []);
@@ -307,10 +306,11 @@ final class ProductAiBulkWorkflowService
             $job = DB::transaction(function () use ($eligible, $actor, $options): AiProductJob {
                 $ids = $eligible->pluck('product_id')->map(fn ($id): int => (int) $id)->sort()->values()->all();
                 Product::query()->whereKey($ids)->orderBy('id')->lockForUpdate()->get();
-                $active = DB::table('ai_product_job_items')
-                    ->whereIn('product_id', $ids)
-                    ->whereIn('status', ['queued', 'processing', 'stuck'])
-                    ->pluck('product_id')->map(fn ($id): int => (int) $id)->all();
+                $active = array_keys($this->generationReadiness->activeConflictProductIds(
+                    $ids,
+                    $eligible->pluck('draft_id')->filter()->map(fn ($id): int => (int) $id)->all(),
+                    $eligible->pluck('item_id')->filter()->map(fn ($id): int => (int) $id)->all(),
+                ));
                 if ($active !== []) throw new RuntimeException('DUPLICATE_IN_PROGRESS:'.implode(',', $active));
 
                 foreach ($eligible as $row) {
@@ -338,6 +338,7 @@ final class ProductAiBulkWorkflowService
                     'type' => 'regenerate_ai_content',
                     'scope' => 'selected',
                     'status' => 'queued',
+                    'canonical_status' => 'QUEUED',
                     'total' => count($ids),
                     'config_json' => $config,
                     'created_by' => $actor->id,

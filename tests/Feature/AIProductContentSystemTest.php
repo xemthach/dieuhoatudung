@@ -59,8 +59,8 @@ class AIProductContentSystemTest extends TestCase
         $job->refresh();
         $this->assertSame('blocked', $item->status);
         $this->assertSame('DUPLICATE_IN_PROGRESS', $item->status_reason);
-        $this->assertSame('completed_with_errors', $job->status);
-        $this->assertSame('FAILED', $job->canonical_status);
+        $this->assertSame('blocked', $job->status);
+        $this->assertSame('BLOCKED', $job->canonical_status);
         $this->assertSame(1, $job->processed);
         $this->assertSame(1, $job->failed);
         $this->assertDatabaseHas('ai_technical_logs', [
@@ -70,7 +70,7 @@ class AIProductContentSystemTest extends TestCase
         ]);
     }
 
-    public function test_queue_retry_reopens_failed_item_through_valid_state_transitions(): void
+    public function test_queue_delivery_cannot_reopen_terminal_failed_item(): void
     {
         $product = $this->product();
         $job = AiProductJob::create([
@@ -83,7 +83,7 @@ class AIProductContentSystemTest extends TestCase
             'canonical_status' => 'FAILED',
         ]);
         $system = Mockery::mock(AIProductContentSystem::class);
-        $system->shouldReceive('generate')->once()->andThrow(new \RuntimeException('controlled retry failure'));
+        $system->shouldNotReceive('generate');
 
         (new AiProductContentSingleJob($product->id, $job->id, $item->id))->handle($system);
 
