@@ -822,8 +822,7 @@ class ProductsTable
                 }
 
                 $config = self::normalizeAiActionData($data, $action);
-                $config['guard_policy_version'] = app(\App\Services\AI\AiGuardPolicy::class)->version();
-                $config['guard_policy_snapshot'] = app(\App\Services\AI\AiGuardPolicy::class)->snapshot();
+                $config = app(\App\Services\AI\AiProductLifecycleService::class)->prepareGenerationConfig($config);
                 $job = AiProductJob::create(array_merge([
                     'type' => $action,
                     'scope' => $data['scope'] ?? 'selected',

@@ -58,6 +58,7 @@ class AIProductHeaderActionTest extends TestCase
         $this->assertSame('selected', $job->scope);
         $this->assertSame(2, $job->total);
         $this->assertSame($selectedIds, array_map('intval', $job->selected_product_ids_json));
+        $this->assertNotEmpty($job->config_json['operation_generation'] ?? null);
 
         Bus::assertDispatched(AiProductContentBatchJob::class, function (AiProductContentBatchJob $batchJob) use ($selectedIds): bool {
             sort($batchJob->productIds);
@@ -86,6 +87,7 @@ class AIProductHeaderActionTest extends TestCase
         $this->assertNotNull($job);
         $this->assertSame('filter', $job->scope);
         $this->assertSame(4, $job->total);
+        $this->assertNotEmpty($job->config_json['operation_generation'] ?? null);
     }
 
     public function test_header_ai_generate_current_page_scope_does_not_require_selected_records(): void

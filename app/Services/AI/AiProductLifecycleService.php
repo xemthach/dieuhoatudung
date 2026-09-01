@@ -18,6 +18,42 @@ final class AiProductLifecycleService
         private readonly AiProductParentReconciler $parents,
     ) {}
 
+    /**
+     * Gives each authorized generation operation an immutable identity.
+     *
+     * The identity is intentionally shared by every item in a bulk operation,
+     * while remaining distinct from all historical operations for the same
+     * Product/configuration. It is therefore part of the idempotency contract,
+     * not a display-only correlation value.
+     */
+    public function prepareGenerationConfig(array $config): array
+    {
+        $config['operation_generation'] ??= (string) Str::uuid();
+        $config['guard_policy_version'] ??= app(AiGuardPolicy::class)->version();
+        $config['guard_policy_snapshot'] ??= app(AiGuardPolicy::class)->snapshot();
+
+        return $config;
+    }
+
+    /**
+     * Compatibility boundary for queued jobs created before operation identity
+     * was frozen at submission time. It never rotates an existing identity.
+     */
+    public function ensureJobGenerationIdentity(AiProductJob $job): array
+    {
+        return DB::transaction(function () use ($job): array {
+            $locked = AiProductJob::query()->lockForUpdate()->findOrFail($job->id);
+            $current = is_array($locked->config_json) ? $locked->config_json : [];
+            $prepared = $this->prepareGenerationConfig($current);
+
+            if ($prepared !== $current) {
+                $locked->forceFill(['config_json' => $prepared])->save();
+            }
+
+            return $prepared;
+        });
+    }
+
     public function requestCancel(AiProductJob $job, ?int $actorId, string $reason): AiProductJob
     {
         return DB::transaction(function () use ($job, $actorId, $reason): AiProductJob {
@@ -83,9 +119,7 @@ final class AiProductLifecycleService
                     ->supersedeForRegeneration($supersededDraft->fresh(), $actor);
             }
 
-            $config['operation_generation'] = (string) Str::uuid();
-            $config['guard_policy_version'] = app(AiGuardPolicy::class)->version();
-            $config['guard_policy_snapshot'] = app(AiGuardPolicy::class)->snapshot();
+            $config = $this->prepareGenerationConfig($config);
             $job = AiProductJob::create(array_merge([
                 'type' => $type, 'scope' => 'selected', 'status' => 'queued',
                 'canonical_status' => AIJobStateMachine::QUEUED, 'total' => 1,

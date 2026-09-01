@@ -247,6 +247,49 @@ class AIProductContentSystemTest extends TestCase
         Bus::assertDispatched(AiProductContentSingleJob::class, 10);
     }
 
+    public function test_bulk_generation_assigns_a_new_operation_identity_and_does_not_conflict_with_terminal_legacy_history(): void
+    {
+        Bus::fake();
+        $products = Product::factory()->count(3)->create();
+        $config = $this->config(); // Matches the normal Bulk Generate UI before it assigns an operation identity.
+        $idempotency = app(AIProductIdempotencyService::class);
+
+        $historicalJob = AiProductJob::create([
+            'type' => 'generate_ai_content', 'scope' => 'selected', 'status' => 'cancelled',
+            'canonical_status' => 'CANCELLED', 'total' => 3, 'config_json' => $config,
+            'finished_at' => now(),
+        ]);
+        foreach ($products as $product) {
+            $historicalJob->items()->create([
+                'product_id' => $product->id,
+                'status' => 'blocked', 'canonical_status' => 'BLOCKED',
+                'status_reason' => 'DUPLICATE_IN_PROGRESS',
+                'idempotency_key' => $idempotency->key($product, $config),
+                'finished_at' => now(),
+            ]);
+        }
+
+        $job = AiProductJob::create([
+            'type' => 'generate_ai_content', 'scope' => 'selected', 'status' => 'queued',
+            'canonical_status' => 'QUEUED', 'total' => 3, 'config_json' => $config,
+        ]);
+        app(ProductBulkGenerationManifest::class)->freeze(
+            $job,
+            ProductBulkTargetResolver::SELECTED,
+            $products->pluck('id')->all(),
+            0,
+        );
+
+        (new AiProductContentBatchJob($job->id))->handle();
+
+        $job->refresh();
+        $this->assertNotSame('legacy-generation', $job->config_json['operation_generation'] ?? 'legacy-generation');
+        $this->assertSame(3, $job->items()->where('canonical_status', 'QUEUED')->count());
+        $this->assertSame(0, $job->items()->where('canonical_status', 'BLOCKED')->count());
+        $this->assertSame(3, $historicalJob->items()->where('canonical_status', 'BLOCKED')->count());
+        Bus::assertDispatched(AiProductContentSingleJob::class, 3);
+    }
+
     public function test_bulk_20_mix_category_products_creates_items(): void
     {
         Bus::fake();

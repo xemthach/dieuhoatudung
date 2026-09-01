@@ -344,10 +344,8 @@ final class ProductAiBulkWorkflowService
                     'batch_size' => max(1, min((int) ($options['batch_size'] ?? 10), 50)),
                     'outputs' => collect(['content', 'seo', 'merchant', 'tags', 'faq', 'internal_links', 'og'])
                         ->mapWithKeys(fn (string $field): array => [$field => isset($selectedOutputs[$field])])->all(),
-                    'operation_generation' => (string) Str::uuid(),
-                    'guard_policy_version' => app(AiGuardPolicy::class)->version(),
-                    'guard_policy_snapshot' => app(AiGuardPolicy::class)->snapshot(),
                 ];
+                $config = app(AiProductLifecycleService::class)->prepareGenerationConfig($config);
                 $job = AiProductJob::create(array_merge([
                     'type' => 'regenerate_ai_content',
                     'scope' => 'selected',

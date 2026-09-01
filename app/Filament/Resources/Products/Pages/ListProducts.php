@@ -217,8 +217,7 @@ class ListProducts extends ListRecords
         }
 
         $config = ProductsTable::normalizeAiActionData($data, 'generate_ai_content');
-        $config['guard_policy_version'] = app(\App\Services\AI\AiGuardPolicy::class)->version();
-        $config['guard_policy_snapshot'] = app(\App\Services\AI\AiGuardPolicy::class)->snapshot();
+        $config = app(\App\Services\AI\AiProductLifecycleService::class)->prepareGenerationConfig($config);
         $job = AiProductJob::create(array_merge([
             'type' => 'generate_ai_content',
             'scope' => $scope === 'all_filtered' ? 'filter' : $scope,

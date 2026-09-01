@@ -73,7 +73,12 @@ class AiProductContentSingleJob implements ShouldQueue
             }
         }
 
-        $config = $job?->config_json ?? [];
+        // Jobs created by the canonical lifecycle already carry this identity.
+        // Preserve compatibility for an older queued job without rotating any
+        // identity that was already frozen at submission time.
+        $config = $job
+            ? $lifecycle->ensureJobGenerationIdentity($job)
+            : [];
         if ($item) {
             $config['current_job_item_id'] = $item->id;
         }

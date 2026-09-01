@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.33.2] - 2026-09-01
+
+### Fixed
+- Bulk AI Generate now freezes a unique `operation_generation` UUID when creating an authorized operation. Historical idempotency keys can no longer collide through the `legacy-generation` fallback and false-block a new Bulk Job as `DUPLICATE_IN_PROGRESS`.
+- Bulk header, table action, Bulk Regenerate, Batch worker, Single worker and the Single lifecycle now use the same operation-identity boundary.
+- A queued legacy Job that genuinely lacks an identity receives one before its first idempotency check; an already frozen identity is never rotated.
+
+### Safety
+- Historical Job #31 and all 276 blocked child rows remain immutable evidence. This release neither retries, deletes nor rewrites them.
+- A genuinely active operation with the same Product and operation identity remains fail-closed as `DUPLICATE_IN_PROGRESS`.
+- No migration and no mass historical data rewrite are included.
+
+### Validation
+- Focused Bulk lifecycle/current-history/header suite: 80 passed, 439 assertions.
+- Full PHPUnit: 551 tests, 550 passed, 1 skipped, 3,459 assertions, 0 failures/errors.
+- Controlled governed provider certification: 1 + 3 + 10 fixture Products, 14/14 reached `REVIEW_REQUIRED`; no false duplicate collision.
+- Playwright Bulk workflow: 2 passed, 0 failed. Composer validation/audit, npm high audit, Vite build, PHP lint and `git diff --check`: PASS.
+
 ## [1.33.1] - 2026-09-01
 
 ### Fixed

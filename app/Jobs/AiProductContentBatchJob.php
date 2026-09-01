@@ -38,7 +38,8 @@ class AiProductContentBatchJob implements ShouldQueue
         $technicalLogger ??= app(AITechnicalLogger::class);
         $idempotency ??= app(AIProductIdempotencyService::class);
         $job = AiProductJob::findOrFail($this->aiProductJobId);
-        $config = is_array($job->config_json) ? $job->config_json : [];
+        $config = app(\App\Services\AI\AiProductLifecycleService::class)->ensureJobGenerationIdentity($job);
+        $job->refresh();
         \App\Services\AI\PilotRuntimeGuard::assert($config);
         $strictDraftOnly = (bool) ($config['draft_only_strict'] ?? false);
         if ($job->target_manifest_hash) {
