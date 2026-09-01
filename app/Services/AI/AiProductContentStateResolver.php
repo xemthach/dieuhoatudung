@@ -50,12 +50,15 @@ final class AiProductContentStateResolver
 
         if ($activeItems->count() > 1 || $actionableDrafts->count() > 1 || $applyingDrafts->count() > 1) {
             $issue = (string) ($violations[array_key_last($violations)]['code'] ?? 'AI_PRODUCT_INVARIANT_VIOLATION');
+            $invariantDraft = $currentDraft;
+            $invariantItem = $currentItem ?: ($invariantDraft ? $this->itemForDraft($items, $invariantDraft) : null);
             return $this->result(
-                status: 'BLOCKED', productState: 'INVARIANT_BLOCKED', item: $currentItem ?: $latestItem,
-                draft: $currentDraft ?: $latestDraft, activeOperation: $currentItem,
+                status: 'BLOCKED', productState: 'INVARIANT_BLOCKED', item: $invariantItem,
+                draft: $invariantDraft, activeOperation: $currentItem,
                 actionableDraft: $reviewDrafts->first(), approvedDraft: $approvedDrafts->first(),
                 latestItem: $latestItem, latestDraft: $latestDraft, stateIssue: $issue,
                 violations: $violations, blockers: array_values(array_unique(array_column($violations, 'code'))),
+                nextActions: ['VIEW_BLOCK_REASON'],
             );
         }
 
@@ -67,6 +70,7 @@ final class AiProductContentStateResolver
                 activeOperation: $currentItem, actionableDraft: null, approvedDraft: null,
                 latestItem: $latestItem, latestDraft: $latestDraft,
                 stateIssue: $itemStates[$currentItem->id]['violation'], violations: $violations,
+                nextActions: ['VIEW_JOB'],
             );
         }
 
@@ -76,7 +80,7 @@ final class AiProductContentStateResolver
                 status: 'PROCESSING', productState: 'APPLYING', item: $this->itemForDraft($items, $draft),
                 draft: $draft, activeOperation: null, actionableDraft: null, approvedDraft: $draft,
                 latestItem: $latestItem, latestDraft: $latestDraft, stateIssue: null,
-                violations: $violations, blockers: ['APPLY_IN_PROGRESS'],
+                violations: $violations, blockers: ['APPLY_IN_PROGRESS'], nextActions: ['VIEW_JOB'],
             );
         }
 
@@ -102,11 +106,10 @@ final class AiProductContentStateResolver
 
         if (! $latestItem && ! $latestDraft) {
             return $this->result(
-                status: 'NOT_GENERATED', productState: 'AVAILABLE', item: null, draft: null,
+                status: 'AVAILABLE', productState: 'AVAILABLE', item: null, draft: null,
                 activeOperation: null, actionableDraft: null, approvedDraft: null,
                 latestItem: null, latestDraft: null,
-                stateIssue: filled($product->ai_status) && $product->ai_status !== 'not_generated'
-                    ? 'STALE_DENORMALIZED_STATUS' : null,
+                stateIssue: null,
                 violations: $violations, nextActions: ['GENERATE'],
             );
         }
@@ -119,16 +122,15 @@ final class AiProductContentStateResolver
                 latestItem: $latestItem, latestDraft: $latestDraft, stateIssue: 'REVIEWABLE_DRAFT_MISSING',
                 violations: array_merge($violations, [[
                     'code' => 'REVIEWABLE_DRAFT_MISSING', 'entity' => 'ai_product_job_item', 'id' => $latestItem->id,
-                ]]), blockers: ['REVIEWABLE_DRAFT_MISSING'],
+                ]]), blockers: ['REVIEWABLE_DRAFT_MISSING'], nextActions: ['VIEW_BLOCK_REASON'],
             );
         }
 
-        [$historyStatus, $historyApplied] = $this->historyStatus($latestItem, $latestDraft, $itemStates);
         return $this->result(
-            status: $historyStatus, productState: 'AVAILABLE', item: $latestItem,
-            draft: $latestItem?->draft ?: $latestDraft, activeOperation: null, actionableDraft: null,
+            status: 'AVAILABLE', productState: 'AVAILABLE', item: null,
+            draft: null, activeOperation: null, actionableDraft: null,
             approvedDraft: null, latestItem: $latestItem, latestDraft: $latestDraft,
-            stateIssue: null, violations: $violations, applied: $historyApplied, nextActions: ['GENERATE'],
+            stateIssue: null, violations: $violations, nextActions: ['GENERATE'],
         );
     }
 
@@ -165,14 +167,19 @@ final class AiProductContentStateResolver
     }
 
     /** @return array{string,bool} */
-    private function historyStatus(?AiProductJobItem $item, ?AiProductDraft $draft, Collection $itemStates): array
+    private function historyStatus(?AiProductJobItem $item, ?AiProductDraft $draft): array
     {
         $historyDraft = $item?->draft ?: $draft;
         if ($historyDraft?->applied_at || $historyDraft?->approval_status === 'APPLIED') return ['APPLIED', true];
         if ($historyDraft?->approval_status === 'REJECTED') return ['REJECTED', false];
         if ($historyDraft?->approval_status === 'DISCARDED' || strtolower((string) $historyDraft?->status) === 'discarded') return ['DISCARDED', false];
-        if ($item) return [app(AiContentStatusPresenter::class)->normalize((string) $itemStates[$item->id]['status']), false];
-        return ['NOT_GENERATED', false];
+        if ($item) {
+            $state = $this->compatibility->item($item);
+
+            return [strtoupper((string) $state['status']), false];
+        }
+
+        return [null, false];
     }
 
     /** @return array<string,mixed> */
@@ -182,14 +189,25 @@ final class AiProductContentStateResolver
         ?AiProductJobItem $latestItem, ?AiProductDraft $latestDraft, ?string $stateIssue, array $violations,
         array $blockers = [], array $nextActions = [], bool $applied = false,
     ): array {
+        [$historyStatus, $historyApplied] = $this->historyStatus($latestItem, $latestDraft);
+        $historyReason = $latestItem?->status_reason
+            ?: $latestItem?->failed_reason
+            ?: $latestItem?->last_error_code;
+
         return [
             'status' => $status, 'product_state' => $productState, 'item' => $item, 'draft' => $draft,
             'active_operation' => $activeOperation, 'actionable_draft' => $actionableDraft,
-            'approved_draft' => $approvedDraft, 'latest_history' => ['item' => $latestItem, 'draft' => $latestDraft],
+            'approved_draft' => $approvedDraft, 'latest_history' => [
+                'item' => $latestItem,
+                'draft' => $latestDraft,
+                'status' => $historyStatus,
+                'reason' => $historyReason,
+                'applied' => $historyApplied,
+            ],
             'blockers' => $blockers, 'next_actions' => $nextActions, 'invariant_violations' => $violations,
             'reviewable' => $status === 'REVIEW_REQUIRED' && $actionableDraft !== null,
             'approved_unapplied' => $status === 'APPROVED' && $approvedDraft !== null,
-            'applied' => $applied || $status === 'APPLIED', 'state_issue' => $stateIssue,
+            'applied' => $applied, 'state_issue' => $stateIssue,
         ];
     }
 }

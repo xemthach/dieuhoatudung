@@ -11,6 +11,7 @@ final class ProductAiGenerationReadiness
         private readonly ProductContentEligibilityPolicy $eligibility,
         private readonly AIWorkerReadinessService $worker,
         private readonly AiProviderReadinessService $provider,
+        private readonly AiProductContentStateResolver $states,
     ) {}
 
     /** @return array<string,mixed> */
@@ -22,8 +23,17 @@ final class ProductAiGenerationReadiness
         $provider = $runtime['provider'];
         $blockers = array_map(fn (string $code): array => $this->blocker($code), (array) $content['reasons']);
 
+        $current = $this->states->resolve($product);
+        if ($current['product_state'] === 'INVARIANT_BLOCKED') {
+            foreach ((array) ($current['blockers'] ?: [$current['state_issue']]) as $code) {
+                if (filled($code)) $blockers[] = $this->blocker((string) $code);
+            }
+        }
+
         if (! $worker['ready']) $blockers[] = $this->blocker('WORKER_OFFLINE');
         if (! $provider['ready']) $blockers[] = $this->blocker('PROVIDER_NOT_CONFIGURED');
+
+        $blockers = collect($blockers)->unique('code')->values()->all();
 
         return [
             'can_generate' => $blockers === [],
@@ -60,7 +70,12 @@ final class ProductAiGenerationReadiness
     public function resolveMany(array $productIds, array $scope, array $excludedDraftIds = [], array $excludedItemIds = []): array
     {
         $ids = array_values(array_unique(array_filter(array_map('intval', $productIds))));
-        $products = Product::query()->whereKey($ids)->with(['brand:id,name', 'category:id,name'])->get()->keyBy('id');
+        $products = Product::query()->whereKey($ids)->with([
+            'brand:id,name',
+            'category:id,name',
+            'aiProductJobItems.draft',
+            'aiProductDrafts',
+        ])->get()->keyBy('id');
         $runtime = $this->runtimeSnapshot();
         $conflicts = $this->activeConflictProductIds($ids, $excludedDraftIds, $excludedItemIds);
         $rows = [];

@@ -99,7 +99,9 @@ test.describe.serial('Product List governed AI bulk actions', () => {
         const applyModal = page.locator('.fi-modal-window:visible').last();
         const preflight = applyModal.getByTestId('ai-bulk-preflight');
         await expect(preflight).toContainText('APPROVED');
-        await expect(preflight).toContainText('BLOCKED');
+        const hardBlockedRow = preflight.locator(`tr[data-product-id="${state.products.blocked.product_id}"]`);
+        await expect(hardBlockedRow).toHaveAttribute('data-ai-state', 'APPROVED');
+        await expect(hardBlockedRow.locator('td').nth(5)).toHaveText('1');
         const checkboxes = applyModal.locator('input[type="checkbox"]');
         await checkboxes.evaluateAll(inputs => inputs.forEach(input => {
             if (!(input as HTMLInputElement).checked) (input as HTMLElement).click();
@@ -109,7 +111,7 @@ test.describe.serial('Product List governed AI bulk actions', () => {
         await expect.poll(() => fixture('snapshot', 'apply').approval_status).toBe('APPLIED');
         await expect.poll(() => fixture('snapshot', 'apply_rbac').approval_status).toBe('APPLIED');
         await expect(fixture('snapshot', 'stale').approval_status).toBe('APPROVED_FOR_APPLY');
-        await expect(fixture('snapshot', 'blocked').approval_status).toBe('REVIEW_REQUIRED');
+        await expect(fixture('snapshot', 'blocked').approval_status).toBe('APPROVED_FOR_APPLY');
 
         // Clean approval leaves Product unchanged and records the configured operator.
         await page.goto('/admin/products');

@@ -86,7 +86,7 @@ class ProductAiStatusEndpointTest extends TestCase
         $this->assertCount(1, $response->json('products'));
     }
 
-    public function test_ai_status_endpoint_exposes_failed_reason_and_retry_url(): void
+    public function test_ai_status_endpoint_exposes_failed_history_separately_and_retry_url(): void
     {
         $this->actingAsAiProductUser();
 
@@ -119,8 +119,10 @@ class ProductAiStatusEndpointTest extends TestCase
 
         $response
             ->assertOk()
-            ->assertJsonPath('products.0.ai_status_label', 'Thất bại')
-            ->assertJsonPath('products.0.safe_reason', 'Nhà cung cấp AI tạm thời không phản hồi.')
+            ->assertJsonPath('products.0.ai_status', 'available')
+            ->assertJsonPath('products.0.history_status', 'FAILED')
+            ->assertJsonPath('products.0.history_reason', 'provider_timeout')
+            ->assertJsonPath('products.0.safe_reason', null)
             ->assertJsonMissingPath('products.0.last_error_message');
 
         $this->assertStringContainsString("/admin/products/{$product->id}/ai-retry", $response->json('products.0.retry_url'));

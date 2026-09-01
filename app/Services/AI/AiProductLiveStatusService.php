@@ -38,6 +38,11 @@ final class AiProductLiveStatusService
                 $resolved = $this->stateResolver->resolve($product);
                 $item = $resolved['item'];
                 $draft = $resolved['draft'];
+                $historyItem = $resolved['latest_history']['item'];
+                $historyDraft = $resolved['latest_history']['draft'];
+                $updatedAt = $item?->state_changed_at ?: $item?->updated_at
+                    ?: $historyItem?->state_changed_at ?: $historyItem?->updated_at
+                    ?: $product->ai_last_run_at;
                 $internal = $resolved['status'];
                 $status = $this->presenter->present($internal, $worker);
                 $job = $item?->job;
@@ -66,8 +71,8 @@ final class AiProductLiveStatusService
                         : $this->presenter->safeReason($item?->failed_reason ?: $item?->last_error_code),
                     'seo_score' => (int) ($product->ai_score ?? 0),
                     'warnings_count' => (int) ($product->ai_warning_count ?? 0),
-                    'updated_at' => ($item?->state_changed_at ?: $item?->updated_at ?: $product->ai_last_run_at)?->toIso8601String(),
-                    'updated_human' => ($item?->state_changed_at ?: $item?->updated_at ?: $product->ai_last_run_at)?->diffForHumans() ?? 'Chưa có cập nhật',
+                    'updated_at' => $updatedAt?->toIso8601String(),
+                    'updated_human' => $updatedAt?->diffForHumans() ?? 'Chưa có cập nhật',
                     'started_at' => $item?->started_at?->toIso8601String(),
                     'progress' => $total > 1 ? [
                         'processed' => $processed,
@@ -83,8 +88,13 @@ final class AiProductLiveStatusService
                         'status' => $this->presenter->present((string) $fieldStatus),
                     ])->values()->all(),
                     'job_id' => $item?->ai_product_job_id,
-                    'draft_id' => $item?->draft_id,
-                    'retry_allowed' => $item && in_array($item->status, ['failed', 'stuck', 'cancelled'], true),
+                    'draft_id' => $draft?->id,
+                    'history_job_id' => $historyItem?->ai_product_job_id ?: $historyDraft?->job_id,
+                    'history_item_id' => $historyItem?->id,
+                    'history_draft_id' => $historyDraft?->id,
+                    'history_status' => $resolved['latest_history']['status'],
+                    'history_reason' => $resolved['latest_history']['reason'],
+                    'retry_allowed' => $historyItem && in_array($historyItem->status, ['failed', 'stuck', 'cancelled'], true),
                     'review_required' => $resolved['reviewable'],
                     'approved_unapplied' => $resolved['approved_unapplied'],
                     'state_issue' => $resolved['state_issue'],

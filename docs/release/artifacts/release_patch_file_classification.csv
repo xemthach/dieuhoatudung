@@ -1,0 +1,44 @@
+PATH,GIT_STATUS,CATEGORY,INCLUDE_RELEASE,REASON,PRIVATE,GENERATED,TEST,REPORT,SOURCE,MIGRATION,BUILD_ASSET,RISK
+VERSION,MODIFIED,INCLUDE,YES,Canonical patch version,NO,NO,NO,NO,YES,NO,NO,LOW
+README.md,MODIFIED,INCLUDE,YES,Current version badge,NO,NO,NO,NO,YES,NO,NO,LOW
+CHANGELOG.md,MODIFIED,INCLUDE,YES,v1.33.1 release history,NO,NO,NO,YES,NO,NO,NO,LOW
+docs/UPDATE_LIVE_SERVER.md,MODIFIED,INCLUDE,YES,Current production update pointer,NO,NO,NO,YES,NO,NO,NO,LOW
+docs/release/RELEASE_1.33.1.md,UNTRACKED,INCLUDE,YES,Release notes,NO,NO,NO,YES,NO,NO,NO,LOW
+docs/release/LIVE_DEPLOYMENT_RUNBOOK_1.33.1.md,UNTRACKED,INCLUDE,YES,Exact production and rollback procedure,NO,NO,NO,YES,NO,NO,NO,MEDIUM
+docs/release/artifacts/release_patch_file_classification.csv,UNTRACKED,INCLUDE,YES,Audited release file inventory,NO,NO,NO,YES,NO,NO,NO,LOW
+docs/reports/final/AI_PRODUCT_CURRENT_HISTORY_STATE_POST_DEPLOY_REGRESSION.md,UNTRACKED,INCLUDE,YES,Certified regression evidence,NO,NO,NO,YES,NO,NO,NO,LOW
+app/Filament/Resources/Products/Pages/EditProduct.php,MODIFIED,INCLUDE,YES,Current action and history job separation,NO,NO,NO,NO,YES,NO,NO,MEDIUM
+app/Filament/Resources/Products/Tables/ProductsTable.php,MODIFIED,INCLUDE,YES,Current versus historical status filters and display,NO,NO,NO,NO,YES,NO,NO,HIGH
+app/Livewire/AiProductLiveStatus.php,MODIFIED,INCLUDE,YES,Current and history job URL fallback,NO,NO,NO,NO,YES,NO,NO,MEDIUM
+app/Services/AI/AiContentStatusPresenter.php,MODIFIED,INCLUDE,YES,AVAILABLE presentation contract,NO,NO,NO,NO,YES,NO,NO,LOW
+app/Services/AI/AiProductContentStateResolver.php,MODIFIED,INCLUDE,YES,Canonical current and history state separation,NO,NO,NO,NO,YES,NO,NO,HIGH
+app/Services/AI/AiProductLiveStatusService.php,MODIFIED,INCLUDE,YES,Current payload and latest history separation,NO,NO,NO,NO,YES,NO,NO,HIGH
+app/Services/AI/ProductAiActionResolver.php,MODIFIED,INCLUDE,YES,Actions derive from canonical current state,NO,NO,NO,NO,YES,NO,NO,HIGH
+app/Services/AI/ProductAiBulkWorkflowService.php,MODIFIED,INCLUDE,YES,Bulk current and history parity,NO,NO,NO,NO,YES,NO,NO,HIGH
+app/Services/AI/ProductAiGenerationReadiness.php,MODIFIED,INCLUDE,YES,Generation readiness and invariant parity,NO,NO,NO,NO,YES,NO,NO,HIGH
+resources/views/filament/product-ai-bulk-preflight.blade.php,MODIFIED,INCLUDE,YES,AVAILABLE bulk summary,NO,NO,NO,NO,YES,NO,NO,MEDIUM
+resources/views/livewire/ai-product-live-status.blade.php,MODIFIED,INCLUDE,YES,Separate current status and latest history UI,NO,NO,NO,NO,YES,NO,NO,MEDIUM
+tests/Feature/AiProductCanonicalLifecycleTest.php,MODIFIED,INCLUDE,YES,Canonical lifecycle regression alignment,NO,NO,YES,NO,NO,NO,NO,LOW
+tests/Feature/AiProductCurrentHistoryContractTest.php,UNTRACKED,INCLUDE,YES,Exact Product 987 equivalent regression,NO,NO,YES,NO,NO,NO,NO,LOW
+tests/Feature/AiProductStateConsistencyTest.php,MODIFIED,INCLUDE,YES,Current state consistency regression,NO,NO,YES,NO,NO,NO,NO,LOW
+tests/Feature/ProductAiActionResolverTest.php,MODIFIED,INCLUDE,YES,Action current/history regression,NO,NO,YES,NO,NO,NO,NO,LOW
+tests/Feature/ProductAiBulkWorkflowTest.php,MODIFIED,INCLUDE,YES,Single and bulk parity regression,NO,NO,YES,NO,NO,NO,NO,LOW
+tests/Feature/ProductAiStatusEndpointTest.php,MODIFIED,INCLUDE,YES,Live payload current/history regression,NO,NO,YES,NO,NO,NO,NO,LOW
+tests/browser/ai-product-action-matrix-fixture.php,MODIFIED,INCLUDE,YES,Disposable historical block browser fixture,NO,NO,YES,NO,NO,NO,NO,LOW
+tests/browser/ai-product-action-matrix.spec.ts,MODIFIED,INCLUDE,YES,Product 987 equivalent browser regression,NO,NO,YES,NO,NO,NO,NO,LOW
+tests/browser/ai-product-bulk-workflow.spec.ts,MODIFIED,INCLUDE,YES,Bulk hard-block versus current state assertion,NO,NO,YES,NO,NO,NO,NO,LOW
+docs/reports/final/artifacts/browser/campaign-preview-image.png,MODIFIED,GENERATED,NO,Unrelated existing browser screenshot,NO,YES,NO,NO,NO,NO,YES,LOW
+docs/reports/final/artifacts/browser/campaign-preview-inactive.png,MODIFIED,GENERATED,NO,Unrelated existing browser screenshot,NO,YES,NO,NO,NO,NO,YES,LOW
+docs/reports/final/artifacts/browser/campaign-preview-video.png,MODIFIED,GENERATED,NO,Unrelated existing browser screenshot,NO,YES,NO,NO,NO,NO,YES,LOW
+docs/reports/final/artifacts/browser/campaign-production-desktop.png,MODIFIED,GENERATED,NO,Unrelated existing browser screenshot,NO,YES,NO,NO,NO,NO,YES,LOW
+docs/reports/final/artifacts/browser/post-ai-applied-same-record.png,MODIFIED,GENERATED,NO,Unrelated existing browser screenshot,NO,YES,NO,NO,NO,NO,YES,LOW
+docs/reports/final/artifacts/browser/post-ai-preview.png,MODIFIED,GENERATED,NO,Unrelated existing browser screenshot,NO,YES,NO,NO,NO,NO,YES,LOW
+docs/reports/final/artifacts/browser/post-editor-focused-editable.png,MODIFIED,GENERATED,NO,Unrelated existing browser screenshot,NO,YES,NO,NO,NO,NO,YES,LOW
+docs/reports/final/artifacts/browser/promotion-ai-description-detailed-content.png,MODIFIED,GENERATED,NO,Unrelated existing browser screenshot,NO,YES,NO,NO,NO,NO,YES,LOW
+docs/reports/final/artifacts/browser/promotion-banner-popup-desktop.png,MODIFIED,GENERATED,NO,Unrelated existing browser screenshot,NO,YES,NO,NO,NO,NO,YES,LOW
+docs/reports/final/artifacts/browser/promotion-campaign-mobile-390.png,MODIFIED,GENERATED,NO,Unrelated existing browser screenshot,NO,YES,NO,NO,NO,NO,YES,LOW
+docs/reports/final/artifacts/browser/promotion-landing-desktop.png,MODIFIED,GENERATED,NO,Unrelated existing browser screenshot,NO,YES,NO,NO,NO,NO,YES,LOW
+DAIKIN_SKYAIR_2026_IMPORT.xlsx,UNTRACKED,PRIVATE,NO,Operator catalog workbook,YES,NO,NO,NO,NO,NO,NO,HIGH
+DAIKIN_WALL_MOUNTED_2026_IMPORT.xlsx,UNTRACKED,PRIVATE,NO,Operator catalog workbook,YES,NO,NO,NO,NO,NO,NO,HIGH
+DAIKIN_WALL_MOUNTED_2026_IMPORT_READY.xlsx,UNTRACKED,PRIVATE,NO,Operator catalog workbook,YES,NO,NO,NO,NO,NO,NO,HIGH
+docs/reports/final/artifacts/skyair_production_import_manifest.csv,UNTRACKED,PRIVATE,NO,Production import manifest outside patch scope,YES,NO,NO,NO,NO,NO,NO,HIGH

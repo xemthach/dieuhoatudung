@@ -1,5 +1,9 @@
 @php
     $view = $status['status'] ?? ['label' => 'Chưa tạo', 'color' => 'gray'];
+    $latestJobId = $status['job_id'] ?? $status['history_job_id'] ?? null;
+    $historyView = !empty($status['history_status'])
+        ? app(\App\Services\AI\AiContentStatusPresenter::class)->present($status['history_status'])
+        : null;
     $tone = match ($view['color'] ?? 'gray') {
         'success' => 'bg-success-50 text-success-700 ring-success-600/20',
         'info' => 'bg-info-50 text-info-700 ring-info-600/20',
@@ -32,10 +36,20 @@
         </div>
     @endif
 
+    @if($historyView)
+        <div class="mt-3 rounded-lg bg-gray-50 px-3 py-2 text-sm text-gray-700 dark:bg-white/5 dark:text-gray-200">
+            <span class="font-medium">Lịch sử gần nhất:</span>
+            {{ $historyView['label'] }}
+            @if(!empty($status['history_reason']))
+                · {{ app(\App\Services\AI\AiContentStatusPresenter::class)->safeReason($status['history_reason']) }}
+            @endif
+        </div>
+    @endif
+
     <dl class="mt-3 grid gap-2 text-sm sm:grid-cols-2 lg:grid-cols-4">
         <div class="rounded-lg bg-gray-50 px-3 py-2 dark:bg-white/5">
             <dt class="text-xs text-gray-500">Công việc gần nhất</dt>
-            <dd class="font-medium text-gray-900 dark:text-white">{{ !empty($status['job_id']) ? '#'.$status['job_id'] : 'Chưa có' }}</dd>
+            <dd class="font-medium text-gray-900 dark:text-white">{{ $latestJobId ? '#'.$latestJobId : 'Chưa có' }}</dd>
         </div>
         <div class="rounded-lg bg-gray-50 px-3 py-2 dark:bg-white/5">
             <dt class="text-xs text-gray-500">Bản nháp</dt>

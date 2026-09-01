@@ -35,7 +35,7 @@ class AiProductLiveStatus extends Component
     public function jobUrl(): ?string
     {
         $actor = auth()->user();
-        $jobId = (int) ($this->status['job_id'] ?? 0);
+        $jobId = (int) ($this->status['job_id'] ?? $this->status['history_job_id'] ?? 0);
 
         if (! $actor?->can('bulk_ai_view') || $jobId < 1) {
             return null;

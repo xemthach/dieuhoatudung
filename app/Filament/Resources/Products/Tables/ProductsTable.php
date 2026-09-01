@@ -232,14 +232,14 @@ class ProductsTable
                 SelectFilter::make('ai_content_state')
                     ->label('Trạng thái AI')
                     ->options([
-                        'not_generated' => 'Chưa tạo',
+                        'available' => 'Sẵn sàng tạo nội dung',
                         'queued' => 'Đang chờ',
                         'processing' => 'Đang xử lý',
                         'review_required' => 'Chờ duyệt',
                         'approved' => 'Đã duyệt',
-                        'applied' => 'Đã áp dụng',
-                        'blocked' => 'Bị chặn',
-                        'failed' => 'Thất bại',
+                        'history_applied' => 'Lịch sử: đã áp dụng',
+                        'current_blocked' => 'Hiện tại: bị chặn',
+                        'history_failed' => 'Lịch sử: thất bại',
                     ])
                     ->query(fn (Builder $query, array $data): Builder => self::applyAiStateFilter(
                         $query,
@@ -1277,38 +1277,74 @@ class ProductsTable
             return $query;
         }
 
-        if ($state === 'not_generated') {
-            return $query->whereDoesntHave('latestAiProductJobItem');
+        $activeItem = fn (Builder $item): Builder => $item
+            ->whereIn('canonical_status', \App\Services\AI\AiProductStateCompatibility::ACTIVE)
+            ->whereNotIn('status', ['needs_review', 'completed', 'completed_verified', 'failed', 'blocked', 'cancelled', 'completed_with_errors']);
+        $actionableDraft = fn (Builder $draft): Builder => $draft
+            ->whereNull('applied_at')
+            ->where(fn (Builder $state): Builder => $state
+                ->where(fn (Builder $review): Builder => $review
+                    ->where('approval_status', 'REVIEW_REQUIRED')
+                    ->whereIn('status', ['needs_review', 'REVIEW_REQUIRED']))
+                ->orWhere('approval_status', 'APPROVED_FOR_APPLY')
+                ->orWhere('status', 'applying'));
+
+        if (in_array($state, ['available', 'not_generated'], true)) {
+            return $query
+                ->whereDoesntHave('aiProductJobItems', $activeItem)
+                ->whereDoesntHave('aiProductDrafts', $actionableDraft)
+                ->whereDoesntHave('aiProductJobItems', fn (Builder $item): Builder => $item
+                    ->where(fn (Builder $status): Builder => $status
+                        ->where('canonical_status', 'REVIEW_REQUIRED')
+                        ->orWhere('status', 'needs_review'))
+                    ->whereDoesntHave('draft'));
         }
 
-        if ($state === 'applied') {
+        if (in_array($state, ['history_applied', 'applied'], true)) {
             return $query->whereHas('latestAiProductJobItem.draft', fn (Builder $draft): Builder => $draft
                 ->whereNotNull('applied_at'));
         }
 
         if ($state === 'approved') {
-            return $query->whereHas('latestAiProductJobItem.draft', fn (Builder $draft): Builder => $draft
+            return $query->whereDoesntHave('aiProductJobItems', $activeItem)
+                ->whereHas('aiProductDrafts', fn (Builder $draft): Builder => $draft
                 ->where('approval_status', 'APPROVED_FOR_APPLY')
-                ->whereNull('applied_at'));
+                ->whereNull('applied_at'))
+                ->whereHas('aiProductDrafts', $actionableDraft, '=', 1);
         }
 
         if ($state === 'review_required') {
-            return $query->whereHas('latestAiProductJobItem', fn (Builder $item): Builder => $item
-                ->where(function (Builder $status): Builder {
-                    return $status->where('canonical_status', 'REVIEW_REQUIRED')
-                        ->orWhere('status', 'needs_review');
-                })
-                ->whereHas('draft', fn (Builder $draft): Builder => $draft
+            return $query->whereDoesntHave('aiProductJobItems', $activeItem)
+                ->whereHas('aiProductDrafts', fn (Builder $draft): Builder => $draft
                     ->whereIn('status', ['needs_review', 'REVIEW_REQUIRED'])
                     ->whereNull('applied_at')
-                    ->whereNotIn('approval_status', ['APPROVED_FOR_APPLY', 'APPLIED', 'REJECTED'])));
+                    ->where('approval_status', 'REVIEW_REQUIRED'))
+                ->whereHas('aiProductDrafts', $actionableDraft, '=', 1);
+        }
+
+        if (in_array($state, ['current_blocked', 'blocked'], true)) {
+            return $query->where(function (Builder $blocked) use ($activeItem, $actionableDraft): Builder {
+                return $blocked
+                    ->whereHas('aiProductJobItems', $activeItem, '>=', 2)
+                    ->orWhereHas('aiProductDrafts', $actionableDraft, '>=', 2)
+                    ->orWhereHas('aiProductJobItems', fn (Builder $item): Builder => $item
+                        ->where(fn (Builder $status): Builder => $status
+                            ->where('canonical_status', 'REVIEW_REQUIRED')
+                            ->orWhere('status', 'needs_review'))
+                        ->whereDoesntHave('draft'));
+            });
+        }
+
+        if (in_array($state, ['history_failed', 'failed'], true)) {
+            return $query->whereHas('latestAiProductJobItem', fn (Builder $item): Builder => $item
+                ->where(fn (Builder $status): Builder => $status
+                    ->where('canonical_status', 'FAILED')
+                    ->orWhereIn('status', ['failed', 'stuck'])));
         }
 
         $statuses = match ($state) {
             'queued' => [['QUEUED'], ['queued']],
             'processing' => [['RUNNING', 'VALIDATING', 'FACT_CHECKING'], ['processing', 'validating']],
-            'blocked' => [['BLOCKED'], ['blocked']],
-            'failed' => [['FAILED'], ['failed', 'stuck']],
             default => [[], []],
         };
 
@@ -1316,17 +1352,19 @@ class ProductsTable
             return $query;
         }
 
-        return $query->whereHas('latestAiProductJobItem', fn (Builder $item): Builder => $item
+        return $query->whereHas('aiProductJobItems', fn (Builder $item): Builder => $item
             ->where(function (Builder $status) use ($statuses): Builder {
                 return $status->whereIn('canonical_status', $statuses[0])
                     ->orWhereIn('status', $statuses[1]);
-            }));
+            })
+            ->whereNotIn('status', ['needs_review', 'completed', 'completed_verified', 'failed', 'blocked', 'cancelled', 'completed_with_errors']));
     }
 
     private static function aiStatusTooltip(Product $record): ?string
     {
         $resolved = self::resolvedAiState($record);
         $item = $resolved['item'];
+        $historyItem = $resolved['latest_history']['item'];
         $view = self::aiStatusView($record);
         $parts = array_filter([
             $view['warning'],
@@ -1334,7 +1372,13 @@ class ProductsTable
                 ? 'Trạng thái cũ không còn bản nháp có thể duyệt.'
                 : null,
             app(AiContentStatusPresenter::class)->safeReason($item?->failed_reason ?: $item?->last_error_code),
-            $item?->updated_at ? 'Cập nhật '.$item->updated_at->diffForHumans() : null,
+            $resolved['latest_history']['status']
+                ? 'Lịch sử gần nhất: '.$resolved['latest_history']['status']
+                : null,
+            $resolved['latest_history']['reason']
+                ? app(AiContentStatusPresenter::class)->safeReason($resolved['latest_history']['reason'])
+                : null,
+            $historyItem?->updated_at ? 'Cập nhật '.$historyItem->updated_at->diffForHumans() : null,
         ]);
 
         return $parts === [] ? null : implode("\n", $parts);
@@ -1342,15 +1386,17 @@ class ProductsTable
 
     private static function aiStatusDetailHtml(Product $record): string
     {
-        $item = self::resolvedAiState($record)['item'];
+        $resolved = self::resolvedAiState($record);
+        $item = $resolved['item'] ?: $resolved['latest_history']['item'];
         $factCheck = $item?->generated_payload_json['fact_check'] ?? [];
         $blocked = $item?->generated_payload_json['blocked_claims'] ?? [];
         $blockedFields = $item?->generated_payload_json['blocked_product_data_fields'] ?? [];
 
         $rows = [
-            'Trạng thái nội dung AI' => self::aiStatusView($record)['label'],
+            'Trạng thái hiện tại' => self::aiStatusView($record)['label'],
+            'Lịch sử gần nhất' => $resolved['latest_history']['status'],
             'SEO score' => (string) ($record->ai_score ?? 0),
-            'Lý do' => app(AiContentStatusPresenter::class)->safeReason($item?->failed_reason ?: $item?->last_error_code),
+            'Lý do lịch sử' => app(AiContentStatusPresenter::class)->safeReason($resolved['latest_history']['reason']),
             'Cập nhật' => $item?->updated_at?->diffForHumans(),
         ];
 

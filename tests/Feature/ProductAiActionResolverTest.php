@@ -18,7 +18,7 @@ class ProductAiActionResolverTest extends TestCase
     {
         $policy = $this->resolve(Product::factory()->create());
 
-        $this->assertSame('NOT_GENERATED', $policy['current_state']);
+        $this->assertSame('AVAILABLE', $policy['current_state']);
         $this->assertSame(['generate'], $policy['direct_actions']);
         $this->assertSame([], $policy['menu_actions']);
     }
@@ -66,15 +66,16 @@ class ProductAiActionResolverTest extends TestCase
         $this->assertSame(['view_job'], $policy['menu_actions']);
     }
 
-    public function test_applied_exposes_content_and_new_generation_in_more(): void
+    public function test_applied_history_leaves_current_product_available_and_keeps_history_link(): void
     {
         [$product, $draft] = $this->state('REVIEW_REQUIRED', 'needs_review', 'APPROVED_FOR_APPLY');
         $draft->update(['approval_status' => 'APPLIED', 'applied_at' => now()]);
 
         $policy = $this->resolve($product);
-        $this->assertSame('APPLIED', $policy['current_state']);
-        $this->assertSame(['preview'], $policy['direct_actions']);
-        $this->assertSame(['generate_new', 'view_job'], $policy['menu_actions']);
+        $this->assertSame('AVAILABLE', $policy['current_state']);
+        $this->assertSame(['generate'], $policy['direct_actions']);
+        $this->assertSame(['view_job'], $policy['menu_actions']);
+        $this->assertSame('APPLIED', $policy['latest_history']['status']);
     }
 
     public function test_approved_draft_with_unverified_claim_still_present_becomes_hard_blocked(): void
@@ -99,17 +100,32 @@ class ProductAiActionResolverTest extends TestCase
             [$product] = $this->state('REVIEW_REQUIRED', 'needs_review', $approval);
             $policy = $this->resolve($product);
 
-            $this->assertSame($approval, $policy['current_state']);
+            $this->assertSame('AVAILABLE', $policy['current_state']);
             $this->assertSame(['generate'], $policy['direct_actions']);
             $this->assertSame(['view_job'], $policy['menu_actions']);
+            $this->assertSame($approval, $policy['latest_history']['status']);
         }
     }
 
     public function test_hard_block_exposes_reason_and_job_history_without_review_actions(): void
     {
-        [$product] = $this->state('BLOCKED', 'blocked');
+        $product = Product::factory()->create();
+        $job = AiProductJob::create([
+            'type' => 'single_product_preview',
+            'scope' => 'selected',
+            'status' => 'completed',
+            'total' => 1,
+            'config_json' => [],
+        ]);
+        AiProductJobItem::create([
+            'ai_product_job_id' => $job->id,
+            'product_id' => $product->id,
+            'status' => 'needs_review',
+            'canonical_status' => 'REVIEW_REQUIRED',
+        ]);
         $policy = $this->resolve($product);
 
+        $this->assertSame('INVARIANT_BLOCKED', $policy['current_state']);
         $this->assertSame(['block_reason'], $policy['direct_actions']);
         $this->assertSame(['view_job'], $policy['menu_actions']);
         $this->assertFalse($policy['can_approve']);

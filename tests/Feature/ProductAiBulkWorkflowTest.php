@@ -51,15 +51,15 @@ class ProductAiBulkWorkflowTest extends TestCase
         DB::disableQueryLog();
 
         $this->assertSame(10, $preflight['selected']);
-        $this->assertSame(1, $preflight['counts']['NOT_GENERATED']);
+        $this->assertSame(6, $preflight['counts']['AVAILABLE']);
         $this->assertSame(1, $preflight['counts']['PROCESSING']);
         $this->assertSame(2, $preflight['counts']['REVIEW_REQUIRED']);
         $this->assertSame(1, $preflight['counts']['APPROVED']);
-        $this->assertSame(1, $preflight['counts']['APPLIED']);
-        $this->assertSame(1, $preflight['counts']['FAILED']);
-        $this->assertSame(1, $preflight['counts']['BLOCKED']);
-        $this->assertSame(1, $preflight['counts']['REJECTED']);
-        $this->assertSame(1, $preflight['counts']['DISCARDED']);
+        $this->assertSame(0, $preflight['counts']['APPLIED']);
+        $this->assertSame(0, $preflight['counts']['FAILED']);
+        $this->assertSame(0, $preflight['counts']['BLOCKED']);
+        $this->assertSame(0, $preflight['counts']['REJECTED']);
+        $this->assertSame(0, $preflight['counts']['DISCARDED']);
         $this->assertSame(2, $preflight['classifications']['READY_TO_APPROVE']);
         $this->assertSame(1, $preflight['classifications']['READY_TO_APPLY']);
         $this->assertLessThanOrEqual(12, $queryCount, 'Preflight must eager-load canonical state instead of issuing one query per Product.');
@@ -71,7 +71,7 @@ class ProductAiBulkWorkflowTest extends TestCase
         $ids = [$fixture['review_clean']->id, $fixture['review_warning']->id, $fixture['blocked']->id, $fixture['approved']->id];
 
         $first = app(ProductAiBulkWorkflowService::class)->execute('APPROVE', $ids, $this->actor, ['warning_override' => false]);
-        $this->assertSame(['selected' => 4, 'success' => 1, 'skipped' => 2, 'blocked' => 1, 'failed' => 0], $first['summary']);
+        $this->assertSame(['selected' => 4, 'success' => 1, 'skipped' => 3, 'blocked' => 0, 'failed' => 0], $first['summary']);
         $this->assertSame('APPROVED_FOR_APPLY', $this->draftFor($fixture['review_clean'])->approval_status);
         $this->assertSame('REVIEW_REQUIRED', $this->draftFor($fixture['review_warning'])->approval_status);
 
@@ -185,9 +185,9 @@ class ProductAiBulkWorkflowTest extends TestCase
         $ids = collect($fixture)->pluck('id')->all();
         $result = app(ProductAiBulkWorkflowService::class)->execute('REGENERATE', $ids, $this->actor);
 
-        $this->assertSame(5, $result['summary']['success']);
+        $this->assertSame(6, $result['summary']['success']);
         $job = AiProductJob::where('type', 'regenerate_ai_content')->latest('id')->firstOrFail();
-        $this->assertSame(5, $job->total);
+        $this->assertSame(6, $job->total);
         $this->assertSame('ai_governed', $job->queue_name);
         $this->assertTrue(app(\App\Services\AI\ProductBulkTargetResolver::class)->verify($job->target_manifest_json));
         $this->assertSame('DONE', $fixture['review_clean']->latestAiProductJobItem->fresh()->canonical_status);

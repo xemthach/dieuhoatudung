@@ -55,22 +55,25 @@ final class ProductAiBulkWorkflowService
             ->keyBy(fn (Product $product): int => (int) $product->id);
 
         $counts = array_fill_keys([
-            'NOT_GENERATED', 'QUEUED', 'PROCESSING', 'VALIDATING', 'REVIEW_REQUIRED',
+            'AVAILABLE', 'QUEUED', 'PROCESSING', 'VALIDATING', 'REVIEW_REQUIRED',
             'APPROVED', 'REJECTED', 'DISCARDED', 'APPLIED', 'BLOCKED', 'FAILED',
         ], 0);
         $classifications = array_fill_keys([
-            'READY_TO_REVIEW', 'READY_TO_APPROVE', 'READY_TO_APPLY',
+            'READY_TO_GENERATE', 'READY_TO_REVIEW', 'READY_TO_APPROVE', 'READY_TO_APPLY',
             'REGENERATE_AVAILABLE', 'NOT_ACTIONABLE',
         ], 0);
         $rows = [];
         // Runtime readiness is invariant for the whole selection. Resolve it once
         // so a 358-product preflight does not query worker/provider per Product.
         $generationRuntime = $includeGenerationReadiness ? $this->generationReadiness->runtimeSnapshot() : null;
+        $resolvedStates = $products->mapWithKeys(fn (Product $product): array => [
+            (int) $product->id => $this->states->resolve($product),
+        ]);
         $excludedDraftIds = $includeGenerationReadiness
-            ? $products->pluck('latestAiProductJobItem.draft.id')->filter()->map(fn ($id): int => (int) $id)->all()
+            ? $resolvedStates->pluck('draft.id')->filter()->map(fn ($id): int => (int) $id)->all()
             : [];
         $excludedItemIds = $includeGenerationReadiness
-            ? $products->pluck('latestAiProductJobItem.id')->filter()->map(fn ($id): int => (int) $id)->all()
+            ? $resolvedStates->pluck('item.id')->filter()->map(fn ($id): int => (int) $id)->all()
             : [];
         $activeConflicts = $includeGenerationReadiness
             ? $this->generationReadiness->activeConflictProductIds($ids, $excludedDraftIds, $excludedItemIds)
@@ -85,9 +88,10 @@ final class ProductAiBulkWorkflowService
                 continue;
             }
 
-            $resolved = $this->states->resolve($product);
+            $resolved = $resolvedStates->get($id);
             $state = $this->normalizeState((string) $resolved['status']);
             $draft = $resolved['draft'];
+            $historyItem = $resolved['latest_history']['item'];
             $payload = (array) ($draft?->normalized_output_json ?? []);
             $warningSet = $draft
                 ? $this->warnings->classify((array) ($draft->warnings_json ?? []), $payload, $product)
@@ -122,6 +126,9 @@ final class ProductAiBulkWorkflowService
                 'product_name' => (string) $product->name,
                 'draft_id' => $draft?->id,
                 'item_id' => $item?->id,
+                'history_item_id' => $historyItem?->id,
+                'history_status' => $resolved['latest_history']['status'],
+                'history_reason' => $resolved['latest_history']['reason'],
                 'state' => $state,
                 'generated_fields' => $generatedFields,
                 'soft_warning_count' => count($warningSet['soft_warnings']),
@@ -132,13 +139,19 @@ final class ProductAiBulkWorkflowService
                 'hard_blockers' => $hardBlockers,
                 'score' => $item?->seo_score_after ?? $product->ai_score,
                 'provider_called' => (bool) data_get($draft?->token_usage_json, 'provider_called', ((int) ($item?->tokens_used ?? 0)) > 0),
-                'updated_at' => $item?->state_changed_at ?: $item?->updated_at,
+                'updated_at' => $item?->state_changed_at ?: $item?->updated_at
+                    ?: $historyItem?->state_changed_at ?: $historyItem?->updated_at,
                 'apply_readiness' => $readiness,
                 'generation_readiness' => $generation,
                 'ready_to_review' => $state === 'REVIEW_REQUIRED' && $draft !== null,
                 'ready_to_approve' => $state === 'REVIEW_REQUIRED' && $draft !== null && $hardBlockers === [],
                 'ready_to_apply' => $state === 'APPROVED' && (bool) ($readiness['can_apply'] ?? false),
-                'regenerate_available' => in_array($state, ['REVIEW_REQUIRED', 'REJECTED', 'DISCARDED', 'FAILED'], true)
+                'ready_to_generate' => $state === 'AVAILABLE'
+                    && (! $includeGenerationReadiness || (bool) ($generation['can_generate'] ?? false)),
+                'regenerate_available' => ($state === 'REVIEW_REQUIRED'
+                    || ($state === 'AVAILABLE'
+                        && $historyItem !== null
+                        && ! in_array($resolved['latest_history']['status'], ['APPLIED', 'DONE'], true)))
                     && $hardBlockers === []
                     && (! $includeGenerationReadiness || (bool) $generation['can_generate']),
             ];
@@ -149,6 +162,7 @@ final class ProductAiBulkWorkflowService
                 $row['ready_to_apply'] => 'READY_TO_APPLY',
                 $row['ready_to_approve'] => 'READY_TO_APPROVE',
                 $row['ready_to_review'] => 'READY_TO_REVIEW',
+                $row['ready_to_generate'] => 'READY_TO_GENERATE',
                 $row['regenerate_available'] => 'REGENERATE_AVAILABLE',
                 default => 'NOT_ACTIONABLE',
             };
@@ -471,6 +485,7 @@ final class ProductAiBulkWorkflowService
     private function normalizeState(string $state): string
     {
         return match ($state) {
+            'AVAILABLE' => 'AVAILABLE',
             'NOT_GENERATED' => 'NOT_GENERATED',
             'QUEUED' => 'QUEUED',
             'PROCESSING', 'RUNNING' => 'PROCESSING',
@@ -493,7 +508,8 @@ final class ProductAiBulkWorkflowService
             'state' => 'BLOCKED', 'generated_fields' => 0, 'soft_warning_count' => 0, 'hard_blocker_count' => 1,
             'soft_warnings' => [], 'hard_blockers' => [['code' => 'INVALID_TARGET', 'type' => 'INVALID_TARGET', 'label' => 'Sản phẩm không tồn tại.']],
             'score' => null, 'provider_called' => false, 'updated_at' => null, 'apply_readiness' => null,
-            'ready_to_review' => false, 'ready_to_approve' => false, 'ready_to_apply' => false, 'regenerate_available' => false,
+            'ready_to_generate' => false, 'ready_to_review' => false, 'ready_to_approve' => false,
+            'ready_to_apply' => false, 'regenerate_available' => false,
         ];
     }
 

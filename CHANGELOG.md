@@ -2,6 +2,25 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.33.1] - 2026-09-01
+
+### Fixed
+- Tách dứt điểm trạng thái AI Product hiện tại khỏi lịch sử terminal: `BLOCKED`, `FAILED`, `CANCELLED`, `REJECTED`, `DISCARDED`, `DONE` và `APPLIED` lịch sử không còn rò vào `status`, `item` hoặc `draft` hiện tại để khóa Generate.
+- Đồng bộ Product Edit, Product List, live status, bulk preflight, action resolver và generation readiness theo một current-state contract; lịch sử gần nhất chỉ hiển thị qua `latest_history`.
+- Giữ fail-closed cho invariant hiện tại như nhiều operation/draft actionable, draft review bị thiếu và hard Apply blocker.
+- Bổ sung regression tương đương Product production #987 với lịch sử `BLOCKED / DUPLICATE_IN_PROGRESS`, đồng thời giữ nguyên Job #29, Item #3446 và 272 item lịch sử.
+- Tiếp tục bao gồm Product numeric-format contract đã phát hành ở v1.33.0: BTU range và giá legacy được kiểm tra kiểu trước khi format, không ép chuỗi nghiệp vụ thành số sai.
+
+### Validation
+- Final focused AI/current-history/numeric suite: 119 tests, 705 assertions; final contract/bulk subset: 11 tests, 165 assertions.
+- Full PHPUnit: 550 tests, 549 passed, 1 skipped, 3,452 assertions, 0 failures/errors.
+- Browser: 19 passed, 1 documented legacy rollout skip, 0 failed (Single Product, Bulk, Product numeric and navigation).
+- Composer validation/audit, npm high audit, Vite build, PHP lint, secret scan và `git diff --check`: PASS.
+
+### Operations
+- Không có migration mới và không rewrite dữ liệu lịch sử.
+- Bắt buộc restart generic workers và managed `ai_governed` worker để nạp resolver mới; sau deploy chạy integrity audit và xác nhận Product #987 trước khi gọi provider có kiểm soát.
+
 ## [1.33.0] - 2026-09-01
 
 ### Added

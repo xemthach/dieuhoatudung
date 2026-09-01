@@ -15,25 +15,26 @@ final class ProductAiActionResolver
     public function resolve(Product $product): array
     {
         $resolved = $this->stateResolver->resolve($product);
-        $state = (string) $resolved['status'];
+        $state = (string) $resolved['product_state'];
+        $nextActions = array_map('strtoupper', (array) $resolved['next_actions']);
         $draft = $resolved['draft'];
         $item = $resolved['item'];
-        $active = in_array($state, ['QUEUED', 'PROCESSING', 'VALIDATING', 'RETRYING'], true);
+        $historyItem = $resolved['latest_history']['item'];
+        $active = $state === 'PROCESSING';
         $review = $state === 'REVIEW_REQUIRED' && $resolved['reviewable'];
         $apply = $this->applyReadiness->resolve($draft);
         $approved = $state === 'APPROVED' && $resolved['approved_unapplied'] && $apply['can_apply'];
         $applyBlocked = $state === 'APPROVED' && $resolved['approved_unapplied'] && ! $apply['can_apply'];
-        $applied = $state === 'APPLIED' && $resolved['applied'];
-        $blocked = $state === 'BLOCKED' || $applyBlocked;
-        $terminalGenerate = in_array($state, ['NOT_GENERATED', 'REJECTED', 'DISCARDED', 'FAILED', 'CANCELLED'], true);
+        $blocked = $state === 'INVARIANT_BLOCKED' || $applyBlocked;
+        $available = $state === 'AVAILABLE' && in_array('GENERATE', $nextActions, true);
         $warnings = array_values(array_filter(array_map('strval', (array) ($draft?->warnings_json ?? []))));
 
         $direct = match (true) {
-            $terminalGenerate => ['generate'],
+            $available => ['generate'],
             $active => ['processing_status'],
+            $state === 'APPLYING' => ['processing_status'],
             $review => ['preview', 'approve'],
             $approved => ['preview', 'apply'],
-            $applied => ['preview'],
             $blocked => ['block_reason'],
             default => [],
         };
@@ -42,8 +43,7 @@ final class ProductAiActionResolver
             $review ? 'regenerate' : null,
             $review ? 'reject' : null,
             $review ? 'discard' : null,
-            $applied ? 'generate_new' : null,
-            $item ? 'view_job' : null,
+            ($item || $historyItem) ? 'view_job' : null,
             $active && $item && app(AiProductLifecycleService::class)->isRecoverable($item) ? 'recover' : null,
         ]));
 

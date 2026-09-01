@@ -34,10 +34,10 @@ class AiProductStateConsistencyTest extends TestCase
         $state = app(AiProductContentStateResolver::class)->resolve($product);
         $live = app(AiProductLiveStatusService::class)->forProduct($product->id);
 
-        $this->assertSame('NOT_GENERATED', $state['status']);
-        $this->assertSame('STALE_DENORMALIZED_STATUS', $state['state_issue']);
+        $this->assertSame('AVAILABLE', $state['status']);
+        $this->assertNull($state['state_issue']);
         $this->assertFalse($state['reviewable']);
-        $this->assertSame('NOT_GENERATED', $live['status']['key']);
+        $this->assertSame('AVAILABLE', $live['status']['key']);
         $this->assertFalse($live['review_required']);
     }
 
@@ -82,7 +82,9 @@ class AiProductStateConsistencyTest extends TestCase
         $draft->update(['approval_status' => 'APPLIED', 'applied_at' => now()]);
         $product->unsetRelation('latestAiProductJobItem');
 
-        $this->assertSame('APPLIED', $resolver->resolve($product)['status']);
+        $appliedState = $resolver->resolve($product);
+        $this->assertSame('AVAILABLE', $appliedState['status']);
+        $this->assertSame('APPLIED', $appliedState['latest_history']['status']);
         $this->assertNull($resolver->approvedUnappliedDraft($product));
     }
 
@@ -119,7 +121,8 @@ class AiProductStateConsistencyTest extends TestCase
         $product->unsetRelation('latestAiProductJobItem');
         $state = app(AiProductContentStateResolver::class)->resolve($product);
 
-        $this->assertSame('DISCARDED', $state['status']);
+        $this->assertSame('AVAILABLE', $state['status']);
+        $this->assertSame('DISCARDED', $state['latest_history']['status']);
         $this->assertFalse($state['reviewable']);
         $this->assertDatabaseHas('ai_product_drafts', [
             'id' => $draft->id,

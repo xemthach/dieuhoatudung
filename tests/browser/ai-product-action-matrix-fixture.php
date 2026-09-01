@@ -156,7 +156,7 @@ foreach ($actors as $actor => $grants) {
     $users[$actor] = ['id' => $user->id, 'email' => $user->email, 'password' => $password];
 }
 
-$productKeys = ['preview', 'approve', 'warning', 'warning_responsive', 'reject', 'discard', 'apply', 'apply_rbac', 'stale', 'duplicate', 'regenerate', 'blocked', 'no_draft', 'processing', 'failed', 'applied'];
+$productKeys = ['preview', 'approve', 'warning', 'warning_responsive', 'reject', 'discard', 'apply', 'apply_rbac', 'stale', 'duplicate', 'regenerate', 'blocked', 'historical_blocked', 'no_draft', 'processing', 'failed', 'applied'];
 $products = [];
 $jobIds = [];
 $itemIds = [];
@@ -245,8 +245,60 @@ foreach (['preview', 'approve', 'reject', 'discard', 'apply', 'apply_rbac', 'sta
 $products['warning'] += ['draft_id' => $warningDraft->id, 'item_id' => $warningItem->id, 'job_id' => $warningJob->id];
 [$responsiveDraft, $responsiveItem, $responsiveJob] = $makeDraft(Product::findOrFail($products['warning_responsive']['product_id']), ['content_too_short:459/800']);
 $products['warning_responsive'] += ['draft_id' => $responsiveDraft->id, 'item_id' => $responsiveItem->id, 'job_id' => $responsiveJob->id];
-[$blockedDraft, $blockedItem, $blockedJob] = $makeDraft(Product::findOrFail($products['blocked']['product_id']), [], true);
+$blockedProduct = Product::findOrFail($products['blocked']['product_id']);
+[$blockedDraft, $blockedItem, $blockedJob] = $makeDraft($blockedProduct);
+app(AIProductDraftApplyService::class)->approve($blockedDraft, $operator->id, $operator);
+$blockedPayload = (array) $blockedDraft->normalized_output_json;
+$blockedPayload['blocked_claims'] = ['CONTRADICTED'];
+$blockedPayload['fact_check'] = ['status' => 'blocked', 'blocked_claims' => ['CONTRADICTED']];
+$blockedDraft->update([
+    'status' => 'blocked',
+    'raw_output_json' => $blockedPayload,
+    'normalized_output_json' => $blockedPayload,
+    'validation_errors_json' => ['FACT_CHECK_BLOCKED'],
+    'warnings_json' => ['unverified_technical_claim:Draft'],
+]);
+$blockedItem->update([
+    'status' => 'blocked',
+    'canonical_status' => 'BLOCKED',
+    'status_reason' => 'FACT_CHECK_BLOCKED',
+    'failed_reason' => 'fact_check_blocked',
+    'last_error_code' => 'fact_check_blocked',
+    'last_error_message' => 'FACT_CHECK_BLOCKED',
+    'error_message' => 'FACT_CHECK_BLOCKED',
+    'generated_payload_json' => $blockedPayload,
+    'warnings_json' => ['unverified_technical_claim:Draft'],
+]);
 $products['blocked'] += ['draft_id' => $blockedDraft->id, 'item_id' => $blockedItem->id, 'job_id' => $blockedJob->id];
+
+$historicalProduct = Product::findOrFail($products['historical_blocked']['product_id']);
+$historicalProduct->forceFill(['ai_status' => 'blocked'])->save();
+$historicalJob = AiProductJob::create([
+    'type' => 'generate_ai_content',
+    'scope' => 'filter',
+    'status' => 'cancelled',
+    'canonical_status' => 'QUEUED',
+    'total' => 272,
+    'processed' => 272,
+    'failed' => 272,
+    'finished_at' => now(),
+    'config_json' => [],
+]);
+$historicalItem = $historicalJob->items()->create([
+    'product_id' => $historicalProduct->id,
+    'status' => 'blocked',
+    'canonical_status' => 'BLOCKED',
+    'status_reason' => 'DUPLICATE_IN_PROGRESS',
+    'draft_id' => null,
+    'started_at' => null,
+    'finished_at' => now(),
+]);
+$jobIds[] = $historicalJob->id;
+$itemIds[] = $historicalItem->id;
+$products['historical_blocked'] += [
+    'item_id' => $historicalItem->id,
+    'job_id' => $historicalJob->id,
+];
 
 foreach (['apply', 'apply_rbac', 'stale'] as $productKey) {
     $draft = AiProductDraft::findOrFail($products[$productKey]['draft_id']);

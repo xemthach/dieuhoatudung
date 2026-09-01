@@ -19,7 +19,7 @@
             <div class="rounded-lg bg-white p-3 shadow-sm dark:bg-gray-900">{{ $copy['approved'] }} <strong class="block text-lg">{{ $counts['APPROVED'] }}</strong></div>
             <div class="rounded-lg bg-white p-3 shadow-sm dark:bg-gray-900">{{ $copy['processing'] }} <strong class="block text-lg">{{ $counts['QUEUED'] + $counts['PROCESSING'] + $counts['VALIDATING'] }}</strong></div>
             <div class="rounded-lg bg-white p-3 shadow-sm dark:bg-gray-900">{{ $copy['blocked'] }} <strong class="block text-lg">{{ $counts['BLOCKED'] + $counts['FAILED'] }}</strong></div>
-            <div class="rounded-lg bg-white p-3 shadow-sm dark:bg-gray-900">{{ $copy['no_draft'] }} <strong class="block text-lg">{{ $counts['NOT_GENERATED'] }}</strong></div>
+            <div class="rounded-lg bg-white p-3 shadow-sm dark:bg-gray-900">{{ $copy['no_draft'] }} <strong class="block text-lg">{{ $counts['AVAILABLE'] }}</strong></div>
             <div class="rounded-lg bg-white p-3 shadow-sm dark:bg-gray-900">{{ $copy['ready_approve'] }} <strong class="block text-lg">{{ $classes['READY_TO_APPROVE'] }}</strong></div>
             <div class="rounded-lg bg-white p-3 shadow-sm dark:bg-gray-900">{{ $copy['ready_apply'] }} <strong class="block text-lg">{{ $classes['READY_TO_APPLY'] }}</strong></div>
             <div class="rounded-lg bg-white p-3 shadow-sm dark:bg-gray-900">{{ $copy['regenerate'] }} <strong class="block text-lg">{{ $classes['REGENERATE_AVAILABLE'] }}</strong></div>

@@ -62,34 +62,7 @@ class EditProduct extends EditRecord
                 ->visible(fn (): bool => $this->aiActionPolicy()['can_generate_primary'] && $this->canRunAiMutation('GENERATE'))
                 ->modalDescription('AI chỉ tạo Nội dung, SEO, Google Merchant, Tags, FAQ và Internal links. AI không tạo hoặc sửa Thông tin cơ bản, giá, model/SKU, brand/category hay Thông số kỹ thuật.')
                 ->form($this->aiConfigForm())
-                ->action(function (array $data) {
-                    $reviewDraft = app(AiProductContentStateResolver::class)->reviewableDraft($this->record);
-                    if ($reviewDraft) {
-                        Notification::make()
-                            ->title("Draft AI #{$reviewDraft->id} đang chờ duyệt")
-                            ->body('Hãy xem, duyệt hoặc từ chối draft hiện tại trước khi tạo yêu cầu mới.')
-                            ->warning()
-                            ->persistent()
-                            ->send();
-                        return;
-                    }
-
-                    $activeItem = $this->record->aiProductJobItems()
-                        ->whereIn('status', ['queued', 'processing', 'stuck'])
-                        ->latest('id')
-                        ->first();
-                    if ($activeItem) {
-                        Notification::make()
-                            ->title('Product đang có yêu cầu AI hoạt động')
-                            ->body("Job #{$activeItem->ai_product_job_id} đang xử lý. Hãy chờ hoặc dùng 'Giải phóng yêu cầu AI đang treo'.")
-                            ->warning()
-                            ->persistent()
-                            ->send();
-                        return;
-                    }
-
-                    $this->queueAiGeneration($data);
-                }),
+                ->action(fn (array $data) => $this->queueAiGeneration($data)),
             Action::make('ai_preview_latest_draft')
                 ->label(fn (): string => match ($this->aiActionPolicy()['current_state']) {
                     'BLOCKED', 'HARD_BLOCKED' => 'Xem lý do bị chặn',
@@ -345,7 +318,8 @@ class EditProduct extends EditRecord
             ->authorize(fn (): bool => auth()->user()?->can('bulk_ai_view') ?? false)
             ->visible(fn (): bool => $this->aiActionPolicy()['can_view_job'])
             ->url(function (): ?string {
-                $item = $this->aiActionPolicy()['item'];
+                $policy = $this->aiActionPolicy();
+                $item = $policy['item'] ?: $policy['latest_history']['item'];
 
                 return $item
                     ? AiProductJobResource::getUrl('edit', ['record' => $item->ai_product_job_id])

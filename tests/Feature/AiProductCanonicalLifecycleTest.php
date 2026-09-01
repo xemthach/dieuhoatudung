@@ -68,10 +68,13 @@ class AiProductCanonicalLifecycleTest extends TestCase
 
         $state = app(AiProductContentStateResolver::class)->resolve($product);
 
-        $this->assertSame('FAILED', $state['status']);
+        $this->assertSame('AVAILABLE', $state['status']);
         $this->assertSame('AVAILABLE', $state['product_state']);
         $this->assertContains('GENERATE', $state['next_actions']);
         $this->assertNull($state['active_operation']);
+        $this->assertNull($state['item']);
+        $this->assertNull($state['draft']);
+        $this->assertSame('FAILED', $state['latest_history']['status']);
     }
 
     public function test_terminal_item_cannot_be_reopened(): void

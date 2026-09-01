@@ -13,6 +13,7 @@ final class AiContentStatusPresenter
         $key = $applied ? 'APPLIED' : $this->normalize($raw);
 
         $view = match ($key) {
+            'AVAILABLE' => ['Sẵn sàng tạo nội dung', 'success', false, false, false],
             'NOT_GENERATED' => ['Chưa tạo', 'gray', false, true, false],
             'QUEUED' => ['Đang chờ', 'gray', true, false, false],
             'PROCESSING' => ['AI đang tạo nội dung', 'info', true, false, false],
@@ -73,6 +74,7 @@ final class AiContentStatusPresenter
     public function normalize(?string $status): string
     {
         return match (strtolower(trim((string) $status))) {
+            'available' => 'AVAILABLE',
             '', 'not_generated' => 'NOT_GENERATED',
             'draft', 'pending', 'queued' => 'QUEUED',
             'processing', 'running', 'generating' => 'PROCESSING',

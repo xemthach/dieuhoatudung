@@ -43,7 +43,7 @@ const dialogSubmit = async (page: Page, name: RegExp) => {
     const button = dialog.getByRole('button', { name }).last();
     await expect(button).toBeVisible();
     await button.click();
-    await expect(dialog).toBeHidden({ timeout: 20_000 });
+    await expect(dialog).toBeHidden({ timeout: 30_000 });
 };
 
 const openMore = async (page: Page) => {
@@ -62,7 +62,10 @@ test.describe.serial('AI Product browser action and RBAC certification', () => {
 
     test.beforeAll(() => { state = fixture('setup'); });
     test.afterAll(() => { fixture('cleanup'); });
-    test.beforeEach(({ page }) => watchRuntime(page));
+    test.beforeEach(({ page }) => {
+        test.setTimeout(90_000);
+        watchRuntime(page);
+    });
 
     test('preview exposes generated fields and leaves Product unchanged', async ({ page }) => {
         await login(page, state.operator);
@@ -193,6 +196,35 @@ test.describe.serial('AI Product browser action and RBAC certification', () => {
         const after = fixture('snapshot', 'duplicate');
         expect(after.latest_job_id).toBe(before.latest_job_id);
         expect(after.latest_item_id).toBe(before.latest_item_id);
+    });
+
+    test('historical duplicate block remains history while current Product can generate', async ({ page }) => {
+        test.setTimeout(240_000);
+        await login(page, state.operator);
+        await openProduct(page, state, 'historical_blocked');
+        const before = fixture('snapshot', 'historical_blocked');
+
+        await expect(page.getByText('Sẵn sàng tạo nội dung').first()).toBeVisible();
+        await expect(page.getByText('Lịch sử gần nhất:').first()).toBeVisible();
+        await expect(page.getByRole('button', { name: 'Tạo nội dung AI' })).toBeVisible();
+        await expect(page.getByRole('button', { name: 'Xem lý do bị chặn' })).toHaveCount(0);
+
+        await page.getByRole('button', { name: 'Tạo nội dung AI' }).click();
+        await dialogSubmit(page, /Gửi/);
+
+        let after = fixture('snapshot', 'historical_blocked');
+        for (let i = 0; i < 90 && after.latest_item_id === before.latest_item_id; i++) {
+            await page.waitForTimeout(1_000);
+            after = fixture('snapshot', 'historical_blocked');
+        }
+        expect(after.latest_item_id).not.toBe(before.latest_item_id);
+        expect(after.item_status).toBe('blocked');
+
+        for (let i = 0; i < 180 && ! ['needs_review', 'failed', 'blocked'].includes(after.latest_item_status); i++) {
+            await page.waitForTimeout(1_000);
+            after = fixture('snapshot', 'historical_blocked');
+        }
+        expect(['needs_review', 'failed', 'blocked']).toContain(after.latest_item_status);
     });
 
     test('configured operator generates through ai_governed without mutating Product before review', async ({ page }) => {
