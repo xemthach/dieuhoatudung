@@ -38,6 +38,22 @@ class ProductTechnicalFactResolver
         'recommended_area' => 'recommended_area',
     ];
 
+    private const MANUAL_OVERRIDE_COLUMNS = [
+        'capacity_kw' => 'capacity_kw',
+        'power_input_kw' => 'power_consumption',
+        'hp' => 'hp',
+        'inverter' => 'inverter',
+        'cooling_type' => 'cooling_type',
+        'voltage' => 'voltage',
+        'refrigerant_gas' => 'refrigerant_gas',
+        'airflow' => 'airflow',
+        'noise_level' => 'noise_level',
+        'indoor_dimensions' => 'indoor_dimensions',
+        'outdoor_dimensions' => 'outdoor_dimensions',
+        'weight' => 'weight',
+        'recommended_area' => 'recommended_area',
+    ];
+
     public function get(Product $product, string $fieldKey): ?array
     {
         if (isset(self::DEDICATED_CANONICAL[$fieldKey])) {
@@ -51,6 +67,13 @@ class ProductTechnicalFactResolver
                 return $this->present($legacyCanonical, $fieldKey, 'specs_json_canonical');
             }
             return null;
+        }
+
+        if ($this->hasManualOverride($product) && isset(self::MANUAL_OVERRIDE_COLUMNS[$fieldKey])) {
+            $manual = $this->present($product->{self::MANUAL_OVERRIDE_COLUMNS[$fieldKey]}, $fieldKey, 'manual_override');
+            if ($manual !== null) {
+                return $manual;
+            }
         }
 
         $spec = $this->specs($product)[$fieldKey] ?? null;
@@ -238,6 +261,12 @@ class ProductTechnicalFactResolver
     private function present(mixed $value, string $fieldKey, string $storage): ?array
     {
         return $value === null || $value === '' ? null : ['field' => $fieldKey, 'value' => $value, 'storage' => $storage];
+    }
+
+    private function hasManualOverride(Product $product): bool
+    {
+        return (string) $product->technical_specs_source === 'manual_override'
+            && $product->technical_specs_overridden_at !== null;
     }
 
     private function formatStrictNumber(string $value): string

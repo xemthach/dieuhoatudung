@@ -3,6 +3,7 @@
 namespace App\Services\Product;
 
 use App\Models\Product;
+use Illuminate\Validation\ValidationException;
 use InvalidArgumentException;
 
 /** Writes only provenance-backed technical facts through one canonical path. */
@@ -83,6 +84,47 @@ class ProductTechnicalSpecWriter
         return ['field' => $fieldKey, 'before' => $before, 'after' => $this->resolver->value($product->fresh(), $fieldKey), 'updates' => $updates, 'provenance' => $provenance];
     }
 
+    /**
+     * Prepare an explicit administrator override without rewriting source-native
+     * technical evidence held in specs_json.
+     *
+     * @param array<string, mixed> $submitted
+     * @return array<string, mixed>
+     */
+    public function manualOverrideAttributes(Product $product, array $submitted, ?string $reason): array
+    {
+        $fields = [
+            'technical_capacity_btu', 'capacity_kw', 'hp', 'inverter', 'cooling_type',
+            'voltage', 'refrigerant_gas', 'power_consumption', 'airflow', 'noise_level',
+            'recommended_area', 'indoor_dimensions', 'outdoor_dimensions', 'weight',
+        ];
+        $changes = [];
+
+        foreach ($fields as $field) {
+            if (! array_key_exists($field, $submitted)) continue;
+            $value = $submitted[$field];
+            if ($field === 'technical_capacity_btu' && filled($value) && filter_var($value, FILTER_VALIDATE_INT) === false) {
+                throw ValidationException::withMessages([$field => 'Công suất BTU kỹ thuật phải là số nguyên hợp lệ.']);
+            }
+            if (in_array($field, ['capacity_kw', 'hp'], true) && filled($value) && ! is_numeric($value)) {
+                throw ValidationException::withMessages([$field => 'Giá trị phải là số hợp lệ.']);
+            }
+            $normalized = $this->normalizeManualValue($field, $value);
+            if ($this->different($product->getAttribute($field), $normalized)) $changes[$field] = $normalized;
+        }
+
+        if ($changes === []) return [];
+        if (blank($reason)) {
+            throw ValidationException::withMessages(['technical_specs_override_reason' => 'Nhập lý do khi ghi đè thông số kỹ thuật có nguồn catalog.']);
+        }
+
+        return $changes + [
+            'technical_specs_source' => 'manual_override',
+            'technical_specs_override_reason' => trim((string) $reason),
+            'technical_specs_overridden_at' => now(),
+        ];
+    }
+
     private function schemaUnit(Product $product, string $fieldKey): string
     {
         foreach ($product->category?->technicalSchemaFieldDefinitions() ?? [] as $field) {
@@ -117,5 +159,25 @@ class ProductTechnicalSpecWriter
         if ($fieldKey !== 'marketing_capacity_btu' && $section !== 'TECHNICAL_APPENDIX') {
             throw new InvalidArgumentException('Technical correction requires TECHNICAL_APPENDIX');
         }
+    }
+
+    private function normalizeManualValue(string $field, mixed $value): mixed
+    {
+        if ($value === '') return null;
+
+        return match ($field) {
+            'technical_capacity_btu' => filled($value) ? (int) $value : null,
+            'capacity_kw', 'hp' => filled($value) ? (float) $value : null,
+            'inverter' => filter_var($value, FILTER_VALIDATE_BOOLEAN),
+            default => is_string($value) ? trim($value) : $value,
+        };
+    }
+
+    private function different(mixed $before, mixed $after): bool
+    {
+        if ($before === null || $after === null) return $before !== $after;
+        if (is_numeric($before) && is_numeric($after)) return (float) $before !== (float) $after;
+
+        return $before !== $after;
     }
 }

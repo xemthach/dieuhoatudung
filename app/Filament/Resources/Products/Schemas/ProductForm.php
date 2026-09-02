@@ -114,49 +114,55 @@ class ProductForm
                                     ->schema([
                                         Grid::make(['default' => 1, 'md' => 3])
                                             ->schema([
-                                                TextInput::make('btu')->readOnly()->dehydrated(false)
+                                                TextInput::make('technical_capacity_btu')
                                                     ->label('Công suất BTU')
                                                     ->numeric(),
-                                                TextInput::make('capacity_kw')->readOnly()->dehydrated(false)
+                                                TextInput::make('capacity_kw')
                                                     ->label('Công suất kW')
                                                     ->numeric()
                                                     ->step(0.01),
-                                                TextInput::make('hp')->readOnly()->dehydrated(false)
+                                                TextInput::make('hp')
                                                     ->label('Mã lực (HP)')
                                                     ->numeric()
                                                     ->step(0.1),
-                                                Toggle::make('inverter')->disabled()->dehydrated(false)
+                                                Toggle::make('inverter')
                                                     ->label('Công nghệ Inverter')
                                                     ->default(false)
                                                     ->required(),
-                                                Select::make('cooling_type')->disabled()->dehydrated(false)
+                                                Select::make('cooling_type')
                                                     ->label('Kiểu làm lạnh')
                                                     ->options([
                                                         '1_chieu' => '1 chiều',
                                                         '2_chieu' => '2 chiều',
                                                     ]),
-                                                TextInput::make('voltage')->readOnly()->dehydrated(false)
+                                                TextInput::make('voltage')
                                                     ->label('Điện áp'),
-                                                TextInput::make('refrigerant_gas')->readOnly()->dehydrated(false)
+                                                TextInput::make('refrigerant_gas')
                                                     ->label('Loại Gas'),
-                                                TextInput::make('power_consumption')->readOnly()->dehydrated(false)
+                                                TextInput::make('power_consumption')
                                                     ->label('Điện năng tiêu thụ'),
-                                                TextInput::make('airflow')->readOnly()->dehydrated(false)
+                                                TextInput::make('airflow')
                                                     ->label('Lưu lượng gió'),
-                                                TextInput::make('noise_level')->readOnly()->dehydrated(false)
+                                                TextInput::make('noise_level')
                                                     ->label('Độ ồn'),
-                                                TextInput::make('recommended_area')->readOnly()->dehydrated(false)
+                                                TextInput::make('recommended_area')
                                                     ->label('Diện tích đề nghị'),
                                             ]),
                                         Grid::make(['default' => 1, 'md' => 3])
                                             ->schema([
-                                                TextInput::make('indoor_dimensions')->readOnly()->dehydrated(false)
+                                                TextInput::make('indoor_dimensions')
                                                     ->label('Kích thước dàn lạnh'),
-                                                TextInput::make('outdoor_dimensions')->readOnly()->dehydrated(false)
+                                                TextInput::make('outdoor_dimensions')
                                                     ->label('Kích thước dàn nóng'),
-                                                TextInput::make('weight')->readOnly()->dehydrated(false)
+                                                TextInput::make('weight')
                                                     ->label('Trọng lượng'),
                                             ]),
+
+                                        Textarea::make('technical_specs_override_reason')
+                                            ->label('Lý do ghi đè thông số kỹ thuật')
+                                            ->helperText('Bắt buộc khi thay đổi giá trị kỹ thuật. Nguồn catalog gốc trong Thông số mở rộng được giữ nguyên để audit.')
+                                            ->rows(2)
+                                            ->columnSpanFull(),
 
                                         Placeholder::make('technical_schema_notice')
                                             ->label('Schema category')

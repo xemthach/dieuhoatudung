@@ -11,6 +11,7 @@ use App\Models\AiProductDraft;
 use App\Models\Product;
 use App\Services\Product\AIProductContentSystem;
 use App\Services\Product\AIProductDraftApplyService;
+use App\Services\Product\ProductTechnicalSpecWriter;
 use App\Services\AI\AIWorkerReadinessService;
 use App\Services\AI\AiProductContentStateResolver;
 use App\Services\AI\ProductAiApplyReadiness;
@@ -49,6 +50,17 @@ class EditProduct extends EditRecord
             ProductResource::getUrl('index') => 'Product',
             'Edit',
         ];
+    }
+
+    protected function mutateFormDataBeforeSave(array $data): array
+    {
+        $override = app(ProductTechnicalSpecWriter::class)->manualOverrideAttributes(
+            $this->record,
+            $data,
+            $data['technical_specs_override_reason'] ?? null,
+        );
+
+        return array_replace($data, $override);
     }
 
     protected function getHeaderActions(): array

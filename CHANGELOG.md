@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.33.6] - 2026-09-03
+
+### Fixed
+- Product Edit technical BTU now binds to canonical `technical_capacity_btu`, rather than the nullable legacy `btu` column.
+- Standard technical fields are editable and persist through the canonical Product Edit path instead of being read-only and excluded from form dehydration.
+- Technical manual edits require an audit reason and are marked as explicit overrides while preserving source-native catalog evidence in `specs_json`.
+
+### Safety
+- Public customer capacity filter remains `products.marketing_capacity_btu`; marketing, technical and legacy BTU semantics are not merged.
+- External Catalog Import still requires complete technical provenance; no Product System Restore contract, catalog schema or SkyAir workbook changed.
+
 ## [1.33.5] - 2026-09-02
 
 ### Fixed
