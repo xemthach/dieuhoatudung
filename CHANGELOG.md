@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.33.5] - 2026-09-02
+
+### Fixed
+- A full Product XLSX export is now recognized semantically when the UI submits every registered Product field group, not only when `field_groups` is empty.
+- Complete Product exports now always use the verified `PRODUCT_SYSTEM_RESTORE v1` field contract and generate `_SYSTEM_EXPORT` metadata plus `_SYSTEM_PAYLOAD` when long payloads require chunking.
+
+### Safety
+- Partial, selected, current-page, filtered and non-XLSX exports remain ordinary presentation exports.
+- Catalog Import provenance, technical schema validation, BTU capacity semantics and SkyAir workbooks are unchanged.
+
 ## [1.33.4] - 2026-09-02
 
 ### Fixed

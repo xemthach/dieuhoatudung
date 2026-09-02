@@ -42,15 +42,24 @@ class DataExportService
         try {
             $job->update(['status' => 'processing', 'started_at' => now()]);
 
+            $systemRestoreExport = $this->isProductSystemRestoreExport(
+                $module,
+                $fileType,
+                $scope,
+                $fieldGroups,
+                $filters,
+                $selectedIds,
+            );
+
             $fields = $this->resolveFields($module, $fieldGroups);
-            if ($module === 'product' && $fileType === 'xlsx' && $scope === 'all' && $fieldGroups === []) {
+            if ($systemRestoreExport) {
                 $fields = ProductSystemRestoreContract::fields();
             }
             $query = $this->buildQuery($module, $filters, $selectedIds, $scope);
             $data = $this->fetchData($query, $fields, $module);
 
             $fileName = $this->generateFileName($module, $fileType, $scope, $data->count());
-            $filePath = $this->writeFile($data, $fields, $fileType, $fileName, $module);
+            $filePath = $this->writeFile($data, $fields, $fileType, $fileName, $module, $systemRestoreExport);
 
             $job->update([
                 'status'      => 'completed',
@@ -80,6 +89,45 @@ class DataExportService
             return ModuleRegistry::allFields($module);
         }
         return ModuleRegistry::fieldsForGroups($module, $fieldGroups);
+    }
+
+    /**
+     * A Product System Restore represents the complete, unfiltered Product
+     * population. The export UI submits every group for "all fields", while
+     * callers that omit grouping submit an empty list; both have the same
+     * semantic intent.
+     */
+    private function isProductSystemRestoreExport(
+        string $module,
+        string $fileType,
+        string $scope,
+        array $fieldGroups,
+        array $filters,
+        array $selectedIds,
+    ): bool {
+        if ($module !== 'product' || $fileType !== 'xlsx' || $scope !== 'all' || $selectedIds !== []) {
+            return false;
+        }
+
+        // Keep this aligned with buildQuery(): null and blank filter values do
+        // not constrain the query. An empty array is intentionally effective
+        // there, so it cannot be treated as a full-population restore export.
+        foreach ($filters as $value) {
+            if ($value !== null && $value !== '') {
+                return false;
+            }
+        }
+
+        if ($fieldGroups === []) {
+            return true;
+        }
+
+        $submittedGroups = array_values(array_map('strval', $fieldGroups));
+        $productGroups = array_keys(ModuleRegistry::fieldGroups('product'));
+        sort($submittedGroups);
+        sort($productGroups);
+
+        return $submittedGroups === $productGroups;
     }
 
     /**
@@ -178,14 +226,29 @@ class DataExportService
     /**
      * Write data to a file in the specified format.
      */
-    protected function writeFile(Collection $data, array $fields, string $fileType, string $fileName, string $module): string
+    protected function writeFile(
+        Collection $data,
+        array $fields,
+        string $fileType,
+        string $fileName,
+        string $module,
+        bool $systemRestoreExport = false,
+    ): string
     {
+        if ($systemRestoreExport && (
+            $module !== 'product'
+            || $fileType !== 'xlsx'
+            || $fields !== ProductSystemRestoreContract::fields()
+        )) {
+            throw new \LogicException('System Product Restore must use the canonical Product XLSX field contract.');
+        }
+
         $dir = 'data-exports/' . $module;
         Storage::disk('local')->makeDirectory($dir);
         $fullPath = storage_path('app/private/' . $dir . '/' . $fileName);
 
         match ($fileType) {
-            'xlsx' => $this->writeXlsx($data, $fields, $fullPath, $module === 'product' && $fields === ProductSystemRestoreContract::fields()),
+            'xlsx' => $this->writeXlsx($data, $fields, $fullPath, $systemRestoreExport),
             'csv'  => $this->writeCsv($data, $fields, $fullPath),
             'xml'  => $this->writeXml($data, $fields, $fullPath, $module),
             'json' => $this->writeJson($data, $fullPath),

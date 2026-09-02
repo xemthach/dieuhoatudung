@@ -2,18 +2,23 @@
 
 namespace Tests\Feature;
 
+use App\Filament\Pages\DataTransferPage;
 use App\Models\Brand;
 use App\Models\CatalogModel;
 use App\Models\CatalogSource;
 use App\Models\Product;
 use App\Models\ProductCategory;
+use App\Models\User;
 use App\Services\DataTransfer\DataExportService;
 use App\Services\DataTransfer\DataImportService;
+use App\Services\DataTransfer\ModuleRegistry;
 use App\Services\DataTransfer\Modules\ProductImportHandler;
 use App\Services\DataTransfer\ProductSystemRestoreContract;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
+use Livewire\Livewire;
 use PhpOffice\PhpSpreadsheet\IOFactory;
+use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
 class ProductSystemRestoreRoundTripTest extends TestCase
@@ -42,7 +47,8 @@ class ProductSystemRestoreRoundTripTest extends TestCase
         $export = app(DataExportService::class)->export(
             module: 'product',
             fileType: 'xlsx',
-            fieldGroups: [],
+            // This mirrors the Product Export UI's "all fields" submission.
+            fieldGroups: array_keys(ModuleRegistry::fieldGroups('product')),
             scope: 'all',
         );
         $this->generatedFiles[] = $export->file_path;
@@ -164,6 +170,94 @@ class ProductSystemRestoreRoundTripTest extends TestCase
         app(DataImportService::class)->uploadAndPreview('product', $path, 'tampered.xlsx', 'xlsx');
     }
 
+    public function test_shuffled_complete_product_group_selection_is_a_system_restore_export(): void
+    {
+        $this->createSourceProducts();
+        $groups = array_keys(ModuleRegistry::fieldGroups('product'));
+        $shuffled = array_reverse($groups);
+
+        $export = app(DataExportService::class)->export('product', 'xlsx', $shuffled, [], [], 'all');
+        $this->generatedFiles[] = $export->file_path;
+
+        $this->assertSystemRestoreWorkbook(storage_path('app/private/'.$export->file_path));
+    }
+
+    public function test_empty_product_group_selection_is_also_a_system_restore_export(): void
+    {
+        $this->createSourceProducts();
+
+        $export = app(DataExportService::class)->export('product', 'xlsx', [], [], [], 'all');
+        $this->generatedFiles[] = $export->file_path;
+
+        $this->assertSystemRestoreWorkbook(storage_path('app/private/'.$export->file_path));
+    }
+
+    public function test_data_transfer_page_all_groups_uses_the_system_restore_export_contract(): void
+    {
+        $this->createSourceProducts();
+        $role = Role::firstOrCreate(['name' => 'super_admin', 'guard_name' => 'web']);
+        $user = User::factory()->create();
+        $user->assignRole($role);
+        $groups = array_keys(ModuleRegistry::fieldGroups('product'));
+
+        Livewire::actingAs($user)
+            ->test(DataTransferPage::class)
+            ->callAction('export', [
+                'module' => 'product',
+                'file_type' => 'xlsx',
+                'field_groups' => $groups,
+            ]);
+
+        $export = \App\Models\DataExportJob::query()->latest('id')->firstOrFail();
+        $this->generatedFiles[] = $export->file_path;
+        $this->assertSame($groups, $export->field_groups_json);
+        $this->assertSame(2, $export->total_rows);
+        $this->assertSystemRestoreWorkbook(storage_path('app/private/'.$export->file_path));
+    }
+
+    public function test_partial_selection_or_narrowed_scope_never_becomes_a_system_restore_export(): void
+    {
+        [$first] = $this->createSourceProducts();
+        $groups = array_keys(ModuleRegistry::fieldGroups('product'));
+        $cases = [
+            ['groups' => array_slice($groups, 0, -1), 'filters' => [], 'ids' => [], 'scope' => 'all'],
+            ['groups' => [...$groups, 'unknown_group'], 'filters' => [], 'ids' => [], 'scope' => 'all'],
+            ['groups' => $groups, 'filters' => [], 'ids' => [$first->id], 'scope' => 'selected'],
+            ['groups' => $groups, 'filters' => [], 'ids' => [$first->id], 'scope' => 'current_page'],
+            ['groups' => $groups, 'filters' => [], 'ids' => [$first->id], 'scope' => 'filter'],
+            ['groups' => $groups, 'filters' => ['is_active' => true], 'ids' => [], 'scope' => 'all'],
+            ['groups' => $groups, 'filters' => ['is_active' => []], 'ids' => [], 'scope' => 'all'],
+        ];
+
+        foreach ($cases as $case) {
+            $export = app(DataExportService::class)->export(
+                'product',
+                'xlsx',
+                $case['groups'],
+                $case['filters'],
+                $case['ids'],
+                $case['scope'],
+            );
+            $this->generatedFiles[] = $export->file_path;
+
+            $this->assertNormalWorkbook(storage_path('app/private/'.$export->file_path));
+        }
+    }
+
+    public function test_non_xlsx_product_exports_never_use_the_system_restore_contract(): void
+    {
+        $this->createSourceProducts();
+        $groups = array_keys(ModuleRegistry::fieldGroups('product'));
+
+        foreach (['csv', 'xml', 'json'] as $fileType) {
+            $export = app(DataExportService::class)->export('product', $fileType, $groups, [], [], 'all');
+            $this->generatedFiles[] = $export->file_path;
+
+            $contents = (string) Storage::disk('local')->get($export->file_path);
+            $this->assertStringNotContainsString(ProductSystemRestoreContract::FORMAT, $contents);
+        }
+    }
+
     /** @return array{0: Product, 1: Product} */
     private function createSourceProducts(): array
     {
@@ -245,5 +339,24 @@ class ProductSystemRestoreRoundTripTest extends TestCase
         }
 
         return $snapshot;
+    }
+
+    private function assertSystemRestoreWorkbook(string $path): void
+    {
+        $workbook = IOFactory::load($path);
+        $this->assertNotNull($workbook->getSheetByName(ProductSystemRestoreContract::METADATA_SHEET));
+        $this->assertSame(ProductSystemRestoreContract::fields(), array_map(
+            'strval',
+            $workbook->getActiveSheet()->toArray(null, true, true, false)[0],
+        ));
+        $workbook->disconnectWorksheets();
+    }
+
+    private function assertNormalWorkbook(string $path): void
+    {
+        $workbook = IOFactory::load($path);
+        $this->assertNull($workbook->getSheetByName(ProductSystemRestoreContract::METADATA_SHEET));
+        $this->assertNull($workbook->getSheetByName(ProductSystemRestoreContract::PAYLOAD_SHEET));
+        $workbook->disconnectWorksheets();
     }
 }

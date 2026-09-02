@@ -7,9 +7,11 @@ use App\Models\DataImportJob;
 use App\Models\User;
 use App\Services\DataTransfer\DataExportService;
 use App\Services\DataTransfer\DataImportService;
+use App\Services\DataTransfer\ModuleRegistry;
 use Illuminate\Contracts\Console\Kernel;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Hash;
+use PhpOffice\PhpSpreadsheet\IOFactory;
 use Spatie\Permission\Models\Role;
 
 require dirname(__DIR__, 2).'/vendor/autoload.php';
@@ -44,7 +46,20 @@ $user = User::create([
 ]);
 $user->assignRole($role);
 
-$export = app(DataExportService::class)->export('product', 'xlsx', [], [], [], 'all', $user->id);
+// Mirror the Admin Product Export UI: selecting every displayed field group
+// is semantically a full Product system export.
+$export = app(DataExportService::class)->export(
+    'product',
+    'xlsx',
+    array_keys(ModuleRegistry::fieldGroups('product')),
+    [],
+    [],
+    'all',
+    $user->id,
+);
+$workbook = IOFactory::load(storage_path('app/private/'.$export->file_path));
+$sheets = $workbook->getSheetNames();
+$workbook->disconnectWorksheets();
 $import = app(DataImportService::class)->uploadAndPreview(
     'product',
     storage_path('app/private/'.$export->file_path),
@@ -59,10 +74,13 @@ $state = [
     'password' => $password,
     'export_job_id' => $export->id,
     'export_file' => $export->file_path,
+    'sheets' => $sheets,
     'import_job_id' => $import->id,
     'import_file' => $import->file_path,
     'total_rows' => $import->total_rows,
     'failed_rows' => $import->failed_rows,
+    'created_rows' => $import->created_rows,
+    'updated_rows' => $import->updated_rows,
     'mode' => $import->mode,
     'contract' => data_get($import->format_context_json, 'contract'),
 ];
