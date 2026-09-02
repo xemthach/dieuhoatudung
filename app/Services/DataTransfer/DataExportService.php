@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Storage;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Cell\DataType;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use PhpOffice\PhpSpreadsheet\Writer\Csv;
 
@@ -42,6 +43,9 @@ class DataExportService
             $job->update(['status' => 'processing', 'started_at' => now()]);
 
             $fields = $this->resolveFields($module, $fieldGroups);
+            if ($module === 'product' && $fileType === 'xlsx' && $scope === 'all' && $fieldGroups === []) {
+                $fields = ProductSystemRestoreContract::fields();
+            }
             $query = $this->buildQuery($module, $filters, $selectedIds, $scope);
             $data = $this->fetchData($query, $fields, $module);
 
@@ -181,7 +185,7 @@ class DataExportService
         $fullPath = storage_path('app/private/' . $dir . '/' . $fileName);
 
         match ($fileType) {
-            'xlsx' => $this->writeXlsx($data, $fields, $fullPath),
+            'xlsx' => $this->writeXlsx($data, $fields, $fullPath, $module === 'product' && $fields === ProductSystemRestoreContract::fields()),
             'csv'  => $this->writeCsv($data, $fields, $fullPath),
             'xml'  => $this->writeXml($data, $fields, $fullPath, $module),
             'json' => $this->writeJson($data, $fullPath),
@@ -194,7 +198,7 @@ class DataExportService
     /**
      * Write XLSX file using PhpSpreadsheet.
      */
-    protected function writeXlsx(Collection $data, array $fields, string $path): void
+    protected function writeXlsx(Collection $data, array $fields, string $path, bool $systemRestore = false): void
     {
         $spreadsheet = new Spreadsheet();
         $sheet = $spreadsheet->getActiveSheet();
@@ -208,10 +212,27 @@ class DataExportService
 
         // Write data rows
         $rowIndex = 2;
+        $payloadRows = [];
         foreach ($data as $row) {
             foreach ($fields as $colIndex => $field) {
                 $value = $row[$field] ?? '';
-                $sheet->setCellValue([$colIndex + 1, $rowIndex], (string) $value);
+                if ($systemRestore) {
+                    // A system restore is a data contract, not a presentation
+                    // sheet. Keep IDs, decimal scale and JSON as literal strings;
+                    // Excel's automatic numeric coercion alters the manifest.
+                    $serialized = (string) $value;
+                    if (mb_strlen($serialized) > ProductSystemRestoreContract::XLSX_CELL_SAFE_LENGTH) {
+                        $token = ProductSystemRestoreContract::PAYLOAD_TOKEN_PREFIX.$field;
+                        foreach (mb_str_split($serialized, ProductSystemRestoreContract::XLSX_CELL_SAFE_LENGTH) as $chunkIndex => $chunk) {
+                            $payloadRows[] = [(string) ($row['id'] ?? ''), $field, $chunkIndex, $chunk];
+                        }
+                        $sheet->setCellValueExplicit([$colIndex + 1, $rowIndex], $token, DataType::TYPE_STRING);
+                    } else {
+                        $sheet->setCellValueExplicit([$colIndex + 1, $rowIndex], $serialized, DataType::TYPE_STRING);
+                    }
+                } else {
+                    $sheet->setCellValue([$colIndex + 1, $rowIndex], (string) $value);
+                }
             }
             $rowIndex++;
         }
@@ -219,6 +240,34 @@ class DataExportService
         // Auto-size columns (up to 50 cols)
         foreach (range(1, min(count($fields), 50)) as $col) {
             $sheet->getColumnDimensionByColumn($col)->setAutoSize(true);
+        }
+
+        if ($systemRestore) {
+            if ($payloadRows !== []) {
+                $payload = $spreadsheet->createSheet();
+                $payload->setTitle(ProductSystemRestoreContract::PAYLOAD_SHEET);
+                foreach (['product_id', 'field', 'chunk_index', 'value'] as $column => $header) {
+                    $payload->setCellValue([$column + 1, 1], $header);
+                }
+                foreach ($payloadRows as $index => $payloadRow) {
+                    foreach ($payloadRow as $column => $value) {
+                        $payload->setCellValueExplicit([$column + 1, $index + 2], (string) $value, DataType::TYPE_STRING);
+                    }
+                }
+                $payload->setSheetState(\PhpOffice\PhpSpreadsheet\Worksheet\Worksheet::SHEETSTATE_HIDDEN);
+            }
+            $metadata = $spreadsheet->createSheet();
+            $metadata->setTitle(ProductSystemRestoreContract::METADATA_SHEET);
+            $metadata->setCellValue('A1', 'key');
+            $metadata->setCellValue('B1', 'value');
+            $metadataRow = 2;
+            foreach (ProductSystemRestoreContract::metadata($fields, $data) as $key => $value) {
+                $metadata->setCellValue([1, $metadataRow], $key);
+                $metadata->setCellValue([2, $metadataRow], (string) $value);
+                $metadataRow++;
+            }
+            $metadata->setSheetState(\PhpOffice\PhpSpreadsheet\Worksheet\Worksheet::SHEETSTATE_HIDDEN);
+            $spreadsheet->setActiveSheetIndex(0);
         }
 
         $writer = new Xlsx($spreadsheet);

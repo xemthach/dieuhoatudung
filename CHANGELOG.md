@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.33.4] - 2026-09-02
+
+### Fixed
+- Product XLSX exports can now be restored through the verified `PRODUCT_SYSTEM_RESTORE v1` contract instead of being incorrectly treated as external catalog ingestion.
+- Product metadata no longer becomes false category technical-spec input during import validation.
+- Restore preserves Product IDs, commercial and technical capacity, Product business fields, media, SEO, Merchant fields and JSON payloads while failing invalid foreign keys explicitly.
+
+### Added
+- Full Product XLSX export includes hidden `_SYSTEM_EXPORT` manifest metadata and `_SYSTEM_PAYLOAD` chunking for payloads that exceed the Excel cell-size limit.
+- Restore preview identifies `SYSTEM RESTORE` and revalidates its manifest and target foreign keys before any mutation.
+
+### Safety
+- Catalog Import provenance and category-schema safety remain strict for external technical imports.
+- No provenance is fabricated, no invalid foreign key is silently converted to `null`, and no Production Product data is imported by this release itself.
+- SkyAir workbooks remain excluded and unchanged.
+
 ## [1.33.3] - 2026-09-02
 
 ### Fixed

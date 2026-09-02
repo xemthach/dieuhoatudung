@@ -3,9 +3,12 @@
 namespace App\Services\DataTransfer\Modules;
 
 use App\Models\Brand;
+use App\Models\CatalogModel;
+use App\Models\CatalogSource;
 use App\Models\Product;
 use App\Models\ProductCategory;
 use App\Services\DataTransfer\Contracts\ImportHandlerInterface;
+use App\Services\DataTransfer\ProductSystemRestoreContract;
 use App\Services\Product\ProductImportMapper;
 use App\Services\Product\ProductTechnicalSpecWriter;
 use Illuminate\Support\Facades\Schema;
@@ -17,6 +20,10 @@ class ProductImportHandler implements ImportHandlerInterface
 
     public function validateRow(array $row, string $mode, string $matchingKey): array
     {
+        if ($mode === 'system_restore') {
+            return $this->validateSystemRestoreRow($row);
+        }
+
         $errors = [];
 
         // Name required for create mode
@@ -131,6 +138,10 @@ class ProductImportHandler implements ImportHandlerInterface
 
     public function importRow(array $row, string $mode, string $matchingKey): string
     {
+        if ($mode === 'system_restore') {
+            return $this->restoreSystemRow($row);
+        }
+
         $technical = $this->technicalInput($row);
         $data = $this->prepareData(array_diff_key($row, $technical));
         $existing = $this->findExisting($row, $matchingKey);
@@ -392,8 +403,8 @@ class ProductImportHandler implements ImportHandlerInterface
     private function validateSpecsAgainstCategorySchema(ProductCategory $category, mixed $specs): array
     {
         $row = is_array($specs) ? $specs : [];
-        // A full import row is not itself specs_json. Treat only the explicit
-        // payload as nested specs, then add non-metadata top-level fields below.
+        // A full import row is not itself specs_json. Only an explicit technical
+        // payload may be validated against a category's technical schema.
         $rawSpecs = is_array($specs) && array_key_exists('specs_json', $specs)
             ? $specs['specs_json']
             : [];
@@ -408,14 +419,8 @@ class ProductImportHandler implements ImportHandlerInterface
 
         $allowed = $category->technicalSchemaPermittedFields();
         $flatSpecs = is_array($rawSpecs) ? $this->flattenSpecs($rawSpecs) : [];
-        foreach ($row as $key => $value) {
-            if (
-                $value !== null
-                && $value !== ''
-                && is_string($key)
-                && $key !== 'specs_json'
-                && ! in_array($key, ProductImportMapper::EXCLUDED_FROM_SPECS, true)
-            ) {
+        foreach ($this->technicalSchemaInput($row) as $key => $value) {
+            if ($value !== null && $value !== '') {
                 $flatSpecs[$key] ??= $value;
             }
         }
@@ -447,6 +452,133 @@ class ProductImportHandler implements ImportHandlerInterface
         }
 
         return array_values(array_unique($errors));
+    }
+
+    /**
+     * Product metadata must never be promoted into the category technical schema.
+     * marketing_capacity_btu is a commercial field and intentionally excluded.
+     */
+    private function technicalSchemaInput(array $row): array
+    {
+        $keys = [
+            'technical_capacity_btu', 'capacity_kw', 'power_input_kw', 'power_consumption',
+            'btu', 'hp', 'inverter', 'cooling_type', 'voltage', 'refrigerant',
+            'refrigerant_gas', 'airflow', 'noise_level', 'indoor_dimensions',
+            'outdoor_dimensions', 'weight', 'recommended_area',
+        ];
+
+        $category = $this->resolveCategory($row);
+        if ($category?->hasTechnicalSchema()) {
+            $keys = array_merge($keys, $category->technicalSchemaPermittedFields());
+        }
+
+        return array_filter(
+            array_intersect_key($row, array_flip(array_values(array_unique($keys)))),
+            static fn ($value): bool => $value !== null && $value !== '',
+        );
+    }
+
+    private function validateSystemRestoreRow(array $row): array
+    {
+        $errors = [];
+
+        if (! isset($row['id']) || ! filter_var($row['id'], FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]])) {
+            $errors[] = 'SYSTEM RESTORE requires a positive Product ID.';
+        }
+        if (blank($row['name'] ?? null)) {
+            $errors[] = 'SYSTEM RESTORE requires Product name.';
+        }
+        if (blank($row['slug'] ?? null)) {
+            $errors[] = 'SYSTEM RESTORE requires Product slug.';
+        }
+
+        foreach (['brand_id' => Brand::class, 'product_category_id' => ProductCategory::class, 'catalog_source_id' => CatalogSource::class, 'catalog_model_id' => CatalogModel::class] as $field => $model) {
+            if (blank($row[$field] ?? null)) {
+                continue;
+            }
+            if (! is_numeric($row[$field]) || ! $model::query()->whereKey((int) $row[$field])->exists()) {
+                $errors[] = "SYSTEM RESTORE foreign key {$field} is missing on this target.";
+            }
+        }
+
+        if (filled($row['catalog_model_id'] ?? null) && filled($row['catalog_source_id'] ?? null)) {
+            $matchesSource = CatalogModel::query()
+                ->whereKey((int) $row['catalog_model_id'])
+                ->where('catalog_source_id', (int) $row['catalog_source_id'])
+                ->exists();
+            if (! $matchesSource) {
+                $errors[] = 'SYSTEM RESTORE catalog_model_id does not belong to catalog_source_id.';
+            }
+        }
+
+        foreach (['specs_json', 'gallery_json', 'documents_json'] as $jsonField) {
+            if (blank($row[$jsonField] ?? null) || is_array($row[$jsonField])) {
+                continue;
+            }
+            json_decode((string) $row[$jsonField], true);
+            if (json_last_error() !== JSON_ERROR_NONE) {
+                $errors[] = "SYSTEM RESTORE {$jsonField} must contain valid JSON.";
+            }
+        }
+
+        $byId = filled($row['id'] ?? null) ? Product::withTrashed()->find((int) $row['id']) : null;
+        foreach (['sku', 'slug'] as $field) {
+            if (blank($row[$field] ?? null)) {
+                continue;
+            }
+            $byUnique = Product::withTrashed()->where($field, $row[$field])->first();
+            if ($byUnique && (! $byId || $byUnique->id !== $byId->id)) {
+                $errors[] = "SYSTEM RESTORE {$field} belongs to Product #{$byUnique->id}, not the exported ID.";
+            }
+        }
+
+        return $errors;
+    }
+
+    private function restoreSystemRow(array $row): string
+    {
+        $data = $this->prepareSystemRestoreData($row);
+        $id = (int) $data['id'];
+        $target = Product::withTrashed()->find($id);
+
+        if ($target) {
+            if ($target->trashed()) {
+                $target->restore();
+            }
+            $target->fill($data);
+            $target->save();
+
+            return 'updated';
+        }
+
+        Product::create($data);
+
+        return 'created';
+    }
+
+    private function prepareSystemRestoreData(array $row): array
+    {
+        $data = [];
+        foreach (ProductSystemRestoreContract::fields() as $field) {
+            if (! array_key_exists($field, $row)) {
+                continue;
+            }
+
+            $value = $row[$field];
+            if (in_array($field, ['specs_json', 'gallery_json', 'documents_json'], true) && is_string($value)) {
+                $value = blank($value) ? null : json_decode($value, true, 512, JSON_THROW_ON_ERROR);
+            }
+            if (in_array($field, ['inverter', 'is_featured', 'is_bestseller', 'is_new', 'is_active', 'schema_enabled', 'identifier_exists', 'price_includes_vat'], true)) {
+                $value = filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) ?? false;
+            }
+            if (in_array($field, ['promotion_start_at', 'promotion_end_at', 'technical_specs_overridden_at'], true) && blank($value)) {
+                $value = null;
+            }
+
+            $data[$field] = $value === '' ? null : $value;
+        }
+
+        return $data;
     }
 
     private function flattenSpecs(array $specs): array

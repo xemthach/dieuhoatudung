@@ -16,6 +16,7 @@ class DataImportJob extends Model
             'preview_data_json'   => 'array',
             'column_mapping_json' => 'array',
             'field_groups_json'   => 'array',
+            'format_context_json' => 'array',
             'total_rows'          => 'integer',
             'success_rows'        => 'integer',
             'failed_rows'         => 'integer',

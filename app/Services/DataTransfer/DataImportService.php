@@ -32,6 +32,14 @@ class DataImportService
         $destination = $storagePath . '/' . $fileName;
         Storage::disk('local')->put($destination, file_get_contents($filePath));
 
+        $formatContext = $module === 'product' && $fileType === 'xlsx'
+            ? $this->detectProductSystemRestore($destination)
+            : null;
+        if ($formatContext !== null) {
+            $mode = 'system_restore';
+            $matchingKey = 'id';
+        }
+
         $job = DataImportJob::create([
             'module'       => $module,
             'file_name'    => $originalName,
@@ -39,6 +47,7 @@ class DataImportService
             'file_type'    => $fileType,
             'mode'         => $mode,
             'matching_key' => $matchingKey,
+            'format_context_json' => $formatContext,
             'status'       => 'validating',
             'created_by'   => $userId ?? auth()->id(),
             'started_at'   => now(),
@@ -104,6 +113,27 @@ class DataImportService
         try {
             $rows = $this->parseFile($job->file_path, $job->file_type);
             $handler = $this->getModuleHandler($job->module);
+
+            // A system restore is an all-or-nothing, manifest-bound operation.
+            // Re-check the workbook after preview so a replaced file cannot cause
+            // a partial restore or silently change FK meaning.
+            if ($job->mode === 'system_restore') {
+                $formatContext = $this->detectProductSystemRestore($job->file_path);
+                if ($formatContext === null) {
+                    throw new \RuntimeException('SYSTEM RESTORE metadata is missing.');
+                }
+                $validation = $this->validateRows($rows, $job->module, $job->mode, $job->matching_key);
+                if ($validation['error_count'] > 0) {
+                    $job->update([
+                        'status' => 'failed',
+                        'failed_rows' => $validation['error_count'],
+                        'error_report_json' => $validation['all_errors'],
+                        'finished_at' => now(),
+                    ]);
+
+                    return $job;
+                }
+            }
 
             $stats = [
                 'success' => 0,
@@ -184,8 +214,9 @@ class DataImportService
     protected function parseXlsx(string $path): Collection
     {
         $spreadsheet = SpreadsheetLoader::load($path);
-        $sheet = $spreadsheet->getActiveSheet();
+        $sheet = $spreadsheet->getSheetByName(ProductSystemRestoreContract::DATA_SHEET) ?? $spreadsheet->getActiveSheet();
         $rows = $sheet->toArray(null, true, true, false);
+        $payloads = $this->readSystemPayloads($spreadsheet);
         $spreadsheet->disconnectWorksheets();
 
         if (empty($rows)) return collect();
@@ -202,12 +233,51 @@ class DataImportService
                 $row[$header] = is_string($value) ? trim($value) : $value;
                 if ($value !== '' && $value !== null) $hasValue = true;
             }
+            foreach ($row as $field => $value) {
+                if (! is_string($value) || ! str_starts_with($value, ProductSystemRestoreContract::PAYLOAD_TOKEN_PREFIX)) {
+                    continue;
+                }
+                $payloadField = substr($value, strlen(ProductSystemRestoreContract::PAYLOAD_TOKEN_PREFIX));
+                $payload = $payloads[(string) ($row['id'] ?? '')][$payloadField] ?? null;
+                if ($payload !== null) {
+                    $row[$field] = $payload;
+                }
+            }
             if ($hasValue) {
                 $data->push($row);
             }
         }
 
         return $data;
+    }
+
+    /** @return array<string, array<string, string>> */
+    private function readSystemPayloads($spreadsheet): array
+    {
+        $sheet = $spreadsheet->getSheetByName(ProductSystemRestoreContract::PAYLOAD_SHEET);
+        if ($sheet === null) {
+            return [];
+        }
+
+        $payloads = [];
+        foreach (array_slice($sheet->toArray(null, true, true, false), 1) as $row) {
+            $productId = (string) ($row[0] ?? '');
+            $field = (string) ($row[1] ?? '');
+            $chunkIndex = (int) ($row[2] ?? 0);
+            if ($productId === '' || $field === '') {
+                continue;
+            }
+            $payloads[$productId][$field][$chunkIndex] = (string) ($row[3] ?? '');
+        }
+
+        foreach ($payloads as $productId => $fields) {
+            foreach ($fields as $field => $chunks) {
+                ksort($chunks);
+                $payloads[$productId][$field] = implode('', $chunks);
+            }
+        }
+
+        return $payloads;
     }
 
     /**
@@ -329,6 +399,7 @@ class DataImportService
         $rowActions  = [];
         $allErrors   = [];
 
+        $seen = ['id' => [], 'sku' => [], 'slug' => []];
         foreach ($rows as $index => $row) {
             $errors = [];
 
@@ -343,9 +414,24 @@ class DataImportService
             $moduleErrors = $handler->validateRow($row, $mode, $matchingKey);
             $errors = array_merge($errors, $moduleErrors);
 
+            if ($mode === 'system_restore') {
+                foreach (array_keys($seen) as $unique) {
+                    $value = (string) ($row[$unique] ?? '');
+                    if ($value === '') continue;
+                    if (isset($seen[$unique][$value])) {
+                        $errors[] = "System restore contains duplicate {$unique}: {$value}";
+                    }
+                    $seen[$unique][$value] = true;
+                }
+            }
+
             // Determine action (create or update)
             $action = 'create';
-            if ($mode === 'update' || $mode === 'upsert') {
+            if ($mode === 'system_restore') {
+                $exists = $handler->findExisting($row, 'id');
+                $action = $exists ? 'update' : 'create';
+                $exists ? $updateCount++ : $createCount++;
+            } elseif ($mode === 'update' || $mode === 'upsert') {
                 $exists = $handler->findExisting($row, $matchingKey);
                 if ($exists) {
                     $action = 'update';
@@ -399,6 +485,41 @@ class DataImportService
             'btu_calculation' => app(Modules\BtuCalculationImportHandler::class),
             default           => throw new \InvalidArgumentException("No import handler for module: {$module}"),
         };
+    }
+
+    private function detectProductSystemRestore(string $storagePath): ?array
+    {
+        $fullPath = storage_path('app/private/'.$storagePath);
+        $spreadsheet = SpreadsheetLoader::load($fullPath);
+        $metadataSheet = $spreadsheet->getSheetByName(ProductSystemRestoreContract::METADATA_SHEET);
+        if ($metadataSheet === null) {
+            $spreadsheet->disconnectWorksheets();
+            return null;
+        }
+
+        $metadata = [];
+        foreach ($metadataSheet->toArray(null, true, true, false) as $index => $row) {
+            if ($index === 0) continue;
+            $key = trim((string) ($row[0] ?? ''));
+            if ($key !== '') $metadata[$key] = trim((string) ($row[1] ?? ''));
+        }
+        $spreadsheet->disconnectWorksheets();
+
+        if (($metadata['format'] ?? null) !== ProductSystemRestoreContract::FORMAT
+            || (int) ($metadata['format_version'] ?? 0) !== ProductSystemRestoreContract::VERSION) {
+            throw new \InvalidArgumentException('Invalid PRODUCT_SYSTEM_RESTORE metadata.');
+        }
+
+        $rows = $this->parseFile($storagePath, 'xlsx');
+        $fields = array_keys($rows->first() ?? []);
+        if ($fields !== ProductSystemRestoreContract::fields()
+            || ($metadata['columns_sha256'] ?? '') !== ProductSystemRestoreContract::columnsChecksum($fields)
+            || (int) ($metadata['product_count'] ?? -1) !== $rows->count()
+            || ! hash_equals((string) ($metadata['content_sha256'] ?? ''), ProductSystemRestoreContract::contentChecksum($fields, $rows))) {
+            throw new \InvalidArgumentException('Invalid or modified PRODUCT_SYSTEM_RESTORE manifest.');
+        }
+
+        return $metadata + ['contract' => 'SYSTEM_PRODUCT_RESTORE'];
     }
 
     /**

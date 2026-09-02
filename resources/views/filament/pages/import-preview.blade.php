@@ -125,7 +125,12 @@
                 <table class="ip-info-table">
                     <tr>
                         <td class="lbl">Module</td>
-                        <td class="val">{{ \App\Services\DataTransfer\ModuleRegistry::modules()[$job->module] ?? $job->module }}</td>
+                        <td class="val">
+                            {{ \App\Services\DataTransfer\ModuleRegistry::modules()[$job->module] ?? $job->module }}
+                            @if(data_get($job->format_context_json, 'contract') === 'SYSTEM_PRODUCT_RESTORE')
+                                <x-filament::badge color="success" class="ml-2">SYSTEM RESTORE</x-filament::badge>
+                            @endif
+                        </td>
                     </tr>
                     <tr>
                         <td class="lbl">Tên file</td>
@@ -143,6 +148,12 @@
                             <x-filament::badge color="gray">{{ strtoupper($job->matching_key ?? 'id') }}</x-filament::badge>
                         </td>
                     </tr>
+                    @if(data_get($job->format_context_json, 'contract') === 'SYSTEM_PRODUCT_RESTORE')
+                    <tr>
+                        <td class="lbl">Restore policy</td>
+                        <td class="val">Khôi phục Product ID và các trường đã xuất; không áp dụng quy tắc catalog provenance.</td>
+                    </tr>
+                    @endif
                 </table>
             </div>
         </div>
