@@ -1,16 +1,7 @@
 @props(['brands', 'categories', 'currentCategory' => null])
 
 @php
-    $btuOptions = [
-        '9000-12000' => 'Dưới 12.000 BTU',
-        '18000' => '18.000 BTU',
-        '24000' => '24.000 BTU',
-        '28000' => '28.000 BTU',
-        '36000' => '36.000 BTU',
-        '42000' => '42.000 BTU',
-        '48000' => '48.000 BTU',
-        '50000-100000' => 'Từ 50.000 BTU trở lên'
-    ];
+    $btuOptions = \App\Services\Product\ProductFilterService::CAPACITY_FILTER_OPTIONS;
 @endphp
 
 <form id="productFilterForm" action="{{ url()->current() }}" method="GET" class="rounded-xl border border-surface-200 bg-white p-5">

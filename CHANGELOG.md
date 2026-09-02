@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.33.3] - 2026-09-02
+
+### Fixed
+- Customer-facing BTU filtering, sorting, display and calculator selection now consistently use persisted `products.marketing_capacity_btu` as the commercial capacity contract.
+- Legacy `btu`, technical capacity and raw `specs_json` capacity values are no longer silently exposed as marketing capacity when the canonical value is missing.
+- Product technical fact resolution now reads historical list, enriched-list and associative `specs_json` structures for audit evidence without treating those values as commercial capacity.
+- Quote submission tolerates Products without a resolved marketing capacity.
+
+### Added
+- Read-only `catalog:audit-marketing-capacity` diagnostics classify canonical values, source-backed proposals, ambiguous evidence and no-evidence rows.
+- Controlled `catalog:backfill-marketing-capacity` defaults to dry-run and writes only `marketing_capacity_btu` after explicit `--apply --approved` confirmation and verified `PRODUCT_LIST` provenance checks.
+
+### Safety
+- Technical capacity, legacy BTU, raw specs and title text are never coerced into a commercial tier.
+- SkyAir import workbooks remain excluded and unchanged.
+- No migration or automatic Production data mutation is included.
+
 ## [1.33.2] - 2026-09-01
 
 ### Fixed

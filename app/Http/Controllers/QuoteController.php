@@ -350,7 +350,7 @@ class QuoteController extends Controller
             'product_model'            => $productModel?->model_code,
             'product_brand'            => $productModel?->brand?->name,
             'product_category'         => $productModel?->category?->name,
-            'product_capacity_btu'     => $productModel ? app(\App\Services\Product\ProductTechnicalFactResolver::class)->getDisplay($productModel, 'marketing_capacity_btu')['value'] : null,
+            'product_capacity_btu'     => $productModel ? (app(\App\Services\Product\ProductTechnicalFactResolver::class)->getDisplay($productModel, 'marketing_capacity_btu')['value'] ?? null) : null,
             'product_url'              => $productModel ? route('product.show', $productModel->slug) : null,
             'selected_product_snapshot'=> $productSnapshot,
             'calculator_context'       => $calculatorContext,

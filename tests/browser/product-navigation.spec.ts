@@ -49,6 +49,16 @@ test.describe('Product listing and public navigation certification', () => {
         await page.selectOption('select', 'price_asc');
         await expect(page).toHaveURL(/sort=price_asc/);
 
+        for (const capacity of ['18000', '48000']) {
+            const response = await page.goto(`/san-pham?btu[]=${capacity}`);
+            expect(response?.status(), `BTU ${capacity}`).toBeLessThan(400);
+            await expect(page.locator('article[id^="product-card-"]').first()).toBeVisible();
+        }
+
+        const multiResponse = await page.goto('/san-pham?btu[]=18000&btu[]=48000');
+        expect(multiResponse?.status(), 'multi-BTU').toBeLessThan(400);
+        await expect(page.locator('article[id^="product-card-"]').first()).toBeVisible();
+
         await page.goto('/san-pham?page=2');
         const pageTwo = page.locator('a[aria-current="page"]');
         if (await pageTwo.count()) await expect(pageTwo).toContainText('2');

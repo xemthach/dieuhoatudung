@@ -21,13 +21,13 @@ class Phase1F2ARegressionTest extends TestCase
         $this->assertSame(42000, app(ProductMarketingCapacityQueryAdapter::class)->value($product));
     }
 
-    public function test_capacity_adapter_marks_legacy_fallback_as_display_only(): void
+    public function test_capacity_adapter_does_not_expose_legacy_btu_as_canonical_marketing_capacity(): void
     {
         $product = new Product;
         $product->setRawAttributes(['btu' => 42000]);
         $adapter = app(ProductMarketingCapacityQueryAdapter::class);
 
-        $this->assertSame(42000, $adapter->value($product));
+        $this->assertNull($adapter->value($product));
         $this->assertContains($adapter->mode(), ['LEGACY_DISPLAY_ONLY', 'MARKETING_CAPACITY_CANONICAL']);
     }
 

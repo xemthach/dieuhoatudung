@@ -137,11 +137,8 @@ class ProductTechnicalFactResolver
             return $resolved;
         }
 
-        // Transitional display-only fallback. This legacy field is never
-        // exposed by getVerified() and is never used as technical capacity.
-        if ($fieldKey === 'marketing_capacity_btu') {
-            return $this->present($product->btu, $fieldKey, 'legacy_display');
-        }
+        // Legacy btu remains audit evidence only. Customer-facing marketing
+        // display must match the persisted, searchable commercial field.
         if ($fieldKey === 'technical_capacity_btu') {
             return $this->present($product->btu, $fieldKey, 'legacy_display');
         }
@@ -221,11 +218,17 @@ class ProductTechnicalFactResolver
     public function specs(Product $product): array
     {
         $result = [];
-        foreach ((array) ($product->specs_json ?? []) as $item) {
+        foreach ((array) ($product->specs_json ?? []) as $key => $item) {
             if (is_array($item) && isset($item['key'])) {
                 $result[(string) $item['key']] = $item['value'] ?? null;
             } elseif (is_array($item)) {
                 foreach ($item as $key => $value) $result[(string) $key] = $value;
+            } elseif (is_string($key) && ! is_numeric($key)) {
+                // Historical imports also stored specs_json as an associative
+                // object: {"capacity_btu": "18000"}. Preserve the source
+                // value; semantic callers still decide whether it is
+                // technical or commercial capacity.
+                $result[$key] = $item;
             }
         }
 
