@@ -7,11 +7,11 @@ use App\Models\Product;
 use App\Models\ProductCategory;
 use App\Services\DataTransfer\DataExportService;
 use App\Services\DataTransfer\Modules\ProductImportHandler;
+use App\Services\Product\ProductTechnicalFactResolver;
 use App\Support\Catalog\SkyAirTechnicalSchema;
 use Database\Seeders\SkyAirProductCategorySchemaSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
-use PhpOffice\PhpSpreadsheet\IOFactory;
 use Tests\TestCase;
 
 class DaikinSkyAirImportReadinessTest extends TestCase
@@ -51,6 +51,7 @@ class DaikinSkyAirImportReadinessTest extends TestCase
         $cassette = ProductCategory::findOrFail(24)->technicalSchemaPermittedFields();
         $ducted = ProductCategory::findOrFail(27)->technicalSchemaPermittedFields();
         $this->assertContains('panel_model', $cassette);
+        $this->assertContains('remote_model', $cassette);
         $this->assertNotContains('panel_model', $ducted);
         $this->assertContains('external_static_pressure_pa', $ducted);
         $this->assertNotContains('external_static_pressure_pa', $cassette);
@@ -83,6 +84,15 @@ class DaikinSkyAirImportReadinessTest extends TestCase
         $this->assertSame(0, Product::where('is_active', true)->count());
         $this->assertSame(225, Product::whereNotNull('technical_capacity_btu')->count());
         $this->assertSame(0, Product::whereHas('category', fn ($query) => $query->where('name', 'like', '%VRF%'))->count());
+
+        $facts = app(ProductTechnicalFactResolver::class);
+        $exactBundle = Product::query()->where('sku', 'FCTF50AVM-RZF50DVM')->sole();
+        $this->assertSame('BRC1H63W', $facts->value($exactBundle, 'remote_model'));
+        $this->assertSame('BYCQ125EAF8', $facts->value($exactBundle, 'panel_model'));
+
+        $compatibilityBundle = Product::query()->where('sku', 'FCF50CVM-RZF50DVM')->sole();
+        $this->assertNull($facts->value($compatibilityBundle, 'remote_model'));
+        $this->assertSame('BYCQ125EAF8', $facts->value($compatibilityBundle, 'panel_model'));
 
         $representatives = Product::query()
             ->whereIn('series', [
@@ -146,10 +156,39 @@ class DaikinSkyAirImportReadinessTest extends TestCase
 
     private function loadRows(string $sheetName): array
     {
-        $sheet = IOFactory::load(base_path('DAIKIN_SKYAIR_2026_IMPORT.xlsx'))->getSheetByName($sheetName);
-        $values = $sheet->toArray(null, true, true, false);
-        $headers = array_map('strval', array_shift($values));
-        return array_map(fn (array $row): array => array_combine($headers, $row), $values);
+        if ($sheetName !== 'IMPORT_READY') {
+            return [];
+        }
+
+        $canonicalRows = collect($this->csv('docs/reports/final/artifacts/skyair_combination_matrix.csv'))
+            ->where('readiness', 'IMPORT_READY')
+            ->values();
+        $components = collect($this->csv('docs/reports/final/artifacts/skyair_bundle_component_matrix.csv'))
+            ->groupBy('model_code');
+        $brandId = Brand::query()->where('slug', 'daikin')->sole()->id;
+
+        return $canonicalRows->map(function (array $row) use ($components, $brandId): array {
+            // The checked-in canonical source matrix is the portable fixture. It
+            // retains source provenance while resolving the historical workbook's
+            // stale numeric Brand/Category IDs through the reviewed business
+            // identities before strict ProductImportHandler FK validation.
+            $row['brand_id'] = $brandId;
+            $row['product_category_id'] = (int) $row['product_category_id'];
+            $row['refrigerant_gas'] = $row['refrigerant_gas'] ?: ($row['refrigerant'] ?? null);
+            unset($row['refrigerant']);
+
+            $bundleRows = $components->get((string) $row['model_code'], collect());
+            $remote = $bundleRows->pluck('remote_model')->filter()->unique()->values();
+            $panels = $bundleRows->pluck('panel_model')->filter()->unique()->values();
+            if ($remote->count() === 1 && $bundleRows->first()['remote_classification'] === 'EXACT_BUNDLE_ASSIGNMENT') {
+                $row['remote_model'] = $remote->sole();
+            }
+            if ($panels->count() === 1 && $bundleRows->first()['panel_classification'] === 'EXACT_BUNDLE_ASSIGNMENT') {
+                $row['panel_model'] = $panels->sole();
+            }
+
+            return $row;
+        })->all();
     }
 
     private function csv(string $path): array

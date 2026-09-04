@@ -5,10 +5,13 @@
 
 @php
     $price = app(\App\Services\Product\PromotionPriceResolver::class)->resolve($product);
-    $technicalFacts = app(\App\Services\Product\ProductTechnicalFactResolver::class)->unitAwareFacts($product);
-    $sourceNativeCapacity = $technicalFacts['capacity_kw'] ?? null;
-    $marketingCapacity = app(\App\Services\Product\ProductTechnicalFactResolver::class)->getDisplay($product, 'marketing_capacity_btu');
-    $marketingCapacityDisplay = app(\App\Services\Product\ProductTechnicalFactResolver::class)->formatBtuDisplay($marketingCapacity['value'] ?? null);
+    $technicalResolver = app(\App\Services\Product\ProductTechnicalFactResolver::class);
+    $marketingCapacity = $technicalResolver->getDisplay($product, 'marketing_capacity_btu');
+    $marketingCapacityDisplay = $technicalResolver->formatBtuDisplay($marketingCapacity['value'] ?? null);
+    $ratedCapacityKw = $technicalResolver->value($product, 'capacity_kw');
+    $ratedCapacityKwDisplay = is_numeric($ratedCapacityKw)
+        ? rtrim(rtrim(number_format((float) $ratedCapacityKw, 2, ',', '.'), '0'), ',')
+        : null;
 @endphp
 
 <article {{ $attributes->merge(['class' => 'card group']) }} id="product-card-{{ $product->id }}">
@@ -45,10 +48,11 @@
         @endif
 
         <div class="mt-2 flex flex-wrap gap-2 text-xs text-surface-500">
-            @if($sourceNativeCapacity)
-                <span class="rounded bg-surface-100 px-1.5 py-0.5">{{ $sourceNativeCapacity['value'] }} {{ $sourceNativeCapacity['unit'] }}</span>
-            @elseif($marketingCapacityDisplay)
+            @if($marketingCapacityDisplay)
                 <span class="rounded bg-surface-100 px-1.5 py-0.5">{{ $marketingCapacityDisplay }} BTU</span>
+            @endif
+            @if($ratedCapacityKwDisplay)
+                <span class="rounded bg-surface-100 px-1.5 py-0.5">{{ $ratedCapacityKwDisplay }} kW</span>
             @endif
             @if($product->inverter)
                 <span class="rounded bg-primary-50 px-1.5 py-0.5 text-primary-700">Inverter</span>

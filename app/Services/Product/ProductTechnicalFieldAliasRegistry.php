@@ -12,7 +12,6 @@ class ProductTechnicalFieldAliasRegistry
         'power_consumption' => 'power_input_kw',
         'refrigerant' => 'refrigerant_gas',
         'gas' => 'refrigerant_gas',
-        'phase' => 'voltage',
         'noise' => 'noise_level',
     ];
 

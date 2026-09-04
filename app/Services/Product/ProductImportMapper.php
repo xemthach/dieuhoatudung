@@ -44,8 +44,8 @@ class ProductImportMapper
         'cooling_heating_type'  => 'cooling_type',
         'cooling_heating'       => 'cooling_type',
 
-        //  Voltage / Phase 
-        'phase'                 => 'voltage',
+        // Voltage has a dedicated Product column. Phase remains a distinct
+        // source-native technical fact in governed specs_json.
         'voltage'               => 'voltage',
         'dien_ap'               => 'voltage',
 

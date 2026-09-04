@@ -97,6 +97,8 @@ class ProductTechnicalSpecWriter
             'technical_capacity_btu', 'capacity_kw', 'hp', 'inverter', 'cooling_type',
             'voltage', 'refrigerant_gas', 'power_consumption', 'airflow', 'noise_level',
             'recommended_area', 'indoor_dimensions', 'outdoor_dimensions', 'weight',
+            // Source-native commercial facts without dedicated Product columns.
+            'phase', 'frequency',
         ];
         $changes = [];
 
@@ -110,7 +112,24 @@ class ProductTechnicalSpecWriter
                 throw ValidationException::withMessages([$field => 'Giá trị phải là số hợp lệ.']);
             }
             $normalized = $this->normalizeManualValue($field, $value);
-            if ($this->different($product->getAttribute($field), $normalized)) $changes[$field] = $normalized;
+            $before = in_array($field, ['phase', 'frequency'], true)
+                ? $this->resolver->value($product, $field)
+                : $product->getAttribute($field);
+
+            if (! $this->different($before, $normalized)) {
+                continue;
+            }
+
+            if (in_array($field, ['phase', 'frequency'], true)) {
+                $changes['specs_json'] = $this->withManualSpecOverride(
+                    $changes['specs_json'] ?? $product->specs_json ?? [],
+                    $field,
+                    $normalized,
+                );
+                continue;
+            }
+
+            $changes[$field] = $normalized;
         }
 
         if ($changes === []) return [];
@@ -179,5 +198,35 @@ class ProductTechnicalSpecWriter
         if (is_numeric($before) && is_numeric($after)) return (float) $before !== (float) $after;
 
         return $before !== $after;
+    }
+
+    /**
+     * Source-native rows remain immutable audit evidence. A correction is a
+     * separate current-value row, replacing only an earlier manual correction.
+     */
+    private function withManualSpecOverride(array $specs, string $field, mixed $value): array
+    {
+        $result = [];
+        foreach ($specs as $item) {
+            if (is_array($item)
+                && ($item['key'] ?? null) === $field
+                && ($item['source_section'] ?? null) === 'MANUAL_OVERRIDE') {
+                continue;
+            }
+
+            $result[] = $item;
+        }
+
+        $result[] = [
+            'key' => $field,
+            'value' => $value,
+            'unit' => 'none',
+            'source_section' => 'MANUAL_OVERRIDE',
+            'source_native' => false,
+            'derived' => false,
+            'verification_status' => 'manual_override',
+        ];
+
+        return $result;
     }
 }

@@ -73,6 +73,17 @@ class Product extends Model
         ];
     }
 
+    /** Virtual form attributes backed by source-aware specs_json facts. */
+    public function getTechnicalPhaseAttribute(): mixed
+    {
+        return app(\App\Services\Product\ProductTechnicalFactResolver::class)->value($this, 'phase');
+    }
+
+    public function getTechnicalFrequencyAttribute(): mixed
+    {
+        return app(\App\Services\Product\ProductTechnicalFactResolver::class)->value($this, 'frequency');
+    }
+
     public static function generateUniqueSlug(?string $source, ?int $ignoreId = null): string
     {
         $base = Str::slug($source ?: 'product');

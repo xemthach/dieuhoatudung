@@ -25,11 +25,24 @@
     @php
         $price = app(\App\Services\Product\PromotionPriceResolver::class)->resolve($product);
         $technicalFactResolver = app(\App\Services\Product\ProductTechnicalFactResolver::class);
-        $sourceNativeCapacity = $technicalFactResolver->unitAwareFacts($product)['capacity_kw'] ?? null;
         $marketingCapacity = $technicalFactResolver->getDisplay($product, 'marketing_capacity_btu');
         $technicalCapacity = $technicalFactResolver->getDisplay($product, 'technical_capacity_btu');
         $marketingCapacityDisplay = $technicalFactResolver->formatBtuDisplay($marketingCapacity['value'] ?? null);
         $technicalCapacityDisplay = $technicalFactResolver->formatBtuDisplay($technicalCapacity['value'] ?? null);
+        $ratedCapacityKw = $technicalFactResolver->value($product, 'capacity_kw');
+        $ratedCapacityKwDisplay = is_numeric($ratedCapacityKw)
+            ? rtrim(rtrim(number_format((float) $ratedCapacityKw, 2, ',', '.'), '0'), ',')
+            : null;
+        $commercialSystemComponents = null;
+        $schemaVersion = (string) ($product->category?->technical_schema_version ?? '');
+        if (str_starts_with($schemaVersion, 'skyair-') && str_contains((string) $product->model_code, '/')) {
+            [$indoorModel, $outdoorModel] = array_map('trim', explode('/', (string) $product->model_code, 2));
+            if ($indoorModel !== '' && $outdoorModel !== '') {
+                $remoteModel = $technicalFactResolver->value($product, 'remote_model');
+                $panelModel = $technicalFactResolver->value($product, 'panel_model');
+                $commercialSystemComponents = compact('indoorModel', 'outdoorModel', 'remoteModel', 'panelModel');
+            }
+        }
     @endphp
 
     <section class="py-8 lg:py-12">
@@ -142,15 +155,16 @@
 
                     {{-- Quick Specs --}}
                     <div class="mt-6 grid grid-cols-2 gap-3">
-                        @if($sourceNativeCapacity)
+                        @if($marketingCapacityDisplay)
+                            <div class="rounded-lg bg-white p-3 ring-1 ring-surface-200">
+                                <p class="text-xs text-surface-500">Công suất thương mại</p>
+                                <p class="text-sm font-semibold text-surface-800">{{ $marketingCapacityDisplay }} BTU</p>
+                            </div>
+                        @endif
+                        @if($ratedCapacityKwDisplay)
                             <div class="rounded-lg bg-white p-3 ring-1 ring-surface-200">
                                 <p class="text-xs text-surface-500">Công suất định mức</p>
-                                <p class="text-sm font-semibold text-surface-800">{{ $sourceNativeCapacity['value'] }} {{ $sourceNativeCapacity['unit'] }}</p>
-                            </div>
-                        @elseif($marketingCapacityDisplay)
-                            <div class="rounded-lg bg-white p-3 ring-1 ring-surface-200">
-                                <p class="text-xs text-surface-500">Công suất</p>
-                                <p class="text-sm font-semibold text-surface-800">{{ $marketingCapacityDisplay }} BTU</p>
+                                <p class="text-sm font-semibold text-surface-800">{{ $ratedCapacityKwDisplay }} kW</p>
                             </div>
                         @endif
                         @if($product->inverter !== null)
@@ -172,6 +186,34 @@
                             </div>
                         @endif
                     </div>
+
+                    @if($commercialSystemComponents)
+                        <div class="mt-4 rounded-lg border border-surface-200 bg-surface-50 p-4">
+                            <h2 class="text-sm font-semibold text-surface-800">Cấu hình bộ máy</h2>
+                            <dl class="mt-3 grid gap-2 text-sm sm:grid-cols-2">
+                                <div>
+                                    <dt class="text-surface-500">Dàn lạnh</dt>
+                                    <dd class="font-mono font-medium text-surface-800">{{ $commercialSystemComponents['indoorModel'] }}</dd>
+                                </div>
+                                <div>
+                                    <dt class="text-surface-500">Dàn nóng</dt>
+                                    <dd class="font-mono font-medium text-surface-800">{{ $commercialSystemComponents['outdoorModel'] }}</dd>
+                                </div>
+                                @if($commercialSystemComponents['remoteModel'])
+                                    <div>
+                                        <dt class="text-surface-500">Điều khiển</dt>
+                                        <dd class="font-mono font-medium text-surface-800">{{ $commercialSystemComponents['remoteModel'] }}</dd>
+                                    </div>
+                                @endif
+                                @if($commercialSystemComponents['panelModel'])
+                                    <div>
+                                        <dt class="text-surface-500">Mặt nạ</dt>
+                                        <dd class="font-mono font-medium text-surface-800">{{ $commercialSystemComponents['panelModel'] }}</dd>
+                                    </div>
+                                @endif
+                            </dl>
+                        </div>
+                    @endif
 
                     {{-- CTA Buttons --}}
                     <div class="mt-6 flex flex-wrap gap-3"
@@ -260,8 +302,9 @@
                                     </tr>
                                 @endforeach
                             @else
-                            @if($sourceNativeCapacity)<tr><td class="bg-surface-50 px-4 py-3 font-medium text-surface-700 w-1/3">Công suất định mức</td><td class="px-4 py-3 text-surface-600">{{ $sourceNativeCapacity['value'] }} {{ $sourceNativeCapacity['unit'] }}</td></tr>
-                            @elseif($technicalCapacityDisplay)<tr><td class="bg-surface-50 px-4 py-3 font-medium text-surface-700 w-1/3">Công suất kỹ thuật</td><td class="px-4 py-3 text-surface-600">{{ $technicalCapacityDisplay }} BTU</td></tr>@endif
+                            @if($marketingCapacityDisplay)<tr><td class="bg-surface-50 px-4 py-3 font-medium text-surface-700 w-1/3">Công suất thương mại</td><td class="px-4 py-3 text-surface-600">{{ $marketingCapacityDisplay }} BTU</td></tr>@endif
+                            @if($technicalCapacityDisplay)<tr><td class="bg-surface-50 px-4 py-3 font-medium text-surface-700 w-1/3">Công suất kỹ thuật</td><td class="px-4 py-3 text-surface-600">{{ $technicalCapacityDisplay }} BTU</td></tr>@endif
+                            @if($ratedCapacityKwDisplay)<tr><td class="bg-surface-50 px-4 py-3 font-medium text-surface-700 w-1/3">Công suất định mức</td><td class="px-4 py-3 text-surface-600">{{ $ratedCapacityKwDisplay }} kW</td></tr>@endif
                             @if($product->inverter !== null)<tr><td class="bg-surface-50 px-4 py-3 font-medium text-surface-700">Inverter</td><td class="px-4 py-3 text-surface-600">{{ $product->inverter ? 'Có' : 'Không' }}</td></tr>@endif
                             @if($product->cooling_type)<tr><td class="bg-surface-50 px-4 py-3 font-medium text-surface-700">Kiểu</td><td class="px-4 py-3 text-surface-600">{{ $product->cooling_type === '2_chieu' ? '2 chiều (Nóng/Lạnh)' : '1 chiều (Lạnh)' }}</td></tr>@endif
                             @if($product->voltage)<tr><td class="bg-surface-50 px-4 py-3 font-medium text-surface-700">Điện áp</td><td class="px-4 py-3 text-surface-600">{{ $product->voltage }}</td></tr>@endif

@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.33.7] - 2026-09-04
+
+### Fixed
+- SkyAir import-readiness evidence now resolves the Daikin brand and canonical SkyAir category from portable, reviewed source identities instead of relying on historical workbook IDs.
+- SkyAir phase and frequency remain separate source-native facts; phase is no longer coerced into the Product voltage field.
+- Product card and detail display commercial BTU and rated kW as distinct values. Exact SkyAir bundle remote/panel assignments are displayed only when source evidence is exact.
+
+### Safety
+- Catalog Import technical provenance, Product System Restore, Product ID policy, and public `products.marketing_capacity_btu` filtering remain unchanged.
+- Source workbooks remain local evidence and are not part of this release. The checked-in reviewed source matrices provide deterministic test fixtures.
+
 ## [1.33.6] - 2026-09-03
 
 ### Fixed

@@ -8,6 +8,7 @@ use App\Services\Product\ProductFilterService;
 use App\Services\Product\ProductTechnicalFactResolver;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Blade;
 use Tests\TestCase;
 
 class ProductFilterUxTest extends TestCase
@@ -149,5 +150,21 @@ class ProductFilterUxTest extends TestCase
 
             $this->assertSame('18000', $resolver->specs($product)['capacity_btu'] ?? null);
         }
+    }
+
+    public function test_public_card_displays_distinct_marketing_btu_and_rated_kw_when_both_are_available(): void
+    {
+        $product = Product::factory()->create([
+            'marketing_capacity_btu' => 18000,
+            'technical_capacity_btu' => 17100,
+            'capacity_kw' => 5.2,
+            'specs_json' => null,
+        ]);
+
+        $html = Blade::render('<x-product-card :product="$product" />', ['product' => $product]);
+
+        $this->assertStringContainsString('18,000 BTU', $html);
+        $this->assertStringContainsString('5,2 kW', $html);
+        $this->assertStringNotContainsString('17,100 BTU', $html);
     }
 }

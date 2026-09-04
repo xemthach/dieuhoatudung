@@ -137,6 +137,14 @@ class ProductForm
                                                     ]),
                                                 TextInput::make('voltage')
                                                     ->label('Điện áp'),
+                                                TextInput::make('technical_phase')
+                                                    ->label('Pha điện dàn nóng')
+                                                    ->afterStateHydrated(fn ($component): mixed => $component->state(self::currentProductTechnicalFact('phase')))
+                                                    ->visible(fn (Get $get): bool => self::categoryHasSchemaField($get('product_category_id'), 'phase')),
+                                                TextInput::make('technical_frequency')
+                                                    ->label('Tần số')
+                                                    ->afterStateHydrated(fn ($component): mixed => $component->state(self::currentProductTechnicalFact('frequency')))
+                                                    ->visible(fn (Get $get): bool => self::categoryHasSchemaField($get('product_category_id'), 'frequency')),
                                                 TextInput::make('refrigerant_gas')
                                                     ->label('Loại Gas'),
                                                 TextInput::make('power_consumption')
@@ -474,6 +482,34 @@ class ProductForm
             ->whereKey((int) $categoryId)
             ->first()
             ?->hasTechnicalSchema();
+    }
+
+    private static function categoryHasSchemaField(mixed $categoryId, string $field): bool
+    {
+        if (! is_numeric($categoryId)) {
+            return false;
+        }
+
+        $category = ProductCategory::query()->find((int) $categoryId);
+
+        return $category?->hasTechnicalSchema()
+            && in_array($field, $category->technicalSchemaPermittedFields(), true);
+    }
+
+    private static function currentProductTechnicalFact(string $field): mixed
+    {
+        $record = request()->route()?->parameter('record');
+        $productId = is_object($record) ? $record->getKey() : $record;
+
+        if (! is_numeric($productId)) {
+            return null;
+        }
+
+        $product = \App\Models\Product::query()->find((int) $productId);
+
+        return $product
+            ? app(\App\Services\Product\ProductTechnicalFactResolver::class)->value($product, $field)
+            : null;
     }
 
     private static function specsHelperText(mixed $categoryId): string

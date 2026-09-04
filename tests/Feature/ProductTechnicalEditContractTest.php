@@ -4,6 +4,8 @@ namespace Tests\Feature;
 
 use App\Models\Product;
 use App\Services\Product\ProductTechnicalFactResolver;
+use App\Services\Product\ProductTechnicalFieldAliasRegistry;
+use App\Services\Product\ProductImportMapper;
 use App\Services\Product\ProductTechnicalSpecWriter;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Validation\ValidationException;
@@ -88,5 +90,64 @@ class ProductTechnicalEditContractTest extends TestCase
 
         $this->assertNull(app(ProductTechnicalFactResolver::class)->value($product, 'technical_capacity_btu'));
         $this->assertSame(18000, app(ProductTechnicalFactResolver::class)->getDisplay($product, 'technical_capacity_btu')['value']);
+    }
+
+    public function test_phase_and_frequency_override_preserve_source_native_facts_and_hydrate_virtual_form_attributes(): void
+    {
+        $sourceSpecs = [
+            [
+                'key' => 'phase',
+                'value' => '1',
+                'source_pdf' => 'skyair.pdf',
+                'source_sha256' => str_repeat('b', 64),
+                'source_page' => '55',
+                'source_section' => 'TECHNICAL_APPENDIX',
+                'verification_status' => 'verified_candidate',
+                'source_native' => true,
+            ],
+            [
+                'key' => 'frequency',
+                'value' => '50 / 60Hz',
+                'source_pdf' => 'skyair.pdf',
+                'source_sha256' => str_repeat('b', 64),
+                'source_page' => '55',
+                'source_section' => 'TECHNICAL_APPENDIX',
+                'verification_status' => 'verified_candidate',
+                'source_native' => true,
+            ],
+        ];
+        $product = Product::factory()->create([
+            'specs_json' => $sourceSpecs,
+            'technical_specs_source' => 'catalog_verified_specs',
+        ]);
+        $writer = app(ProductTechnicalSpecWriter::class);
+
+        $changes = $writer->manualOverrideAttributes($product, [
+            'phase' => '3',
+            'frequency' => '50Hz',
+        ], 'Verified at the installation site.');
+        $product->update($changes);
+        $product->refresh();
+
+        $this->assertSame('3', app(ProductTechnicalFactResolver::class)->value($product, 'phase'));
+        $this->assertSame('50Hz', app(ProductTechnicalFactResolver::class)->value($product, 'frequency'));
+        $this->assertSame('3', $product->technical_phase);
+        $this->assertSame('50Hz', $product->technical_frequency);
+        $this->assertSame('1', $product->specs_json[0]['value']);
+        $this->assertSame('50 / 60Hz', $product->specs_json[1]['value']);
+        $this->assertSame('MANUAL_OVERRIDE', $product->specs_json[2]['source_section']);
+        $this->assertSame('MANUAL_OVERRIDE', $product->specs_json[3]['source_section']);
+    }
+
+    public function test_phase_is_not_coerced_into_voltage_by_legacy_mapping_or_comparison_aliases(): void
+    {
+        $mapped = app(ProductImportMapper::class)->map([
+            'phase' => '3',
+            'voltage' => '380-415V',
+        ]);
+
+        $this->assertSame('380-415V', $mapped['attributes']['voltage']);
+        $this->assertSame('3', $mapped['extra_specs']['phase']);
+        $this->assertSame('phase', app(ProductTechnicalFieldAliasRegistry::class)->canonical('phase'));
     }
 }

@@ -40,6 +40,7 @@ final class SkyAirTechnicalSchema
             ['phase', 'Pha điện dàn nóng', 'text', 'none', true],
             ['voltage', 'Điện áp dàn nóng', 'voltage', 'V'],
             ['frequency', 'Tần số', 'text', 'Hz'],
+            ['remote_model', 'Model điều khiển', 'text', 'none'],
             ['airflow', 'Lưu lượng gió theo cấp', 'text', 'm³/min'],
             ['noise_level', 'Độ ồn theo cấp', 'text', 'dB(A)'],
             ['indoor_dimensions', 'Kích thước dàn lạnh', 'dimension', 'mm'],

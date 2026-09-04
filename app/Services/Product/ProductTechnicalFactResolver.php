@@ -24,6 +24,7 @@ class ProductTechnicalFactResolver
     ];
 
     private const LEGACY_DEDICATED = [
+        'capacity_kw' => 'capacity_kw',
         'power_input_kw' => 'power_consumption',
         'voltage' => 'voltage',
         'refrigerant_gas' => 'refrigerant_gas',

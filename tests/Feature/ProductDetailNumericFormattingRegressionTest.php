@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Product;
+use App\Models\ProductCategory;
 use App\Services\Product\ProductTechnicalFactResolver;
 use App\Services\Product\PromotionPriceResolver;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -81,5 +82,53 @@ class ProductDetailNumericFormattingRegressionTest extends TestCase
             ->assertOk()
             ->assertSee('24,225.2 / 28,660.8 BTU')
             ->assertSee('32,990,000₫');
+    }
+    public function test_skyair_detail_shows_only_source_backed_bundle_components(): void
+    {
+        $category = ProductCategory::factory()->create([
+            'technical_schema_version' => 'skyair-cassette-v1',
+        ]);
+        $product = Product::factory()->create([
+            'name' => 'SkyAir source-backed pair',
+            'slug' => 'skyair-source-backed-pair',
+            'is_active' => true,
+            'product_category_id' => $category->id,
+            'model_code' => 'FCTF50AVM/RZF50DVM',
+            'marketing_capacity_btu' => null,
+            'technical_capacity_btu' => 17100,
+            'capacity_kw' => 5.0,
+            'specs_json' => [
+                ['key' => 'remote_model', 'value' => 'BRC1H63W', 'source_section' => 'TECHNICAL_APPENDIX'],
+                ['key' => 'panel_model', 'value' => 'BYCQ125EAF8', 'source_section' => 'TECHNICAL_APPENDIX'],
+            ],
+        ]);
+
+        $this->get(route('product.show', $product->slug))
+            ->assertOk()
+            ->assertSee('Cấu hình bộ máy')
+            ->assertSee('FCTF50AVM')
+            ->assertSee('RZF50DVM')
+            ->assertSee('BRC1H63W')
+            ->assertSee('BYCQ125EAF8')
+            ->assertSee('5 kW')
+            ->assertDontSee('BRC7M635F');
+    }
+
+    public function test_wall_mounted_product_does_not_render_commercial_bundle_components(): void
+    {
+        $product = Product::factory()->create([
+            'name' => 'Wall mounted RAC',
+            'slug' => 'wall-mounted-rac',
+            'is_active' => true,
+            'model_code' => 'FTKB35XVMV/RKB35XVMV',
+            'specs_json' => [
+                ['key' => 'remote_model', 'value' => 'ARC486A33', 'source_section' => 'TECHNICAL_APPENDIX'],
+            ],
+        ]);
+
+        $this->get(route('product.show', $product->slug))
+            ->assertOk()
+            ->assertDontSee('Cấu hình bộ máy')
+            ->assertDontSee('ARC486A33');
     }
 }

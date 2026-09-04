@@ -54,11 +54,19 @@ class EditProduct extends EditRecord
 
     protected function mutateFormDataBeforeSave(array $data): array
     {
+        $technicalSubmission = $data;
+        $technicalSubmission['phase'] = $data['technical_phase'] ?? null;
+        $technicalSubmission['frequency'] = $data['technical_frequency'] ?? null;
+
         $override = app(ProductTechnicalSpecWriter::class)->manualOverrideAttributes(
             $this->record,
-            $data,
+            $technicalSubmission,
             $data['technical_specs_override_reason'] ?? null,
         );
+
+        // These virtual form fields are persisted by the technical override
+        // service in specs_json, never as phantom Product columns.
+        unset($data['technical_phase'], $data['technical_frequency']);
 
         return array_replace($data, $override);
     }
