@@ -9,7 +9,7 @@
     <div class="space-y-6">
 
         {{-- Result Banner --}}
-        <div class="rounded-xl shadow-sm ring-1 p-6 {{ $job->status === 'completed' ? 'bg-success-50 ring-success-200 dark:bg-success-400/10 dark:ring-success-400/20' : 'bg-danger-50 ring-danger-200 dark:bg-danger-400/10 dark:ring-danger-400/20' }}">
+        <div class="rounded-xl shadow-sm ring-1 p-6 {{ match($job->status) { 'completed' => 'bg-success-50 ring-success-200 dark:bg-success-400/10 dark:ring-success-400/20', 'completed_with_errors' => 'bg-warning-50 ring-warning-200 dark:bg-warning-400/10 dark:ring-warning-400/20', 'empty' => 'bg-gray-50 ring-gray-200 dark:bg-gray-400/10 dark:ring-gray-400/20', 'blocked' => 'bg-orange-50 ring-orange-200 dark:bg-orange-400/10 dark:ring-orange-400/20', default => 'bg-danger-50 ring-danger-200 dark:bg-danger-400/10 dark:ring-danger-400/20' } }}">
             <div class="flex items-start gap-4">
                 @if($job->status === 'completed')
                     <div class="shrink-0 flex items-center justify-center rounded-full bg-success-100 dark:bg-success-400/20" style="width: 48px; height: 48px;">
@@ -21,6 +21,20 @@
                             Đã import thành công {{ number_format($job->success_rows) }} dòng dữ liệu.
                         </p>
                     </div>
+                @elseif($job->status === 'completed_with_errors')
+                    <div class="shrink-0 flex items-center justify-center rounded-full bg-warning-100 dark:bg-warning-400/20" style="width: 48px; height: 48px;">
+                        <x-filament::icon icon="heroicon-o-exclamation-triangle" class="text-warning-600 dark:text-warning-400" />
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <h3 class="text-lg font-bold text-warning-800 dark:text-warning-300">Import completed with errors</h3>
+                        <p class="mt-1 text-sm text-warning-700 dark:text-warning-400">Success {{ number_format($job->success_rows) }} rows; failed {{ number_format($job->failed_rows) }} rows.</p>
+                    </div>
+                @elseif($job->status === 'blocked')
+                    <div class="shrink-0 flex items-center justify-center rounded-full bg-orange-100 dark:bg-orange-400/20" style="width: 48px; height: 48px;"><x-filament::icon icon="heroicon-o-no-symbol" class="text-orange-600 dark:text-orange-400" /></div>
+                    <div class="flex-1 min-w-0"><h3 class="text-lg font-bold text-orange-800 dark:text-orange-300">Import blocked</h3><p class="mt-1 text-sm text-orange-700 dark:text-orange-400">A precondition or governance policy prevented execution. No blocked row was written.</p></div>
+                @elseif($job->status === 'empty')
+                    <div class="shrink-0 flex items-center justify-center rounded-full bg-gray-100 dark:bg-gray-400/20" style="width: 48px; height: 48px;"><x-filament::icon icon="heroicon-o-document" class="text-gray-600 dark:text-gray-400" /></div>
+                    <div class="flex-1 min-w-0"><h3 class="text-lg font-bold text-gray-800 dark:text-gray-300">Import empty</h3><p class="mt-1 text-sm text-gray-700 dark:text-gray-400">The workbook contained no data rows.</p></div>
                 @else
                     <div class="shrink-0 flex items-center justify-center rounded-full bg-danger-100 dark:bg-danger-400/20" style="width: 48px; height: 48px;">
                         <x-filament::icon icon="heroicon-o-x-circle" class="text-danger-600 dark:text-danger-400" />
@@ -114,6 +128,12 @@
                         </dd>
                     </div>
                 </div>
+                @if(data_get($job->format_context_json, 'governance_snapshot'))
+                    <div class="mt-4 border-t border-gray-200 pt-4 dark:border-white/10">
+                        <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">Policy snapshot at preview</div>
+                        <pre class="mt-2 overflow-x-auto whitespace-pre-wrap text-xs">{{ json_encode(data_get($job->format_context_json, 'governance_snapshot'), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) }}</pre>
+                    </div>
+                @endif
             </div>
         </div>
 

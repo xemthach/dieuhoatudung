@@ -9,6 +9,7 @@ use App\Models\Product;
 use App\Models\ProductCategory;
 use App\Services\DataTransfer\Contracts\ImportHandlerInterface;
 use App\Services\DataTransfer\ProductSystemRestoreContract;
+use App\Services\DataTransfer\ImportGovernanceService;
 use App\Services\Product\ProductImportMapper;
 use App\Services\Product\ProductTechnicalSpecWriter;
 use Illuminate\Support\Facades\Schema;
@@ -22,6 +23,9 @@ class ProductImportHandler implements ImportHandlerInterface
     {
         if ($mode === 'system_restore') {
             return $this->validateSystemRestoreRow($row);
+        }
+        if ($mode === 'product_transfer') {
+            return $this->validateProductTransferRow($row);
         }
 
         $errors = [];
@@ -140,6 +144,9 @@ class ProductImportHandler implements ImportHandlerInterface
     {
         if ($mode === 'system_restore') {
             return $this->restoreSystemRow($row);
+        }
+        if ($mode === 'product_transfer') {
+            return $this->transferProductRow($row);
         }
 
         $technical = $this->technicalInput($row);
@@ -554,6 +561,50 @@ class ProductImportHandler implements ImportHandlerInterface
         Product::create($data);
 
         return 'created';
+    }
+
+    private function validateProductTransferRow(array $row): array
+    {
+        $errors = [];
+        if (blank($row['sku'] ?? null) && blank($row['slug'] ?? null)) $errors[] = 'PRODUCT_TRANSFER requires SKU or slug as stable Product identity.';
+        foreach ([['brand_slug', Brand::class], ['category_slug', ProductCategory::class]] as [$field, $model]) {
+            $slug = (string) ($row[$field] ?? '');
+            $count = $slug === '' ? 0 : $model::withTrashed()->where('slug', $slug)->count();
+            if ($count !== 1) $errors[] = "PRODUCT_TRANSFER {$field} must resolve exactly one target record.";
+        }
+        $skuTarget = filled($row['sku'] ?? null) ? Product::withTrashed()->where('sku', $row['sku'])->first() : null;
+        $slugTarget = filled($row['slug'] ?? null) ? Product::withTrashed()->where('slug', $row['slug'])->first() : null;
+        if ($skuTarget && $slugTarget && $skuTarget->id !== $slugTarget->id) $errors[] = 'PRODUCT_TRANSFER identity conflict: SKU and slug resolve different target Products.';
+        $target = $skuTarget ?? $slugTarget;
+        $governance = app(ImportGovernanceService::class);
+        if ($target && ! $governance->enabled('product_transfer.allow_update')) $errors[] = 'PRODUCT_TRANSFER update is disabled by governance.';
+        if (! $target && ! $governance->enabled('product_transfer.allow_create')) $errors[] = 'PRODUCT_TRANSFER create is disabled by governance.';
+        if ((filled($row['catalog_source_id'] ?? null) || filled($row['catalog_model_id'] ?? null)) && ! $governance->catalogDetachEnabled()) {
+            $errors[] = 'PRODUCT_TRANSFER catalog lineage is not portable. Enable the governed detach policy or transfer a row without catalog lineage.';
+        }
+        return $errors;
+    }
+
+    private function transferProductRow(array $row): string
+    {
+        $brand = Brand::withTrashed()->where('slug', $row['brand_slug'])->sole();
+        $category = ProductCategory::withTrashed()->where('slug', $row['category_slug'])->sole();
+        $data = $this->prepareSystemRestoreData($row);
+        unset($data['id']);
+        $data['brand_id'] = $brand->id; $data['product_category_id'] = $category->id;
+        // A transfer carries the current persisted technical snapshot, not the
+        // source environment's catalog authority. Keep that distinction
+        // explicit even when the source row had no catalog relationship.
+        $data['technical_specs_source'] = 'PRODUCT_TRANSFER';
+        $hasCatalogLineage = filled($row['catalog_source_id'] ?? null) || filled($row['catalog_model_id'] ?? null);
+        if ($hasCatalogLineage) {
+            if (! app(ImportGovernanceService::class)->catalogDetachEnabled()) throw new \InvalidArgumentException('PRODUCT_TRANSFER catalog lineage detach is not enabled.');
+            $data['catalog_source_id'] = null; $data['catalog_model_id'] = null;
+        }
+        $target = $this->findExisting(['sku' => $row['sku'] ?? null, 'slug' => $row['slug'] ?? null], 'sku')
+            ?? $this->findExisting(['slug' => $row['slug'] ?? null], 'slug');
+        if ($target) { if ($target->trashed()) $target->restore(); $target->fill($data); $target->save(); return 'updated'; }
+        Product::create($data); return 'created';
     }
 
     private function prepareSystemRestoreData(array $row): array

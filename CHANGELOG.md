@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.33.8] - 2026-09-05
+
+### Added
+- Added signed `PRODUCT_TRANSFER v1` exports for full, filtered, selected and current Product sets, with exact Brand/Category slug mapping and SKU-then-slug upsert matching.
+- Added a DB-backed Import Governance service and Filament policy page containing 19 policies: 10 Admin-managed business policies and 9 non-disableable integrity policies.
+- Added append-only high-risk policy audit history, explicit permissions, ImportJob policy snapshots, mapping/governance preview details and grouped import errors.
+
+### Fixed
+- Product Transfer can preserve technical/business data across environments while failing closed on unprovable catalog lineage or using an explicitly governed detach operation.
+- Import terminal states now distinguish completed, completed-with-errors, failed, blocked and empty jobs; an 81-row all-failed import can no longer appear successful.
+- Authoritative `marketing_capacity_btu` survives Product Transfer without being merged with technical BTU or kW, and the inclusive 9,000–12,000 filter has a matching UI label.
+
+### Safety
+- System Restore and strict Catalog Import provenance remain separate and unchanged; checksums, FK integrity and duplicate-identity safeguards cannot be disabled.
+- Existing historical marketing-capacity gaps are not backfilled or inferred from technical BTU, kW, Product titles or model suffixes.
+- SkyAir, wall-mounted RAC and audited technical-edit behavior remain covered by focused, browser and full-suite regression tests.
+
 ## [1.33.7] - 2026-09-04
 
 ### Fixed

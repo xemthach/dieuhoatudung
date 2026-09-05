@@ -3,6 +3,8 @@
 namespace App\Services\DataTransfer;
 
 use App\Models\DataImportJob;
+use App\Models\Brand;
+use App\Models\ProductCategory;
 use App\Support\EncodingGuard;
 use App\Support\Spreadsheet\SpreadsheetLoader;
 use Illuminate\Support\Collection;
@@ -33,11 +35,14 @@ class DataImportService
         Storage::disk('local')->put($destination, file_get_contents($filePath));
 
         $formatContext = $module === 'product' && $fileType === 'xlsx'
-            ? $this->detectProductSystemRestore($destination)
+            ? ($this->detectProductSystemRestore($destination) ?? $this->detectProductTransfer($destination))
             : null;
         if ($formatContext !== null) {
-            $mode = 'system_restore';
-            $matchingKey = 'id';
+            $mode = ($formatContext['contract'] ?? null) === 'PRODUCT_TRANSFER' ? 'product_transfer' : 'system_restore';
+            $matchingKey = $mode === 'system_restore' ? 'id' : 'sku';
+            $formatContext['governance_snapshot'] = app(ImportGovernanceService::class)->snapshot();
+            $formatContext['previewed_at'] = now()->toIso8601String();
+            $formatContext['previewed_by'] = $userId ?? auth()->id();
         }
 
         $job = DataImportJob::create([
@@ -59,7 +64,7 @@ class DataImportService
 
             if ($rows->isEmpty()) {
                 $job->update([
-                    'status'            => 'failed',
+                    'status'            => 'empty',
                     'error_report_json' => [['row' => 0, 'errors' => ['File rỗng hoặc không đọc được dữ liệu.']]],
                     'finished_at'       => now(),
                 ]);
@@ -68,6 +73,21 @@ class DataImportService
 
             // Validate each row
             $validationResult = $this->validateRows($rows, $module, $mode, $matchingKey);
+
+            if ($formatContext !== null) {
+                $formatContext['preview_summary'] = [
+                    'integrity' => 'VALID',
+                    'rows' => $rows->count(),
+                    'valid' => $validationResult['valid_count'],
+                    'blocked' => $validationResult['error_count'],
+                    'warnings' => 0,
+                    'create' => $validationResult['create_count'],
+                    'update' => $validationResult['update_count'],
+                ];
+                if (($formatContext['contract'] ?? null) === 'PRODUCT_TRANSFER') {
+                    $formatContext['preview_summary'] += $this->productTransferMappingSummary($rows);
+                }
+            }
 
             // Build preview data (first 20 rows)
             $previewRows = $rows->take(20)->map(fn ($row, $i) => [
@@ -87,6 +107,7 @@ class DataImportService
                 'preview_data_json'  => $previewRows,
                 'error_report_json'  => $validationResult['all_errors'],
                 'column_mapping_json'=> array_keys($rows->first()),
+                'format_context_json'=> $formatContext,
             ]);
         } catch (\Throwable $e) {
             $job->update([
@@ -134,6 +155,20 @@ class DataImportService
                     return $job;
                 }
             }
+            if ($job->mode === 'product_transfer') {
+                $formatContext = $this->detectProductTransfer($job->file_path);
+                if ($formatContext === null) throw new \RuntimeException('PRODUCT_TRANSFER metadata is missing.');
+                $storedPolicies = data_get($job->format_context_json, 'governance_snapshot', []);
+                if (! $this->sameGovernanceSnapshot($storedPolicies, app(ImportGovernanceService::class)->snapshot())) {
+                    $job->update(['status'=>'blocked','error_report_json'=>[['row'=>0,'errors'=>['Governance policies changed after Preview. Upload and preview again.']]],'finished_at'=>now()]);
+                    return $job;
+                }
+                $validation = $this->validateRows($rows, $job->module, $job->mode, $job->matching_key);
+                if ($validation['error_count'] > 0) {
+                    $job->update(['status'=>'blocked','failed_rows'=>$validation['error_count'],'error_report_json'=>$validation['all_errors'],'finished_at'=>now()]);
+                    return $job;
+                }
+            }
 
             $stats = [
                 'success' => 0,
@@ -168,7 +203,7 @@ class DataImportService
             }
 
             $job->update([
-                'status'            => 'completed',
+                'status'            => DataImportJob::terminalStatusFor($rows->count(), $stats['success'], $stats['failed']),
                 'success_rows'      => $stats['success'],
                 'failed_rows'       => $stats['failed'],
                 'created_rows'      => $stats['created'],
@@ -254,7 +289,8 @@ class DataImportService
     /** @return array<string, array<string, string>> */
     private function readSystemPayloads($spreadsheet): array
     {
-        $sheet = $spreadsheet->getSheetByName(ProductSystemRestoreContract::PAYLOAD_SHEET);
+        $sheet = $spreadsheet->getSheetByName(ProductSystemRestoreContract::PAYLOAD_SHEET)
+            ?? $spreadsheet->getSheetByName(ProductTransferContract::PAYLOAD_SHEET);
         if ($sheet === null) {
             return [];
         }
@@ -431,6 +467,15 @@ class DataImportService
                 $exists = $handler->findExisting($row, 'id');
                 $action = $exists ? 'update' : 'create';
                 $exists ? $updateCount++ : $createCount++;
+            } elseif ($mode === 'product_transfer') {
+                $exists = $handler->findExisting($row, 'sku')
+                    ?? $handler->findExisting($row, 'slug');
+                if ($exists) {
+                    $action = 'update';
+                    $updateCount++;
+                } else {
+                    $createCount++;
+                }
             } elseif ($mode === 'update' || $mode === 'upsert') {
                 $exists = $handler->findExisting($row, $matchingKey);
                 if ($exists) {
@@ -462,6 +507,24 @@ class DataImportService
             $rowActions[$index] = $action;
         }
 
+        if ($mode === 'product_transfer'
+            && $createCount > 0
+            && $updateCount > 0
+            && ! app(ImportGovernanceService::class)->enabled('product_transfer.allow_upsert')) {
+            $message = 'PRODUCT_TRANSFER mixed create/update package is disabled by governance.';
+            foreach ($rows as $index => $_row) {
+                if (! in_array($message, $rowErrors[$index] ?? [], true)) {
+                    $rowErrors[$index][] = $message;
+                }
+            }
+            $allErrors = collect($rowErrors)->map(fn (array $errors, int $index) => [
+                'row' => $index + 1,
+                'errors' => $errors,
+            ])->values()->all();
+            $errorCount = count($rowErrors);
+            $validCount = $rows->count() - $errorCount;
+        }
+
         return [
             'valid_count'  => $validCount,
             'error_count'  => $errorCount,
@@ -485,6 +548,63 @@ class DataImportService
             'btu_calculation' => app(Modules\BtuCalculationImportHandler::class),
             default           => throw new \InvalidArgumentException("No import handler for module: {$module}"),
         };
+    }
+
+    /** @return array<string, mixed> */
+    private function productTransferMappingSummary(Collection $rows): array
+    {
+        $summary = [
+            'brand_mapping' => ['exact' => 0, 'remapped' => 0, 'missing' => 0, 'ambiguous' => 0],
+            'category_mapping' => ['exact' => 0, 'remapped' => 0, 'missing' => 0, 'ambiguous' => 0],
+            'catalog_lineage' => ['preserve' => 0, 'detach_required' => 0, 'blocked' => 0],
+        ];
+
+        foreach ($rows as $row) {
+            foreach ([
+                ['brand_mapping', Brand::class, 'brand_slug', 'source_brand_id'],
+                ['category_mapping', ProductCategory::class, 'category_slug', 'source_category_id'],
+            ] as [$key, $model, $slugField, $sourceIdField]) {
+                $matches = $model::withTrashed()->where('slug', (string) ($row[$slugField] ?? ''))->get(['id']);
+                if ($matches->isEmpty()) $summary[$key]['missing']++;
+                elseif ($matches->count() > 1) $summary[$key]['ambiguous']++;
+                elseif ((int) $matches->first()->id === (int) ($row[$sourceIdField] ?? 0)) $summary[$key]['exact']++;
+                else $summary[$key]['remapped']++;
+            }
+
+            $hasLineage = filled($row['catalog_source_id'] ?? null) || filled($row['catalog_model_id'] ?? null);
+            if (! $hasLineage) {
+                $summary['catalog_lineage']['preserve']++;
+            } elseif (app(ImportGovernanceService::class)->catalogDetachEnabled()) {
+                $summary['catalog_lineage']['detach_required']++;
+            } else {
+                $summary['catalog_lineage']['blocked']++;
+            }
+        }
+
+        return $summary;
+    }
+
+    private function sameGovernanceSnapshot(mixed $stored, mixed $current): bool
+    {
+        if (! is_array($stored) || ! is_array($current)) {
+            return false;
+        }
+
+        return $this->canonicalizeArray($stored) === $this->canonicalizeArray($current);
+    }
+
+    private function canonicalizeArray(array $value): array
+    {
+        foreach ($value as $key => $item) {
+            if (is_array($item)) {
+                $value[$key] = $this->canonicalizeArray($item);
+            }
+        }
+        if (! array_is_list($value)) {
+            ksort($value);
+        }
+
+        return $value;
     }
 
     private function detectProductSystemRestore(string $storagePath): ?array
@@ -520,6 +640,30 @@ class DataImportService
         }
 
         return $metadata + ['contract' => 'SYSTEM_PRODUCT_RESTORE'];
+    }
+
+    private function detectProductTransfer(string $storagePath): ?array
+    {
+        $fullPath = storage_path('app/private/'.$storagePath);
+        $spreadsheet = SpreadsheetLoader::load($fullPath);
+        $metadataSheet = $spreadsheet->getSheetByName(ProductTransferContract::METADATA_SHEET);
+        if ($metadataSheet === null) { $spreadsheet->disconnectWorksheets(); return null; }
+        $metadata = [];
+        foreach ($metadataSheet->toArray(null, true, true, false) as $index => $row) {
+            if ($index === 0) continue;
+            $key = trim((string) ($row[0] ?? ''));
+            if ($key !== '') $metadata[$key] = trim((string) ($row[1] ?? ''));
+        }
+        $spreadsheet->disconnectWorksheets();
+        if (($metadata['format'] ?? null) !== ProductTransferContract::FORMAT || (int) ($metadata['format_version'] ?? 0) !== ProductTransferContract::VERSION) throw new \InvalidArgumentException('Invalid PRODUCT_TRANSFER metadata.');
+        $rows = $this->parseFile($storagePath, 'xlsx'); $fields = array_keys($rows->first() ?? []);
+        if ($fields !== ProductTransferContract::fields()
+            || ($metadata['columns_sha256'] ?? '') !== ProductSystemRestoreContract::columnsChecksum($fields)
+            || (int) ($metadata['product_count'] ?? -1) !== $rows->count()
+            || ! hash_equals((string) ($metadata['content_sha256'] ?? ''), ProductSystemRestoreContract::contentChecksum($fields, $rows))) {
+            throw new \InvalidArgumentException('Invalid or modified PRODUCT_TRANSFER manifest.');
+        }
+        return $metadata + ['contract' => 'PRODUCT_TRANSFER'];
     }
 
     /**

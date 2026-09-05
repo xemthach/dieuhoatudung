@@ -18,7 +18,7 @@ test('current Local marketing-capacity filters return the audited Product IDs', 
     await assertCards('/san-pham?btu[]=24000', [1237, 1240, 1247, 1259]);
     await assertCards('/san-pham?btu[]=48000', [1250, 1261]);
     await assertCards('/san-pham?btu[]=18000&btu[]=48000', [1246, 1250, 1258, 1261]);
-    await assertCards('/san-pham?brand[]=daikin&btu[]=18000', [1246, 1258]);
+    await assertCards('/san-pham?brand[]=gree&btu[]=18000', [1246, 1258]);
     await assertCards('/danh-muc/dieu-hoa-treo-tuong?btu[]=18000', [1246, 1258]);
     await assertCards('/san-pham?btu[]=18000&inverter=1', [1258]);
 

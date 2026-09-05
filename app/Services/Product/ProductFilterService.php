@@ -10,7 +10,9 @@ class ProductFilterService
 {
     /** @var array<string, string> */
     public const CAPACITY_FILTER_OPTIONS = [
-        '9000-12000' => 'Dưới 12.000 BTU',
+        // The query is an inclusive SQL BETWEEN range. Keep copy explicit so a
+        // 12,000 BTU product is not presented as an accidental boundary match.
+        '9000-12000' => '9.000 - 12.000 BTU',
         '18000' => '18.000 BTU',
         '24000' => '24.000 BTU',
         '28000' => '28.000 BTU',

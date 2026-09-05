@@ -206,6 +206,7 @@ class ProductSystemRestoreRoundTripTest extends TestCase
                 'module' => 'product',
                 'file_type' => 'xlsx',
                 'field_groups' => $groups,
+                'export_intent' => 'system_backup',
             ]);
 
         $export = \App\Models\DataExportJob::query()->latest('id')->firstOrFail();

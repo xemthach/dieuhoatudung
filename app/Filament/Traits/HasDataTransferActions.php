@@ -54,6 +54,15 @@ trait HasDataTransferActions
                     ->default('xlsx')
                     ->required(),
 
+                Select::make('export_intent')
+                    ->label('Export contract')
+                    ->options(fn (): array => $module === 'product' ? [
+                        'normal' => 'Normal Export',
+                        'product_transfer' => 'Product Transfer',
+                    ] : ['normal' => 'Normal Export'])
+                    ->default('normal')
+                    ->required(),
+
                 Select::make('export_scope')
                     ->label('Phạm vi')
                     ->options([
@@ -85,6 +94,10 @@ trait HasDataTransferActions
             ])
             ->action(function (array $data) use ($module, $exportPerm) {
                 abort_unless(auth()->user()?->isSuperAdmin() || auth()->user()?->can($exportPerm), 403);
+                $intent = (string) ($data['export_intent'] ?? 'normal');
+                if ($intent === 'product_transfer') {
+                    abort_unless(auth()->user()?->isSuperAdmin() || auth()->user()?->can('product_transfer.run'), 403);
+                }
 
                 $service = app(DataExportService::class);
 
@@ -194,6 +207,7 @@ trait HasDataTransferActions
                         filters: $filters,
                         selectedIds: $selectedIds,
                         scope: $scope,
+                        intent: $intent,
                     );
 
                     if ($job->status === 'completed') {

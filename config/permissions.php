@@ -271,6 +271,23 @@ return [
         ],
     ],
 
+    'import_governance' => [
+        'label' => 'Import / Export Governance',
+        'icon' => 'heroicon-o-shield-check',
+        'permissions' => ['view'=>'View import governance','change'=>'Change business import governance'],
+    ],
+    'product_transfer' => [
+        'label' => 'Product Transfer',
+        'icon' => 'heroicon-o-arrows-right-left',
+        'permissions' => ['run'=>'Run Product Transfer','detach_catalog_lineage'=>'Approve catalog lineage detach'],
+    ],
+    'product_import' => ['label'=>'Product Import','icon'=>'heroicon-o-arrow-up-tray','permissions'=>['run'=>'Run Product import']],
+    'catalog_import' => ['label'=>'Catalog Import','icon'=>'heroicon-o-document-arrow-up','permissions'=>['run'=>'Run Catalog import']],
+    'system_restore' => ['label'=>'System Restore','icon'=>'heroicon-o-circle-stack','permissions'=>['run'=>'Run System Restore']],
+    'bulk_import' => ['label'=>'Bulk Import','icon'=>'heroicon-o-queue-list','permissions'=>['run'=>'Run bulk import']],
+    'bulk_update' => ['label'=>'Bulk Update','icon'=>'heroicon-o-pencil-square','permissions'=>['run'=>'Run bulk update']],
+    'bulk_retry' => ['label'=>'Bulk Retry','icon'=>'heroicon-o-arrow-path','permissions'=>['run'=>'Retry failed bulk rows']],
+
     // ── E-commerce: Promotions ─────────────────────────────────────────
     'promotion' => [
         'label' => 'Khuyến mãi',

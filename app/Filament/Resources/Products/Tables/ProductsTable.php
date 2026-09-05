@@ -384,6 +384,14 @@ class ProductsTable
                                     ])
                                     ->default('xlsx')
                                     ->required(),
+                                Select::make('export_intent')
+                                    ->label('Export contract')
+                                    ->options([
+                                        'normal' => 'Normal Export',
+                                        'product_transfer' => 'Product Transfer',
+                                    ])
+                                    ->default('normal')
+                                    ->required(),
                                 CheckboxList::make('field_groups')
                                     ->label('Nhóm dữ liệu')
                                     ->options(fn (): array => collect(ModuleRegistry::fieldGroups('product'))
@@ -393,6 +401,10 @@ class ProductsTable
                             ])
                             ->action(function (Collection $records, array $data): void {
                                 abort_unless(auth()->user()?->isSuperAdmin() || auth()->user()?->can('product.export'), 403);
+                                $intent = (string) ($data['export_intent'] ?? 'normal');
+                                if ($intent === 'product_transfer') {
+                                    abort_unless(auth()->user()?->isSuperAdmin() || auth()->user()?->can('product_transfer.run'), 403);
+                                }
 
                                 $selectedIds = $records->pluck('id')->map(fn ($id) => (int) $id)->unique()->values()->all();
 
@@ -411,6 +423,7 @@ class ProductsTable
                                     fieldGroups: $data['field_groups'] ?? [],
                                     selectedIds: $selectedIds,
                                     scope: 'selected',
+                                    intent: $intent,
                                 );
 
                                 Log::info('Product selected export payload', [

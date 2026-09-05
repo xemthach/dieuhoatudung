@@ -41,6 +41,9 @@ class DataImportJob extends Model
             'previewing' => 'Đang xem trước',
             'importing'  => 'Đang import',
             'completed'  => 'Hoàn thành',
+            'completed_with_errors' => 'Hoàn thành có lỗi',
+            'blocked' => 'Bị chặn',
+            'empty' => 'Không có dữ liệu',
             'failed'     => 'Lỗi',
             default      => $this->status,
         };
@@ -54,8 +57,22 @@ class DataImportJob extends Model
             'previewing' => 'warning',
             'importing'  => 'primary',
             'completed'  => 'success',
+            'completed_with_errors' => 'warning',
+            'blocked' => 'danger',
+            'empty' => 'gray',
             'failed'     => 'danger',
             default      => 'gray',
+        };
+    }
+
+    /** A terminal execution result is derived from counts, never a green default. */
+    public static function terminalStatusFor(int $total, int $success, int $failed): string
+    {
+        return match (true) {
+            $total === 0 => 'empty',
+            $failed > 0 && $success === 0 => 'failed',
+            $failed > 0 => 'completed_with_errors',
+            default => 'completed',
         };
     }
 }

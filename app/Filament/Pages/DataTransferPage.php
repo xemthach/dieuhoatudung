@@ -96,6 +96,17 @@ class DataTransferPage extends Page
                     ->default('xlsx')
                     ->required(),
 
+                Select::make('export_intent')
+                    ->label('Mục đích xuất Product')
+                    ->options([
+                        'normal' => 'Normal Export — xem/chỉnh sửa, không import trực tiếp',
+                        'product_transfer' => 'Product Transfer — chuyển Product giữa môi trường',
+                        'system_backup' => 'System Backup — khôi phục toàn bộ có manifest',
+                    ])
+                    ->default('normal')
+                    ->visible(fn ($get) => $get('module') === 'product')
+                    ->required(fn ($get) => $get('module') === 'product'),
+
                 CheckboxList::make('field_groups')
                     ->label('Nhóm dữ liệu (bỏ trống = export tất cả)')
                     ->options(function ($get) {
@@ -108,6 +119,9 @@ class DataTransferPage extends Page
             ])
             ->action(function (array $data) {
                 $this->authorizeTransfer($data['module'] ?? '', 'export');
+                $intent = $data['export_intent'] ?? 'normal';
+                if ($intent === 'product_transfer') $this->authorizeNamed('product_transfer.run');
+                if ($intent === 'system_backup') $this->authorizeNamed('system_restore.run');
 
                 $service = app(DataExportService::class);
 
@@ -116,6 +130,7 @@ class DataTransferPage extends Page
                         module: $data['module'],
                         fileType: $data['file_type'],
                         fieldGroups: $data['field_groups'] ?? [],
+                        intent: $data['export_intent'] ?? 'normal',
                     );
 
                     if ($job->status === 'completed') {
@@ -218,6 +233,8 @@ class DataTransferPage extends Page
                         mode: $data['mode'],
                         matchingKey: $data['matching_key'] ?? 'id',
                     );
+                    if ($job->mode === 'product_transfer') $this->authorizeNamed('product_transfer.run');
+                    if ($job->mode === 'system_restore') $this->authorizeNamed('system_restore.run');
 
                     // Cleanup temp file
                     Storage::disk('local')->delete($data['import_file']);
@@ -299,5 +316,10 @@ class DataTransferPage extends Page
             auth()->user()?->isSuperAdmin() || auth()->user()?->can($permission),
             403
         );
+    }
+
+    protected function authorizeNamed(string $permission): void
+    {
+        abort_unless(auth()->user()?->isSuperAdmin() || auth()->user()?->can($permission), 403);
     }
 }

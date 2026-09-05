@@ -129,6 +129,8 @@
                             {{ \App\Services\DataTransfer\ModuleRegistry::modules()[$job->module] ?? $job->module }}
                             @if(data_get($job->format_context_json, 'contract') === 'SYSTEM_PRODUCT_RESTORE')
                                 <x-filament::badge color="success" class="ml-2">SYSTEM RESTORE</x-filament::badge>
+                            @elseif(data_get($job->format_context_json, 'contract') === 'PRODUCT_TRANSFER')
+                                <x-filament::badge color="info" class="ml-2">PRODUCT TRANSFER</x-filament::badge>
                             @endif
                         </td>
                     </tr>
@@ -153,12 +155,34 @@
                         <td class="lbl">Restore policy</td>
                         <td class="val">Khôi phục Product ID và các trường đã xuất; không áp dụng quy tắc catalog provenance.</td>
                     </tr>
+                    @elseif(data_get($job->format_context_json, 'contract') === 'PRODUCT_TRANSFER')
+                    <tr>
+                        <td class="lbl">Transfer policy</td>
+                        <td class="val">Brand/category map by slug; Product matches SKU then slug; catalog lineage is blocked unless governed detach is enabled.</td>
+                    </tr>
+                    <tr><td class="lbl">Format</td><td class="val">{{ data_get($job->format_context_json, 'format') }} v{{ data_get($job->format_context_json, 'format_version') }}</td></tr>
+                    <tr><td class="lbl">Integrity</td><td class="val"><x-filament::badge color="success">{{ data_get($job->format_context_json, 'preview_summary.integrity', 'UNKNOWN') }}</x-filament::badge></td></tr>
+                    <tr><td class="lbl">Blocked / Warning</td><td class="val">{{ data_get($job->format_context_json, 'preview_summary.blocked', 0) }} / {{ data_get($job->format_context_json, 'preview_summary.warnings', 0) }}</td></tr>
+                    <tr><td class="lbl">Brand mapping</td><td class="val">EXACT {{ data_get($job->format_context_json, 'preview_summary.brand_mapping.exact', 0) }}, REMAPPED {{ data_get($job->format_context_json, 'preview_summary.brand_mapping.remapped', 0) }}, MISSING {{ data_get($job->format_context_json, 'preview_summary.brand_mapping.missing', 0) }}, AMBIGUOUS {{ data_get($job->format_context_json, 'preview_summary.brand_mapping.ambiguous', 0) }}</td></tr>
+                    <tr><td class="lbl">Category mapping</td><td class="val">EXACT {{ data_get($job->format_context_json, 'preview_summary.category_mapping.exact', 0) }}, REMAPPED {{ data_get($job->format_context_json, 'preview_summary.category_mapping.remapped', 0) }}, MISSING {{ data_get($job->format_context_json, 'preview_summary.category_mapping.missing', 0) }}, AMBIGUOUS {{ data_get($job->format_context_json, 'preview_summary.category_mapping.ambiguous', 0) }}</td></tr>
+                    <tr><td class="lbl">Catalog lineage</td><td class="val">PRESERVE {{ data_get($job->format_context_json, 'preview_summary.catalog_lineage.preserve', 0) }}, DETACH REQUIRED {{ data_get($job->format_context_json, 'preview_summary.catalog_lineage.detach_required', 0) }}, BLOCKED {{ data_get($job->format_context_json, 'preview_summary.catalog_lineage.blocked', 0) }}</td></tr>
+                    <tr><td class="lbl">Governance</td><td class="val"><pre class="text-xs whitespace-pre-wrap">{{ json_encode(data_get($job->format_context_json, 'governance_snapshot', []), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) }}</pre></td></tr>
                     @endif
                 </table>
             </div>
         </div>
 
         {{-- ═══ 3. Error Details ═══════════════════════════════════ --}}
+        @if(count($this->groupedErrors()) > 0)
+        <div class="ip-card">
+            <div class="ip-card-header"><h3 class="text-sm font-semibold">Error summary</h3></div>
+            <div class="ip-card-body space-y-2">
+                @foreach($this->groupedErrors() as $group)
+                    <div><x-filament::badge color="danger">{{ $group['code'] }} · {{ $group['count'] }} rows</x-filament::badge><span class="ml-2 text-sm">{{ $group['user_message'] }}</span><div class="text-xs text-gray-500">Examples: {{ implode(', ', $group['example_rows']) }}</div></div>
+                @endforeach
+            </div>
+        </div>
+        @endif
         <div class="ip-card">
             <div class="ip-card-header">
                 <h3 class="text-sm font-semibold flex items-center gap-2 {{ ($job->error_report_json && count($job->error_report_json) > 0) ? 'text-danger-600 dark:text-danger-400' : 'text-gray-950 dark:text-white' }}">

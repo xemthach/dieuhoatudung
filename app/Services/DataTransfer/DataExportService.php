@@ -3,6 +3,7 @@
 namespace App\Services\DataTransfer;
 
 use App\Models\DataExportJob;
+use App\Models\Product;
 use App\Support\EncodingGuard;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
@@ -25,9 +26,17 @@ class DataExportService
         array $selectedIds = [],
         string $scope = 'all',
         ?int $userId = null,
+        string $intent = 'auto',
     ): DataExportJob {
         $scope = $this->normalizeScope($scope);
         $selectedIds = $this->normalizeIds($selectedIds);
+        $governance = app(ImportGovernanceService::class);
+        if ($intent === 'product_transfer' && ! $governance->enabled('product_transfer.enabled')) {
+            throw new \RuntimeException('PRODUCT_TRANSFER is disabled by Import Governance.');
+        }
+        if ($intent === 'system_backup' && ! $this->isProductSystemRestoreExport($module, $fileType, $scope, $fieldGroups, $filters, $selectedIds)) {
+            throw new \InvalidArgumentException('System Backup requires the complete unfiltered Product XLSX population.');
+        }
 
         $job = DataExportJob::create([
             'module'             => $module,
@@ -42,24 +51,33 @@ class DataExportService
         try {
             $job->update(['status' => 'processing', 'started_at' => now()]);
 
-            $systemRestoreExport = $this->isProductSystemRestoreExport(
+            $systemRestoreExport = $intent === 'system_backup' || ($intent === 'auto' && $this->isProductSystemRestoreExport(
                 $module,
                 $fileType,
                 $scope,
                 $fieldGroups,
                 $filters,
                 $selectedIds,
-            );
+            ));
+            $productTransfer = $intent === 'product_transfer' && $module === 'product' && $fileType === 'xlsx';
+            if ($intent === 'product_transfer' && ! $productTransfer) {
+                throw new \InvalidArgumentException('PRODUCT_TRANSFER is available only for Product XLSX exports.');
+            }
 
             $fields = $this->resolveFields($module, $fieldGroups);
             if ($systemRestoreExport) {
                 $fields = ProductSystemRestoreContract::fields();
             }
             $query = $this->buildQuery($module, $filters, $selectedIds, $scope);
-            $data = $this->fetchData($query, $fields, $module);
+            if ($productTransfer) {
+                $fields = ProductTransferContract::fields();
+                $data = $this->fetchProductTransferData($query);
+            } else {
+                $data = $this->fetchData($query, $fields, $module);
+            }
 
             $fileName = $this->generateFileName($module, $fileType, $scope, $data->count());
-            $filePath = $this->writeFile($data, $fields, $fileType, $fileName, $module, $systemRestoreExport);
+            $filePath = $this->writeFile($data, $fields, $fileType, $fileName, $module, $systemRestoreExport, $productTransfer, $scope);
 
             $job->update([
                 'status'      => 'completed',
@@ -78,6 +96,25 @@ class DataExportService
         }
 
         return $job;
+    }
+
+    private function fetchProductTransferData(Builder $query): Collection
+    {
+        return $query->with(['brand:id,slug', 'category:id,slug'])->select(ProductSystemRestoreContract::fields())->orderBy('id')->get()
+            ->map(function ($product): array {
+                $row = [];
+                foreach (ProductSystemRestoreContract::fields() as $field) {
+                    $value = $product->getAttribute($field);
+                    if (is_array($value)) $value = EncodingGuard::jsonEncode($value, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+                    if ($value instanceof \BackedEnum) $value = $value->value;
+                    $row[$field] = $value;
+                }
+                return array_merge($row, [
+                'source_brand_id' => $product->brand_id, 'brand_slug' => $product->brand?->slug,
+                'source_category_id' => $product->product_category_id, 'category_slug' => $product->category?->slug,
+                'source_catalog_source_id' => $product->catalog_source_id, 'source_catalog_model_id' => $product->catalog_model_id,
+                ]);
+            });
     }
 
     /**
@@ -233,6 +270,8 @@ class DataExportService
         string $fileName,
         string $module,
         bool $systemRestoreExport = false,
+        bool $productTransfer = false,
+        string $scope = 'all',
     ): string
     {
         if ($systemRestoreExport && (
@@ -248,7 +287,7 @@ class DataExportService
         $fullPath = storage_path('app/private/' . $dir . '/' . $fileName);
 
         match ($fileType) {
-            'xlsx' => $this->writeXlsx($data, $fields, $fullPath, $systemRestoreExport),
+            'xlsx' => $this->writeXlsx($data, $fields, $fullPath, $systemRestoreExport, $productTransfer, $scope),
             'csv'  => $this->writeCsv($data, $fields, $fullPath),
             'xml'  => $this->writeXml($data, $fields, $fullPath, $module),
             'json' => $this->writeJson($data, $fullPath),
@@ -261,7 +300,7 @@ class DataExportService
     /**
      * Write XLSX file using PhpSpreadsheet.
      */
-    protected function writeXlsx(Collection $data, array $fields, string $path, bool $systemRestore = false): void
+    protected function writeXlsx(Collection $data, array $fields, string $path, bool $systemRestore = false, bool $productTransfer = false, string $scope = 'all'): void
     {
         $spreadsheet = new Spreadsheet();
         $sheet = $spreadsheet->getActiveSheet();
@@ -279,7 +318,7 @@ class DataExportService
         foreach ($data as $row) {
             foreach ($fields as $colIndex => $field) {
                 $value = $row[$field] ?? '';
-                if ($systemRestore) {
+                if ($systemRestore || $productTransfer) {
                     // A system restore is a data contract, not a presentation
                     // sheet. Keep IDs, decimal scale and JSON as literal strings;
                     // Excel's automatic numeric coercion alters the manifest.
@@ -305,10 +344,10 @@ class DataExportService
             $sheet->getColumnDimensionByColumn($col)->setAutoSize(true);
         }
 
-        if ($systemRestore) {
+        if ($systemRestore || $productTransfer) {
             if ($payloadRows !== []) {
                 $payload = $spreadsheet->createSheet();
-                $payload->setTitle(ProductSystemRestoreContract::PAYLOAD_SHEET);
+                $payload->setTitle($productTransfer ? ProductTransferContract::PAYLOAD_SHEET : ProductSystemRestoreContract::PAYLOAD_SHEET);
                 foreach (['product_id', 'field', 'chunk_index', 'value'] as $column => $header) {
                     $payload->setCellValue([$column + 1, 1], $header);
                 }
@@ -320,11 +359,12 @@ class DataExportService
                 $payload->setSheetState(\PhpOffice\PhpSpreadsheet\Worksheet\Worksheet::SHEETSTATE_HIDDEN);
             }
             $metadata = $spreadsheet->createSheet();
-            $metadata->setTitle(ProductSystemRestoreContract::METADATA_SHEET);
+            $metadata->setTitle($productTransfer ? ProductTransferContract::METADATA_SHEET : ProductSystemRestoreContract::METADATA_SHEET);
             $metadata->setCellValue('A1', 'key');
             $metadata->setCellValue('B1', 'value');
             $metadataRow = 2;
-            foreach (ProductSystemRestoreContract::metadata($fields, $data) as $key => $value) {
+            $contractMetadata = $productTransfer ? ProductTransferContract::metadata($fields, $data, $scope) : ProductSystemRestoreContract::metadata($fields, $data);
+            foreach ($contractMetadata as $key => $value) {
                 $metadata->setCellValue([1, $metadataRow], $key);
                 $metadata->setCellValue([2, $metadataRow], (string) $value);
                 $metadataRow++;

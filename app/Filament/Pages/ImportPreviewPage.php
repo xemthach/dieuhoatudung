@@ -14,6 +14,24 @@ use Illuminate\Support\Facades\Auth;
 
 class ImportPreviewPage extends Page
 {
+    public function groupedErrors(): array
+    {
+        return collect($this->job?->error_report_json ?? [])->flatMap(function (array $entry): array {
+            return collect($entry['errors'] ?? [])->map(function (string $message) use ($entry): array {
+                $code = str_contains($message, 'provenance') || str_contains($message, 'TECHNICAL_APPENDIX')
+                    ? 'TECHNICAL_PROVENANCE_REQUIRED'
+                    : (str_contains($message, 'catalog lineage') ? 'CATALOG_LINEAGE_BLOCKED' : 'VALIDATION_ERROR');
+
+                return ['code' => $code, 'message' => $message, 'row' => $entry['row'] ?? null];
+            })->all();
+        })->groupBy('code')->map(fn ($rows, $code) => [
+            'code' => $code,
+            'count' => $rows->count(),
+            'user_message' => $rows->first()['message'],
+            'example_rows' => $rows->pluck('row')->filter()->take(5)->values()->all(),
+        ])->values()->all();
+    }
+
     protected string $view = 'filament.pages.import-preview';
     protected static bool $shouldRegisterNavigation = false;
 
@@ -315,6 +333,13 @@ class ImportPreviewPage extends Page
                             ->body("Tạo mới: {$result->created_rows} | Cập nhật: {$result->updated_rows} | Lỗi: {$result->failed_rows}")
                             ->duration(10000)
                             ->send();
+                    } elseif ($result->status === 'completed_with_errors') {
+                        Notification::make()
+                            ->warning()
+                            ->title('Import completed with errors')
+                            ->body("Success: {$result->success_rows} | Failed: {$result->failed_rows} rows")
+                            ->duration(10000)
+                            ->send();
                     } else {
                         Notification::make()
                             ->danger()
@@ -376,6 +401,9 @@ class ImportPreviewPage extends Page
         $user = Auth::user();
         if (! $user) return false;
         if ($user->isSuperAdmin()) return true;
+
+        if ($job->mode === 'product_transfer' && ! $user->can('product_transfer.run')) return false;
+        if ($job->mode === 'system_restore' && ! $user->can('system_restore.run')) return false;
 
         return (int) $job->created_by === (int) $user->getAuthIdentifier()
             && $user->can($job->module.'.import');

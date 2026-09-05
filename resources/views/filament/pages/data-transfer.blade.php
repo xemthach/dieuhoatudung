@@ -140,6 +140,7 @@
                         @php
                             $stColor = match($ij->status) {
                                 'completed'  => 'success',
+                                'completed_with_errors' => 'warning',
                                 'failed'     => 'danger',
                                 'previewing' => 'warning',
                                 'importing'  => 'info',
@@ -147,6 +148,7 @@
                             };
                             $stLabel = match($ij->status) {
                                 'completed'  => 'Hoàn thành',
+                                'completed_with_errors' => 'Hoàn thành có lỗi',
                                 'failed'     => 'Lỗi',
                                 'previewing' => 'Preview',
                                 'importing'  => 'Đang import',
