@@ -1,0 +1,35 @@
+{
+  "reviewed_at": "2026-09-06",
+  "scope": "Physical Product category only; this ledger does not authorize marketing_capacity_btu.",
+  "documents": [
+    {
+      "relative_path": "data dieu hoa/GREE AIR/E-CATALOGUE LAC 2025.pdf",
+      "filename": "E-CATALOGUE LAC 2025.pdf",
+      "sha256": "C5A89D8559C359009431BD48D869DF4947154DDD6DA466F0DD40B6DF66041AC6",
+      "sections": [
+        {"pages": [32, 33, 34], "heading": "DIEU HOA CASSETTE", "category_slug": "dieu-hoa-am-tran-cassette"},
+        {"pages": [35, 36, 37], "heading": "DIEU HOA DUCT", "category_slug": "dieu-hoa-giau-tran-noi-ong-gio"},
+        {"pages": [7, 38, 39], "heading": "GMV S / GMV SOLAR", "category_slug": "dieu-hoa-trung-tam-vrf-gmv"},
+        {"pages": [8, 40, 41, 42, 43, 44], "heading": "DIEU HOA TU DUNG GREE", "category_slug": "dieu-hoa-tu-dung"}
+      ],
+      "exact_models": []
+    },
+    {
+      "relative_path": "data dieu hoa/GREE AIR/Gree Umatch R32 Cooling Only.pdf",
+      "filename": "Gree Umatch R32 Cooling Only.pdf",
+      "sha256": "B0BDF4984A932CD0050BFCDD18FAD3F527300A18644562F21F49DA49052D59DC",
+      "sections": [],
+      "exact_models": [
+        {"model_code": "GULD50ZD1/A-S/GULD50W1/NhA-S", "page": 3, "heading": "Dat san/Ap tran", "category_slug": "dieu-hoa-dat-san-ap-tran"},
+        {"model_code": "GULD71ZD1/A-S/GULD71W1/NhA-S", "page": 3, "heading": "Dat san/Ap tran", "category_slug": "dieu-hoa-dat-san-ap-tran"},
+        {"model_code": "GULD85ZD1/A-S/GULD85W1/NhA-S", "page": 3, "heading": "Dat san/Ap tran", "category_slug": "dieu-hoa-dat-san-ap-tran"},
+        {"model_code": "GULD100ZD1/A-S/GULD100W1/NhA-S", "page": 3, "heading": "Dat san/Ap tran", "category_slug": "dieu-hoa-dat-san-ap-tran"},
+        {"model_code": "GULD125ZD1/A-S/GULD125W1/NhA-S", "page": 4, "heading": "Dat san/Ap tran", "category_slug": "dieu-hoa-dat-san-ap-tran"},
+        {"model_code": "GULD140ZD1/A-S/GULD140W1/NhA-S", "page": 4, "heading": "Dat san/Ap tran", "category_slug": "dieu-hoa-dat-san-ap-tran"},
+        {"model_code": "GULD160ZD1/A-S/GULD160W1/NhA-S", "page": 4, "heading": "Dat san/Ap tran", "category_slug": "dieu-hoa-dat-san-ap-tran"},
+        {"model_code": "GULD85T1/A-S/GULD85W1/NhA-S", "page": 3, "heading": "Cassette", "category_slug": "dieu-hoa-am-tran-cassette"},
+        {"model_code": "GULD85PHS1/A-S/GULD85W1/NhA-S", "page": 3, "heading": "Ong gio (co bom)", "category_slug": "dieu-hoa-giau-tran-noi-ong-gio"}
+      ]
+    }
+  ]
+}

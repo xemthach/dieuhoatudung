@@ -22,11 +22,11 @@ final class ProductEquipmentTypeResolver
     {
         $classification = $this->classes->resolve($product);
         $type = match ($classification['class']) {
-            ProductHvacClass::RAC_SPLIT => EquipmentType::WALL_MOUNTED,
-            ProductHvacClass::RAC_CASSETTE => EquipmentType::CASSETTE,
-            ProductHvacClass::RAC_DUCTED => EquipmentType::DUCTED,
-            ProductHvacClass::RAC_FLOOR_CEILING => EquipmentType::CEILING_EXPOSED,
-            ProductHvacClass::RAC_FLOOR_STANDING => EquipmentType::FLOOR_STANDING,
+            ProductHvacClass::RAC_WALL_MOUNTED => EquipmentType::WALL_MOUNTED,
+            ProductHvacClass::COMMERCIAL_CASSETTE => EquipmentType::CASSETTE,
+            ProductHvacClass::COMMERCIAL_DUCTED => EquipmentType::DUCTED,
+            ProductHvacClass::COMMERCIAL_FLOOR_CEILING => EquipmentType::CEILING_EXPOSED,
+            ProductHvacClass::COMMERCIAL_FLOOR_STANDING => EquipmentType::FLOOR_STANDING,
             default => null,
         };
 

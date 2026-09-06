@@ -1,4 +1,8 @@
 <x-filament-panels::page>
+    <x-filament::section heading="Product Data Governance">
+        <p class="mb-3 text-sm text-gray-600">Taxonomy verification and commercial marketing-capacity approvals are managed in the same governance architecture.</p>
+        <x-filament::button tag="a" href="{{ \App\Filament\Pages\ProductDataGovernancePage::getUrl() }}">Open Product Taxonomy & Capacity Review</x-filament::button>
+    </x-filament::section>
     <div class="space-y-4">
         @foreach($this->policies() as $policy)
             <x-filament::section>

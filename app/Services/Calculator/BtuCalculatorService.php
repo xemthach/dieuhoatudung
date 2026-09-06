@@ -441,11 +441,11 @@ class BtuCalculatorService
             $class = $this->classes->resolve($product)['class'];
 
             return in_array($class, [
-                ProductHvacClass::RAC_SPLIT,
-                ProductHvacClass::RAC_CASSETTE,
-                ProductHvacClass::RAC_DUCTED,
-                ProductHvacClass::RAC_FLOOR_CEILING,
-                ProductHvacClass::RAC_FLOOR_STANDING,
+                ProductHvacClass::RAC_WALL_MOUNTED,
+                ProductHvacClass::COMMERCIAL_CASSETTE,
+                ProductHvacClass::COMMERCIAL_DUCTED,
+                ProductHvacClass::COMMERCIAL_FLOOR_CEILING,
+                ProductHvacClass::COMMERCIAL_FLOOR_STANDING,
             ], true);
         })->values();
     }

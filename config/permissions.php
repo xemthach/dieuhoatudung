@@ -276,6 +276,23 @@ return [
         'icon' => 'heroicon-o-shield-check',
         'permissions' => ['view'=>'View import governance','change'=>'Change business import governance'],
     ],
+    'product_taxonomy' => [
+        'label' => 'Product Taxonomy Governance',
+        'icon' => 'heroicon-o-tag',
+        'permissions' => [
+            'view' => 'View Product taxonomy evidence and status',
+            'approve' => 'Approve or reject source-backed taxonomy ledgers',
+        ],
+    ],
+    'marketing_capacity' => [
+        'label' => 'Marketing Capacity Governance',
+        'icon' => 'heroicon-o-scale',
+        'permissions' => [
+            'view' => 'View marketing-capacity evidence and mappings',
+            'approve' => 'Approve or reject commercial-tier mappings',
+            'apply' => 'Apply an approved commercial-tier ledger',
+        ],
+    ],
     'product_transfer' => [
         'label' => 'Product Transfer',
         'icon' => 'heroicon-o-arrows-right-left',

@@ -22,8 +22,16 @@ class ProductFilterService
         '50000-100000' => 'Từ 50.000 BTU trở lên',
     ];
 
+    public static function isAllowedMarketingTier(int $value): bool
+    {
+        return ($value >= 9000 && $value <= 12000)
+            || in_array($value, [18000, 24000, 28000, 36000, 42000, 48000], true)
+            || ($value >= 50000 && $value <= 100000);
+    }
+
     public function __construct(
         private readonly ProductMarketingCapacityQueryAdapter $capacityQuery,
+        private readonly ProductMarketingCapacityEligibility $capacityEligibility,
     ) {}
 
     /**
@@ -65,18 +73,10 @@ class ProductFilterService
         }
 
         if (!empty($filters['btu'])) {
-            // The public BTU buckets are RAC marketing filters. Explicitly
-            // classified VRF products must not enter them; no kW conversion
-            // is performed here.
-            $query->where(function (Builder $q): void {
-                $q->whereNull('product_type')
-                    ->orWhereNotIn('product_type', ['vrf', 'vrf_outdoor', 'vrf_indoor', 'vrf_system', 'gmv']);
-            })->whereDoesntHave('category', function (Builder $q): void {
-                $q->where(function (Builder $category): void {
-                    $category->whereRaw('LOWER(name) LIKE ?', ['%vrf%'])
-                        ->orWhereRaw('LOWER(name) LIKE ?', ['%gmv%']);
-                });
-            });
+            // The public BTU buckets use one stable physical-DX category-slug eligibility
+            // contract. Merchant product_type strings and translated category
+            // display names are not filter-governance inputs.
+            $this->capacityEligibility->apply($query);
 
             $query->where(function ($q) use ($filters) {
                 foreach ($filters['btu'] as $btu) {

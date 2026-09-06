@@ -2,6 +2,29 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.33.9] - 2026-09-06
+
+### Added
+- Added explicit Product taxonomy and marketing-capacity verification states, source evidence, immutable approval digests, and an append-only governance audit trail.
+- Added the Product Data Governance Admin review center with explicit taxonomy and marketing-capacity permissions, grouped review, rejection, and mark-for-review controls.
+- Added read-only taxonomy/commercial-tier audits plus separately approved, stale-protected taxonomy and marketing-capacity apply commands.
+
+### Fixed
+- Public BTU filtering now fails closed unless an active Product has verified physical taxonomy, an eligible non-VRF category, a verified commercial capacity state, and a positive persisted `marketing_capacity_btu` value.
+- Legacy category assignments, unverified numeric capacity, unresolved identities, and VRF/GMV Products can no longer leak into certified public BTU results.
+- Calculator classification uses explicit wall-mounted and commercial equipment classes without changing technical BTU, kW, or Product Transfer semantics.
+
+### Safety
+- This release deploys code and additive schema only. It does not populate Product taxonomy states, approve marketing mappings, backfill `marketing_capacity_btu`, or rewrite Product business data.
+- Existing 16 marketing-capacity values remain quarantined as unverified until source-backed approval. Products 1238 and 1366 remain conflicts; Product 1271 requires a source; Product 1597 requires an explicit remediation decision.
+- Data rollout is intentionally separate from this release. No commercial capacity is inferred from technical BTU, kW, HP, Product title, model suffix, legacy `btu`, or nearest-bucket rounding.
+
+### Validation
+- Focused release suite: 136 tests, 136 passed, 1,778 assertions.
+- Full PHPUnit: 616 tests, 615 passed, 1 skipped, 3,767 assertions, zero failures/errors.
+- Product governance browser certification: 1 passed with no HTTP, Livewire, console, page, or network errors.
+- Composer validation/audit, npm audit, Vite build, PHP lint, secret scan, and `git diff --check` passed.
+
 ## [1.33.8] - 2026-09-05
 
 ### Added

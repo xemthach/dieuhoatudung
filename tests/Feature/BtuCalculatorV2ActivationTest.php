@@ -146,12 +146,13 @@ class BtuCalculatorV2ActivationTest extends TestCase
 
     public function test_real_catalog_gap_shapes_keep_fail_closed_rac_matching(): void
     {
-        $rac = ProductCategory::factory()->create(['name' => 'Điều hòa tủ đứng']);
-        $vrf = ProductCategory::factory()->create(['name' => 'VRF Outdoor']);
+        $rac = ProductCategory::factory()->create(['name' => 'Điều hòa tủ đứng', 'slug' => 'dieu-hoa-tu-dung']);
+        $vrf = ProductCategory::factory()->create(['name' => 'VRF Outdoor', 'slug' => 'dieu-hoa-trung-tam-vrf-gmv']);
 
-        $rac18 = Product::factory()->create(['product_category_id' => $rac->id, 'marketing_capacity_btu' => 18000]);
-        $rac30 = Product::factory()->create(['product_category_id' => $rac->id, 'marketing_capacity_btu' => 30000]);
-        Product::factory()->create(['product_category_id' => $vrf->id, 'marketing_capacity_btu' => 60000]);
+        $verified = ['taxonomy_status' => 'VERIFIED', 'marketing_capacity_status' => 'VERIFIED'];
+        $rac18 = Product::factory()->create($verified + ['product_category_id' => $rac->id, 'marketing_capacity_btu' => 18000]);
+        $rac30 = Product::factory()->create($verified + ['product_category_id' => $rac->id, 'marketing_capacity_btu' => 30000]);
+        Product::factory()->create($verified + ['product_category_id' => $vrf->id, 'marketing_capacity_btu' => 60000]);
 
         $calculator = app(BtuCalculatorService::class);
         $this->assertSame([$rac18->id], $calculator->matchProducts(9000)->pluck('id')->all());

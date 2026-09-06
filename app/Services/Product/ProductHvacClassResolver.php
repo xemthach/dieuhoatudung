@@ -49,19 +49,19 @@ final class ProductHvacClassResolver
             return ProductHvacClass::VRF_OUTDOOR;
         }
         if (str_contains($value, 'treo tường') || str_contains($value, 'wall mounted') || str_contains($value, 'wall-mounted')) {
-            return ProductHvacClass::RAC_SPLIT;
+            return ProductHvacClass::RAC_WALL_MOUNTED;
         }
         if (str_contains($value, 'cassette')) {
-            return ProductHvacClass::RAC_CASSETTE;
+            return ProductHvacClass::COMMERCIAL_CASSETTE;
         }
         if (str_contains($value, 'ống gió') || str_contains($value, 'giấu trần') || str_contains($value, 'ducted')) {
-            return ProductHvacClass::RAC_DUCTED;
+            return ProductHvacClass::COMMERCIAL_DUCTED;
         }
         if (str_contains($value, 'đặt sàn') || str_contains($value, 'áp trần') || str_contains($value, 'ceiling exposed')) {
-            return ProductHvacClass::RAC_FLOOR_CEILING;
+            return ProductHvacClass::COMMERCIAL_FLOOR_CEILING;
         }
         if (str_contains($value, 'tủ đứng') || str_contains($value, 'floor standing')) {
-            return ProductHvacClass::RAC_FLOOR_STANDING;
+            return ProductHvacClass::COMMERCIAL_FLOOR_STANDING;
         }
 
         return null;

@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Enums\EquipmentSuitabilityStatus;
 use App\Models\Product;
+use App\Models\ProductCategory;
 use App\Services\Calculator\EquipmentTypeRecommendationService;
 use App\Services\Product\ProductEquipmentTypeResolver;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -187,10 +188,25 @@ class CalculatorEquipmentTypeRecommendationTest extends TestCase
 
     private function product(string $name, string $productType, int $capacity, int $price = 20000000): Product
     {
+        $slug = match (true) {
+            str_contains($productType, 'VRF') => 'dieu-hoa-trung-tam-vrf-gmv',
+            str_contains($productType, 'Cassette') => 'dieu-hoa-am-tran-cassette',
+            str_contains($productType, 'Duct'), str_contains($productType, 'nối ống gió') => 'dieu-hoa-giau-tran-noi-ong-gio',
+            str_contains($productType, 'treo tường') => 'dieu-hoa-treo-tuong',
+            default => 'dieu-hoa-tu-dung',
+        };
+        $category = ProductCategory::query()->firstOrCreate(
+            ['slug' => $slug],
+            ['name' => $slug, 'is_active' => true],
+        );
+
         return Product::factory()->create([
             'name' => $name,
             'product_type' => $productType,
+            'product_category_id' => $category->id,
             'marketing_capacity_btu' => $capacity,
+            'taxonomy_status' => 'VERIFIED',
+            'marketing_capacity_status' => 'VERIFIED',
             'regular_price' => $price,
             'sale_price' => null,
             'is_active' => true,

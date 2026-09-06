@@ -20,6 +20,10 @@ class ProductMarketingCapacityQueryAdapter
 
     private static ?string $resolvedColumn = null;
 
+    public function __construct(
+        private readonly ProductMarketingCapacityEligibility $eligibility,
+    ) {}
+
     public function column(): string
     {
         return self::$resolvedColumn ??= (
@@ -36,7 +40,9 @@ class ProductMarketingCapacityQueryAdapter
 
     public function applyPresent(Builder $query): Builder
     {
-        return $query->whereNotNull($this->column())->where($this->column(), '>', 0);
+        return $this->eligibility->apply($query)
+            ->whereNotNull($this->column())
+            ->where($this->column(), '>', 0);
     }
 
     public function applyBetween(Builder $query, int $min, int $max): Builder

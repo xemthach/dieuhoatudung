@@ -16,25 +16,33 @@ class BtuCalculatorGovernanceTest extends TestCase
 
     public function test_recommendations_never_include_under_sized_unknown_or_vrf_products(): void
     {
-        $racCategory = ProductCategory::factory()->create(['name' => 'Điều hòa tủ đứng']);
-        $vrfCategory = ProductCategory::factory()->create(['name' => 'VRF Outdoor']);
-        $unknownCategory = ProductCategory::factory()->create(['name' => 'Thiết bị khác']);
+        $racCategory = ProductCategory::factory()->create(['name' => 'Điều hòa tủ đứng', 'slug' => 'dieu-hoa-tu-dung']);
+        $vrfCategory = ProductCategory::factory()->create(['name' => 'VRF Outdoor', 'slug' => 'dieu-hoa-trung-tam-vrf-gmv']);
+        $unknownCategory = ProductCategory::factory()->create(['name' => 'Thiết bị khác', 'slug' => 'thiet-bi-khac']);
 
         $underSized = Product::factory()->create([
             'product_category_id' => $racCategory->id,
             'marketing_capacity_btu' => 24000,
+            'taxonomy_status' => 'VERIFIED',
+            'marketing_capacity_status' => 'VERIFIED',
         ]);
         $eligible = Product::factory()->create([
             'product_category_id' => $racCategory->id,
             'marketing_capacity_btu' => 36000,
+            'taxonomy_status' => 'VERIFIED',
+            'marketing_capacity_status' => 'VERIFIED',
         ]);
         $vrf = Product::factory()->create([
             'product_category_id' => $vrfCategory->id,
             'marketing_capacity_btu' => 36000,
+            'taxonomy_status' => 'VERIFIED',
+            'marketing_capacity_status' => 'VERIFIED',
         ]);
         $unknown = Product::factory()->create([
             'product_category_id' => $unknownCategory->id,
             'marketing_capacity_btu' => 36000,
+            'taxonomy_status' => 'VERIFIED',
+            'marketing_capacity_status' => 'VERIFIED',
         ]);
 
         $products = app(BtuCalculatorService::class)->matchProducts(28000);
@@ -164,10 +172,12 @@ class BtuCalculatorGovernanceTest extends TestCase
 
     public function test_result_separates_calculated_tier_from_nearest_available_product(): void
     {
-        $racCategory = ProductCategory::factory()->create(['name' => 'Điều hòa tủ đứng']);
+        $racCategory = ProductCategory::factory()->create(['name' => 'Điều hòa tủ đứng', 'slug' => 'dieu-hoa-tu-dung']);
         Product::factory()->create([
             'product_category_id' => $racCategory->id,
             'marketing_capacity_btu' => 24000,
+            'taxonomy_status' => 'VERIFIED',
+            'marketing_capacity_status' => 'VERIFIED',
         ]);
 
         $response = $this->post(route('btu-calculator.calculate'), $this->validPayload());
