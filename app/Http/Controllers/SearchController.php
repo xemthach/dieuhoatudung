@@ -60,7 +60,7 @@ class SearchController extends Controller
         $resultCount = 0;
 
         if (mb_strlen($q) >= ProductSearchService::MIN_QUERY_LENGTH) {
-            $products = $this->searchService->search($q, 12);
+            $products = $this->searchService->search($q, 12, $request);
             $resultCount = $products->total();
 
             // Log search (async, non-blocking)

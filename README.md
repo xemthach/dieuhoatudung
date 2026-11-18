@@ -2,7 +2,7 @@
 
 > CRM & E-commerce platform chuyên về điều hòa tủ đứng — Laravel monolith, Filament admin, HVAC BTU calculator.
 
-![Version](https://img.shields.io/badge/version-1.33.9-blue)
+![Version](https://img.shields.io/badge/version-1.33.10-blue)
 ![Laravel](https://img.shields.io/badge/Laravel-13-red)
 ![PHP](https://img.shields.io/badge/PHP-8.3+-purple)
 ![License](https://img.shields.io/badge/license-proprietary-gray)
@@ -117,28 +117,7 @@ npm run dev
 
 ## Production Deployment
 
-### First Install
-
-```bash
-composer install --no-dev --optimize-autoloader
-npm ci && npm run build
-cp .env.example .env
-# Edit .env with production values
-php artisan app:install --force
-```
-
-### Update Existing Server
-
-```bash
-git pull origin main
-composer install --no-dev --optimize-autoloader
-php artisan migrate --force
-php artisan db:seed --class=RolePermissionSeeder --force
-npm ci && npm run build
-php artisan optimize:clear
-```
-
-> 📖 See [DEPLOYMENT.md](DEPLOYMENT.md) for full deployment guide, nginx config, queue workers, rollback, and troubleshooting.
+> Triển khai lên Live theo [DEPLOY.md](DEPLOY.md).
 
 ---
 
@@ -232,7 +211,7 @@ database/
 
 ## Changelog
 
-See [CHANGELOG.md](CHANGELOG.md) for version history.
+Xem lịch sử phiên bản trong các tag Git.
 
 ## License
 

@@ -69,6 +69,36 @@ final class ProductMarketingCapacityEligibility
         });
     }
 
+    /**
+     * Keep sorting distinct from filtering: governed Products are ranked first,
+     * while unresolved/VRF/null rows remain visible but cannot outrank them.
+     */
+    public function applyGovernedOrder(Builder $query, string $direction): Builder
+    {
+        $direction = strtolower($direction) === 'desc' ? 'desc' : 'asc';
+        $slugs = $this->eligibleCategorySlugs();
+        $placeholders = implode(', ', array_fill(0, count($slugs), '?'));
+        $eligible = <<<SQL
+products.is_active = ?
+and products.taxonomy_status = ?
+and products.marketing_capacity_status = ?
+and products.marketing_capacity_btu is not null
+and products.marketing_capacity_btu > 0
+and exists (
+    select 1
+    from product_categories
+    where product_categories.id = products.product_category_id
+      and product_categories.deleted_at is null
+      and product_categories.slug in ({$placeholders})
+)
+SQL;
+        $bindings = [1, ProductDataVerificationService::VERIFIED, ProductDataVerificationService::VERIFIED, ...$slugs];
+
+        return $query
+            ->orderByRaw("case when {$eligible} then 0 else 1 end asc", $bindings)
+            ->orderByRaw("case when {$eligible} then products.marketing_capacity_btu else null end {$direction}", $bindings);
+    }
+
     /** @return list<string> */
     public function eligibleCategorySlugs(): array
     {

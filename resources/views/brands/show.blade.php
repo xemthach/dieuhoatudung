@@ -2,7 +2,7 @@
     :seo-title="($brand->seo_title ?? 'Điều hòa ' . $brand->name) . config('seo.defaults.title_suffix', '')"
     :seo-description="$brand->seo_description ?? 'Xem danh sách điều hòa tủ đứng ' . $brand->name . '. Liên hệ để được tư vấn sản phẩm phù hợp theo nhu cầu công trình.'"
     :canonical="$brand->canonical_url ?? route('brands.show', $brand->slug)"
-    :robots="$brand->robots ?? setting('seo.default_robots', 'index,follow')"
+    :robots="($hasActiveSort ?? false) ? 'noindex,follow' : ($brand->robots ?? setting('seo.default_robots', 'index,follow'))"
 >
     <x-breadcrumb :items="[
         ['label' => 'Thương hiệu', 'url' => route('brands.index')],
@@ -72,10 +72,10 @@
                 <div class="relative">
                     <select onchange="const url = new window.URL(window.location.href); url.searchParams.set('sort', this.value); window.location.href = url.href;" class="block w-full appearance-none rounded-lg border border-surface-300 bg-white py-2 pl-4 pr-10 text-sm font-medium text-surface-700 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500">
                         <option value="latest" {{ request('sort', 'latest') === 'latest' ? 'selected' : '' }}>Mới nhất</option>
-                        <option value="price_asc" {{ request('sort') === 'price_asc' ? 'selected' : '' }}>Giá: Thấp đến Cao</option>
-                        <option value="price_desc" {{ request('sort') === 'price_desc' ? 'selected' : '' }}>Giá: Cao đến Thấp</option>
-                        <option value="btu_asc" {{ request('sort') === 'btu_asc' ? 'selected' : '' }}>Công suất: Thấp đến Cao</option>
-                        <option value="btu_desc" {{ request('sort') === 'btu_desc' ? 'selected' : '' }}>Công suất: Cao đến Thấp</option>
+                        <option value="price_asc" {{ request('sort') === 'price_asc' ? 'selected' : '' }}>Giá: thấp đến cao</option>
+                        <option value="price_desc" {{ request('sort') === 'price_desc' ? 'selected' : '' }}>Giá: cao đến thấp</option>
+                        <option value="btu_asc" {{ request('sort') === 'btu_asc' ? 'selected' : '' }}>BTU marketing: thấp đến cao</option>
+                        <option value="btu_desc" {{ request('sort') === 'btu_desc' ? 'selected' : '' }}>BTU marketing: cao đến thấp</option>
                     </select>
                     <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-surface-500">
                         <x-heroicon-s-chevron-down class="h-4 w-4" />

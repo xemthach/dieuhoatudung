@@ -10,9 +10,9 @@ use RuntimeException;
 
 final class ProductTaxonomyAuditService
 {
-    private const SKY_AIR_MATRIX = 'docs/reports/final/artifacts/skyair_combination_matrix.csv';
+    private const SKY_AIR_MATRIX = 'resources/catalog/skyair_combination_matrix.csv';
     private const SOURCE_COVERAGE = 'storage/app/private/reports/marketing_capacity_pdf_source_coverage.json';
-    private const REVIEWED_GREE_PHYSICAL_SECTIONS = 'docs/catalog/evidence/gree_physical_category_sections_reviewed.json';
+    private const REVIEWED_GREE_PHYSICAL_SECTIONS = 'resources/catalog/gree_physical_category_sections_reviewed.json';
 
     private const EQUIPMENT_CATEGORY = [
         'cassette' => 'dieu-hoa-am-tran-cassette',

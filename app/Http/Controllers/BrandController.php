@@ -4,7 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Brand;
 use App\Models\Product;
-use App\Services\Product\ProductMarketingCapacityQueryAdapter;
+use App\Services\Product\ProductFilterService;
 use Illuminate\Http\Request;
 
 class BrandController extends Controller
@@ -19,7 +19,7 @@ class BrandController extends Controller
         return view('brands.index', compact('brands'));
     }
 
-    public function show(Request $request, string $slug, ProductMarketingCapacityQueryAdapter $capacityQuery)
+    public function show(Request $request, string $slug, ProductFilterService $filterService)
     {
         $brand = Brand::where('slug', $slug)
             ->where('is_active', true)
@@ -29,17 +29,12 @@ class BrandController extends Controller
             ->where('is_active', true)
             ->with(['brand', 'category']);
 
-        // Apply sorting
-        $query = match($request->query('sort')) {
-            'price_asc'  => $query->orderByRaw('COALESCE(sale_price, regular_price) ASC'),
-            'price_desc' => $query->orderByRaw('COALESCE(sale_price, regular_price) DESC'),
-            'btu_asc'    => $query->orderBy($capacityQuery->column(), 'asc'),
-            'btu_desc'   => $query->orderBy($capacityQuery->column(), 'desc'),
-            default      => $query->latest(),
-        };
+        $sort = $filterService->normalizeSort($request->query('sort'));
+        $filterService->applySort($query, $sort);
 
-        $products = $query->paginate(setting('display.products_per_page', 12));
+        $products = $query->paginate(setting('display.products_per_page', 12))->withQueryString();
+        $hasActiveSort = $sort !== 'latest';
 
-        return view('brands.show', compact('brand', 'products'));
+        return view('brands.show', compact('brand', 'products', 'hasActiveSort'));
     }
 }

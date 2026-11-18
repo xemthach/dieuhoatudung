@@ -150,6 +150,14 @@ test.describe.serial('Product List governed AI bulk actions', () => {
         await expect.poll(() => fixture('snapshot', 'discard').approval_status).toBe('DISCARDED');
         expect(fixture('snapshot', 'discard').discarded_by).toBe(state.operator.id);
 
+        // Provider calls are opt-in and never part of the default isolated
+        // browser regression. The deterministic workflow above remains fully
+        // covered without external mutation or provider cost.
+        if (process.env.BROWSER_ALLOW_REAL_PROVIDER !== '1') {
+            expect(runtimeErrors, runtimeErrors.join('\n')).toEqual([]);
+            return;
+        }
+
         // One controlled real-provider call on a disposable fixture.
         const regenerateBefore = fixture('snapshot', 'regenerate');
         await page.goto('/admin/products');

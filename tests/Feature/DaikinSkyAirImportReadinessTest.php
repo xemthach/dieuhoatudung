@@ -121,9 +121,9 @@ class DaikinSkyAirImportReadinessTest extends TestCase
 
     public function test_evidence_artifacts_preserve_pairing_and_non_boolean_feature_states(): void
     {
-        $combinations = $this->csv('docs/reports/final/artifacts/skyair_combination_matrix.csv');
-        $features = $this->csv('docs/reports/final/artifacts/skyair_feature_matrix.csv');
-        $accessories = $this->csv('docs/reports/final/artifacts/skyair_accessory_matrix.csv');
+        $combinations = $this->csv('resources/catalog/skyair_combination_matrix.csv');
+        $features = $this->csv('tests/Fixtures/catalog/skyair_feature_matrix.csv');
+        $accessories = $this->csv('tests/Fixtures/catalog/skyair_accessory_matrix.csv');
 
         $this->assertCount(225, $combinations);
         $this->assertCount(225, array_unique(array_column($combinations, 'sku')));
@@ -135,7 +135,7 @@ class DaikinSkyAirImportReadinessTest extends TestCase
 
     public function test_six_visual_capacity_rechecks_are_exact_and_source_ready(): void
     {
-        $rows = collect($this->csv('docs/reports/final/artifacts/skyair_combination_matrix.csv'))->keyBy('sku');
+        $rows = collect($this->csv('resources/catalog/skyair_combination_matrix.csv'))->keyBy('sku');
         $expected = [
             'FCFG140AV1V-RZFC140AY19' => ['capacity_kw' => '14.07', 'technical_capacity_btu' => '48000', 'phase' => '3', 'refrigerant' => 'R32', 'equipment_type' => 'cassette'],
             'FHNQ36MV1V-RNQ36MV1V' => ['capacity_kw' => '10.1', 'technical_capacity_btu' => '34500', 'phase' => '1', 'refrigerant' => 'R410A', 'equipment_type' => 'ceiling_suspended'],
@@ -160,10 +160,10 @@ class DaikinSkyAirImportReadinessTest extends TestCase
             return [];
         }
 
-        $canonicalRows = collect($this->csv('docs/reports/final/artifacts/skyair_combination_matrix.csv'))
+        $canonicalRows = collect($this->csv('resources/catalog/skyair_combination_matrix.csv'))
             ->where('readiness', 'IMPORT_READY')
             ->values();
-        $components = collect($this->csv('docs/reports/final/artifacts/skyair_bundle_component_matrix.csv'))
+        $components = collect($this->csv('tests/Fixtures/catalog/skyair_bundle_component_matrix.csv'))
             ->groupBy('model_code');
         $brandId = Brand::query()->where('slug', 'daikin')->sole()->id;
 

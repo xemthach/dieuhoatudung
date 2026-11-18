@@ -23,6 +23,7 @@ final class SystemHealthService
         $storage = $this->storage();
         $scheduler = $this->scheduler($queueHealth);
         $worker = $this->worker($queueHealth);
+        $configuration = $this->configuration();
 
         $components = [
             'database' => $database,
@@ -31,6 +32,7 @@ final class SystemHealthService
             'storage' => $storage,
             'scheduler' => $scheduler,
             'worker' => $worker,
+            'configuration' => $configuration,
         ];
 
         return [
@@ -62,6 +64,27 @@ final class SystemHealthService
     {
         $store = (string) config('cache.default', 'unknown');
         return ['state' => $store === '' ? 'UNKNOWN' : 'HEALTHY', 'store' => $store];
+    }
+
+    private function configuration(): array
+    {
+        $environment = (string) config('app.env', app()->environment());
+        $debug = (bool) config('app.debug', false);
+
+        if ($environment === 'production' && $debug) {
+            return [
+                'state' => 'WARNING',
+                'environment' => $environment,
+                'debug_enabled' => true,
+                'reason' => 'production_debug_enabled',
+            ];
+        }
+
+        return [
+            'state' => 'HEALTHY',
+            'environment' => $environment,
+            'debug_enabled' => $debug,
+        ];
     }
 
     private function queueHealth(): ?array

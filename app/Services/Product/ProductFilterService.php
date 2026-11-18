@@ -8,6 +8,13 @@ use Illuminate\Database\Eloquent\Builder;
 
 class ProductFilterService
 {
+    public const MAX_ARRAY_VALUES = 20;
+    public const MAX_FILTER_STRING_LENGTH = 100;
+    public const MAX_PRICE_FILTER = 1_000_000_000_000;
+
+    /** @var list<string> */
+    public const SORT_OPTIONS = ['latest', 'price_asc', 'price_desc', 'btu_asc', 'btu_desc'];
+
     /** @var array<string, string> */
     public const CAPACITY_FILTER_OPTIONS = [
         // The query is an inclusive SQL BETWEEN range. Keep copy explicit so a
@@ -32,6 +39,7 @@ class ProductFilterService
     public function __construct(
         private readonly ProductMarketingCapacityQueryAdapter $capacityQuery,
         private readonly ProductMarketingCapacityEligibility $capacityEligibility,
+        private readonly ProductEffectivePriceQuery $effectivePriceQuery,
     ) {}
 
     /**
@@ -39,6 +47,7 @@ class ProductFilterService
      */
     protected array $whitelist = [
         'brand' => 'array',
+        'category' => 'string',
         'btu' => 'array',
         'inverter' => 'boolean',
         'cooling_type' => 'string',
@@ -70,6 +79,10 @@ class ProductFilterService
             $query->whereHas('brand', function ($q) use ($filters) {
                 $q->whereIn('slug', $filters['brand']);
             });
+        }
+
+        if (! empty($filters['category'])) {
+            $query->whereHas('category', fn (Builder $category) => $category->where('slug', $filters['category']));
         }
 
         if (!empty($filters['btu'])) {
@@ -109,21 +122,11 @@ class ProductFilterService
         }
 
         if (isset($filters['price_min'])) {
-            $query->where(function($q) use ($filters) {
-                $q->where('sale_price', '>=', $filters['price_min'])
-                  ->orWhere(function($sub) use ($filters) {
-                      $sub->whereNull('sale_price')->where('regular_price', '>=', $filters['price_min']);
-                  });
-            });
+            $this->effectivePriceQuery->whereMinimum($query, $filters['price_min']);
         }
 
         if (isset($filters['price_max'])) {
-            $query->where(function($q) use ($filters) {
-                $q->where('sale_price', '<=', $filters['price_max'])
-                  ->orWhere(function($sub) use ($filters) {
-                      $sub->whereNull('sale_price')->where('regular_price', '<=', $filters['price_max']);
-                  });
-            });
+            $this->effectivePriceQuery->whereMaximum($query, $filters['price_max']);
         }
 
         if (!empty($filters['recommended_area'])) {
@@ -135,7 +138,7 @@ class ProductFilterService
         }
 
         if (isset($filters['is_sale']) && $filters['is_sale']) {
-            $query->whereNotNull('sale_price')->whereColumn('sale_price', '<', 'regular_price');
+            $this->effectivePriceQuery->whereDiscounted($query);
         }
 
         if (isset($filters['is_featured']) && $filters['is_featured']) {
@@ -143,28 +146,44 @@ class ProductFilterService
         }
 
         // 3. Apply sorting
-        $sort = $filters['sort'] ?? 'latest';
+        $this->applySort($query, $filters['sort'] ?? 'latest');
+
+        return $query;
+    }
+
+    /** Apply the canonical public Product ordering contract. */
+    public function applySort(Builder $query, ?string $sort): Builder
+    {
+        $sort = $this->normalizeSort($sort);
         switch ($sort) {
             case 'price_asc':
-                // Using coalescing to sort by sale_price if exists, else regular_price
-                $query->orderByRaw('COALESCE(sale_price, regular_price) ASC');
+                $this->effectivePriceQuery->orderBy($query, 'asc');
+                $query->orderBy('products.id', 'asc');
                 break;
             case 'price_desc':
-                $query->orderByRaw('COALESCE(sale_price, regular_price) DESC');
+                $this->effectivePriceQuery->orderBy($query, 'desc');
+                $query->orderBy('products.id', 'desc');
                 break;
             case 'btu_asc':
-                $query->orderBy($this->capacityQuery->column(), 'asc');
+                $this->capacityEligibility->applyGovernedOrder($query, 'asc')
+                    ->orderBy('products.id', 'asc');
                 break;
             case 'btu_desc':
-                $query->orderBy($this->capacityQuery->column(), 'desc');
+                $this->capacityEligibility->applyGovernedOrder($query, 'desc')
+                    ->orderBy('products.id', 'desc');
                 break;
             case 'latest':
             default:
-                $query->latest();
+                $query->latest()->orderBy('products.id', 'desc');
                 break;
         }
 
         return $query;
+    }
+
+    public function normalizeSort(?string $sort): string
+    {
+        return in_array($sort, self::SORT_OPTIONS, true) ? $sort : 'latest';
     }
 
     /**
@@ -186,17 +205,20 @@ class ProductFilterService
                     if (is_array($value)) {
                         // Filter out empty strings and sanitize
                         $cleanArray = array_values(array_filter(array_map(
-                            static fn ($item): string => is_scalar($item) ? trim(strip_tags((string) $item)) : '',
+                            static fn ($item): string => is_scalar($item) ? mb_substr(trim(strip_tags((string) $item)), 0, self::MAX_FILTER_STRING_LENGTH) : '',
                             $value,
                         )));
                         if (!empty($cleanArray)) {
-                            $sanitized[$key] = $cleanArray;
+                            $sanitized[$key] = array_slice(array_values(array_unique($cleanArray)), 0, self::MAX_ARRAY_VALUES);
                         }
                     } elseif (is_string($value) && !empty(trim($value))) {
                         // Support comma separated strings
-                        $parts = array_filter(array_map('trim', explode(',', strip_tags($value))));
+                        $parts = array_filter(array_map(
+                            static fn (string $item): string => mb_substr(trim($item), 0, self::MAX_FILTER_STRING_LENGTH),
+                            explode(',', strip_tags($value)),
+                        ));
                         if (!empty($parts)) {
-                            $sanitized[$key] = $parts;
+                            $sanitized[$key] = array_slice(array_values(array_unique($parts)), 0, self::MAX_ARRAY_VALUES);
                         }
                     }
                     break;
@@ -205,16 +227,22 @@ class ProductFilterService
                     if ($value === '' || $value === null) {
                         break;
                     }
-                    $sanitized[$key] = filter_var($value, FILTER_VALIDATE_BOOLEAN);
+                    $normalized = is_string($value) ? strtolower(trim($value)) : $value;
+                    if (in_array($normalized, [true, 1, '1', 'true'], true)) {
+                        $sanitized[$key] = true;
+                    } elseif (in_array($normalized, [false, 0, '0', 'false'], true)) {
+                        $sanitized[$key] = false;
+                    }
                     break;
                 case 'numeric':
-                    if (is_numeric($value) && $value >= 0) {
-                        $sanitized[$key] = (float) $value;
+                    $numeric = is_numeric($value) ? (float) $value : null;
+                    if ($numeric !== null && is_finite($numeric) && $numeric >= 0 && $numeric <= self::MAX_PRICE_FILTER) {
+                        $sanitized[$key] = $numeric;
                     }
                     break;
                 case 'string':
                     if (is_string($value)) {
-                        $clean = trim(strip_tags($value));
+                        $clean = mb_substr(trim(strip_tags($value)), 0, self::MAX_FILTER_STRING_LENGTH);
                         if ($clean !== '') {
                             $sanitized[$key] = $clean;
                         }
@@ -231,6 +259,14 @@ class ProductFilterService
             if ($sanitized['btu'] === []) {
                 unset($sanitized['btu']);
             }
+        }
+
+        if (isset($sanitized['cooling_type']) && ! in_array($sanitized['cooling_type'], ['1_chieu', '2_chieu'], true)) {
+            unset($sanitized['cooling_type']);
+        }
+
+        if (isset($sanitized['sort']) && ! in_array($sanitized['sort'], self::SORT_OPTIONS, true)) {
+            unset($sanitized['sort']);
         }
 
         return $sanitized;

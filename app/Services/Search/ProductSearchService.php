@@ -5,7 +5,9 @@ namespace App\Services\Search;
 use App\Models\Product;
 use App\Services\Product\ProductMarketingCapacityQueryAdapter;
 use App\Services\Product\ProductTechnicalFactResolver;
+use App\Services\Product\ProductFilterService;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -29,6 +31,7 @@ class ProductSearchService
     public function __construct(
         private readonly ProductMarketingCapacityQueryAdapter $capacityQuery,
         private readonly ProductTechnicalFactResolver $technicalFacts,
+        private readonly ProductFilterService $filterService,
     ) {}
     /** Maximum suggestions in autocomplete */
     public const SUGGEST_LIMIT = 8;
@@ -138,7 +141,7 @@ class ProductSearchService
     /**
      * Full search with pagination.
      */
-    public function search(string $rawQuery, int $perPage = 12): LengthAwarePaginator
+    public function search(string $rawQuery, int $perPage = 12, ?Request $request = null): LengthAwarePaginator
     {
         $q = self::normalizeQuery($rawQuery);
 
@@ -154,30 +157,23 @@ class ProductSearchService
             return new \Illuminate\Pagination\LengthAwarePaginator([], 0, $perPage);
         }
 
-        // Fetch paginated from DB preserving score order
-        $page = request()->input('page', 1);
-        $offset = ($page - 1) * $perPage;
-        $pageIds = array_slice($ids, $offset, $perPage);
+        $request ??= request();
+        $query = Product::with(['brand', 'category'])->whereIn('products.id', $ids);
+        $this->filterService->apply($query, $request);
 
-        if (empty($pageIds)) {
-            return new \Illuminate\Pagination\LengthAwarePaginator([], 0, $perPage, $page);
+        $requestedSort = $request->query('sort');
+        if (! in_array($requestedSort, ProductFilterService::SORT_OPTIONS, true)) {
+            $query->reorder();
+            $cases = [];
+            $bindings = [];
+            foreach ($ids as $rank => $id) {
+                $cases[] = 'when ? then '.(int) $rank;
+                $bindings[] = $id;
+            }
+            $query->orderByRaw('case products.id '.implode(' ', $cases).' else '.count($ids).' end asc', $bindings);
         }
 
-        $products = Product::with(['brand', 'category'])
-            ->whereIn('id', $pageIds)
-            ->get()
-            ->sortBy(function ($product) use ($pageIds) {
-                return array_search($product->id, $pageIds);
-            })
-            ->values();
-
-        return new \Illuminate\Pagination\LengthAwarePaginator(
-            $products,
-            count($ids),
-            $perPage,
-            $page,
-            ['path' => request()->url(), 'query' => request()->query()]
-        );
+        return $query->paginate($perPage)->withQueryString();
     }
 
     /**
@@ -249,6 +245,14 @@ class ProductSearchService
                 }
                 $query->orWhere(DB::raw('LOWER(slug)'), 'LIKE', $likeSlugNoAccent);
             })
+            // The broad candidate window is intentionally bounded, but exact
+            // product identities must never be displaced by earlier partial
+            // matches. Rank them in SQL before applying that bound.
+            ->orderByRaw(
+                'case when LOWER(products.sku) = ? then 0 when LOWER(products.model_code) = ? then 1 else 2 end',
+                [$qLower, $qLower],
+            )
+            ->orderBy('products.id')
             ->limit(200)
             ->get();
 

@@ -6,7 +6,7 @@ import { expect, test, type Page } from '@playwright/test';
 type Fixture = Record<string, any>;
 
 const root = path.resolve(import.meta.dirname, '../..');
-const evidenceDir = path.join(root, 'docs/reports/final/artifacts/browser');
+const evidenceDir = path.join(root, 'storage/framework/testing/browser-evidence');
 let fixture: Fixture;
 const runtimeIssues: string[] = [];
 

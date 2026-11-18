@@ -50,10 +50,10 @@ $user = User::factory()->create([
 ]);
 $user->assignRole($role);
 
-$brand = Brand::factory()->create(['name' => 'Daikin Browser', 'slug' => 'daikin']);
-$wall = ProductCategory::factory()->create(['name' => 'Wall Browser', 'slug' => 'dieu-hoa-treo-tuong', 'is_active' => true]);
-$cassette = ProductCategory::factory()->create(['name' => 'Cassette Browser', 'slug' => 'dieu-hoa-am-tran-cassette', 'is_active' => true]);
-$vrf = ProductCategory::factory()->create(['name' => 'VRF Browser', 'slug' => 'dieu-hoa-trung-tam-vrf-gmv', 'is_active' => true]);
+$brand = Brand::query()->firstOrCreate(['slug' => 'daikin'], ['name' => 'Daikin', 'is_active' => true]);
+$wall = ProductCategory::query()->firstOrCreate(['slug' => 'dieu-hoa-treo-tuong'], ['name' => 'Wall Browser', 'is_active' => true, 'is_indexable' => true]);
+$cassette = ProductCategory::query()->firstOrCreate(['slug' => 'dieu-hoa-am-tran-cassette'], ['name' => 'Cassette Browser', 'is_active' => true, 'is_indexable' => true]);
+$vrf = ProductCategory::query()->firstOrCreate(['slug' => 'dieu-hoa-trung-tam-vrf-gmv'], ['name' => 'VRF Browser', 'is_active' => true, 'is_indexable' => true]);
 
 $base = [
     'brand_id' => $brand->id,
