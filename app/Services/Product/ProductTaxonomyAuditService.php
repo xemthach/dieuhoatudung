@@ -11,8 +11,6 @@ use RuntimeException;
 final class ProductTaxonomyAuditService
 {
     private const SKY_AIR_MATRIX = 'resources/catalog/skyair_combination_matrix.csv';
-    private const SOURCE_COVERAGE = 'storage/app/private/reports/marketing_capacity_pdf_source_coverage.json';
-    private const REVIEWED_GREE_PHYSICAL_SECTIONS = 'resources/catalog/gree_physical_category_sections_reviewed.json';
 
     private const EQUIPMENT_CATEGORY = [
         'cassette' => 'dieu-hoa-am-tran-cassette',
@@ -278,7 +276,7 @@ final class ProductTaxonomyAuditService
     /** @return array<int, array<string, mixed>> */
     private function coverageRows(): array
     {
-        $path = base_path(self::SOURCE_COVERAGE);
+        $path = config('catalog_evidence.coverage_path');
         if (! is_file($path)) {
             throw new RuntimeException('Run the read-only PDF source coverage audit before taxonomy audit.');
         }
@@ -291,7 +289,7 @@ final class ProductTaxonomyAuditService
     /** @param \Illuminate\Support\Collection<int, array<string, mixed>> $matches */
     private function reviewedGreePhysicalCategory(Product $product, $matches): ?array
     {
-        $path = base_path(self::REVIEWED_GREE_PHYSICAL_SECTIONS);
+        $path = config('catalog_evidence.gree_sections_path');
         if (! is_file($path)) {
             throw new RuntimeException('Reviewed Gree physical-category evidence ledger is missing.');
         }

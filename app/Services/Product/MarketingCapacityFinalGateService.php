@@ -73,7 +73,7 @@ final class MarketingCapacityFinalGateService
         $eligibleRows = collect($rows)->where('filter_eligibility', 'ELIGIBLE');
         $knownNotEligible = collect($rows)->where('filter_eligibility', 'NOT_ELIGIBLE')->count();
         $unresolved = collect($rows)->where('filter_eligibility', 'UNRESOLVED_FAIL_CLOSED')->count();
-        $sourceCoverage = json_decode(file_get_contents(storage_path('app/private/reports/marketing_capacity_pdf_source_coverage.json')), true, 512, JSON_THROW_ON_ERROR);
+        $sourceCoverage = json_decode(file_get_contents(config('catalog_evidence.coverage_path')), true, 512, JSON_THROW_ON_ERROR);
 
         $payload = [
             'generated_at' => now()->toIso8601String(),

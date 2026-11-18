@@ -16,6 +16,11 @@ abstract class TestCase extends BaseTestCase
     {
         parent::setUp();
 
+        // Factory products belong to an isolated database. An operator's PDF
+        // coverage ledger is keyed by that operator's own database IDs.
+        config()->set('catalog_evidence.coverage_path', base_path('tests/Fixtures/catalog/empty_coverage.json'));
+        config()->set('catalog_evidence.gree_sections_path', base_path('tests/Fixtures/catalog/empty_sections.json'));
+
         $scope = 'phpunit-'.Str::uuid();
         $this->baseWorkerDesiredStatePath = storage_path("framework/testing/{$scope}-desired.json");
         $this->baseManagedWorkerStateDirectory = storage_path("framework/testing/{$scope}-managed");
