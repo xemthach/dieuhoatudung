@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.33.13] - 2026-11-21
+
+### Fixed
+- Updated the fresh-install deployment instructions to check out the current release tag.
+
+### Deployment
+- No production deployment is included.
+
 ## [1.33.12] - 2026-11-20
 
 ### Added
