@@ -16,7 +16,7 @@ class PublicNavigationResolverTest extends TestCase
     {
         $items = app(PublicNavigationResolver::class)->items('header_primary');
 
-        $this->assertSame(['Trang chủ','Sản phẩm','Bảng giá','Blog','FAQ','Liên hệ'], array_column($items, 'label'));
+        $this->assertSame(['Trang chủ','Sản phẩm','Bảng giá','Blog','Đại lý','FAQ','Liên hệ'], array_column($items, 'label'));
         $this->assertSame(route('products.index'), $items[1]['url']);
     }
 

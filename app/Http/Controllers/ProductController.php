@@ -20,6 +20,7 @@ class ProductController extends Controller
         $query = Product::with(['brand', 'category'])
             ->where('is_active', true);
             
+        $capacityCounts = $filterService->capacityCounts($query);
         $query = $filterService->apply($query, $request);
         
         $products = $query->paginate($perPage)->withQueryString();
@@ -38,9 +39,10 @@ class ProductController extends Controller
             ->orderBy('name')
             ->get();
 
-        $hasActiveFilters = $filterService->hasActiveFilters($request);
+        $filters = $filterService->sanitize($request);
+        $hasActiveFilters = $filters !== [];
 
-        return view('products.index', compact('products', 'categories', 'brands', 'hasActiveFilters'));
+        return view('products.index', compact('products', 'categories', 'brands', 'hasActiveFilters', 'filters', 'capacityCounts'));
     }
 
     /**
@@ -59,6 +61,7 @@ class ProductController extends Controller
             ->where('product_category_id', $category->id)
             ->where('is_active', true);
 
+        $capacityCounts = $filterService->capacityCounts($query);
         $query = $filterService->apply($query, $request);
         
         $products = $query->paginate($perPage)->withQueryString();
@@ -77,9 +80,10 @@ class ProductController extends Controller
             ->orderBy('name')
             ->get();
 
-        $hasActiveFilters = $filterService->hasActiveFilters($request);
+        $filters = $filterService->sanitize($request);
+        $hasActiveFilters = $filters !== [];
 
-        return view('products.category', compact('category', 'products', 'categories', 'brands', 'hasActiveFilters'));
+        return view('products.category', compact('category', 'products', 'categories', 'brands', 'hasActiveFilters', 'filters', 'capacityCounts'));
     }
 
     /**

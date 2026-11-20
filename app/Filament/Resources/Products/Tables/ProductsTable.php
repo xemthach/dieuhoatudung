@@ -647,41 +647,7 @@ class ProductsTable
                         })
                         ->deselectRecordsAfterCompletion(),
 
-                    // Thuộc tính kỹ thuật
-                    BulkAction::make('bulk_tech_attributes')
-                        ->label('Cập nhật thông số cơ bản')
-                        ->icon('heroicon-o-cog')
-                        ->form([
-                            Select::make('inverter')->label('Inverter')->options(['no_change' => 'Không đổi', '1' => 'Có', '0' => 'Không'])->default('no_change'),
-                            Select::make('cooling_type')->label('Kiểu làm lạnh')->options(['no_change' => 'Không đổi', '1 chiều' => '1 chiều', '2 chiều' => '2 chiều'])->default('no_change'),
-                            TextInput::make('voltage')->label('Điện áp'),
-                            TextInput::make('refrigerant_gas')->label('Loại Gas'),
-                        ])
-                        ->action(function (Collection $records, array $data) {
-                            abort_unless(auth()->user()?->can('product.edit'), 403);
-
-                            DB::transaction(function () use ($records, $data) {
-                                foreach ($records as $record) {
-                                    $updates = [];
-                                    if ($data['inverter'] !== 'no_change') {
-                                        $updates['inverter'] = (bool) $data['inverter'];
-                                    }
-                                    if ($data['cooling_type'] !== 'no_change') {
-                                        $updates['cooling_type'] = $data['cooling_type'];
-                                    }
-                                    if (! empty($data['voltage'])) {
-                                        $updates['voltage'] = $data['voltage'];
-                                    }
-                                    if (! empty($data['refrigerant_gas'])) {
-                                        $updates['refrigerant_gas'] = $data['refrigerant_gas'];
-                                    }
-                                    if (! empty($updates)) {
-                                        $record->update($updates);
-                                    }
-                                }
-                            });
-                        })
-                        ->deselectRecordsAfterCompletion(),
+                    ProductBulkTechnicalAction::make(),
 
                     // Tag
                     BulkActionGroup::make([

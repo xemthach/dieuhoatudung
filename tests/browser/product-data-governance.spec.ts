@@ -13,7 +13,7 @@ test.describe.serial('Product taxonomy and marketing-capacity governance', () =>
     test.beforeAll(() => { fixture = fixtureCommand('setup'); });
     test.afterAll(() => { fixtureCommand('cleanup'); });
 
-    test('approves exact ledgers through Admin and keeps public filtering fail-closed', async ({ page }) => {
+    test('approves exact ledgers through Admin and filters by explicit rated capacity', async ({ page }) => {
         test.setTimeout(90_000);
         page.on('console', message => { if (message.type() === 'error') runtimeErrors.push(`console:${message.text()}`); });
         page.on('pageerror', error => runtimeErrors.push(`pageerror:${error.message}`));
@@ -45,8 +45,8 @@ test.describe.serial('Product taxonomy and marketing-capacity governance', () =>
 
         await page.goto('/san-pham?btu[]=18000');
         await expect(page.locator(`#product-card-${fixture.verified_id}`)).toBeVisible();
-        await expect(page.locator(`#product-card-${fixture.unverified_id}`)).toHaveCount(0);
-        await expect(page.locator(`#product-card-${fixture.unresolved_id}`)).toHaveCount(0);
+        await expect(page.locator(`#product-card-${fixture.unverified_id}`)).toBeVisible();
+        await expect(page.locator(`#product-card-${fixture.unresolved_id}`)).toBeVisible();
         await expect(page.locator(`#product-card-${fixture.vrf_id}`)).toHaveCount(0);
         await expect(page.getByText(/18\.000 BTU/).first()).toBeVisible();
 

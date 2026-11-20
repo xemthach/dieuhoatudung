@@ -177,23 +177,22 @@ class ProductForm
                                             ->content(fn (Get $get): string => self::technicalSchemaNotice($get('product_category_id')))
                                             ->columnSpanFull(),
 
-                                        Repeater::make('specs_json')->disabled()
-                                            ->label('Thông số kỹ thuật mở rộng')
-                                            ->helperText('Chỉ thêm thông số KHÔNG có field chuẩn ở trên.')
+                                        Repeater::make('specs_json')
+                                            ->label('Thông số kỹ thuật đã lưu')
                                             ->schema([
-                                                TextInput::make('key')
-                                                    ->label('Tên thông số')
-                                                    ->required()
-                                                    ->datalist(fn (Get $get): array => self::schemaFieldKeys($get('product_category_id')))
-                                                    ->hint(fn ($state) => $state ? ProductSpecLabel::label($state) : '')
-                                                    ->live(debounce: 500),
-                                                TextInput::make('value')->label('Giá trị')->required(),
+                                                TextInput::make('key')->label('Tên thông số'),
+                                                TextInput::make('value')->label('Giá trị'),
                                             ])
-                                            ->columns(2)
-                                            ->itemLabel(fn (array $state): ?string => isset($state['key']) ? ProductSpecLabel::label($state['key']).': '.($state['value'] ?? '') : null)
-                                            ->collapsed()
-                                            ->defaultItems(0)
-                                            ->disabled(fn (Get $get): bool => ! self::categoryHasTechnicalSchema($get('product_category_id'))),
+                                            ->columns(2)->collapsed()->disabled()->dehydrated(false),
+                                        Repeater::make('manual_extended_specs')
+                                            ->addActionLabel('Thêm thông số mở rộng')
+                                            ->label('Thông số kỹ thuật mở rộng')
+                                            ->helperText('Chỉ thêm thông số công khai chưa có trường chuẩn ở trên.')
+                                            ->schema([
+                                                TextInput::make('key')->label('Tên thông số')->required()->maxLength(120),
+                                                TextInput::make('value')->label('Giá trị')->required()->maxLength(1000),
+                                            ])
+                                            ->columns(2)->defaultItems(0),
                                     ]),
 
                                 Tabs\Tab::make('Nội dung')

@@ -15,6 +15,32 @@ class ProductTechnicalEditContractTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_manual_extension_round_trip_keeps_source_rows_private_flags_and_searchable_public_value(): void
+    {
+        $writer = app(ProductTechnicalSpecWriter::class);
+        $stored = [
+            ['key' => 'liquid_pipe_mm', 'value' => '6.4', 'source_section' => 'TECHNICAL_APPENDIX', 'source_page' => '3'],
+            ['key' => 'note', 'value' => 'private-fixture', 'source_section' => 'MANUAL_EXTENDED', 'private' => true],
+        ];
+        $specs = $writer->mergeManualRows($stored, [['key' => 'tính năng', 'value' => 'streamer']]);
+        $this->assertSame($stored, array_slice($specs, 0, 2));
+        $product = Product::factory()->create(['is_active' => true, 'specs_json' => $specs]);
+        $this->assertSame('streamer', $writer->manualRows($product->fresh()->specs_json)[0]['value']);
+        $this->get(route('product.show', $product->slug))->assertOk()
+            ->assertSee('Tính năng')->assertSee('streamer')->assertSee('6.4')->assertDontSee('private-fixture');
+        $this->assertSame([$product->id], app(\App\Services\Search\ProductSearchService::class)
+            ->search('streamer')->pluck('id')->all());
+        $this->assertSame($stored, $writer->mergeManualRows($specs, []));
+        $pipe = $writer->mergeManualRows([], [['key' => 'Gas Pipe (mm)', 'value' => '9.5']], ['gas_pipe_mm' => 'pipe_size_gas']);
+        $this->assertSame('9.5', $pipe[0]['value']);
+    }
+
+    public function test_manual_name_cannot_duplicate_a_standard_field(): void
+    {
+        $this->expectException(ValidationException::class);
+        app(ProductTechnicalSpecWriter::class)->mergeManualRows([], [['key' => 'Công suất kW', 'value' => '4']]);
+    }
+
     public function test_technical_btu_is_canonical_and_not_the_legacy_btu_column(): void
     {
         $product = Product::factory()->create([

@@ -7,10 +7,13 @@ use App\Models\Brand;
 use App\Models\Faq;
 use App\Models\Post;
 use App\Models\Product;
+use App\Services\Dealer\DealerDirectoryService;
+use App\Services\Dealer\DealerHomepageService;
+use Illuminate\Http\Request;
 
 class PageController extends Controller
 {
-    public function home()
+    public function home(Request $request, DealerDirectoryService $directory, DealerHomepageService $dealerHomepage)
     {
         $featuredProducts = Product::with('brand')
             ->where('is_active', true)
@@ -47,11 +50,35 @@ class PageController extends Controller
             ->take(6)
             ->get();
 
+        $homepageDealerState = $dealerHomepage->resolve($request->all(), $directory);
+        $homepageDealersEnabled = $dealerHomepage->enabled();
+        $homepageDealers = $homepageDealerState['dealers'];
+        $homepageDealerFilters = $homepageDealerState['filters'];
+        $homepageDealerMode = $homepageDealerState['mode'];
+        $homepageDealerCardOptions = $dealerHomepage->cardOptions();
+        $homepageSectionOrder = $dealerHomepage->sectionOrder();
+        $homepageDealerGeolocation = (bool) setting('display.homepage_dealers_geolocation', true);
+        $homepageDealerTitle = (string) setting('display.homepage_dealers_title', 'Đại lý gần bạn');
+        $homepageDealerSubtitle = (string) setting('display.homepage_dealers_subtitle', 'Tìm đại lý và đơn vị dịch vụ gần khu vực của bạn.');
+        $homepageDealerLimit = $dealerHomepage->limit();
+        $homepageDealerRadius = (int) setting('display.homepage_dealers_radius_km', 20);
+
         return view('pages.home', compact(
             'featuredProducts',
             'brands',
             'latestPosts',
-            'faqs'
+            'faqs',
+            'homepageDealersEnabled',
+            'homepageDealers',
+            'homepageDealerFilters',
+            'homepageDealerMode',
+            'homepageDealerCardOptions',
+            'homepageSectionOrder',
+            'homepageDealerGeolocation',
+            'homepageDealerTitle',
+            'homepageDealerSubtitle',
+            'homepageDealerLimit',
+            'homepageDealerRadius'
         ));
     }
 

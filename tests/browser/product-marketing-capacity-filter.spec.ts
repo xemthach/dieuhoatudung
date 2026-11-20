@@ -35,10 +35,33 @@ test('23 invalid Brand', async ({ page }) => { await page.goto('/san-pham?brand[
 test('24 invalid BTU', async ({ page }) => visible(page, '/san-pham?brand[]=filter-test-brand&btu[]=invalid', [9001,9002,9003]));
 test('25 mobile drawer', async ({ page }) => { await page.setViewportSize({width:390,height:844}); await page.goto('/san-pham'); await page.getByRole('button',{name:'Lọc'}).click(); await expect(page.getByRole('dialog',{name:'Bộ lọc sản phẩm'})).toBeVisible(); await page.keyboard.press('Escape'); await expect(page.getByRole('dialog',{name:'Bộ lọc sản phẩm'})).toBeHidden(); });
 test('26 VRF exclusion', async ({ page }) => hidden(page, '/san-pham?btu[]=18000', [9004]));
-test('27 unresolved exclusion', async ({ page }) => hidden(page, '/san-pham?btu[]=18000', [9005]));
-test('28 unverified exclusion', async ({ page }) => hidden(page, '/san-pham?btu[]=18000', [9006]));
+test('27 rated capacity with unresolved marketing taxonomy', async ({ page }) => visible(page, '/san-pham?btu[]=18000', [9005]));
+test('28 rated capacity without commercial approval', async ({ page }) => visible(page, '/san-pham?btu[]=18000', [9006]));
 test('29 exact SKU survives more than 200 broad candidates', async ({ page }) => {
     await page.goto('/tim-kiem?q=BROWSER-EXACT-NEEDLE');
     await expect(page.locator('#product-card-9405')).toBeVisible();
     await expect(page.locator('[id^=product-card-]').first()).toHaveAttribute('id', 'product-card-9405');
+});
+
+test('30 inclusive 12k and combined filters through the listing form', async ({ page }) => {
+    await page.goto('/san-pham');
+    const form = page.locator('aside form');
+    await form.locator('[name="btu[]"][value="9000-12000"]').check();
+    await form.locator('[name="brand[]"][value="filter-other-brand"]').check();
+    await form.locator('[name=inverter][value="1"]').check();
+    await form.locator('[name=cooling_type][value="2_chieu"]').check();
+    await form.locator('[name=price_max]').fill('20000000');
+    await form.getByRole('button', { name: 'Áp dụng bộ lọc' }).click();
+    await expect(page.locator('[id^=product-card-]')).toHaveCount(1);
+    await expect(page.locator('#product-card-9050')).toBeVisible();
+});
+
+test('31 empty or invalid inputs produce only effective chips', async ({ page }) => {
+    for (const inverter of ['', 'abc']) {
+        await page.goto('/san-pham?btu[]=9000-12000&inverter=' + inverter + '&cooling_type=&price_min=&price_max=');
+        const chips = page.getByLabel('Bộ lọc đang áp dụng');
+        await expect(chips.getByRole('link', { name: /×/ })).toHaveCount(1);
+        await expect(chips.getByRole('link', { name: /9.000 - 12.000 BTU/ })).toBeVisible();
+        await expect(page.locator('#product-card-9050')).toBeVisible();
+    }
 });

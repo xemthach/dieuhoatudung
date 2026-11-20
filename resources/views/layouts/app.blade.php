@@ -66,6 +66,9 @@
 
     {{-- Vite Assets --}}
     @vite(['resources/css/app.css', 'resources/js/app.js'])
+    @if(request()->routeIs('dealers.*') || (request()->routeIs('home') && setting('display.homepage_dealers_enabled', false)))
+        @vite('resources/js/dealers.js')
+    @endif
 
     {{-- Google Tag Manager --}}
     @if(setting('tracking.google_tag_manager_id'))

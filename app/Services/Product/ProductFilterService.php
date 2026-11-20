@@ -37,7 +37,6 @@ class ProductFilterService
     }
 
     public function __construct(
-        private readonly ProductMarketingCapacityQueryAdapter $capacityQuery,
         private readonly ProductMarketingCapacityEligibility $capacityEligibility,
         private readonly ProductEffectivePriceQuery $effectivePriceQuery,
     ) {}
@@ -86,23 +85,9 @@ class ProductFilterService
         }
 
         if (!empty($filters['btu'])) {
-            // The public BTU buckets use one stable physical-DX category-slug eligibility
-            // contract. Merchant product_type strings and translated category
-            // display names are not filter-governance inputs.
-            $this->capacityEligibility->apply($query);
+            $this->ratedProducts($query);
 
-            $query->where(function ($q) use ($filters) {
-                foreach ($filters['btu'] as $btu) {
-                    if (str_contains($btu, '-')) {
-                        [$min, $max] = explode('-', $btu, 2);
-                        if (is_numeric($min) && is_numeric($max)) {
-                            $q->orWhereBetween($this->capacityQuery->column(), [(int) $min, (int) $max]);
-                        }
-                    } else if (is_numeric($btu)) {
-                        $q->orWhere($this->capacityQuery->column(), (int) $btu);
-                    }
-                }
-            });
+            $this->applyCapacityBuckets($query, $filters['btu']);
         }
 
         if (isset($filters['inverter'])) {
@@ -151,6 +136,61 @@ class ProductFilterService
         return $query;
     }
 
+    /** Physical DX systems with a directly recorded rated capacity. */
+    private function ratedProducts(Builder $query): Builder
+    {
+        return $query->where('products.is_active', true)
+            ->where('technical_capacity_btu', '>', 0)
+            ->whereHas('category', fn (Builder $category) => $category->whereIn('slug', $this->capacityEligibility->eligibleCategorySlugs()))
+            ->where(function (Builder $type) {
+                $type->whereNull('product_type')->orWhere(function (Builder $simple) {
+                    $simple->where('product_type', 'not like', '%VRF%')->where('product_type', 'not like', '%GMV%');
+                });
+            })
+            ->where(function (Builder $series) {
+                $series->whereNull('series')->orWhere(function (Builder $simple) {
+                    $simple->where('series', 'not like', 'GMV%')->where('series', 'not like', 'VRF%');
+                });
+            });
+    }
+
+    /** Existing URLs retain the historical key for the open-ended last bucket. */
+    private function bounds(string $bucket): array
+    {
+        return match ($bucket) {
+            '9000-12000' => [9000, 12000],
+            '50000-100000' => [50000, null],
+            default => [(int) $bucket, (int) $bucket],
+        };
+    }
+
+    public function capacityCounts(Builder $catalogue): array
+    {
+        $query = $this->ratedProducts(clone $catalogue);
+        $keys = array_keys(self::CAPACITY_FILTER_OPTIONS);
+        foreach ($keys as $index => $bucket) {
+            [$min, $max] = $this->bounds((string) $bucket);
+            $condition = $max === null ? '>= ?' : 'between ? and ?';
+            $query->selectRaw("count(case when technical_capacity_btu {$condition} then 1 end) as bucket_{$index}",
+                $max === null ? [$min] : [$min, $max]);
+        }
+        return array_combine($keys, array_map('intval', array_values((array) $query->toBase()->first())));
+    }
+
+    private function applyCapacityBuckets(Builder $query, array $buckets): Builder
+    {
+        return $query->where(function (Builder $group) use ($buckets): void {
+            foreach ($buckets as $bucket) {
+                [$min, $max] = $this->bounds((string) $bucket);
+                if ($max === null) {
+                    $group->orWhere('technical_capacity_btu', '>=', $min);
+                } else {
+                    $group->orWhereBetween('technical_capacity_btu', [$min, $max]);
+                }
+            }
+        });
+    }
+
     /** Apply the canonical public Product ordering contract. */
     public function applySort(Builder $query, ?string $sort): Builder
     {
@@ -165,12 +205,11 @@ class ProductFilterService
                 $query->orderBy('products.id', 'desc');
                 break;
             case 'btu_asc':
-                $this->capacityEligibility->applyGovernedOrder($query, 'asc')
-                    ->orderBy('products.id', 'asc');
-                break;
             case 'btu_desc':
-                $this->capacityEligibility->applyGovernedOrder($query, 'desc')
-                    ->orderBy('products.id', 'desc');
+                $eligible = $this->ratedProducts(Product::query())->select('products.id')->toBase();
+                $query->orderByRaw('case when products.id in ('.$eligible->toSql().') then 0 else 1 end', $eligible->getBindings())
+                    ->orderBy('technical_capacity_btu', $sort === 'btu_desc' ? 'desc' : 'asc')
+                    ->orderBy('products.id', $sort === 'btu_desc' ? 'desc' : 'asc');
                 break;
             case 'latest':
             default:
@@ -189,7 +228,7 @@ class ProductFilterService
     /**
      * Sanitize inputs against the whitelist to prevent injection.
      */
-    protected function sanitize(Request $request): array
+    public function sanitize(Request $request): array
     {
         $sanitized = [];
 

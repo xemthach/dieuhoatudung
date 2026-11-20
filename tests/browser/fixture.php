@@ -63,6 +63,7 @@ if ($mode === 'snapshot') {
         'job_payload' => AiContentJob::find($state['ai_job_id'])?->input_payload,
         'preview_events' => DB::table('site_campaign_events')->where('site_campaign_id', $state['preview_campaign_id'])->count(),
         'promotion' => $promotion?->only(['id', 'description', 'content', 'discount_type', 'discount_value', 'start_at', 'end_at', 'scope']),
+        'navigation' => json_decode((string) SiteSetting::query()->where('group', 'navigation')->where('key', 'header_primary')->value('value'), true),
     ], JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
     exit(0);
 }

@@ -3,6 +3,7 @@
 namespace App\Services\Product;
 
 use App\Models\Product;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use InvalidArgumentException;
 
@@ -130,6 +131,9 @@ class ProductTechnicalSpecWriter
             }
 
             $changes[$field] = $normalized;
+            if ($field === 'technical_capacity_btu') {
+                $changes['technical_capacity_status'] = 'manual_override';
+            }
         }
 
         if ($changes === []) return [];
@@ -142,6 +146,111 @@ class ProductTechnicalSpecWriter
             'technical_specs_override_reason' => trim((string) $reason),
             'technical_specs_overridden_at' => now(),
         ];
+    }
+
+    public function scopedManualAttributes(Product $product, array $specs, array $values): array
+    {
+        $existing = collect($specs)->firstWhere('key', 'admin_override_fields');
+        $scope = $existing['value'] ?? [];
+        if (! $existing && $product->technical_specs_source === 'manual_override') {
+            $scope = ['capacity_kw','power_input_kw','hp','inverter','cooling_type','voltage','refrigerant_gas',
+                'airflow','noise_level','indoor_dimensions','outdoor_dimensions','weight','recommended_area'];
+        }
+        $fields = [];
+        foreach ($values as $field => $value) {
+            $key = $field === 'power_consumption' ? 'power_input_kw' : $field;
+            $fields[] = $key;
+            $specs = $this->withManualSpecOverride($specs, $key, $this->normalizeManualValue($field, $value));
+        }
+        $specs = array_filter($specs, static fn ($row) =>
+            ! is_array($row) || ($row['key'] ?? '') !== 'admin_override_fields');
+        $specs[] = ['key' => 'admin_override_fields', 'value' => array_values(array_unique([...$scope, ...$fields])),
+            'source_section' => 'MANUAL_OVERRIDE', 'admin_only' => true, 'source_native' => false];
+        return $specs;
+    }
+
+    /** Explicit clears mask source facts while retaining the original evidence rows. */
+    public function manualClearAttributes(Product $product, array $specs, array $fields, string $reason): array
+    {
+        foreach ($fields as $field) {
+            $key = $field === 'power_consumption' ? 'power_input_kw' : $field;
+            $specs = $this->withManualSpecOverride($specs, $key, null);
+        }
+        return [
+            'specs_json' => $specs, 'technical_specs_source' => 'manual_override',
+            'technical_specs_override_reason' => $reason, 'technical_specs_overridden_at' => now(),
+        ];
+    }
+
+    /** Only extension values can be public. Source and audit metadata stay in the stored row. */
+    public static function publicExtraAllowed(string $key, array $row): bool
+    {
+        $key = Str::slug($key, '_');
+        $standard = [
+            'btu', 'capacity_btu', 'technical_capacity_btu', 'marketing_capacity_btu', 'cong_suat_btu',
+            'capacity_kw', 'kw', 'cong_suat_kw', 'cong_suat_dinh_muc', 'hp', 'ma_luc', 'ma_luc_hp',
+            'inverter', 'cooling_type', 'kieu_lam_lanh', 'voltage', 'dien_ap', 'phase', 'technical_phase',
+            'frequency', 'technical_frequency', 'gas', 'refrigerant', 'refrigerant_gas', 'loai_gas',
+            'power_consumption', 'power_input_kw', 'airflow', 'noise_level', 'recommended_area',
+            'indoor_dimensions', 'outdoor_dimensions', 'weight', 'remote_model', 'panel_model',
+        ];
+
+        return ! in_array($key, $standard, true) && self::isPublicSpec($key, $row);
+    }
+
+    public static function isPublicSpec(string $key, array $row): bool
+    {
+        return $key !== '' && ! preg_match('/(^|_)(private|internal|admin|cost|supplier|source|audit|token|digest|evidence|verification|secret|password|wholesale)(_|$)/', $key)
+            && ! ($row['private'] ?? false) && ! ($row['is_private'] ?? false) && ! ($row['admin_only'] ?? false)
+            && filter_var($row['visible_frontend'] ?? true, FILTER_VALIDATE_BOOLEAN)
+            && in_array($row['visibility'] ?? 'public', ['public', 'frontend'], true);
+    }
+
+    private static function editableManualRow(mixed $row): bool
+    {
+        if (! is_array($row) || ! self::publicExtraAllowed((string) ($row['key'] ?? ''), $row)) {
+            return false;
+        }
+        $legacy = array_diff(array_keys($row), ['key', 'value', 'unit', 'source_native']) === []
+            && ! ($row['source_native'] ?? false);
+        return ($row['source_section'] ?? '') === 'MANUAL_EXTENDED' || $legacy;
+    }
+
+    public function manualRows(array $specs): array
+    {
+        return array_values(array_filter($specs, self::editableManualRow(...)));
+    }
+
+    public function mergeManualRows(array $stored, array $submitted, array $schemaAliases = []): array
+    {
+        $kept = [];
+        $used = [];
+        foreach ($stored as $key => $row) {
+            if (self::editableManualRow($row)) {
+                continue;
+            }
+            $name = is_array($row) ? ($row['key'] ?? $key) : $key;
+            $normalized = Str::slug((string) $name, '_');
+            $used[$schemaAliases[$normalized] ?? $normalized] = true;
+            // Preserve legacy associative JSON and source-native evidence verbatim.
+            if (is_string($key)) {
+                $kept[$key] = $row;
+            } else {
+                $kept[] = $row;
+            }
+        }
+        foreach ($submitted as $index => $row) {
+            $name = trim((string) ($row['key'] ?? ''));
+            $value = trim((string) ($row['value'] ?? ''));
+            $key = Str::slug($name, '_');
+            $key = $schemaAliases[$key] ?? $key;
+            if (! self::publicExtraAllowed($key, []) || isset($used[$key]) || $value === '') {
+                throw ValidationException::withMessages(["data.manual_extended_specs.{$index}.key" => 'Nhập thông số công khai, có giá trị và không trùng trường chuẩn hoặc thông số đã lưu.']);
+            }
+            $used[$key] = true;
+            $kept[] = ['key' => $name, 'value' => $value, 'source_section' => 'MANUAL_EXTENDED', 'source_native' => false];
+        }
+        return $kept;
     }
 
     private function schemaUnit(Product $product, string $fieldKey): string
@@ -207,14 +316,18 @@ class ProductTechnicalSpecWriter
     private function withManualSpecOverride(array $specs, string $field, mixed $value): array
     {
         $result = [];
-        foreach ($specs as $item) {
+        foreach ($specs as $index => $item) {
             if (is_array($item)
                 && ($item['key'] ?? null) === $field
                 && ($item['source_section'] ?? null) === 'MANUAL_OVERRIDE') {
                 continue;
             }
 
-            $result[] = $item;
+            if (is_string($index)) {
+                $result[$index] = $item;
+            } else {
+                $result[] = $item;
+            }
         }
 
         $result[] = [

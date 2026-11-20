@@ -54,7 +54,7 @@ test.describe.serial('Product technical edit and BTU hydration', () => {
         // Let Livewire consolidate all input updates before the audited save.
         await page.waitForTimeout(750);
         await page.getByRole('button', { name: /Lưu thay đổi/i }).click();
-        await page.waitForTimeout(2_500);
+        await expect.poll(() => fixtureCommand('snapshot').technical_capacity_btu, {timeout: 20_000}).toBe(12400);
 
         const snapshot = fixtureCommand('snapshot');
         expect(snapshot.technical_capacity_btu).toBe(12400);
@@ -89,5 +89,47 @@ test.describe.serial('Product technical edit and BTU hydration', () => {
         await expect(page.getByRole('heading', { name: 'Cấu hình bộ máy', exact: true })).toHaveCount(0);
         await expect(page.getByText('ARC486A33', { exact: true })).toHaveCount(0);
         expect(runtimeErrors, runtimeErrors.join('\n')).toEqual([]);
+    });
+    test('persists a manual extension and finds the rated Daikin by its displayed specifications', async ({ page }) => {
+        const errors: string[] = [];
+        page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
+        page.on('pageerror', e => errors.push(e.message));
+        page.on('requestfailed', r => errors.push(r.url()));
+        page.on('response', r => { if (r.status() >= 500 || (r.url().includes('livewire') && r.status() >= 400)) errors.push(String(r.status())); });
+        await page.goto('/admin/login');
+        await page.locator('[id="form.email"]').fill(fixture.email);
+        await page.locator('[id="form.password"]').fill(fixture.password);
+        await page.locator('button[type="submit"]').click();
+        await expect(page).toHaveURL(/\/admin\/?$/);
+        await page.goto('/admin/products/' + fixture.wall_product_id + '/edit');
+        await page.getByText('Thông số kỹ thuật', { exact: true }).click();
+        await page.locator('[id="form.technical_capacity_btu"]').fill('11900');
+        await page.locator('[id="form.capacity_kw"]').fill('3.5');
+        await page.locator('[id="form.hp"]').fill('1.5');
+        await page.locator('[id="form.technical_specs_override_reason"]').fill('Kiểm tra công suất trên DB cô lập');
+        await page.getByRole('button', { name: 'Thêm thông số mở rộng' }).click();
+        const name = page.locator('input[id*="manual_extended_specs"][id$=".key"]');
+        const value = page.locator('input[id*="manual_extended_specs"][id$=".value"]');
+        await name.fill('tính năng');
+        await value.fill('streamer');
+        await page.getByRole('button', {name: /Lưu thay đổi/i}).click();
+        await expect.poll(() => fixtureCommand('snapshot').wall_feature).toBe('streamer');
+        await page.reload();
+        await page.getByText('Thông số kỹ thuật', {exact:true}).click();
+        await expect(value).toHaveValue('streamer');
+        await page.goto('/san-pham');
+        const form = page.locator('aside form');
+        await form.locator('[name="brand[]"][value=daikin]').check();
+        await form.locator('[name="btu[]"][value="9000-12000"]').check();
+        await form.locator('[name=inverter][value="1"]').check();
+        await form.locator('[name=cooling_type][value="1_chieu"]').check();
+        await form.getByRole('button', {name: 'Áp dụng bộ lọc'}).click();
+        const card = page.locator('#product-card-' + fixture.wall_product_id);
+        for (const text of ['11.900 BTU', '3,5 kW', '1.5 HP']) await expect(card.getByText(text, {exact:true})).toBeVisible();
+        await card.getByRole('link').first().click();
+        await page.getByRole('button', {name:'Thông số kỹ thuật', exact:true}).click();
+        await expect(page.getByRole('row', {name:/Tính năng streamer/i})).toBeVisible();
+        for (const text of ['11.900 BTU', '3,5 kW', '1.5 HP']) await expect(page.locator('table:visible').getByText(text, {exact:true}).first()).toBeVisible();
+        expect(errors).toEqual([]);
     });
 });

@@ -13,7 +13,7 @@ class BtuSortGovernanceTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_btu_sort_puts_verified_eligible_products_first_and_invalid_states_last(): void
+    public function test_btu_sort_orders_rated_capacity_and_keeps_vrf_and_missing_values_last(): void
     {
         $eligibleCategory = ProductCategory::factory()->create([
             'slug' => 'dieu-hoa-treo-tuong',
@@ -41,8 +41,8 @@ class BtuSortGovernanceTest extends TestCase
         $asc = $this->sortedIds('btu_asc');
         $desc = $this->sortedIds('btu_desc');
 
-        $this->assertSame([$verified12000->id, $verified18000->id], array_slice($asc, 0, 2));
-        $this->assertSame([$verified18000->id, $verified12000->id], array_slice($desc, 0, 2));
+        $this->assertSame([$unverified9000->id, $verified12000->id, $unresolved12000->id, $verified18000->id], array_slice($asc, 0, 4));
+        $this->assertSame([$verified18000->id, $unresolved12000->id, $verified12000->id, $unverified9000->id], array_slice($desc, 0, 4));
         $this->assertEqualsCanonicalizing($allIds, $asc);
         $this->assertEqualsCanonicalizing($allIds, $desc);
         $this->assertSame($asc, $this->sortedIds('btu_asc'));
@@ -58,7 +58,7 @@ class BtuSortGovernanceTest extends TestCase
         return Product::factory()->create([
             'product_category_id' => $categoryId,
             'is_active' => true,
-            'marketing_capacity_btu' => $capacity,
+            'technical_capacity_btu' => $capacity,
             'taxonomy_status' => $taxonomyStatus,
             'marketing_capacity_status' => $capacityStatus,
         ]);

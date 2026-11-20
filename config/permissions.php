@@ -12,6 +12,15 @@
  */
 
 return [
+    'dealer' => ['label'=>'Đại lý','icon'=>'heroicon-o-building-storefront','permissions'=>[
+        'view'=>'Xem đại lý','create'=>'Thêm đại lý','edit'=>'Sửa đại lý','delete'=>'Xóa đại lý',
+    ]],
+    'dealer_service' => ['label'=>'Dịch vụ đại lý','icon'=>'heroicon-o-wrench-screwdriver','permissions'=>[
+        'view'=>'Xem dịch vụ','create'=>'Thêm dịch vụ','edit'=>'Sửa dịch vụ','delete'=>'Xóa dịch vụ',
+    ]],
+    'location' => ['label'=>'Địa giới','icon'=>'heroicon-o-map','permissions'=>['view'=>'Xem địa giới','edit'=>'Sửa nội dung khu vực']],
+    'dealer_review' => ['label'=>'Đánh giá đại lý','icon'=>'heroicon-o-star','permissions'=>['view'=>'Xem đánh giá','moderate'=>'Duyệt đánh giá']],
+
 
     // ── Dashboard ──────────────────────────────────────────────────────
     'dashboard' => [

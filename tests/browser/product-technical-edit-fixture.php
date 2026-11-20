@@ -42,6 +42,7 @@ if ($mode === 'snapshot') {
         'source' => $product->technical_specs_source,
         'reason' => $product->technical_specs_override_reason,
         'overridden_at' => $product->technical_specs_overridden_at?->toIso8601String(),
+        'wall_feature' => collect(Product::findOrFail($state['wall_product_id'])->specs_json)->firstWhere('key', 'tính năng')['value'] ?? null,
         'spec_capacity_kw' => collect($product->specs_json)->firstWhere('key', 'capacity_kw')['value'] ?? null,
     ], JSON_THROW_ON_ERROR);
     exit;
@@ -111,6 +112,10 @@ $threePhaseProduct = Product::factory()->create([
 ]);
 $wallProduct = Product::factory()->create([
     'name' => 'Wall mounted RAC browser fixture',
+    'brand_id' => \App\Models\Brand::firstOrCreate(['slug' => 'daikin'], ['name' => 'Daikin', 'is_active' => true])->id,
+    'product_category_id' => ProductCategory::where('slug', 'dieu-hoa-treo-tuong')->firstOrFail()->id,
+    'technical_capacity_btu' => 11000, 'capacity_kw' => 3, 'hp' => 1,
+    'inverter' => true, 'cooling_type' => '1_chieu', 'marketing_capacity_btu' => null,
     'is_active' => true,
     'model_code' => 'FTKB35XVMV/RKB35XVMV',
     'specs_json' => [

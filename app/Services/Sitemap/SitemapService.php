@@ -47,6 +47,8 @@ class SitemapService
                 ];
             }
 
+            $sitemaps[] = ['loc' => $baseUrl . '/sitemap-dealers.xml'];
+
             // Brands sitemap
             $sitemaps[] = [
                 'loc'     => $baseUrl . '/sitemap-brands.xml',

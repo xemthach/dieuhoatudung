@@ -302,6 +302,92 @@ class CategoryTechnicalSchemaService
         return $rows;
     }
 
+    /** Merge category visibility, current standard fields and public extension rows once. */
+    public function publicSpecificationRows(Product $product): array
+    {
+        $category = $product->category;
+        $aliases = $category ? $this->aliasMap($category) : [];
+        $hidden = [];
+        foreach ($category ? $this->fieldsFor($category) : [] as $definition) {
+            if (! $definition['visible_frontend']) {
+                $hidden[$definition['key']] = true;
+            }
+        }
+        foreach ((array) $product->specs_json as $index => $item) {
+            $key = $this->normalizeAlias((string) (is_array($item) ? ($item['key'] ?? $index) : $index));
+            if (! \App\Services\Product\ProductTechnicalSpecWriter::isPublicSpec($key, (array) $item)) {
+                $hidden[$aliases[$key] ?? $key] = true;
+            }
+        }
+        $rows = [];
+        $put = function (string $key, string $label, mixed $value) use (&$rows, $aliases, $hidden): void {
+            $key = $this->normalizeAlias($key);
+            $key = $aliases[$key] ?? $key;
+            if (! isset($hidden[$key]) && is_scalar($value) && trim((string) $value) !== '') {
+                $rows[$key] ??= ['key' => $key, 'label' => $label, 'value' => $value, 'group' => $this->publicGroup($key)];
+            }
+        };
+        foreach ($this->technicalFacts->ratedSummary($product) as $key => $value) {
+            $put($key, ['capacity_btu' => 'Công suất BTU', 'capacity_kw' => 'Công suất định mức', 'hp' => 'Mã lực'][$key], $value);
+        }
+        if (! isset($rows['capacity_btu'])) {
+            $range = $this->technicalFacts->specs($product)['capacity_btu'] ?? null;
+            if (is_string($range) && str_contains($range, '/') && ($display = $this->technicalFacts->formatBtuDisplay($range))) {
+                $put('capacity_btu', 'Dải công suất kỹ thuật', $display.' BTU');
+            }
+        }
+        if ($product->marketing_capacity_btu > 0) {
+            $put('marketing_capacity_btu', 'Công suất thương mại', number_format($product->marketing_capacity_btu).' BTU');
+        }
+        foreach (['inverter' => 'Inverter', 'cooling_type' => 'Kiểu làm lạnh', 'voltage' => 'Điện áp',
+            'phase' => 'Pha', 'frequency' => 'Tần số', 'refrigerant_gas' => 'Gas lạnh',
+            'power_input_kw' => 'Tiêu thụ điện', 'airflow' => 'Lưu lượng gió', 'noise_level' => 'Độ ồn',
+            'indoor_dimensions' => 'Kích thước dàn lạnh', 'outdoor_dimensions' => 'Kích thước dàn nóng',
+            'weight' => 'Trọng lượng', 'recommended_area' => 'Diện tích phù hợp'] as $key => $label) {
+            $value = $this->technicalFacts->value($product, $key);
+            if ($key === 'inverter' && $product->inverter !== null) {
+                $value = $product->inverter ? 'Có' : 'Không';
+            } elseif ($key === 'cooling_type') {
+                $value = ['1_chieu' => '1 chiều', '2_chieu' => '2 chiều'][$value] ?? $value;
+            }
+            $put($key, $label, $value);
+        }
+        foreach ($this->productSpecsFor($product, 'frontend') as $row) {
+            if ($row['key'] !== 'capacity_btu' || $product->technical_capacity_btu > 0) {
+                $put($row['key'], $row['label'], $row['value']);
+            }
+        }
+        foreach ((array) $product->specs_json as $index => $row) {
+            if (! is_array($row)) {
+                $row = ['key' => $index, 'value' => $row];
+            }
+            $key = $row['key'] ?? null;
+            if (! is_string($key) || ! is_scalar($row['value'] ?? null)
+                || ! \App\Services\Product\ProductTechnicalSpecWriter::publicExtraAllowed($key, $row)) {
+                continue;
+            }
+            $label = \App\Support\ProductSpecLabel::label($key);
+            $label = str_replace(['(Mm)', '(Kg)', '(Kw)'], ['(mm)', '(kg)', '(kW)'], $label);
+            if ($this->normalizeAlias($key) === 'tinh_nang') {
+                $label = 'Tính năng';
+            }
+            $put($key, $label, $row['value']);
+        }
+        return array_values($rows);
+    }
+
+    private function publicGroup(string $key): string
+    {
+        return match (true) {
+            str_contains($key, 'pipe'), str_contains($key, 'height_difference') => 'Đường ống',
+            str_contains($key, 'operating'), str_contains($key, 'ambient_temp') => 'Phạm vi vận hành',
+            preg_match('/dimension|weight|height|width|depth/', $key) === 1 => 'Kích thước và khối lượng',
+            str_contains($key, 'capacity'), $key === 'hp' => 'Công suất',
+            in_array($key, ['inverter', 'cooling_type', 'voltage', 'phase', 'frequency', 'refrigerant_gas', 'noise_level', 'airflow', 'power_input_kw'], true) => 'Vận hành',
+            default => 'Thông số mở rộng',
+        };
+    }
+
     public function flatProductSpecs(Product $product): array
     {
         $category = $product->category;
@@ -320,8 +406,10 @@ class CategoryTechnicalSchemaService
             'warranty' => strip_tags((string) $product->warranty_info),
         ];
 
+        $aliases = $category ? $this->aliasMap($category) : [];
         foreach ($this->technicalFacts->allForDisplay($product) as $key => $value) {
-            $flat[$category ? $this->normalizeSchemaKey($category, (string) $key) : $this->normalizeKey((string) $key)] = $value;
+            $normalized = $this->normalizeKey((string) $key);
+            $flat[$aliases[$normalized] ?? $normalized] ??= $value;
         }
 
         return array_filter($flat, fn ($value): bool => $value !== null && $value !== '');

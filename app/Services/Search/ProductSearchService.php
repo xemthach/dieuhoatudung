@@ -3,7 +3,6 @@
 namespace App\Services\Search;
 
 use App\Models\Product;
-use App\Services\Product\ProductMarketingCapacityQueryAdapter;
 use App\Services\Product\ProductTechnicalFactResolver;
 use App\Services\Product\ProductFilterService;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
@@ -29,7 +28,6 @@ use Illuminate\Support\Str;
 class ProductSearchService
 {
     public function __construct(
-        private readonly ProductMarketingCapacityQueryAdapter $capacityQuery,
         private readonly ProductTechnicalFactResolver $technicalFacts,
         private readonly ProductFilterService $filterService,
     ) {}
@@ -131,7 +129,7 @@ class ProductSearchService
             return [];
         }
 
-        $cacheKey = 'search:suggest:' . md5(mb_strtolower($q));
+        $cacheKey = 'search:rated:suggest:' . Cache::get('search:rated:revision', '0') . ':' . md5(mb_strtolower($q));
 
         return Cache::remember($cacheKey, self::SUGGEST_CACHE_TTL, function () use ($q) {
             return $this->executeSearch($q, self::SUGGEST_LIMIT);
@@ -215,7 +213,7 @@ class ProductSearchService
 
                 // BTU match
                 if ($btu) {
-                    $query->orWhere($this->capacityQuery->column(), $btu);
+                    $query->orWhere('technical_capacity_btu', $btu);
                 }
 
                 // Search in specs_json for indoor/outdoor model
@@ -274,7 +272,7 @@ class ProductSearchService
                 'model'    => $product->model_code,
                 'sku'      => $product->sku,
                 'brand'    => $product->brand?->name ?? '',
-                'btu'      => $this->capacityQuery->value($product),
+                'btu'      => $product->technical_capacity_btu,
                 'category' => $product->category?->name ?? '',
                 'image'    => $product->main_image_url,
                 'url'      => route('product.show', $product->slug),
@@ -359,7 +357,7 @@ class ProductSearchService
         }
 
         // === BRAND + BTU ===
-        if ($btu && $this->capacityQuery->value($product) === $btu) {
+        if ($btu && $product->technical_capacity_btu === $btu) {
             $score = max($score, 70);
             // Boost if brand also matches
             if ($brand && str_contains($qLower, $brand)) {
@@ -405,6 +403,22 @@ class ProductSearchService
             if ($matchedTokens > 0) {
                 $tokenScore = 30 + ($matchedTokens * 10);
                 $score = max($score, min($tokenScore, 65));
+            }
+        }
+
+        foreach ((array) $product->specs_json as $row) {
+            if (! is_array($row) || ($row['source_section'] ?? '') !== 'MANUAL_EXTENDED') {
+                continue;
+            }
+            $key = (string) ($row['key'] ?? '');
+            if (! \App\Services\Product\ProductTechnicalSpecWriter::publicExtraAllowed($key, $row)) {
+                continue;
+            }
+            if (str_contains(mb_strtolower((string) ($row['value'] ?? '')), $qLower)) {
+                $public = app(\App\Services\Catalog\CategoryTechnicalSchemaService::class)->publicSpecificationRows($product);
+                if (in_array($row['value'], array_column($public, 'value'), true)) {
+                    $score = max($score, 40);
+                }
             }
         }
 

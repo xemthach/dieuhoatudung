@@ -136,6 +136,20 @@ stat -c '%A %U:%G %n' .env storage/logs bootstrap/cache
 tail -n 20 /var/log/nginx/chonmaylanh.com_error.log
 ```
 
+**Dashboard vẫn 500 khi `storage/logs` ghi được.** Nếu Laravel log có `file_put_contents(.../storage/framework/cache/data/...): Permission denied`, lỗi nằm ở quyền ghi cache file. Dashboard gọi `User::can()` để lọc widget; Spatie Permission tải permission registry qua Laravel `FileStore`, nên lỗi này có thể xuất hiện tại `MainDashboardWidget::canView()` dù bảng quyền và đăng nhập vẫn hoạt động. Đây là lỗi quyền của thư mục cache, không phải migration Dealer.
+
+Kiểm tra đúng thư mục gây lỗi bằng user của PHP-FPM. Xác nhận pool user/group từ cấu hình PHP-FPM trước; không đoán tên user.
+
+```bash
+cd /home/lps_chonmaylanhcom/public_html || exit 1
+namei -l storage/framework/cache/data/85/5f
+stat -c '%A %U:%G %n' storage/framework/cache storage/framework/cache/data storage/framework/cache/data/85
+runuser -u lps_chonmaylanhcom -- test -w storage/framework/cache/data \
+  && echo 'Permission cache OK' || echo 'PHP-FPM khong ghi duoc cache'
+```
+
+Thay `lps_chonmaylanhcom` bằng user đã xác minh nếu pool dùng tên khác. Nếu không ghi được, áp dụng khối **Sửa quyền** bên dưới sau khi xác nhận group của pool; khối đó đặt quyền group-write cho `storage` và `bootstrap/cache`, gồm cả cache Spatie. Sau sửa, chạy `php artisan optimize:clear` bằng tài khoản site, rồi kiểm tra lại quyền ghi và mở `/admin`.
+
 **Sửa quyền** khi đã xác nhận user và group của pool đều là `lps_chonmaylanhcom` và log báo lỗi quyền như trên. Chạy khối sau bằng `root`. Quyền `640` cho phép pool đọc `.env`. Bit setgid trên các thư mục runtime giúp file mới kế thừa group của site.
 
 ```bash
@@ -153,6 +167,7 @@ tail -n 20 /var/log/nginx/chonmaylanh.com_error.log
     test -r vendor/autoload.php
     test -w storage/logs
     test -w storage/framework/views
+    test -w storage/framework/cache/data
     test -w bootstrap/cache
     echo "Quyền PHP-FPM OK"
   '
@@ -215,3 +230,35 @@ $u = App\Models\User::where('email', '<email quản trị>')->first();
 ```
 
 Kết quả thứ ba chỉ xác nhận đã lưu trường mật khẩu. Panel dùng guard phiên `web`, model User kiểm tra `is_active`, còn role/permission quyết định quyền theo chức năng. Chỉ dùng `app:install --force` cho lần khởi tạo database mới. AdminUserSeeder có thể cập nhật hash và đồng bộ role của email đã tồn tại.
+
+## Module Đại lý
+
+Module thêm schema; không tự tạo đại lý thật. Sau khi operator backup DB và chạy migration của phiên bản mới, kiểm tra rồi import master/dịch vụ bằng command riêng:
+
+```bash
+php artisan dealer:import-locations
+php artisan dealer:seed-services
+# Hai lệnh trên chỉ dry-run. Sau khi xem số lượng/checksum hợp lệ:
+php artisan dealer:import-locations --apply
+php artisan dealer:seed-services --apply
+php artisan permissions:sync --dry-run
+php artisan permissions:sync --apply
+```
+
+`permissions:sync` bổ sung registry quyền; không dùng `--reset-default-roles` trên hệ thống hiện hữu. Super Admin được Gate cho phép trực tiếp. Gán quyền Dealer/dịch vụ/địa giới/moderation cho các role khác theo nhu cầu. Nhập đại lý tại `/admin/dealers`; mỗi đại lý cần tỉnh và xã hiện hành. Địa chỉ ba cấp cũ là thông tin tùy chọn, do Admin đối chiếu. Đại lý mới mặc định chưa công khai; bật **Công khai** sau khi kiểm tra.
+
+Để hiển thị trên trang chủ, vào **Cài đặt → Display → Đại lý trên trang chủ**, bật block và chọn chế độ `auto`, `featured`, `region` hoặc `manual`. `auto` dùng đại lý nổi bật khi khách chưa chọn vùng; GPS chỉ được hỏi sau khi khách bấm **Tìm đại lý gần tôi**. Module không tự tạo đại lý: tạo/kiểm tra dữ liệu ở `/admin/dealers`, bật công khai và đánh dấu nổi bật nếu cần làm nội dung fallback. Chọn `region` cần đặt tỉnh mặc định hoặc khách chọn tỉnh trên trang chủ.
+
+Master được đóng gói tại `resources/geography/`: hệ hiện hành `v5.2.0` (34 tỉnh, 3.321 xã), hệ cũ `v2.4.1` (63 tỉnh, 696 huyện, 10.035 xã), nguồn `thanglequoc/vietnamese-provinces-database`, giấy phép MIT kèm theo. `manifest.json` lưu commit nguồn và SHA256; command kiểm tra checksum, version, mã, quan hệ cha–con trước transaction; chạy lại giữ ID và nội dung SEO đã nhập. Đây là hai snapshot độc lập, không tự ánh xạ địa chỉ cũ sang mới. Mã cấp tỉnh hiện hành đã được đối chiếu danh mục NSO; không coi đây là chứng nhận đối chiếu từng xã.
+
+Leaflet/CSS được Vite build cùng source; kiểm tra manifest và asset theo phần build ở trên. Bản đồ mặc định dùng tile OpenStreetMap với attribution; không prefetch hoặc tải offline. Có thể đặt `DEALER_TILE_URL` và `DEALER_TILE_ATTRIBUTION` cho nhà cung cấp raster tương thích và tuân thủ chính sách của nhà cung cấp. Nếu tile lỗi, liên kết chỉ đường vẫn dùng được.
+
+GPS cần HTTPS và header `Permissions-Policy` của Nginx/CDN không được ghi đè thành `geolocation=()`. Laravel chỉ cho `geolocation=(self)` ở `/dai-ly` và các trang con. Khách chủ động bấm nút mới được hỏi vị trí; tọa độ gửi POST có CSRF, không xuất hiện trên URL. Review khách không cần tài khoản, luôn chờ duyệt tại `/admin/dealer-reviews`.
+
+Phân giải map short-link chỉ chạy khi Admin bấm lấy tọa độ. Server cần PHP CLI có `dns_get_record`, quyền chạy subprocess, cURL/TLS và truy cập HTTPS outbound. DNS và HTTP đều có timeout, kiểm tra IP public và pin kết nối; nếu hosting không cho subprocess hoặc link không trả tọa độ, nhập latitude/longitude thủ công. Không cần API key Google Maps.
+
+### Cấu hình hiển thị Đại lý trên trang chủ
+
+Trong **Cài đặt → Display**, bật/tắt block Đại lý, chọn chế độ `auto`, `nearby`, `featured`, `region` hoặc `manual`, đặt số lượng và kiểu thẻ. Dùng mục **Thứ tự section trang chủ** để kéo section Đại lý tới vị trí mong muốn; thay đổi vị trí không tự bật block. Chọn kiểu hiển thị Brand, dòng sản phẩm và dịch vụ tại nhóm tùy chọn hiển thị Đại lý. Nếu danh sách thủ công không có đại lý đang hoạt động/công khai, block không tự thay bằng đại lý khác.
+
+GPS không được hỏi lúc tải trang. Khách phải bấm **Tìm đại lý gần tôi**; nếu từ chối, directory và lọc theo Tỉnh/Xã vẫn dùng được. Bản đồ tải tile theo cấu hình `DEALER_TILE_URL`; giữ attribution và tuân thủ chính sách sử dụng/cache của nhà cung cấp.

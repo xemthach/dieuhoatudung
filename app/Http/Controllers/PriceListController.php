@@ -9,11 +9,10 @@ use App\Models\Product;
 use Illuminate\Http\Request;
 
 use App\Services\Product\ProductFilterService;
-use App\Services\Product\ProductMarketingCapacityQueryAdapter;
 
 class PriceListController extends Controller
 {
-    public function index(Request $request, ProductFilterService $filterService, ProductMarketingCapacityQueryAdapter $capacityQuery)
+    public function index(Request $request, ProductFilterService $filterService)
     {
         $perPage = (int) setting('display.products_per_page', 12);
 
@@ -29,7 +28,7 @@ class PriceListController extends Controller
 
         // ── Sort overrides for PriceList ───────────────
         if (!$request->has('sort')) {
-            $query->orderBy('brand_id')->orderBy($capacityQuery->column())->orderByRaw('COALESCE(sale_price, regular_price) ASC');
+            $query->orderBy('brand_id')->orderBy('technical_capacity_btu')->orderByRaw('COALESCE(sale_price, regular_price) ASC');
         }
 
         $products = $query->paginate($perPage)->withQueryString();
@@ -44,11 +43,7 @@ class PriceListController extends Controller
             ->orderBy('name')
             ->get();
 
-        $btuOptions = Product::where('is_active', true)
-            ->whereNotNull($capacityQuery->column())
-            ->distinct()
-            ->orderBy($capacityQuery->column())
-            ->pluck($capacityQuery->column());
+        $btuOptions = ProductFilterService::CAPACITY_FILTER_OPTIONS;
 
         // ── FAQs bảng giá ─────────────────────────────────────
         $faqs = Faq::where('is_active', true)

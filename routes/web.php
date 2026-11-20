@@ -35,6 +35,16 @@ Route::post('/site-campaign-events', [SiteCampaignEventController::class, 'store
 Route::get('/dieu-hoa-tu-dung', [LandingController::class, 'index'])->name('landing');
 Route::post('/dieu-hoa-tu-dung/bao-gia', [LandingController::class, 'storeLead'])->name('landing.lead');
 
+// Dealer directory
+Route::get('/dai-ly', [\App\Http\Controllers\DealerController::class,'index'])->name('dealers.index');
+Route::get('/api/dealer-locations', [\App\Http\Controllers\DealerController::class,'locations'])->middleware('throttle:120,1')->name('dealers.locations');
+Route::post('/dai-ly/gan-toi', [\App\Http\Controllers\DealerController::class,'nearby'])->middleware('throttle:60,1')->name('dealers.nearby');
+Route::get('/dai-ly/khu-vuc/{provinceSlug}', [\App\Http\Controllers\DealerController::class,'region'])->name('dealers.region');
+Route::get('/dai-ly/khu-vuc-cu/{provinceSlug}/{districtSlug?}', [\App\Http\Controllers\DealerController::class,'region'])->name('dealers.legacy-region');
+Route::get('/dai-ly/{dealerSlug}', [\App\Http\Controllers\DealerController::class,'show'])->name('dealers.show');
+Route::post('/dai-ly/{dealerSlug}/danh-gia', [\App\Http\Controllers\DealerController::class,'submitReview'])->name('dealers.review.store');
+Route::get('/sitemap-dealers.xml', [\App\Http\Controllers\DealerController::class,'sitemap'])->name('sitemap.dealers');
+
 // Products
 Route::get('/san-pham', [ProductController::class, 'index'])->name('products.index');
 Route::get('/danh-muc/{categorySlug}', [ProductController::class, 'category'])->name('category.show');

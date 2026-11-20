@@ -36,7 +36,7 @@ final class ProductDataVerificationService
     /** Apply the non-bypassable state half of the public filter contract. */
     public function applyVerifiedPublicCapacityState(Builder $query): Builder
     {
-        if (! Schema::hasColumns('products', ['taxonomy_status', 'marketing_capacity_status'])) {
+        if (! Schema::hasColumns('products', ['taxonomy_status', 'marketing_capacity_status', 'marketing_capacity_btu'])) {
             // A partially deployed schema must expose no unverified capacity.
             return $query->whereRaw('1 = 0');
         }

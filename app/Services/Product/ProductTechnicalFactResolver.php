@@ -57,6 +57,9 @@ class ProductTechnicalFactResolver
 
     public function get(Product $product, string $fieldKey): ?array
     {
+        if ($this->isManuallyCleared($product, $fieldKey)) {
+            return null;
+        }
         if (isset(self::DEDICATED_CANONICAL[$fieldKey])) {
             $column = self::DEDICATED_CANONICAL[$fieldKey];
             $dedicated = $this->present($product->{$column}, $fieldKey, 'dedicated');
@@ -70,7 +73,7 @@ class ProductTechnicalFactResolver
             return null;
         }
 
-        if ($this->hasManualOverride($product) && isset(self::MANUAL_OVERRIDE_COLUMNS[$fieldKey])) {
+        if ($this->hasManualOverride($product, $fieldKey) && isset(self::MANUAL_OVERRIDE_COLUMNS[$fieldKey])) {
             $manual = $this->present($product->{self::MANUAL_OVERRIDE_COLUMNS[$fieldKey]}, $fieldKey, 'manual_override');
             if ($manual !== null) {
                 return $manual;
@@ -156,6 +159,9 @@ class ProductTechnicalFactResolver
 
     public function getDisplay(Product $product, string $fieldKey): ?array
     {
+        if ($this->isManuallyCleared($product, $fieldKey)) {
+            return null;
+        }
         $resolved = $this->get($product, $fieldKey);
         if ($resolved !== null) {
             return $resolved;
@@ -189,6 +195,22 @@ class ProductTechnicalFactResolver
      * Format a BTU scalar or a source range without passing an unchecked
      * string to number_format(). Ambiguous localized/business text is rejected.
      */
+    /** Customer-facing rated values; the BTU number is the same column used by SQL. */
+    public function ratedSummary(Product $product): array
+    {
+        $kw = $this->value($product, 'capacity_kw');
+        $hp = $this->value($product, 'hp');
+
+        return array_filter([
+            'capacity_btu' => $product->technical_capacity_btu > 0
+                ? number_format($product->technical_capacity_btu, 0, ',', '.').' BTU' : null,
+            'capacity_kw' => is_numeric($kw)
+                ? rtrim(rtrim(number_format((float) $kw, 2, ',', ''), '0'), ',').' kW'
+                : (filled($kw) ? $kw.' kW' : null),
+            'hp' => is_numeric($hp) && $hp > 0 ? (float) $hp.' HP' : null,
+        ]);
+    }
+
     public function formatBtuDisplay(mixed $value): ?string
     {
         if (is_int($value) || is_float($value)) {
@@ -264,8 +286,28 @@ class ProductTechnicalFactResolver
         return $value === null || $value === '' ? null : ['field' => $fieldKey, 'value' => $value, 'storage' => $storage];
     }
 
-    private function hasManualOverride(Product $product): bool
+    private function isManuallyCleared(Product $product, string $field): bool
     {
+        $column = self::DEDICATED_CANONICAL[$field] ?? self::MANUAL_OVERRIDE_COLUMNS[$field] ?? null;
+        if ($column && $product->getAttribute($column) !== null) {
+            return false;
+        }
+        foreach ((array) $product->specs_json as $row) {
+            if (is_array($row) && ($row['key'] ?? '') === $field
+                && ($row['source_section'] ?? '') === 'MANUAL_OVERRIDE'
+                && array_key_exists('value', $row) && $row['value'] === null) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private function hasManualOverride(Product $product, ?string $field = null): bool
+    {
+        $scope = collect($product->specs_json ?? [])->firstWhere('key', 'admin_override_fields');
+        if ($scope && $field !== null && ! in_array($field, $scope['value'] ?? [], true)) {
+            return false;
+        }
         return (string) $product->technical_specs_source === 'manual_override'
             && $product->technical_specs_overridden_at !== null;
     }

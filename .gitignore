@@ -137,3 +137,5 @@ __pycache__/
 /docs/operations/
 /docs/quote/
 /docs/release-guide.md
+/FILTER_DIAGNOSTIC.md
+/HD-UPDATE.txt

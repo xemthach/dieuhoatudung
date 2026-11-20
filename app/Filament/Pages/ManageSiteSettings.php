@@ -80,12 +80,46 @@ class ManageSiteSettings extends Page
             }
 
             if ($s->type === 'json') {
-                $formatted[$formKey] = json_decode((string) $s->value, true) ?: [];
+                $jsonValue = json_decode((string) $s->value, true) ?: [];
+                if ($s->group === 'navigation' && $s->key === 'header_primary') {
+                    $jsonValue = array_map(static function (array $item): array {
+                        $item['link_type'] = $item['type'] ?? 'route';
+                        unset($item['type']);
+                        return $item;
+                    }, $jsonValue);
+                }
+                $formatted[$formKey] = $jsonValue;
                 continue;
             }
 
-            $formatted[$formKey] = $s->value;
+            // Legacy social-link defaults used '#' as a placeholder. These
+            // fields now have URL validation, so keep placeholder data out of
+            // the form state where it would block saving every setting.
+            $formatted[$formKey] = $s->group === 'contact'
+                && in_array($s->key, ['facebook_link', 'youtube_link', 'tiktok_link'], true)
+                && trim((string) $s->value) === '#'
+                    ? ''
+                    : $s->value;
         }
+
+        foreach (['CONTENT_TOO_SHORT', 'MISSING_H2_H3', 'MISSING_SEO', 'MISSING_MERCHANT', 'MISSING_FAQ'] as $guardKey) {
+            $formatted['ai_guard_policy__'.$guardKey] ??= 'WARN';
+        }
+        foreach ([
+            'r2_storage__r2_sync_enabled' => false,
+            'r2_storage__r2_sync_replace_urls_enabled' => false,
+            'r2_storage__r2_sync_delete_local_after_upload' => false,
+            'r2_storage__r2_old_base_urls' => '',
+            'cta__mobile_bar_call_enabled' => true,
+            'cta__mobile_bar_zalo_enabled' => true,
+            'cta__mobile_bar_quote_enabled' => true,
+        ] as $key => $default) {
+            $formatted[$key] ??= $default;
+        }
+
+        $formatted['display__homepage_section_order'] ??= collect([
+            'hero', 'benefits', 'dealers', 'featured_products', 'brands', 'articles', 'faq', 'cta',
+        ])->map(fn (string $section, int $index): array => ['section' => $section, 'sort_order' => ($index + 1) * 10])->all();
 
         // FileUpload fields require array state for Livewire's deep-set path
         // (e.g. data.branding__logo_image.{uuid}). A plain string causes
@@ -231,10 +265,12 @@ class ManageSiteSettings extends Page
                                     ->label('Menu header chính')
                                     ->schema([
                                         TextInput::make('label')->label('Nhãn')->required(),
-                                        Select::make('type')->label('Loại')->options(['route'=>'Route hệ thống','product_category'=>'Danh mục sản phẩm','custom_url'=>'URL tùy chỉnh'])->required()->live(),
-                                        Select::make('target')->label('Route')->options(['home'=>'Trang chủ','products.index'=>'Sản phẩm','price-list'=>'Bảng giá','blog.index'=>'Blog','faq.dieu-hoa'=>'FAQ','contact'=>'Liên hệ','quote.index'=>'Báo giá','brands.index'=>'Thương hiệu','case-studies.index'=>'Dự án','policy-pages.index'=>'Chính sách'])->visible(fn (callable $get) => $get('type') === 'route'),
-                                        Select::make('category_target')->label('Danh mục')->options(fn () => \App\Models\ProductCategory::query()->orderBy('sort_order')->pluck('name','id')->all())->visible(fn (callable $get) => $get('type') === 'product_category'),
-                                        TextInput::make('custom_target')->label('URL')->url()->visible(fn (callable $get) => $get('type') === 'custom_url'),
+                                        Select::make('link_type')->label('Loại')->options(['route'=>'Route hệ thống','product_category'=>'Danh mục sản phẩm','custom_url'=>'URL tùy chỉnh'])->required()->live(),
+                                        Select::make('target')->label('Route')->helperText('Chỉ dùng khi loại là Route hệ thống.')
+                                            ->options(['home'=>'Trang chủ','products.index'=>'Sản phẩm','price-list'=>'Bảng giá','blog.index'=>'Blog','faq.dieu-hoa'=>'FAQ','contact'=>'Liên hệ','quote.index'=>'Báo giá','brands.index'=>'Thương hiệu','dealers.index'=>'Đại lý','case-studies.index'=>'Dự án','policy-pages.index'=>'Chính sách']),
+                                        Select::make('category_target')->label('Danh mục')->helperText('Chỉ dùng khi loại là Danh mục sản phẩm.')
+                                            ->options(fn () => \App\Models\ProductCategory::query()->orderBy('sort_order')->pluck('name','id')->all()),
+                                        TextInput::make('custom_target')->label('URL tùy chỉnh')->helperText('Chỉ dùng khi loại là URL tùy chỉnh.')->url(),
                                         TextInput::make('sort_order')->label('Thứ tự')->numeric()->default(10)->required(),
                                         Toggle::make('is_active')->label('Hiển thị')->default(true),
                                         Toggle::make('open_new_tab')->label('Tab mới')->default(false),
@@ -483,6 +519,68 @@ class ManageSiteSettings extends Page
                         TextInput::make('display__related_products_limit')->label('Sản phẩm liên quan')->numeric(),
                         TextInput::make('display__related_posts_limit')->label('Bài viết liên quan')->numeric(),
                         TextInput::make('display__homepage_featured_limit')->label('Nổi bật trang chủ')->numeric(),
+                        \Filament\Schemas\Components\Section::make('Đại lý trên trang chủ')
+                            ->description('Cấu hình block đại lý, chế độ hiển thị và thông tin trên thẻ.')
+                            ->schema([
+                                Toggle::make('display__homepage_dealers_enabled')->label('Hiển thị block đại lý')->default(false),
+                                Toggle::make('display__homepage_dealers_geolocation')->label('Cho phép nút tìm đại lý gần tôi')->default(true),
+                                TextInput::make('display__homepage_dealers_title')->label('Tiêu đề')->maxLength(120)->default('Đại lý gần bạn'),
+                                TextInput::make('display__homepage_dealers_subtitle')->label('Mô tả')->maxLength(240)
+                                    ->default('Tìm đại lý và đơn vị dịch vụ gần khu vực của bạn.'),
+                                Select::make('display__homepage_dealers_mode')->label('Chế độ')
+                                    ->options(['auto' => 'Tự động', 'nearby' => 'Gần tôi (cần khách bấm nút)',
+                                        'featured' => 'Đại lý nổi bật', 'region' => 'Theo khu vực mặc định', 'manual' => 'Chọn thủ công'])
+                                    ->default('auto')->required(),
+                                TextInput::make('display__homepage_dealers_limit')->label('Số đại lý')->numeric()
+                                    ->minValue(1)->maxValue(12)->default(4)->required(),
+                                Select::make('display__homepage_dealers_radius_km')->label('Bán kính mặc định')
+                                    ->options(collect(config('dealers.radii'))->mapWithKeys(fn ($radius) => [$radius => $radius.' km'])->all())
+                                    ->default(20)->required(),
+                                Select::make('display__homepage_dealers_default_province')->label('Tỉnh/thành mặc định')
+                                    ->options(fn () => \App\Models\AdministrativeUnit::query()->where('scheme', 'current')
+                                        ->where('dataset_version', config('dealers.current_version'))->where('kind', 'province')
+                                        ->orderBy('name')->pluck('full_name', 'id')->all())
+                                    ->searchable()->placeholder('Chưa chọn')
+                                    ->visible(fn (callable $get) => $get('display__homepage_dealers_mode') === 'region'),
+                                Select::make('display__homepage_dealers_manual')->label('Đại lý được chọn')
+                                    ->multiple()->searchable()->preload()
+                                    ->options(fn () => \App\Models\Dealer::query()->where('is_active', true)->orderBy('name')->pluck('name', 'id')->all())
+                                    ->visible(fn (callable $get) => $get('display__homepage_dealers_mode') === 'manual'),
+                                Toggle::make('display__homepage_dealers_show_logo')->label('Logo đại lý')->default(true),
+                                Toggle::make('display__homepage_dealers_show_verified')->label('Nhãn đã xác minh')->default(true),
+                                Toggle::make('display__homepage_dealers_show_distance')->label('Khoảng cách')->default(true),
+                                Toggle::make('display__homepage_dealers_show_rating')->label('Điểm đánh giá')->default(true),
+                                Toggle::make('display__homepage_dealers_show_review_count')->label('Số lượt đánh giá')->default(true),
+                                Toggle::make('display__homepage_dealers_show_brands')->label('Thương hiệu')->default(true),
+                                Toggle::make('display__homepage_dealers_show_categories')->label('Dòng sản phẩm')->default(true),
+                                Toggle::make('display__homepage_dealers_show_services')->label('Dịch vụ')->default(true),
+                                Toggle::make('display__homepage_dealers_show_phone')->label('Nút gọi điện')->default(true),
+                                Select::make('display__dealer_card_style')->label('Kiểu thẻ đại lý')
+                                    ->options(['compact' => 'Gọn', 'standard' => 'Tiêu chuẩn', 'detailed' => 'Chi tiết'])
+                                    ->default('standard')->required(),
+                                Select::make('display__dealer_brand_style')->label('Cách hiển thị thương hiệu')
+                                    ->options(['logo' => 'Chỉ logo', 'badge' => 'Nhãn', 'logo_name' => 'Logo + tên', 'text' => 'Chỉ chữ'])
+                                    ->default('logo_name')->required(),
+                                Select::make('display__dealer_product_line_style')->label('Cách hiển thị dòng sản phẩm')
+                                    ->options(['icon_badge' => 'Icon + nhãn', 'badge' => 'Nhãn', 'icon_list' => 'Danh sách icon', 'grid' => 'Lưới'])
+                                    ->default('icon_badge')->required(),
+                                Select::make('display__dealer_service_style')->label('Cách hiển thị dịch vụ')
+                                    ->options(['icon_badge' => 'Icon + nhãn', 'badge' => 'Nhãn', 'compact' => 'Danh sách gọn', 'grid' => 'Lưới'])
+                                    ->default('icon_badge')->required(),
+                                TextInput::make('display__dealer_max_brands')->label('Số thương hiệu tối đa')->numeric()->minValue(1)->maxValue(12)->default(4),
+                                TextInput::make('display__dealer_max_product_lines')->label('Số dòng sản phẩm tối đa')->numeric()->minValue(1)->maxValue(12)->default(4),
+                                TextInput::make('display__dealer_max_services')->label('Số dịch vụ tối đa')->numeric()->minValue(1)->maxValue(12)->default(4),
+                                Repeater::make('display__homepage_section_order')->label('Thứ tự các khối trang chủ')
+                                    ->schema([
+                                        Select::make('section')->label('Khối')->options([
+                                            'hero' => 'Hero', 'benefits' => 'Lợi ích', 'dealers' => 'Đại lý',
+                                            'featured_products' => 'Sản phẩm nổi bật', 'brands' => 'Thương hiệu',
+                                            'articles' => 'Bài viết', 'faq' => 'Câu hỏi thường gặp', 'cta' => 'Kêu gọi hành động',
+                                        ])->required(),
+                                        TextInput::make('sort_order')->label('Thứ tự')->numeric()->default(10)->required(),
+                                    ])->columns(2)->orderColumn('sort_order')->defaultItems(0)
+                                    ->helperText('Kéo thả để sắp xếp. Các khối thiếu trong danh sách vẫn được thêm theo thứ tự mặc định.'),
+                            ])->columns(2),
                         TextInput::make('display__landing_featured_products_limit')->label('Sản phẩm landing page')->numeric(),
                         \Filament\Schemas\Components\Section::make('Ảnh mặc định sản phẩm')
                             ->description('Hiển thị khi sản phẩm chưa có ảnh. Ưu tiên: ảnh này → ảnh public/images/placeholders/product-default.jpg')
@@ -915,14 +1013,30 @@ class ManageSiteSettings extends Page
         // objects from livewire-tmp/ to their permanent disk location (branding/)
         // and converts them to path strings. Reading $this->data directly would
         // bypass this, leaving files in livewire-tmp and saving {} to the database.
+        // The navigation repeater has reactive Select state. On a save action,
+        // schema dehydration can retain the previous choice even though the
+        // Livewire component data already contains the user's latest selection.
+        // Capture it before getState(), which can dehydrate the repeater back to
+        // its stale hydrated value. Other fields still use schema dehydration.
+        $navigationState = data_get($this->data, 'navigation__header_primary');
         $state = $this->settingsSchema->getState();
-
+        if (is_array($navigationState)) {
+            $state['navigation__header_primary'] = $navigationState;
+        }
         foreach ($state as $formKey => $value) {
             if (! str_contains($formKey, '__')) continue;
 
             [$group, $settingKey] = explode('__', $formKey, 2);
 
             $isEncrypted = in_array($formKey, self::ENCRYPTED_KEYS);
+
+            if ($formKey === 'navigation__header_primary' && is_array($value)) {
+                $value = array_map(static function (array $item): array {
+                    $item['type'] = $item['link_type'] ?? 'route';
+                    unset($item['link_type']);
+                    return $item;
+                }, $value);
+            }
 
             if ($isEncrypted && ($value === null || $value === '')) continue;
 

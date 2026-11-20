@@ -15,6 +15,7 @@ final class PublicNavigationResolver
             ['label' => 'Sản phẩm', 'type' => 'route', 'target' => 'products.index', 'sort_order' => 20],
             ['label' => 'Bảng giá', 'type' => 'route', 'target' => 'price-list', 'sort_order' => 30],
             ['label' => 'Blog', 'type' => 'route', 'target' => 'blog.index', 'sort_order' => 40],
+            ['label' => 'Đại lý', 'type' => 'route', 'target' => 'dealers.index', 'sort_order' => 45],
             ['label' => 'FAQ', 'type' => 'route', 'target' => 'faq.dieu-hoa', 'sort_order' => 50],
             ['label' => 'Liên hệ', 'type' => 'route', 'target' => 'contact', 'sort_order' => 60],
         ],
@@ -60,7 +61,7 @@ final class PublicNavigationResolver
             default => $item['target'] ?? null,
         };
         if ($type === 'route') {
-            $allowed = ['home','products.index','price-list','blog.index','faq.dieu-hoa','contact','quote.index','brands.index','case-studies.index','policy-pages.index'];
+            $allowed = ['home','products.index','price-list','blog.index','faq.dieu-hoa','contact','quote.index','brands.index','case-studies.index','policy-pages.index','dealers.index'];
             if (! in_array((string) $target, $allowed, true) || ! Route::has((string) $target)) return null;
             $url = route((string) $target);
         } elseif ($type === 'product_category') {

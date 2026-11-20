@@ -1,0 +1,1802 @@
+# Changelog
+
+All notable changes to this project will be documented in this file.
+
+## [1.33.12] - 2026-11-20
+
+### Added
+- Added Dealer directory administration, current and legacy administrative-location data import, service and review moderation, map links, and nearby search.
+- Added configurable Dealer homepage modes, section ordering, card presentation, and selectable Brand, product-line, and service display styles.
+- Added Product technical bulk editing with explicit field application and extended-spec operations.
+
+### Changed
+- Homepage sections now follow the configured section order, including the Dealer section.
+- Dealer pages support responsive directory/detail layouts, approved review aggregates, and current province/ward selection.
+
+### Fixed
+- Fixed Dealer detail SEO attributes rendering as visible template text.
+- Fixed Product Category navigation settings so the selected target survives save/reload and resolves to the category URL.
+- Fixed settings-form validation defaults that prevented navigation configuration from being saved on existing/fresh installs.
+- Aligned Product technical BTU with public display/filter behavior and rendered saved manual technical specifications on Product detail pages.
+
+### Deployment
+- No production deployment is included. Follow `DEPLOY.md` for migration, location/service import, permissions sync, and Dealer setup.
+
+## [1.33.9] - 2026-09-06
+
+### Added
+- Added explicit Product taxonomy and marketing-capacity verification states, source evidence, immutable approval digests, and an append-only governance audit trail.
+- Added the Product Data Governance Admin review center with explicit taxonomy and marketing-capacity permissions, grouped review, rejection, and mark-for-review controls.
+- Added read-only taxonomy/commercial-tier audits plus separately approved, stale-protected taxonomy and marketing-capacity apply commands.
+
+### Fixed
+- Public BTU filtering now fails closed unless an active Product has verified physical taxonomy, an eligible non-VRF category, a verified commercial capacity state, and a positive persisted `marketing_capacity_btu` value.
+- Legacy category assignments, unverified numeric capacity, unresolved identities, and VRF/GMV Products can no longer leak into certified public BTU results.
+- Calculator classification uses explicit wall-mounted and commercial equipment classes without changing technical BTU, kW, or Product Transfer semantics.
+
+### Safety
+- This release deploys code and additive schema only. It does not populate Product taxonomy states, approve marketing mappings, backfill `marketing_capacity_btu`, or rewrite Product business data.
+- Existing 16 marketing-capacity values remain quarantined as unverified until source-backed approval. Products 1238 and 1366 remain conflicts; Product 1271 requires a source; Product 1597 requires an explicit remediation decision.
+- Data rollout is intentionally separate from this release. No commercial capacity is inferred from technical BTU, kW, HP, Product title, model suffix, legacy `btu`, or nearest-bucket rounding.
+
+### Validation
+- Focused release suite: 136 tests, 136 passed, 1,778 assertions.
+- Full PHPUnit: 616 tests, 615 passed, 1 skipped, 3,767 assertions, zero failures/errors.
+- Product governance browser certification: 1 passed with no HTTP, Livewire, console, page, or network errors.
+- Composer validation/audit, npm audit, Vite build, PHP lint, secret scan, and `git diff --check` passed.
+
+## [1.33.8] - 2026-09-05
+
+### Added
+- Added signed `PRODUCT_TRANSFER v1` exports for full, filtered, selected and current Product sets, with exact Brand/Category slug mapping and SKU-then-slug upsert matching.
+- Added a DB-backed Import Governance service and Filament policy page containing 19 policies: 10 Admin-managed business policies and 9 non-disableable integrity policies.
+- Added append-only high-risk policy audit history, explicit permissions, ImportJob policy snapshots, mapping/governance preview details and grouped import errors.
+
+### Fixed
+- Product Transfer can preserve technical/business data across environments while failing closed on unprovable catalog lineage or using an explicitly governed detach operation.
+- Import terminal states now distinguish completed, completed-with-errors, failed, blocked and empty jobs; an 81-row all-failed import can no longer appear successful.
+- Authoritative `marketing_capacity_btu` survives Product Transfer without being merged with technical BTU or kW, and the inclusive 9,000–12,000 filter has a matching UI label.
+
+### Safety
+- System Restore and strict Catalog Import provenance remain separate and unchanged; checksums, FK integrity and duplicate-identity safeguards cannot be disabled.
+- Existing historical marketing-capacity gaps are not backfilled or inferred from technical BTU, kW, Product titles or model suffixes.
+- SkyAir, wall-mounted RAC and audited technical-edit behavior remain covered by focused, browser and full-suite regression tests.
+
+## [1.33.7] - 2026-09-04
+
+### Fixed
+- SkyAir import-readiness evidence now resolves the Daikin brand and canonical SkyAir category from portable, reviewed source identities instead of relying on historical workbook IDs.
+- SkyAir phase and frequency remain separate source-native facts; phase is no longer coerced into the Product voltage field.
+- Product card and detail display commercial BTU and rated kW as distinct values. Exact SkyAir bundle remote/panel assignments are displayed only when source evidence is exact.
+
+### Safety
+- Catalog Import technical provenance, Product System Restore, Product ID policy, and public `products.marketing_capacity_btu` filtering remain unchanged.
+- Source workbooks remain local evidence and are not part of this release. The checked-in reviewed source matrices provide deterministic test fixtures.
+
+## [1.33.6] - 2026-09-03
+
+### Fixed
+- Product Edit technical BTU now binds to canonical `technical_capacity_btu`, rather than the nullable legacy `btu` column.
+- Standard technical fields are editable and persist through the canonical Product Edit path instead of being read-only and excluded from form dehydration.
+- Technical manual edits require an audit reason and are marked as explicit overrides while preserving source-native catalog evidence in `specs_json`.
+
+### Safety
+- Public customer capacity filter remains `products.marketing_capacity_btu`; marketing, technical and legacy BTU semantics are not merged.
+- External Catalog Import still requires complete technical provenance; no Product System Restore contract, catalog schema or SkyAir workbook changed.
+
+## [1.33.5] - 2026-09-02
+
+### Fixed
+- A full Product XLSX export is now recognized semantically when the UI submits every registered Product field group, not only when `field_groups` is empty.
+- Complete Product exports now always use the verified `PRODUCT_SYSTEM_RESTORE v1` field contract and generate `_SYSTEM_EXPORT` metadata plus `_SYSTEM_PAYLOAD` when long payloads require chunking.
+
+### Safety
+- Partial, selected, current-page, filtered and non-XLSX exports remain ordinary presentation exports.
+- Catalog Import provenance, technical schema validation, BTU capacity semantics and SkyAir workbooks are unchanged.
+
+## [1.33.4] - 2026-09-02
+
+### Fixed
+- Product XLSX exports can now be restored through the verified `PRODUCT_SYSTEM_RESTORE v1` contract instead of being incorrectly treated as external catalog ingestion.
+- Product metadata no longer becomes false category technical-spec input during import validation.
+- Restore preserves Product IDs, commercial and technical capacity, Product business fields, media, SEO, Merchant fields and JSON payloads while failing invalid foreign keys explicitly.
+
+### Added
+- Full Product XLSX export includes hidden `_SYSTEM_EXPORT` manifest metadata and `_SYSTEM_PAYLOAD` chunking for payloads that exceed the Excel cell-size limit.
+- Restore preview identifies `SYSTEM RESTORE` and revalidates its manifest and target foreign keys before any mutation.
+
+### Safety
+- Catalog Import provenance and category-schema safety remain strict for external technical imports.
+- No provenance is fabricated, no invalid foreign key is silently converted to `null`, and no Production Product data is imported by this release itself.
+- SkyAir workbooks remain excluded and unchanged.
+
+## [1.33.3] - 2026-09-02
+
+### Fixed
+- Customer-facing BTU filtering, sorting, display and calculator selection now consistently use persisted `products.marketing_capacity_btu` as the commercial capacity contract.
+- Legacy `btu`, technical capacity and raw `specs_json` capacity values are no longer silently exposed as marketing capacity when the canonical value is missing.
+- Product technical fact resolution now reads historical list, enriched-list and associative `specs_json` structures for audit evidence without treating those values as commercial capacity.
+- Quote submission tolerates Products without a resolved marketing capacity.
+
+### Added
+- Read-only `catalog:audit-marketing-capacity` diagnostics classify canonical values, source-backed proposals, ambiguous evidence and no-evidence rows.
+- Controlled `catalog:backfill-marketing-capacity` defaults to dry-run and writes only `marketing_capacity_btu` after explicit `--apply --approved` confirmation and verified `PRODUCT_LIST` provenance checks.
+
+### Safety
+- Technical capacity, legacy BTU, raw specs and title text are never coerced into a commercial tier.
+- SkyAir import workbooks remain excluded and unchanged.
+- No migration or automatic Production data mutation is included.
+
+## [1.33.2] - 2026-09-01
+
+### Fixed
+- Bulk AI Generate now freezes a unique `operation_generation` UUID when creating an authorized operation. Historical idempotency keys can no longer collide through the `legacy-generation` fallback and false-block a new Bulk Job as `DUPLICATE_IN_PROGRESS`.
+- Bulk header, table action, Bulk Regenerate, Batch worker, Single worker and the Single lifecycle now use the same operation-identity boundary.
+- A queued legacy Job that genuinely lacks an identity receives one before its first idempotency check; an already frozen identity is never rotated.
+
+### Safety
+- Historical Job #31 and all 276 blocked child rows remain immutable evidence. This release neither retries, deletes nor rewrites them.
+- A genuinely active operation with the same Product and operation identity remains fail-closed as `DUPLICATE_IN_PROGRESS`.
+- No migration and no mass historical data rewrite are included.
+
+### Validation
+- Focused Bulk lifecycle/current-history/header suite: 80 passed, 439 assertions.
+- Full PHPUnit: 551 tests, 550 passed, 1 skipped, 3,459 assertions, 0 failures/errors.
+- Controlled governed provider certification: 1 + 3 + 10 fixture Products, 14/14 reached `REVIEW_REQUIRED`; no false duplicate collision.
+- Playwright Bulk workflow: 2 passed, 0 failed. Composer validation/audit, npm high audit, Vite build, PHP lint and `git diff --check`: PASS.
+
+## [1.33.1] - 2026-09-01
+
+### Fixed
+- Tách dứt điểm trạng thái AI Product hiện tại khỏi lịch sử terminal: `BLOCKED`, `FAILED`, `CANCELLED`, `REJECTED`, `DISCARDED`, `DONE` và `APPLIED` lịch sử không còn rò vào `status`, `item` hoặc `draft` hiện tại để khóa Generate.
+- Đồng bộ Product Edit, Product List, live status, bulk preflight, action resolver và generation readiness theo một current-state contract; lịch sử gần nhất chỉ hiển thị qua `latest_history`.
+- Giữ fail-closed cho invariant hiện tại như nhiều operation/draft actionable, draft review bị thiếu và hard Apply blocker.
+- Bổ sung regression tương đương Product production #987 với lịch sử `BLOCKED / DUPLICATE_IN_PROGRESS`, đồng thời giữ nguyên Job #29, Item #3446 và 272 item lịch sử.
+- Tiếp tục bao gồm Product numeric-format contract đã phát hành ở v1.33.0: BTU range và giá legacy được kiểm tra kiểu trước khi format, không ép chuỗi nghiệp vụ thành số sai.
+
+### Validation
+- Final focused AI/current-history/numeric suite: 119 tests, 705 assertions; final contract/bulk subset: 11 tests, 165 assertions.
+- Full PHPUnit: 550 tests, 549 passed, 1 skipped, 3,452 assertions, 0 failures/errors.
+- Browser: 19 passed, 1 documented legacy rollout skip, 0 failed (Single Product, Bulk, Product numeric and navigation).
+- Composer validation/audit, npm high audit, Vite build, PHP lint, secret scan và `git diff --check`: PASS.
+
+### Operations
+- Không có migration mới và không rewrite dữ liệu lịch sử.
+- Bắt buộc restart generic workers và managed `ai_governed` worker để nạp resolver mới; sau deploy chạy integrity audit và xác nhận Product #987 trước khi gọi provider có kiểm soát.
+
+## [1.33.0] - 2026-09-01
+
+### Added
+- Canonical AI Product lineage resolution for active operations, actionable drafts, approved drafts, historical evidence, blockers, next actions, and invariant violations.
+- Shared AI Product lifecycle and parent reconciliation services for generation, cancellation, retry, recovery, regeneration, and terminal parent aggregation.
+- Read-only `ai:product-integrity-audit` diagnostics with JSON/CSV output and additive lifecycle audit columns, dispatch UUID integrity, and canonical lookup indexes.
+- Frozen AI Product target architecture, remediation plan, forensic report, issue ledger, and runtime/database certification artifacts.
+
+### Changed
+- Product Edit, bulk operations, queue workers, monitoring, and recovery now use the canonical lifecycle contracts instead of independent status mutations.
+- Terminal historical jobs and drafts no longer block a new generation; genuinely active operations and actionable drafts retain concurrency protection.
+- Queue workers observe cancellation before provider execution and at lifecycle checkpoints, while preserving historical evidence and reconciling parent state.
+
+### Fixed
+- `PRODUCT-DETAIL-001`: Product detail rendering now normalizes validated BTU scalar/range values and monetary values before numeric formatting, preventing `number_format()` TypeErrors from legacy decimal/range strings.
+- Product cards and quote modals use the same strict BTU display contract; null, empty, contact-price, formatted-string, and non-numeric values follow explicit business fallbacks instead of unsafe coercion.
+- Parent AI jobs no longer remain processing after terminal child outcomes, and failed terminal items are not reopened by queue retry.
+
+### Security
+- Apply allowlists, stale-target protection, hard technical fact blocks, RBAC, and single-operator rollout remain fail-closed.
+- Product identity, protected catalog fields, historical AI evidence, and provider request logs are preserved.
+
+### Validation
+- Focused release suite: 93 tests, 93 passed, 412 assertions.
+- Full PHPUnit: 546 tests, 545 passed, 1 skipped, 3,333 assertions, 0 failures/errors; exit code 0.
+- Final deterministic Playwright matrix: 23 passed, 4 intentional environment/provider-policy skips, 0 outstanding failures after correcting a stale active-category assertion.
+- Composer validation/audit, npm high audit, production build, Laravel cache builds, PHP lint, secret signature scan, and `git diff --check`: PASS.
+- AI Product integrity audit: 0 unknown violations; 21 preserved legacy anomalies are classified `KNOWN` and remain non-mutating audit evidence.
+
+### Operations
+- Includes one additive migration for AI Product cancellation audit fields, dispatch identity, and canonical resolver indexes.
+- Deployment must run migrations before restarting web/worker processes; no bulk retry or historical status rewrite is included.
+
+## [1.32.1] - 2026-08-31
+
+### Added
+- Central AI Product guard policy with configurable `BLOCK`, `WARN`, and `IGNORE` modes for editorial quality rules.
+- Shared single/bulk generation readiness preflight for Product identity, active draft/apply conflicts, provider readiness, and governed-worker health.
+- Versioned guard-policy snapshots and terminal technical events for reproducible job evidence.
+
+### Fixed
+- Separated provider prompt exposure from validator authority so every source-verified Product fact remains available to fact-checking.
+- Corrected wall-mounted capacity range and rated-capacity classification, including legacy `capacity_btu` schema compatibility.
+- Persisted structured critical validation errors on hard fact blocks and prevented known preflight blockers from creating useless job rows.
+
+### Security
+- Authorization, technical fact safety, parser/schema integrity, stale targets, concurrency, duplicate and Apply guards remain locked fail-closed and cannot be weakened through settings.
+- Product content remains unchanged until authorized approval and explicitly confirmed Apply.
+
+### Validation
+- Focused AI/guard/catalog suite: 162 tests, 161 passed, 1 skipped, 572 assertions.
+- Full PHPUnit: 525 tests, 524 passed, 1 skipped, 3,231 assertions, 0 failures/errors.
+- Browser certification: 14 passed, 1 intentional policy-superseded skip, 0 failures.
+- Final real-provider proof reached `REVIEW_REQUIRED` through `ai_governed` with no Product mutation before Apply.
+
+### Operations
+- No migration and no bulk retry are included.
+- Historical failed/blocked AI evidence remains unchanged.
+
+## [1.31.5] - 2026-08-30
+
+### Added
+- Product Edit actions to reject a reviewable AI draft with a mandatory operator note.
+- Product Edit action to safely cancel queued, processing, or stuck AI requests for the current Product.
+
+### Changed
+- Cancelling active Product AI requests records canonical cancellation reasons and closes the related job when no active items remain.
+
+### Security
+- AI Product content remains draft-only until explicit approval and Apply; no direct status editing or history deletion is exposed.
+
+### Operations
+- Duplicate/in-progress requests can be released from the Product workflow without bulk retrying historical jobs.
+
+## [1.31.4] - 2026-08-30
+
+### Changed
+- Route non-empty AI Product content below the configured length target to `REVIEW_REQUIRED` with an explicit `content_too_short:x/y` warning.
+- Preserve manual review and apply controls; Product content is not automatically changed.
+
+### Security
+- Empty payloads, invalid Product identity, forbidden Product-data fields, and critical fact-check failures remain hard failures/blocks.
+
+### Operations
+- Historical AI jobs are not retried or rewritten by this change.
+
+## [1.31.3] - 2026-08-30
+
+### Fixed
+- Add one controlled content-only recovery attempt when a real AI response is below the content-length threshold.
+- Recalculate draft warnings and score from generated payload evidence instead of stale Product fields.
+
+### Security
+- Recovery is restricted to `CONTENT_TOO_SHORT`; schema, safety, eligibility and fact-check failures are never retried by this path.
+- Recovery remains draft-only/review-controlled and does not lower the validator threshold or auto-apply Product content.
+
+### Operations
+- Recovery is limited to one additional provider request per generation and does not retry historical jobs or perform bulk generation.
+
+## [1.31.2] - 2026-08-30
+
+### Fixed
+- Preserve sanitized AI Product output, field-level status and structured validation evidence when content-length validation rejects a provider response.
+- Keep provider metadata and token usage attached to the failed AI Product item instead of presenting all generated fields as missing.
+- Keep critical fact-check failures aligned with the canonical `BLOCKED` state.
+
+### Changed
+- AI Product job history now shows compact generated-field coverage and human-readable Vietnamese warning labels while retaining raw warning codes in the technical tooltip.
+- Data completeness remains a governance score and is hidden by default in the primary operational table; no fabricated Data% or Fact-check value is introduced.
+
+### Operations
+- Added controlled real-provider and worker cross-process audit evidence using temporary local fixtures only.
+- No bulk retry, Product/catalog mutation, migration, or production AI operation is included.
+
+### Security
+- Failed validation output is sanitized before evidence persistence.
+
+### Known Limitations
+- Existing historical FAILED/BLOCKED items are preserved and are not automatically retried.
+- A real provider response below the configured content threshold remains FAILED with reviewable evidence; the validator threshold was not weakened.
+
+## [1.31.1] - 2026-08-29
+
+### Fixed
+- Fixed XLSX imports under PHP `open_basedir` by safely handling PhpSpreadsheet's internal OOXML archive-path probe without weakening filesystem restrictions.
+
+### Operations
+- Added a regression test proving XLSX loading works with `open_basedir` enabled.
+- No database migration, Product/catalog write, or AI provider call is part of this patch.
+
+## [1.31.0] - 2026-08-29
+
+### Added
+- Added configurable public header/top/footer navigation using the existing `site_settings` JSON contract, with allowlisted named routes, Product category targets, safe custom URLs, deterministic ordering and active-state control.
+- Added Filament navigation governance controls for labels, targets, order, visibility and new-tab behavior; desktop and mobile consume the same resolved navigation collection.
+- Added Daikin SkyAir and wall-mounted catalog schema/import tooling, source contracts, validation artifacts and regression coverage. No production catalog import was executed.
+- Added Product catalog/category/filter integrity and public navigation regression tests, including inactive-category fail-closed behavior.
+
+### Changed
+- Product/category presentation and breadcrumb links now use canonical active/indexable category targets and avoid dead inactive-category links.
+- Product media, related-product rendering and internal-link suggestions use the audited canonical data contracts already present in the release candidate.
+- Release browser fixtures now clear settings cache, use deterministic local assets and isolate navigation/marketing state without provider calls.
+
+### Fixed
+- Fixed the browser sort handler collision by using `window.URL` explicitly.
+- Fixed duplicate mobile navigation toggle handling.
+- Fixed Filament navigation round-trip test selectors and Livewire endpoint detection for the current Filament/Livewire runtime.
+
+### Security
+- Navigation route targets are allowlisted; unsafe `javascript:`, `data:` and `vbscript:` URLs are rejected.
+- Browser certification uses isolated fixtures, with zero AI provider calls and no Product/catalog writes.
+
+### Operations
+- Worker remains operator-controlled and disabled state is unchanged by this release.
+- Live deployment must restart OS-managed long-running workers, verify `ai_governed` queue/runtime version and preserve the pre-deploy desired state.
+
+### Known Limitations
+- Existing active Products assigned to inactive categories and active uncategorized Products were not automatically reclassified.
+- SkyAir workbooks and production import manifests remain protected local artifacts; production import is a separate authorized operation.
+
+## [1.30.0] - 2026-08-29
+
+### Added
+- Added authorized Website Campaign preview using the same production renderer without analytics or frequency-state writes.
+- Added Campaign runtime-readiness, schedule/placement diagnostics and aggregate impression/click visibility in Filament.
+- Added public Promotion renderers for home banner, landing, contextual popup and announcement-bar placements.
+- Added Playwright release certification for Campaign, Post RichEditor, AI Post and Promotion workflows at desktop/mobile sizes.
+
+### Changed
+- Post-origin AI review/apply now remains in the Post workflow and records exact target/apply lineage.
+- Promotion AI can generate both program description and detailed content through the existing governed content pipeline.
+- Promotion pricing is request-scoped to avoid one active-Promotion query per Product card.
+
+### Fixed
+- Prevented stale AI Post drafts from silently overwriting content changed after generation and kept double apply idempotent.
+- Sanitized AI rich HTML before Post apply/form insertion, blocking executable tags, event handlers, unsafe links and editor-blocking overlays.
+- Fixed Website Campaign renderer/readiness gaps for image/video types and placement/schedule visibility.
+- Fixed advertised Promotion placements that previously had no frontend consumer.
+- Fixed the Filament Lead form action namespace incompatibility.
+
+### Security and operations
+- Browser certification uses an isolated migrated SQLite database, synthetic account/content and zero AI provider calls.
+- No migration or Product/catalog technical mutation is included.
+- Live deployment must restart the OS-managed governed worker on `ai_governed`, verify scheduler health and preserve the operator's desired worker state.
+
+## [1.29.0] - 2026-08-24
+
+### Added
+- Added separate area and volume consumer-estimate methods with explicit persisted method and rule-version lineage.
+- Activated the category-calibrated hybrid Calculator V2 rules while preserving V1 for historical replay and retaining V1 factors for low-confidence categories.
+- Added deterministic, brand-neutral equipment-type guidance for wall-mounted, cassette, ducted, ceiling-exposed and floor-standing preferences.
+- Added read-only calculator governance, calibration evidence, rule matrices and golden regression fixtures.
+- Added a three-step quote workflow with Calculator/Product context reuse, idempotent submission tokens and transactional Quote/Lead creation.
+
+### Changed
+- Calculator results now separate estimated cooling need, calculated market tier, catalog availability and type-specific Product matches.
+- Quote requests now keep validated entry context, supplied-field evidence and Calculator context without placing customer PII in URLs or generic analytics.
+- Product HVAC classification now evaluates category and explicit Product type together and fails closed when recognized sources conflict.
+- Large-load estimates now escalate to technical consultation without inventing a multi-unit or VRF design.
+
+### Fixed
+- Prevented under-sized, VRF, OTHER, UNKNOWN and unverified Product classes from entering RAC calculator recommendations.
+- Prevented Method B from applying the Method A ceiling-height multiplier after height was already included in room volume.
+- Prevented duplicate Quote/Lead creation when the same submission token is retried.
+
+### Security and operations
+- Calculator and equipment recommendations remain deterministic and independent of AI/provider availability.
+- Added three backward-compatible migrations for calculator lineage and Quote workflow context; no Product/catalog technical data migration is included.
+- Live deployment requires a managed-worker restart, web/worker release alignment, scheduler verification and intentional restoration of the pre-deploy worker desired state.
+
+## [1.28.2] - 2026-08-23
+
+### Fixed
+- Made the AI bulk-runtime migration resumable after MariaDB partial DDL: each table is created only when absent, preserving already-created empty runtime tables.
+- Changed required lease timestamps from implicit `TIMESTAMP` columns to explicit `DATETIME` columns, avoiding MariaDB 10.6 `NO_ZERO_DATE` error 1067 for `expires_at`.
+
+### Safety
+- No existing table is dropped or rewritten by the forward migration.
+- No Product/catalog data migration, AI provider call, queue purge or worker enable is required.
+
+## [1.28.1] - 2026-08-23
+
+### Added
+- Added canonical Product media composition for main images, galleries, cards, comparison and related-Product rendering.
+- Added a canonical Product AI content-state resolver plus regression coverage for reviewable, approved-unapplied, applied, blocked and stale denormalized states.
+- Added PHPUnit isolation for AI worker desired/managed-state files so release tests never depend on or change the operator's runtime state.
+
+### Changed
+- Product AI badges, live status, review/apply actions, filters and dashboard review counts now derive from the latest actionable item/draft lineage instead of trusting `products.ai_status`.
+- Product edit live status now reports latest operation, draft availability, approval and apply state.
+- Product image administration and frontend composition continue through the shared `MediaDiskService` storage contract.
+
+### Fixed
+- Fixed Product galleries passing URL strings to Alpine while the gallery expected objects with a `url` property.
+- Fixed missing main-image paths creating fallback thumbnails beside valid gallery media.
+- Fixed Product rows showing **Chờ duyệt** when no reviewable AI draft existed, while the edit action reported that no draft could be reviewed.
+- Fixed historical/applied AI items inflating current dashboard review-required counts.
+
+### Security and safety
+- No Product/catalog technical fields or media records are migrated or rewritten by this patch.
+- AI polling remains read-only and does not call providers; Review and Apply remain protected by existing server-side permissions.
+- AI worker desired state remains operator-controlled and the governed queue remains `ai_governed`.
+
+## [1.28.0] - 2026-08-23
+
+### Added
+- Added entity-centered AI assistance in Post and Product workflows with persisted live status, review/apply entry points, and bounded polling.
+- Added canonical AI status presentation across Product, AI history, provider readiness, dashboard, and operations surfaces.
+- Added permission-protected AI Worker desired-state controls, runtime identity diagnostics, version/build drift detection, and a non-provider cross-process worker self-test.
+- Added local Windows managed-worker restart tooling and environment/deployment runbooks for Windows and Linux process managers.
+
+### Changed
+- Repositioned AI job resources as history/operations views instead of primary content-creation entry points.
+- Changed the governed worker to consume only `ai_governed` through the configured queue connection and to preserve operator desired state across restarts.
+- Changed the database queue default `retry_after` to 960 seconds, above the governed worker timeout of 900 seconds.
+- Made worker drain/restart/version verification and scheduler health mandatory release gates for every live deployment.
+
+### Fixed
+- Fixed MySQL `ONLY_FULL_GROUP_BY` compatibility in the AI Product Jobs summary query.
+- Fixed stale or misleading AI progress states when the worker is disabled, offline, or running a different release.
+- Fixed legacy AI recovery redispatch paths so they target the governed queue rather than the isolated legacy `ai` queue.
+
+### Security and safety
+- Admin worker controls persist desired state only; HTTP actions never spawn or kill worker processes.
+- Worker self-tests do not call an AI provider and do not read or mutate Product/catalog data.
+- Existing review/apply authorization, provider-secret redaction, queue history, and legacy queue isolation remain intact.
+
+### Release note
+- Local cross-process proof used distinct dispatcher and worker PIDs and completed on `ai_governed` with zero provider calls.
+- Production deployment still requires a reviewed OS process manager and scheduler; web-only deployment is not accepted.
+
+## [1.27.0] - 2026-08-23
+
+### Added
+- Added a code-proven admin navigation inventory, domain mapping, relationship graph, and overlap analysis.
+- Added permission-aware **Cấu hình bài viết** actions for post categories, authors, and tags without changing their routes or authorization.
+- Added focused regression coverage for primary navigation, supporting-resource deep links, and limited-role denial.
+
+### Changed
+- Reorganized Filament navigation around operator domains instead of one menu item per database-backed resource.
+- Reduced the open **Nội dung** group from 12 registered peers to four primary content workflows.
+- Added **Trang & Giao diện** for landing-page composition, homepage banners, homepage benefits, and policy pages.
+- Moved quote commitments to **Bán hàng** and renamed **AI Content** to **Nội dung AI**.
+- Differentiated content icons and normalized navigation ordering while preserving all resource URLs.
+
+### Security and safety
+- Preserved server-side RBAC; hiding supporting resources from global navigation does not bypass resource authorization.
+- No Product/catalog data was changed, the AI worker remained disabled, and no provider call was made.
+
+### Release note
+- Validation passed with 327 tests, 1,075 assertions, zero failures/errors, and one existing skipped test.
+- Database counts and the canonical BTU hash remained unchanged.
+
+## [1.26.0] - 2026-08-23
+
+### Added
+- Added a seven-domain Filament information architecture: Bán hàng, Sản phẩm, Nội dung, SEO & Marketing, AI Content, Hệ thống, and Vận hành.
+- Added shared semantic status badges, compact operational summaries, contextual technical details, and dedicated Admin UX regression coverage.
+- Added a complete navigation/capability inventory and permanent Admin UX architecture report.
+
+### Changed
+- Redesigned Dashboard, Import/Export, Media & CDN, AI Queue Health, AI Content Jobs, and Marketing Integrations around operator tasks instead of raw runtime data.
+- Moved AI runtime policy away from the main dashboard into the relevant AI jobs context.
+- Reduced measured Dashboard widget queries from 85 to 21 and System Health queries from 65 to 25 through request-level snapshot reuse.
+- Standardized Vietnamese navigation labels and deterministic ordering while preserving hidden compatibility pages and server-side permissions.
+
+### Security
+- Preserved and extended server-side permission checks and confirmation gates for R2 synchronization, URL replacement, queue recovery, imports, exports, and integration actions.
+- No Product/catalog technical facts were changed; the AI worker remained disabled and no provider call was made.
+- Added a PHPUnit bootstrap guard that removes generated production config cache before Laravel boots, ensuring the declared SQLite `:memory:` test database cannot be bypassed by stale compiled configuration.
+
+### Release note
+- Validation passed with 326 tests, 1,053 assertions, zero failures/errors, and one existing skipped test.
+- `v1.25.0` remains immutable as historical release metadata. This release uses `v1.26.0` because the existing `v1.25.0` tag points to a tree whose canonical `VERSION` is `1.24.0`.
+
+## [1.25.0] - 2026-08-23
+
+### Added
+- Completed the governed AI Product Content workflow: read-only context, safe draft, human review, field approval, content-only apply, idempotency, and rollback readiness.
+- Added Product/Catalog UX improvements for cards, detail pages, admin forms, empty specs, RAC/VRF presentation, exact model search, class-aware filters, and RAC calculator recommendations.
+- Added deterministic SEO title/meta fallback, canonical/indexation controls, sitemap, breadcrumb, JSON-LD, visible FAQ consistency, and honest Merchant eligibility diagnostics.
+- Added operational health, queue reconciliation, worker desired-state visibility, admin audit safeguards, and security regression coverage.
+- Added a seven-domain Filament navigation architecture and compact summary-first operational screens for Dashboard, Import/Export, Media & CDN, AI Queue Health, AI Content Jobs, and Marketing Integrations.
+
+### Changed
+- Revalidated and recovered the production dataset, preserving approved content, catalog lineage, migration state, and the verified pre-release backup.
+- Hardened queue reconciliation, admin authorization, health visibility, performance hot paths, and release-readiness checks without changing governed technical facts.
+- Reduced measured Dashboard widget queries from 85 to 21 and System Health queries from 65 to 25 by reusing request-level data and queue snapshots.
+
+### Security
+- Preserved server-side authorization, CSRF/input validation, sanitized content output, secret-safe diagnostics, safe headers, and disabled AI worker default state.
+
+### Release note
+- Current release validation: 326 tests, 1,052 assertions, 0 failures/errors, and one pre-existing skipped test. The Admin UX candidate initially exposed two same-root Filament navigation-icon errors; the configuration was fixed without deleting or weakening tests. See `docs/release/RELEASE_1.25.0.md`.
+- Publication remains pending because the existing annotated `v1.25.0` tag points to an earlier commit with canonical `VERSION=1.24.0`; the tag has not been moved or overwritten.
+
+## [1.24.0] - 2026-05-23
+
+### Added
+- Added shared admin content automation layer for Product Category, Brand, and Promotion forms via `SlugGeneratorService`, `AISeoContentGenerator`, `AIContentFieldPipeline`, and reusable Filament form actions.
+- Added full catalog-spec governance stack: new catalog models/tables, matcher/resolver/auditor/extractor services, and operational commands (`catalog:scan`, `catalog:extract-specs`, `catalog:match-products`, `products:audit-specs-from-catalog`, `products:sync-specs-from-catalog`, rollback tooling).
+- Added Product Category technical schema builder workflow (preset generation, schema validation trait, seeder presets, and frontend-aware schema rendering path).
+- Added UTF-8 governance runtime components including `encoding:governance-audit`, `UTF8RepairService`, and forced UTF-8 response middleware.
+- Added regression tests for admin content automation, catalog spec governance, technical schema builder, and encoding governance audit.
+
+### Fixed
+- Fixed slug generation and uniqueness flows for Product Category / Brand / Promotion to prevent duplicate-key failures during create/update.
+- Fixed catalog import/mapping integrity by tightening `ProductImportMapper` + import handler behavior and preventing uncontrolled unknown spec fields.
+- Fixed product technical spec display fallback to prioritize category schema-mapped specs when available.
+- Fixed source encoding audit/repair behavior to reduce mojibake false positives and stabilize UTF-8 detection in code audit pipeline.
+- Fixed release/runtime docs with explicit queue and scheduler operations for AI + catalog audit jobs.
+
+### Changed
+- Changed AI governance verification registry and content governance checks to rely on verified fact pathways for technical claims.
+- Changed seed/bootstrap flow to include technical schema seeding in base setup.
+- Changed multiple operational audit commands (LG/Panasonic/media/encoding) to the new UTF-8 safe output/logging style.
+- Changed app bootstrap to register UTF-8 response protection middleware.
+
+### Removed
+- Removed no functional module; only replaced deprecated command logic paths with governance-safe implementations.
+
+### Security
+- Hardened technical-claim integrity by enforcing verified catalog/source pathways before applying product specs.
+- Hardened Unicode handling to block malformed UTF-8/mojibake payload persistence in governance and repair paths.
+
+## [1.23.0] - 2026-05-20
+
+### Added
+- Added product category technical schema storage, validation helpers, admin form controls, and status/summary columns for category management.
+- Added technical schema audit and import commands: `products:audit-category-technical-schema`, `products:audit-technical-specs`, `products:fix-technical-specs --dry-run`, and `products:import-category-technical-schema`.
+- Added bulk selection resolution for `selected`, `current_page`, and `filter` scopes used by product and AI actions.
+- Added AI product draft persistence and governance metadata to support draft retries and structured audit tracking.
+- Added a release and live-server update guide for deployment handoff.
+
+### Fixed
+- Fixed product import so technical specs outside the assigned category schema are rejected and missing category schema blocks import.
+- Fixed product create/edit UI so schema warnings render safely in Filament without crashing the page.
+- Fixed the compare page sticky spec-name column so it keeps an opaque background while horizontally scrolling.
+- Fixed AI product content flows so draft retries, job item updates, and AI detail rendering stay readable and traceable.
+
+### Changed
+- Changed product category and product admin tables to surface technical schema status, version, and coverage summaries.
+- Changed product AI bulk actions and header actions to use explicit selection-scope resolution and logging.
+- Changed AI governance and product import handling to carry `category_schema_missing` context through validation and processing.
+- Changed scheduled console tasks to run category technical schema and product technical spec audits daily.
+- Updated built frontend assets after the Vite production rebuild.
+
+### Removed
+- Nothing removed.
+
+### Security
+- Hardened source-of-truth enforcement so AI and import paths cannot write product technical specs without a category technical schema.
+
+## [1.22.0] - 2026-05-19
+
+### Added
+- Created 3-layer AI Governance testing suite `AIGovernanceThreeLayerTest.php` containing 24 integration tests covering Technical Claim Verification, Business/Policy Claim Verification, and Safety & Code Leak checks.
+- Integrated automated rewrite logic (`autoRewriteUnverifiedClaims` and `hasCriticalBlock`) into `AIProductContentSystem` and `HVACSeoContentEngine`.
+
+### Fixed
+- Fixed unverified HVAC technical/marketing claims (such as noise levels, dimensions, BTU capacity, and floor areas) so they are automatically rewritten to neutral Vietnamese statements instead of hard-blocking AI content generation jobs.
+- Changed default severities of `vat` and `co_cq` rules in `config/ai_claim_rules.php` from `block` to `rewrite` to prevent unnecessary job failures when they are not configured.
+- Hardened internal code safety in `ContentSafetyValidator.php` by adding regex patterns to detect internal Laravel variable paths (e.g. `product.capacity_btu`) and safety-blocking them.
+- Updated `AIProductContentSystemTest.php`, `AIGovernanceRuleEngineTest.php`, and `AIContentGovernanceTest.php` to align legacy assertions with the new 3-layer warn-and-rewrite governance behavior.
+
+## [1.21.0] - 2026-05-18
+
+### Added
+- Added Product table bulk export for selected products with field group selection and selected-record logging.
+- Added explicit Product export scopes for selected records, current page, and current filter, including scope/count-aware export filenames.
+- Added Product AI header actions that separate current-page generation from filter-wide generation with explicit filter confirmation.
+- Added persisted AI Product Job scope payload fields for selected product IDs, current page IDs, filter metadata, and filter confirmation.
+- Added Site Campaign video popup rendering for YouTube and Vimeo URLs plus position-aware modal, slide-in, and floating CTA placement.
+- Added upload-setting helpers for campaign image limits and allowed image extension derivation.
+- Added regression coverage for Product export scope handling, AI bulk scope handling, Site Campaign resolver behavior, upload settings, and SEO runtime settings.
+
+### Fixed
+- Fixed Product export from `/admin/products` so selected scope exports only checked products and no longer silently falls back to all products.
+- Fixed Product export current-page and filter scopes so they resolve explicit product IDs before generating files.
+- Fixed Site Campaign resolver so device targeting is applied before priority conflict resolution.
+- Fixed Site Campaign URL targeting so lower-priority matching campaigns are not dropped by a pre-filter query limit.
+- Fixed Site Campaign event tracking so expired campaigns no longer accept tracking events.
+- Fixed Site Campaign image uploads to use centralized upload MIME and size settings instead of a hardcoded 2 MB limit.
+- Fixed product review image validation and frontend hints to use centralized upload settings.
+- Fixed product technical document uploads to use centralized allowed file types and document size limits.
+- Fixed robots.txt generation so admin, search, and filter URL disallow rules follow site settings.
+- Fixed sitemap cache headers so they use the configured sitemap cache duration.
+- Fixed schema output toggles for layouts, breadcrumb schema, FAQ schema, and product schema.
+
+### Changed
+- Changed Product AI header actions to reject checkbox-selected scope and direct admins to table bulk actions for selected products.
+- Changed Product AI and export logging to include resolved IDs, scope, route, user, format, fields, and timestamps for auditability.
+- Changed Site Campaign CTA URL fields to require http(s) URLs or internal paths, and video/Zalo URL fields to validate as URLs.
+- Changed frontend JSON-LD rendering so global schema output can be disabled through SEO settings.
+
+### Removed
+- Nothing removed.
+
+### Security
+- Hardened Site Campaign tracking by requiring campaigns to be currently active within schedule before recording events.
+- Hardened Site Campaign admin URL fields against invalid CTA, video, and Zalo URLs.
+
+## [1.20.0] - 2026-05-18
+
+### Added
+- Added device-targeted Home Benefits with desktop, mobile, and both display options in the admin form and list badges.
+- Added accent-insensitive FAQ search support through `normalized_search_text`, automatic FAQ search text normalization, admin question/answer previews, group filtering, and active filtering.
+- Added FAQPage schema output for the standalone FAQ page.
+- Added Site Campaigns / Popups management with Filament CRUD, scheduling, placement and URL targeting, device rules, frequency controls, priority conflict handling, frontend rendering, and event tracking.
+- Added `site_campaigns` and `site_campaign_events` tables plus campaign impression, click, close, and conversion event capture.
+- Added regression coverage for database-safe AI metadata trimming during Product AI auto-apply.
+
+### Fixed
+- Fixed Home Benefits mobile wrapping by applying the existing benefit title/subtitle classes to rendered benefit text.
+- Fixed Home Benefits responsive grid generation by replacing a dynamic Tailwind grid class with stable responsive grid classes.
+- Fixed Product AI auto-apply so long SEO, Open Graph, and merchant title fields are trimmed to database-safe lengths before saving.
+- Fixed mobile product cards so the “Xem chi tiết” action is a compact accessible eye icon button while preserving the original product detail link.
+
+### Changed
+- Changed the mobile product card detail icon to use the primary button color for stronger CTA contrast while leaving desktop product cards unchanged.
+- Changed Site Campaign permissions and default role permission sync to include `site_campaign.*` access rules.
+- Changed built frontend assets after rebuilding Tailwind/Vite for the product card responsive action update.
+
+### Removed
+- Removed obsolete built CSS asset `public/build/assets/app-Bc3fXyLG.css` after rebuilding frontend assets.
+
+### Security
+- Added explicit RBAC permission entries for Site Campaigns / Popups so campaign management can be assigned through the permission registry.
+
+## [1.19.0] - 2026-05-18
+
+### Added
+- Added scoped promotions with product, category, brand, and global targeting plus pivot tables for scope assignments.
+- Added `PromotionPriceResolver` to calculate effective product prices from base sale pricing and active scoped promotions.
+- Added Marketing Integrations admin readiness dashboard and clients for Google Search Console, GA4, Bing Webmaster, IndexNow, and Google Merchant diagnostics.
+- Added Google Ads offline conversion import workflow with click-id capture, hashed user identifiers, conversion import records, upload service/client, admin upload action, scheduled command, and settings fields.
+- Added regression coverage for scoped promotions, promotion-aware merchant feed pricing, marketing integration readiness, Google Ads offline conversions, SEO Audit payload handling, and Product AI status polling.
+
+### Fixed
+- Fixed SEO Audit and promotion-aware pricing so missing promotion pivot tables do not crash product audits before migrations are run.
+- Fixed quick quote submission without a selected product so it no longer throws an undefined `product_id` error.
+- Fixed merchant feed, product schema, sitemap, and frontend price output to use resolved effective pricing and active sale windows consistently.
+- Fixed Product admin AI status UI so status refresh, queue health, compact badges, inline retry, and selected/current-page handling are more reliable.
+- Fixed Brand SEO coverage and Merchant diagnostics for missing category, brand, image, and sale-price readiness.
+
+### Changed
+- Changed Product list and Product edit admin actions into grouped AI/Data/More controls with a lighter status display.
+- Changed quote forms and tracking scripts to preserve `gclid`, `gbraid`, and `wbraid` across the session for offline conversion uploads.
+- Changed scheduler setup to attempt pending Google Ads offline conversion uploads every fifteen minutes.
+- Changed promotion admin UI to expose scope-specific product, category, and brand assignments.
+
+### Removed
+- Removed obsolete built CSS asset `public/build/assets/app-Bazn6yrv.css` after rebuilding frontend assets.
+
+### Security
+- Google Ads offline conversion uploads hash email and phone identifiers before sending them to Google Ads.
+- Google Ads credential fields in admin settings are password/revealable fields and no credentials are committed to source.
+
+## [1.18.0] - 2026-05-17
+
+### Added
+- Added a centralized AI governance rule engine with verified fact registry, HVAC unit normalization, forbidden claim rules, UTF-8 validation, code leak detection, and reusable AI content scoring helpers.
+- Added centralized Product AI content-layer allowlist and product-data blocklist configuration.
+- Added Product AI status polling endpoints, inline retry endpoint, refresh status button, and queue health widget for the Product admin list.
+- Added admin Product VAT toggle and public product VAT badge, with Product AI fact-checking allowed to mention VAT only when the product price includes VAT.
+- Added regression coverage for AI governance normalization, verified/unverified facts, forbidden claims, code leaks, Product AI status polling, retry endpoints, VAT policy, SEO Audit payload size, and header AI selected/current-page behavior.
+
+### Fixed
+- Fixed Product AI header action selected-scope failures by falling back to current visible rows when Filament/Livewire does not sync selected record state.
+- Fixed SEO Audit Livewire payload overflow by limiting serialized public issue rows while preserving total issue counts.
+- Fixed false-positive Product AI fact-check blocks for verified HVAC values with unit aliases, ranges, ESP/Pa, decimal currents, thousand-separated BTU, and dimension components from technical specs.
+- Fixed Product AI marketing claim handling so soft unsupported claims are rewritten for review while hard policy claims such as VAT, CO/CQ, and 100% remain blocked without verified source.
+- Fixed Product AI VAT handling so boolean `false` no longer counts as a verified source and boolean `true` allows VAT content to pass.
+- Fixed legacy HVAC technical validator paths to use the new governance validator and content-field validation signatures.
+
+### Changed
+- Changed Product AI governance to build and validate against a verified fact registry instead of scattered raw-text comparisons.
+- Changed Product admin AI status cells to expose lightweight data attributes for AJAX polling without reloading filters, search, pagination, or selected checkboxes.
+- Changed Product AI header action copy and behavior so selected/current-page/all-filtered scopes are explicit and traceable in logs.
+
+### Removed
+- None.
+
+### Security
+- None.
+
+## [1.17.2] - 2026-05-17
+
+### Added
+- Added Product list AI status detail and AI technical log modals with failed reason, provider/model, exception, fact-check, blocked claims, and blocked field context.
+- Added Product list retry actions for failed AI items at row level, selected-products bulk level, and all failed items in the current filter.
+- Added logging for Product AI bulk selection payloads before dispatch, including scope, selection state sample, resolved ID count, and resolved IDs sample.
+- Added regression coverage for checkbox-style associative selected record state and failed AI item retry dispatch.
+
+### Fixed
+- Fixed header Product AI bulk generation when selected checkboxes are synced as associative boolean state such as `selectedTableRecords[id] = true`.
+- Fixed Product AI failure handling so failed items and products still save the current SEO score and warning details instead of leaving score fields empty.
+- Fixed Product AI list status display so failed products can show the actual `failed_reason` and detailed tooltip instead of only `Thất bại`.
+
+### Changed
+- Changed Product AI bulk notifications to warn when the AI worker heartbeat is offline while still allowing jobs to queue.
+
+### Removed
+- None.
+
+### Security
+- None.
+
+## [1.17.1] - 2026-05-17
+
+### Added
+- Added regression coverage for verified refrigerant charge values such as `0.7 kg` from product technical specs.
+
+### Fixed
+- Fixed Product AI fact-checking so kilogram claims from verified refrigerant charge, factory charge, gas charge, or mass specs pass when the value exists in `specs_json`.
+
+### Changed
+- None.
+
+### Removed
+- None.
+
+### Security
+- None.
+
+## [1.17.0] - 2026-05-17
+
+### Added
+- Added a shared `EncodingGuard` utility for UTF-8 validation, BOM stripping, mojibake detection/repair, and Unicode-safe JSON encoding.
+- Added `encoding:source-audit` to scan source files for invalid legacy encodings, UTF-8 BOM, and mojibake artifacts.
+- Added strict AI JSON response parsing that strips Markdown JSON fences, extracts embedded JSON, and fails invalid required JSON responses for retry.
+- Added Product AI preview details for content-layer warnings, blocked product data fields, verified facts used, and blocked claims.
+- Added regression coverage for Product AI selected-scope bulk generation, content-layer-only apply, verified technical fact-checks, provider JSON parsing, Blog AI UTF-8 output, queue health metadata, and encoding guards.
+
+### Fixed
+- Fixed Product list bulk AI generation so `Selected products` processes only checked products instead of all filtered products.
+- Fixed Product AI apply so AI payloads cannot save basic product data, pricing, brand/category, model/SKU, capacity fields, or technical specs; blocked fields are logged on the draft item.
+- Fixed Product AI fact-checking so verified specs such as `6.35 mm`, `15.9 mm`, and `54 dB` pass when present in product technical data, while unverified numeric claims remain blocked.
+- Fixed unverified marketing claims such as VAT and free installation by removing or neutralizing them before a draft can be applied.
+- Fixed AI drafts in queued, processing, failed, or blocked states from being applied through the Product edit action.
+- Fixed AI provider handling for JSON Markdown fences and invalid JSON responses so malformed provider output can be retried instead of silently becoming an empty payload.
+- Fixed Blog AI rate-limit handling so retry metadata is preserved and queued work can be released for a later attempt.
+- Fixed UTF-8 handling in AI logs, provider payloads, import/export, mail templates/providers, media URL replacement, settings, and product spec audit commands by using Unicode-safe encoding paths.
+
+### Changed
+- Changed Product AI admin labels and modal copy from product generation to `Generate AI Content`, clarifying that AI only writes the content layer.
+- Changed Product AI prompt/output governance to separate immutable product data from AI-managed content, SEO, merchant, tags, FAQ, internal links, and media metadata.
+- Changed queue health output and admin display to include worker and scheduler command guidance.
+- Changed AI content job publishing visibility to allow completed-with-warnings and verified completion statuses when a draft exists.
+
+### Removed
+- None.
+
+### Security
+- None.
+
+## [1.16.4] - 2026-05-15
+
+### Added
+- Added shared AI issue-list normalization so nested warning, used-fact, and blocked-claim payloads from providers are flattened safely before display, logging, or validation.
+- Added regression coverage for nested `used_facts`, internal-language rewriting, and draft-mode fact-check review behavior.
+
+### Fixed
+- Fixed `Array to string conversion` failures when AI returns warnings, used facts, or blocked claims as nested objects instead of plain strings.
+- Fixed product AI bulk draft runs being marked `blocked` for fact-check findings even when the configured apply mode is review-only; these now become `needs_review` unless the run is auto-applying content.
+- Fixed product AI sanitizer to rewrite leaked internal service, class, function, API, and variable-style text into user-facing Vietnamese before validation.
+- Fixed AI blog and legacy product AI fact-check merge paths to normalize warnings and blocked claims before building error messages.
+
+### Changed
+- Changed AI product governance logging so review-only fact-check findings are recorded as `fact_check_needs_review`, while auto-apply violations remain blocked.
+
+### Removed
+- None.
+
+### Security
+- None.
+
+## [1.16.3] - 2026-05-15
+
+### Added
+- Added a schema-column helper for AI job writes during mixed code/database deployment windows.
+
+### Fixed
+- Fixed AI product filtered generation crashing before migrations have added new observability columns such as `module` and `queue_name`.
+- Fixed AI blog and single-product AI job creation to omit optional observability fields when the current database schema does not have them yet.
+
+### Changed
+- None.
+
+### Removed
+- None.
+
+### Security
+- None.
+
+## [1.16.2] - 2026-05-15
+
+### Added
+- None.
+
+### Fixed
+- Fixed Product list AI status badges so `blocked`, `stuck`, and verified completion states use clearer colors.
+- Fixed Product list AI status visibility by showing the latest AI product error message as a tooltip.
+
+### Changed
+- None.
+
+### Removed
+- None.
+
+### Security
+- None.
+
+## [1.16.1] - 2026-05-15
+
+### Added
+- None.
+
+### Fixed
+- Fixed AI Queue Health stuck recovery and cancel-current commands crashing when live database migrations have not yet added the new AI observability columns.
+
+### Changed
+- Changed AI stuck recovery and cancel-current updates to write only columns that exist in the current database schema.
+
+### Removed
+- None.
+
+### Security
+- None.
+
+## [1.16.0] - 2026-05-15
+
+### Added
+- Added AI queue observability tables for worker heartbeat and AI technical logs.
+- Added technical debug fields to AI blog jobs, AI product jobs, and AI product job items, including queue, attempts, retry count, failed reason, exception details, stack trace, raw response summary, and validation errors.
+- Added `ai:queue-health`, `ai:jobs-recover-stuck`, `ai:jobs-cancel-current`, and `ai:technical-logs-cleanup` Artisan commands.
+- Added scheduled recovery, queue health heartbeat recording, and AI technical log cleanup.
+- Added `SEO & AI > AI Queue Health` admin page with 10-second polling and worker-not-running warning.
+- Added admin actions to reload status, retry failed/stuck jobs, cancel jobs, and view technical logs for AI blog and AI product jobs.
+- Added authenticated status JSON endpoints for AI blog and AI product job progress.
+- Added `npm run dev:full` to run Vite, queue worker, and scheduler together on local.
+- Added regression tests for stuck recovery, cancel-current behavior, product item redispatch, and queue health output.
+
+### Fixed
+- Fixed AI blog and product jobs using only the `default` queue by routing AI work to `ai,default` worker setup.
+- Fixed AI jobs failing without useful admin diagnostics by saving structured failed reasons and technical error context.
+- Fixed rate-limited product AI jobs so retry metadata is saved before delayed retry.
+- Fixed AI product batch and item jobs so started/finished time, attempts, queue name, provider/model, and duration are recorded.
+- Fixed AI content dispatch so records move to `queued` before background processing starts.
+
+### Changed
+- Changed live-server Supervisor documentation to use `--queue=ai,default`, queue health commands, stuck recovery, cancel-current commands, and local `dev:full` workflow.
+- Changed AI gateway logging to write provider request/response/retry/failure events to `storage/logs/ai-jobs.log` without logging secrets.
+- Changed admin AI job tables to auto-poll every 10 seconds while showing queue, attempts, and failed reason columns.
+
+### Removed
+- Removed the old generated CSS asset `public/build/assets/app-DyzMpbTj.css`.
+
+### Security
+- Added authenticated admin status endpoints and permission checks for AI job status visibility.
+- Added AI log context sanitization to avoid storing API keys, passwords, secret tokens, or authorization headers.
+
+## [1.15.1] - 2026-05-14
+
+### Added
+- Added regression coverage for AI product tag normalization, refrigerant codes such as R410A, and verified recommended-area ranges.
+
+### Fixed
+- Fixed AI product job item pages crashing with array-to-string conversion when warnings, missing facts, or used facts contain structured values.
+- Fixed AI product output validation rejecting valid technical tags such as brand names, refrigerant codes, model-code pairs, and BTU tags.
+- Fixed fact-check false positives where refrigerant codes could be read as electrical current claims.
+- Fixed verified recommended-area ranges so values inside a stored range are accepted instead of being blocked as unverified m2 claims.
+- Fixed near-complete AI product drafts being failed only for modest word-count shortfall by saving them with review warnings instead of discarding the draft.
+
+### Changed
+- Changed internal-language validation to scan only user-visible AI copy and FAQ content, avoiding false positives from governance metadata.
+- Changed AI warning and blocked-claim handling to flatten structured values before saving, displaying, or logging.
+
+### Removed
+- None.
+
+### Security
+- Kept AI fact-check blocking for unverified technical numbers and internal implementation wording while reducing false positives for legitimate HVAC product data.
+
+## [1.15.0] - 2026-05-14
+
+### Added
+- Added AI Product Content System under Product admin workflows, including single-product draft generation, bulk generation from selected products, and generation for all products matching the current filter.
+- Added AI Product Job admin pages with item-level status, warnings, SEO scores, generated payload preview, and product-level job history.
+- Added product AI database support: product AI status/score/timestamps/error fields, AI product jobs, job items, and version backups for rollback.
+- Added queued product AI processing with batch and single-product jobs so long AI requests do not block admin web requests.
+- Added AI product content services for prompt generation, payload sanitizing, SEO scoring, duplicate-risk warnings, draft apply, and rollback.
+- Added HVAC AI governance and technical fact validation for product and blog content, including allowed facts, missing facts, blocked claims, warning tracking, and verified calculation handling.
+- Added HVAC configuration for calculation factors and centralized BTU calculation rules.
+- Added AI product tests, AI governance tests, permission governance tests, and expanded provider gateway coverage.
+- Added live-server documentation for AI queue/Supervisor setup and v1.15.0 deployment.
+
+### Fixed
+- Fixed AI blog/product content validation so short output, missing FAQ, unsafe HTML, internal implementation wording, invalid JSON, unverified numbers, or unsupported technical claims are blocked or marked for review.
+- Fixed product AI bulk actions failing when AI product job tables were missing by adding the required migrations.
+- Fixed live AI jobs staying pending on servers without a queue worker by documenting Supervisor setup and queue restart checks.
+- Fixed public HVAC copy that displayed Vietnamese without accents on the floor-standing AC landing page, advisory BTU card, quote form steps, and BTU calculation messages.
+- Fixed placeholder quote commitment content such as dynamic block/item labels by adding a cleanup migration for existing database content.
+- Fixed product detail wording that implied VAT or best price without verified configuration by using neutral quote-focused copy.
+- Fixed dashboard widgets and data-transfer actions to respect permissions before querying or running import/export logic.
+- Fixed mail template rendering edge cases and product import handling for AI/technical data validation.
+
+### Changed
+- Changed AI content job statuses to distinguish verified completion, warning completion, review-needed, and blocked states.
+- Changed HVAC blog prompting to use verified data context, avoid unverified BTU formulas, and return warnings/blocked claims alongside content.
+- Changed product list/admin UI to show AI status, SEO score, last AI run, warning count, AI filters, and AI bulk actions.
+- Changed public marketing copy to remove unsupported claims around “best”, “free”, “official”, VAT, warranty, and energy-saving percentages unless data exists.
+- Changed generated product content validation to require UTF-8 Vietnamese with accents and to reject mojibake, unaccented Vietnamese, placeholders, or code-like text before saving.
+- Changed import/export and dashboard visibility behavior to be permission-aware.
+- Rebuilt Vite assets and replaced the old generated CSS asset.
+
+### Removed
+- Removed the previous generated CSS asset `public/build/assets/app-DhHpGVpR.css`.
+- Removed unsupported public claims and fallback copy that could imply unverified warranty, VAT, free installation, or fixed energy savings.
+
+### Security
+- Added backend permission enforcement for product AI generation, data import/export, dashboard widgets, and protected admin actions instead of relying only on hidden UI.
+- Added AI output sanitization for unsafe HTML, script/style/event attributes, raw variables, placeholders, internal implementation wording, and unverified technical/price claims.
+- Added fact-check blocking for unverified BTU, kW, HP, m2, dB, Pa, mm, kg, W, A, price, VAT, warranty, CO/CQ, and absolute marketing claims.
+- Added safer logging for AI product generation metadata without exposing provider secrets.
+
+## [1.14.0] - 2026-05-13
+
+### Added
+- Added `HVACSeoContentEngine` to generate structured HVAC SEO blog JSON with title, slug, excerpt, HTML content, SEO/OG metadata, tags, FAQ, and internal link suggestions.
+- Added strict HVAC content quality validation for generated blog drafts, including minimum 1000-word content, required H2/H3 sections, BTU or m2 data, practical sections, and at least 3 FAQ items.
+- Added AI retry prompting for weak HVAC drafts so short or incomplete generations are rewritten before a job can complete.
+- Added Claude adapter support for `/v1/messages` providers, including ShopAIKey-compatible base URL normalization and JSON extraction.
+- Added bulk HVAC blog generation options to `ai:generate-blog`, including content category, audience, product, brand, and bulk count inputs.
+- Added AI content job form inputs for HVAC category, audience, related product, and related brand.
+- Added regression tests for ShopAIKey OpenAI/Gemini/Claude gateway routing, provider pool usage reset, processing job handling, and HVAC prompt generation.
+
+### Fixed
+- Fixed AI blog jobs being blocked by a missing `GEMINI_API_KEY` even when active AI Providers are configured in the database.
+- Fixed `GenerateBlogDraftJob` skipping jobs that were already marked `processing`.
+- Fixed AI Provider pool availability checks so stale minute/daily usage windows reset and expired rate-limited providers become active again.
+- Fixed provider failure threshold logic so the third consecutive failure can mark a provider as failed.
+- Fixed OpenAI-compatible adapter endpoints for providers configured with base URLs such as `https://api.shopaikey.com` or `/v1`.
+- Fixed Gemini adapter support for ShopAIKey by using Bearer auth for non-Google endpoints and normalizing `/v1beta/models/{model}:generateContent` URLs.
+- Fixed OpenAI and Gemini generation requests so long-form token limits are actually sent to providers.
+- Fixed AI provider test action so Claude providers use the Claude adapter.
+- Fixed AI publish flow to generate unique post slugs, copy AI SEO/OG metadata, attach generated FAQ entries, sync tags, and attach the related product.
+
+### Changed
+- Changed AI blog generation from inline Gemini-only prompt parsing to provider-pool-backed HVAC SEO content generation.
+- Changed AI content job creation to allow blank topic, keyword, and intent so the engine can infer them from category and context.
+- Changed generated AI job output storage to preserve structured metadata, FAQ, tags, and internal links separately from the HTML draft.
+- Documented the live-server update flow for the v1.14.0 AI content release.
+
+### Removed
+- None.
+
+### Security
+- None.
+
+## [1.13.1] - 2026-05-12
+
+### Added
+- Added regression tests for product related-products inverse relationships and tag slug generation, including tag creation through a product relation.
+
+### Fixed
+- Fixed Filament related-products attach actions on product edit pages by adding an explicit inverse relationship for the self-referential `product_related` pivot.
+- Fixed internal-link suggestion actions on post and product edit pages by correcting the `InternalLinkSuggestionService` namespace to match the PSR-4 path.
+- Fixed quick tag creation from relation managers by auto-generating unique tag slugs when only a tag name is submitted.
+- Fixed product document uploads failing when Filament passes a stored file path string to the upload state callback.
+
+### Changed
+- None.
+
+### Removed
+- None.
+
+### Security
+- None.
+
+## [1.13.0] - 2026-05-12
+
+### Added
+- Added missing data import permissions for leads and quote requests so data-transfer modules have both import and export permissions registered.
+- Added `btu_calculation` import/export permission group for BTU calculation history.
+- Added upload default settings to `SiteSettingSeeder`, including 50 MB document/file limits and default MIME allowlists.
+- Added regression tests for data-transfer permissions, encoding command SQL generation, quote mail logging, product slug generation, and upload setting fallbacks.
+
+### Fixed
+- Fixed product creation from Filament relation managers by auto-generating unique product slugs when only a product name is submitted.
+- Fixed Livewire temporary uploads being capped at 12 MB by applying the application upload limit to `livewire.temporary_file_upload.rules`.
+- Fixed blank upload settings returning unusable values by falling back to safe defaults for size limits, MIME lists, and image count limits.
+- Fixed encoding audit/repair SQL generation by adding spaces between `OR` clauses and using binary `LIKE` checks for corrupted UTF-8 patterns.
+- Fixed upload settings helper text to match the new 50 MB default document/file limits.
+
+### Changed
+- Reduced encoding audit false positives by removing the overly broad mojibake dash marker from the audit pattern list.
+- Changed quote mail diagnostics from info-level full payload logging to debug-level key-only logging.
+
+### Removed
+- None.
+
+### Security
+- Stopped logging full quote mail payload values, reducing exposure of customer contact data in application logs.
+
+## [1.12.0] - 2026-05-11
+
+### Added — SEO Schema Infrastructure (7 new schema types)
+- **`SchemaService::collectionPage()`** — Generates `CollectionPage` JSON-LD for category pages with embedded `BreadcrumbList` and `ItemList` of products. Includes category image, description, and product count
+- **`SchemaService::brandPage()`** — Generates `Brand` JSON-LD for brand detail pages with description and logo
+- **`SchemaService::itemListPage()`** — Generates `ItemList` JSON-LD for product listing pages (products index, brand pages). Supports both paginated and non-paginated collections via `method_exists($products, 'total')` check
+- **Brand page schema** — `brands/show.blade.php` now emits 3 schema blocks: `Brand`, `BreadcrumbList`, `ItemList`
+- **Products index schema** — `products/index.blade.php` now emits `ItemList` schema
+- **Contact page schema** — `pages/contact.blade.php` now renders `LocalBusiness` + `BreadcrumbList` schema (the `localBusiness()` method existed in SchemaService since v1.0.0 but was never rendered on any page)
+- **Blog index schema** — `blog/index.blade.php` now emits `BreadcrumbList` JSON-LD via SchemaService
+
+### Added — Category Content Rendering
+- **Category intro section** — `products/category.blade.php` now renders `$category->intro` text and `$category->image` in a hero-style header section with responsive layout. Previously the category page only showed a product grid with zero text content (thin content SEO issue)
+- **Category rich content section** — Renders `$category->content` (longText from DB) as rich HTML below the product grid, styled with Tailwind prose classes
+- **Category internal links** — Added `<x-internal-links>` component for category pages (`source-type="ProductCategory"`)
+- **Category schema** — Added `CollectionPage` JSON-LD schema via SchemaService
+
+### Added — Product → Blog Internal Linking
+- **Related blog posts section** on product detail page — Loads up to 3 published posts linked to the product via `product_post` pivot table. Renders as `<x-post-card>` grid below related products section
+- **`ProductController::show()`** — Added `$relatedPosts` query via `$product->posts()` with status/date filters, passed to view
+- **Product internal links** — Added `<x-internal-links>` component on product detail pages (`source-type="Product"`)
+
+### Added — Sitemap: Case Studies Sub-sitemap
+- **`SitemapService::buildCaseStudies()`** — New method generating XML sitemap for published case studies, ordered by `published_at`, with `monthly` changefreq and `0.6` priority
+- **`SitemapController::caseStudies()`** — New controller method serving the case studies sitemap
+- **Route** `GET /sitemap-case-studies.xml` → `sitemap.case-studies`
+- **Static sitemap expanded** — Added `case-studies.index` and `compare.index` pages to `buildStatic()` URLs
+
+### Fixed — Duplicate FAQ Schema on Product Pages
+- **Root cause**: Product detail page emitted **two separate `FAQPage` schemas** — one from the `<x-faq-section>` component (product FAQs) and another inline block (answered Q&A questions). Google treats multiple `FAQPage` schemas as ambiguous
+- **Fix**: Added `skipSchema` prop to `<x-faq-section>` component. Product show passes `:skip-schema="true"` and instead generates a **single consolidated `FAQPage` schema** that merges both FAQ entries and answered Q&A questions into one `mainEntity` array
+- **Bonus**: Fixed `@@type` / `@@context` double-@ encoding in the product page FAQ schema — now uses correct `@type` / `@context`
+
+### Fixed — FAQ Component Schema Stack
+- **`faq-section.blade.php`** pushed FAQ schema to `@push('scripts')` stack — this renders JSON-LD in the `<body>`. Changed to `@push('schema')` which renders in the `<head>` where JSON-LD belongs per Google guidelines
+
+### Fixed — Sitemap Hardcoded URLs
+- **BTU Calculator** — `url('/cong-cu/tinh-cong-suat-btu')` → `route('btu-calculator.index')` (old URL didn't match actual route `/cong-cu/chon-cong-suat-dieu-hoa-tu-dung`)
+- **FAQ page** — `url('/faq/dieu-hoa-tu-dung')` → `route('faq.dieu-hoa')`
+- **Price list** — `url('/bang-gia/dieu-hoa-tu-dung')` → `route('price-list')`
+
+### Files Changed (12 files)
+- `app/Services/Schema/SchemaService.php` — +3 methods: `collectionPage()`, `brandPage()`, `itemListPage()` (+100 lines)
+- `app/Services/Sitemap/SitemapService.php` — +`buildCaseStudies()`, +2 static pages, fix 3 URLs (+48 lines)
+- `app/Http/Controllers/ProductController.php` — Load `$relatedPosts` (+9 lines)
+- `app/Http/Controllers/SitemapController.php` — +`caseStudies()` method (+7 lines)
+- `resources/views/products/category.blade.php` — Full upgrade: intro/content/schema/internal-links (+48 lines)
+- `resources/views/products/show.blade.php` — +related posts, +internal links, consolidated FAQ schema (+65/-19 lines)
+- `resources/views/products/index.blade.php` — +ItemList schema (+12 lines)
+- `resources/views/brands/show.blade.php` — +Brand/Breadcrumb/ItemList schema (+18 lines)
+- `resources/views/blog/index.blade.php` — +BreadcrumbList schema (+11 lines)
+- `resources/views/pages/contact.blade.php` — +LocalBusiness/Breadcrumb schema (+12 lines)
+- `resources/views/components/faq-section.blade.php` — Fix schema stack + skipSchema prop (+5/-1 lines)
+- `routes/web.php` — +case-studies sitemap route (+1 line)
+- `VERSION` — 1.11.0 → 1.12.0
+
+---
+
+## [1.11.0] - 2026-05-11
+
+### Added — Product Data Audit Commands (Daikin / LG / Panasonic)
+- **`products:audit-daikin-specs`** command — Audits 129 Daikin products: cleans `specs_json` (flat→repeater format), enriches `indoor_dimensions` (10%→99%), `outdoor_dimensions` (10%→98%), `weight` (10%→99%) from embedded Sky Air catalogue constants. Creates JSON backup before fix. Generates audit report + missing fields CSV
+- **`products:audit-lg-specs`** command — Audits 73 LG products: converts `specs_json` flat→repeater format. All standard fields already at 100% coverage. 14 unique spec keys preserved (eer, compressor, pipe details, noise_detail, airflow_detail)
+- **`products:audit-panasonic-specs`** command — Audits 71 Panasonic products: converts `specs_json` flat→repeater format. Tracks 32 indoor models (S-xxxx) + 40 outdoor models (U-xxxx) = 71 combinations. All standard fields at 100%
+
+### Fixed — Admin UI Empty Spec Rows
+- **Root cause: `specs_json` stored as flat `{key: value}` instead of Filament Repeater format `[{key, value}]`** — Filament Repeater widget created phantom empty rows when rendering flat JSON objects. All 273 products across 3 brands converted to proper repeater format. Total empty items eliminated: ~880 (Daikin) + 0 (LG) + 0 (Panasonic) = ~880→0
+
+### Changed — ProductSpecLabel Vietnamese Labels
+- Added 27 new Vietnamese labels for brand-specific spec keys:
+  - **Daikin** (8): seer, scop, cspf, heating_kw, compressor, power_consumption_kw, noise_indoor, esp, fan_type, indoor_weight, outdoor_weight, height_diff
+  - **LG** (5): noise_detail, airflow_detail, pipe_length, cooling_heating, sub_type
+  - **Panasonic** (3): series, nanoe_x, temp_range
+- Updated GROUPS for organized frontend display: efficiency group (+seer/scop/cspf), power group (+heating_kw), indoor group (+airflow_detail/noise_detail/esp), outdoor group (+noise_outdoor/outdoor_weight), pipe group (+pipe_length/height_diff), operation group (+compressor/fan_type/series/nanoe_x/temp_range)
+- Removed 3 duplicate MAP entries in Panasonic section (noise_outdoor, pipe_max_length, power_consumption_kw already defined in Daikin section)
+
+### Files Changed (4 files)
+- `app/Console/Commands/AuditDaikinSpecs.php` — **NEW** (290 lines) — Daikin audit with embedded INDOOR_SPECS/OUTDOOR_SPECS catalogue constants
+- `app/Console/Commands/AuditLgSpecs.php` — **NEW** (215 lines) — LG audit command
+- `app/Console/Commands/AuditPanasonicSpecs.php` — **NEW** (195 lines) — Panasonic audit with S/U model pair tracking
+- `app/Support/ProductSpecLabel.php` — +27 labels, +9 GROUPS entries, -3 duplicate entries
+
+### Audit Output Files
+- `storage/app/audit/daikin-backup-*.json` — Pre-fix backup
+- `storage/app/audit/daikin-product-specs-audit.json` — Full Daikin audit report
+- `storage/app/audit/daikin-product-specs-missing.csv` — 129 products, missing: power/airflow/noise (116 Sky Air)
+- `storage/app/audit/lg-backup-*.json` / `lg-products-clean.json` / `lg-products-missing.csv`
+- `storage/app/audit/panasonic-backup-*.json` / `panasonic-products-clean.json` / `panasonic-products-missing.csv`
+
+---
+
+## [1.10.1] - 2026-05-11
+
+### Fixed — Product Filter Returns 0 Results
+- **Root cause: `inverter=""` treated as `inverter=false`** — When user selected "Tất cả" (All) in the inverter radio filter, the frontend sent `inverter=` (empty string). `filter_var('', FILTER_VALIDATE_BOOLEAN)` converted this to `false`, adding `WHERE inverter = 0` to the query. Since most products (328/354) are inverter models, this incorrectly excluded them. Example: `/san-pham?brand[]=daikin&inverter=` returned 0 results despite 129 active Daikin products (all inverter). Fix: empty/null boolean values are now skipped in `sanitize()`, meaning "no filter" instead of "filter to false"
+- **Inverter radio "Tất cả" unchecked after selection** — `request('inverter')` returns `""` (empty string) not `null` when `inverter=` is in URL. The Blade condition `=== null` always evaluated false, leaving the "Tất cả" radio unchecked. Fix: condition now checks both `!request()->has('inverter')` and `request('inverter') === ''`
+- **`hasActiveFilters()` returned true for unfiltered pages** — Empty inverter param created a key in sanitized filters, causing `hasActiveFilters()` to return true. This incorrectly set `robots=noindex,follow` on effectively unfiltered pages, penalizing SEO. Auto-fixed by the boolean sanitization fix above
+
+### Fixed — Sidebar Product Counts Include Inactive Products
+- **Brand `products_count` counted all products** — `withCount('products')` included `is_active=false` and soft-deleted products. Sidebar displayed inflated counts. Fix: constrained to `->withCount(['products' => fn($q) => $q->where('is_active', true)])` in both `index()` and `category()` methods
+- **Category `products_count` same issue** — Identical fix applied to ProductCategory counts in both controller methods (4 total locations fixed)
+
+### Files Changed (3 files)
+- `app/Services/Product/ProductFilterService.php` — Boolean sanitization: skip empty/null values (+4 lines)
+- `resources/views/components/product-filter-sidebar.blade.php` — Inverter radio checked state fix (1 line)
+- `app/Http/Controllers/ProductController.php` — Brand + Category `withCount` constrained to active products (4 locations, +12 lines)
+
+---
+
+## [1.10.0] - 2026-05-11
+
+### Added — Daikin & Panasonic Catalogue Import
+- **`ImportDaikinProducts` artisan command** (`app/Console/Commands/ImportDaikinProducts.php`) — Import 129 Daikin commercial HVAC products from Sky Air (116) + Packaged Inverter VN (13) catalogues. Idempotent upsert by `brand_id` + `model_code`. `--dry-run` mode supported
+- **`ImportPanasonicProducts` artisan command** (`app/Console/Commands/ImportPanasonicProducts.php`) — Import 71 Panasonic products from commercial catalogue. Maps indoor (S-xxx) + outdoor (U-xxx) pairs. Full specs: power_consumption, airflow, noise_level, indoor/outdoor dimensions, weight, pipe specs, CSPF, nanoe™ X generation
+- **Panasonic series classification**: NX cao cấp (nanoe™ X gen 3), NX tiêu chuẩn (gen 2), NX 2 chiều, Non-inverter, Tủ đứng Inverter, Mini Cassette
+- **Product categories covered**: Cassette 4 hướng (35), Nối ống gió (25), Áp trần (6), Tủ đứng (5) for Panasonic; 4 categories for Daikin
+- **System total**: 354 products across 4 brands (Daikin 129, Gree 81, LG 73, Panasonic 71)
+
+### Added — Policy Page Display Locations
+- **`<x-policy-links>` Blade component** (`app/View/Components/PolicyLinks.php` + `resources/views/components/policy-links.blade.php`) — Reusable component with 4 variants: `list` (footer), `inline` (header), `checkbox` (forms), `detail` (product pages). Self-hiding via `shouldRender()` when no policies match
+- **`PolicyLinks::ALL_LOCATIONS` constants** — Single source of truth for location keys (`footer`, `header_top`, `lead_form`, `product_detail`), used in both Filament form and frontend rendering
+- **`scopeVisibleIn()` model scope** — Alias for `displayedIn()` on `PolicyPage` model
+
+### Fixed — Policy Page Frontend Rendering
+- **3/4 display locations had no frontend rendering code** — Only `footer` had `displayedIn()` query. `header_top`, `lead_form`, `product_detail` were saved in DB but never rendered on frontend
+- **Header top bar** — Added `<x-policy-links display-location="header_top">` to `partials/header.blade.php`
+- **Quote form** — Added `<x-policy-links display-location="lead_form">` before submit button in `components/quote-form.blade.php`
+- **Product detail** — Added `<x-policy-links display-location="product_detail">` in warranty tab of `products/show.blade.php`
+- **Footer refactored** — Replaced inline `@php` query block with `<x-policy-links>` component
+
+### Changed
+- **PolicyPageForm** — Replaced hardcoded options array with `PolicyLinks::ALL_LOCATIONS` constant reference
+
+### Files Changed (10 files, 4 new)
+- `app/Console/Commands/ImportDaikinProducts.php` — **NEW**
+- `app/Console/Commands/ImportPanasonicProducts.php` — **NEW**
+- `app/View/Components/PolicyLinks.php` — **NEW**
+- `resources/views/components/policy-links.blade.php` — **NEW**
+- `app/Models/PolicyPage.php` — +8 lines (visibleIn scope)
+- `app/Filament/Resources/PolicyPages/Schemas/PolicyPageForm.php` — constants ref
+- `resources/views/partials/header.blade.php` — +1 line (header_top policy)
+- `resources/views/partials/footer.blade.php` — refactored to component
+- `resources/views/components/quote-form.blade.php` — +3 lines (lead_form policy)
+- `resources/views/products/show.blade.php` — +4 lines (product_detail policy)
+- `VERSION` — 1.9.0 → 1.10.0
+
+---
+
+## [1.9.0] - 2026-05-10
+
+### Added — LG SCAC Catalogue R32 Import
+- **`ImportLgProducts` artisan command** (`app/Console/Commands/ImportLgProducts.php`) — Import 73 LG commercial HVAC products from extracted catalogue data (JSON). Supports `--dry-run` mode for preview. Upsert logic matches by `brand_id` + `model_code` (idempotent — re-run updates, never duplicates)
+- **5 product categories imported**: Cassette 4 hướng thổi (19), Cassette 1 hướng thổi (8), Cassette tròn (8), Tủ đứng (16), Nối ống gió (22)
+- **Full technical specs** per product: BTU, kW, HP, EER, airflow, noise level, indoor/outdoor dimensions, weight, pipe sizes, max pipe length, max height diff, compressor type, refrigerant gas
+- **Both cooling types**: 44 cooling-only (1 chiều) + 29 heat pump (2 chiều)
+- **Both phase types**: 1-phase (220-240V) and 3-phase (380-415V) variants
+- **R410A support**: 3 large floor-standing models (98K–200K BTU) correctly tagged as R410A instead of R32
+- **specs_json enriched**: Each product stores extended specs (indoor/outdoor model, EER, airflow detail, noise detail, pipe specs, compressor info) in structured JSON
+
+### Changed — ProductImportHandler fillable fields
+- Added `capacity_kw` and `hp` to `$fillableFields` array in `prepareData()` — these columns existed in DB (migration `2026_05_09_185109`) but were not whitelisted for import, causing them to be silently dropped during CSV/JSON imports
+
+### Files Changed (3 files)
+- `app/Console/Commands/ImportLgProducts.php` — **NEW** (121 lines)
+- `app/Services/DataTransfer/Modules/ProductImportHandler.php` — +2 fillable fields
+- `VERSION` — 1.8.1 → 1.9.0
+
+---
+
+## [1.8.1] - 2026-05-10
+
+### Fixed
+- **Search API 500 on MySQL 5.7/MariaDB** — `JSON_EXTRACT(specs_json, '$[*].value')` uses `$[*]` wildcard which requires MySQL 8.0+. Replaced with `CAST(specs_json AS CHAR)` + `LIKE` for universal MySQL/MariaDB compatibility. Also added `whereNotNull('specs_json')` guard to prevent NULL column crashes
+
+### Files Changed (2 files)
+- `app/Services/Search/ProductSearchService.php` — MySQL-compatible JSON search fallback
+- `VERSION` — 1.8.0 → 1.8.1
+
+## [1.8.0] - 2026-05-10
+
+### Added
+- **Homepage Search Section** — Extracted search box from Hero Slider into independent `<x-home.homepage-search />` component. Search renders immediately on page load, unaffected by slide animations. New `homepage` variant added to `search-box.blade.php` with opaque white input and proper z-index for autocomplete dropdown
+- **Compare Bar AJAX State Sync** — Rewrote `compare-bar.blade.php` to use server-session as single source of truth. All add/remove/clear operations now return full `items[]` array from server. Replaced browser `alert()` with modern toast notifications. `localStorage` demoted to transient UX cache
+- **Admin CTA Mobile Bar Controls** — Added 3 toggle switches in Admin > Site Settings > CTA tab: `mobile_bar_call_enabled`, `mobile_bar_zalo_enabled`, `mobile_bar_quote_enabled`. Each mobile sticky bar button can now be individually toggled on/off
+- **Hotline Display Setting** — Added `contact.hotline_display` setting for formatted phone display (e.g., "0909.123.456") separate from raw `tel:` number
+
+### Fixed
+- **Empty `tel:` links** — Homepage CTA section and mobile sticky bar had `href="tel:"` with no phone number. Now uses `setting('contact.hotline')` with conditional rendering — link hidden entirely if no hotline configured
+- **405 MethodNotAllowed on GET /so-sanh-san-pham/remove** — Added GET fallback routes for `/add`, `/remove`, `/clear` that redirect to compare index instead of showing raw Symfony exception page. POST-only mutation routes remain unchanged
+- **Wrong Zalo setting key** — `case-studies/index.blade.php` used non-existent `setting('contact.zalo')` with hardcoded `https://zalo.me/` fallback. Corrected to `setting('contact.zalo_link')`
+- **Hardcoded phone fallback `0900000000`** — Removed fake phone number fallback from case studies CTA. Now uses actual admin-configured hotline
+
+### Changed
+- **Contact/CTA Dynamic Settings** — Refactored `sticky-cta.blade.php` (full rewrite), `home.blade.php` CTA section, and `case-studies/index.blade.php` CTA to use `setting()` helper for all phone numbers, Zalo links, and CTA labels. Zero hardcoded contact info remains in frontend
+- **CSRF Expiry Notification** — Replaced `alert('Phiên làm việc đã hết hạn')` with animated toast notification that auto-dismisses before page reload
+- **Responsive CSS Overhaul** — Added `overflow-x: hidden` global fix, hero slider overflow containment via `:has([x-data*="heroSlider"])`, `.scrollbar-none` utility, compare bar z-index layering (z-9998), sticky CTA auto-hide when compare bar visible, iOS safe area padding
+- **Hero Slider Mobile Typography** — Reduced h1 from `text-3xl` to `text-2xl` on mobile, `sm:text-4xl` to `sm:text-3xl` on tablet to prevent text overflow
+- **Search Box Mobile Optimization** — Added responsive padding (`pr-24` mobile → `pr-36` desktop), split button text ("Tìm" mobile / "Tìm sản phẩm" desktop)
+- **Admin CTA Tab Reorganization** — Restructured CTA settings into 3 sections: CTA Buttons (2-column layout), Mobile Bottom Bar (3 toggles), and Hotline Display
+
+### Security
+- **Compare routes enforce POST** — All mutation routes (`/add`, `/remove`, `/clear`) remain POST-only with CSRF protection. GET requests gracefully redirect instead of exposing stack traces
+
+### Files Changed (17 files)
+- `app/Http/Controllers/CompareController.php` — `remove()` returns full `items[]`, accepts `product_id` alias, `clear()` returns `items: []`
+- `app/Filament/Pages/ManageSiteSettings.php` — CTA tab expanded with mobile bar toggles and hotline_display
+- `resources/css/app.css` — +58 lines: responsive overflow fixes, z-index layering, iOS safe area, scrollbar utility
+- `resources/js/app.js` — CSRF 419 toast notification replaces `alert()`
+- `resources/views/components/compare-bar.blade.php` — Full rewrite: AJAX state sync, toast notifications, mobile-optimized
+- `resources/views/components/home/hero-slider.blade.php` — Removed search box, reduced mobile font sizes
+- `resources/views/components/home/homepage-search.blade.php` — **NEW** — Independent search section component
+- `resources/views/components/search-box.blade.php` — Added `homepage` variant, mobile-responsive padding/button
+- `resources/views/pages/home.blade.php` — Added homepage-search component, dynamic CTA settings
+- `resources/views/pages/case-studies/index.blade.php` — Fixed Zalo key, removed hardcoded fallbacks
+- `resources/views/partials/sticky-cta.blade.php` — Full rewrite: dynamic settings + per-button toggles
+- `routes/web.php` — Added GET fallback redirects for compare mutation routes
+- `.gitignore` — Added `/antigravity` and `/antigravity.pub`
+- `VERSION` — 1.7.1 → 1.8.0
+- `public/build/assets/app-*.css` — Rebuilt
+- `public/build/assets/app-*.js` — Rebuilt
+- `public/build/manifest.json` — Updated asset hashes
+
+## [1.7.1] - 2026-05-10
+
+### Fixed — BTU Calculator Audit (4 issues)
+- **Showroom W/m² label mismatch** — Frontend select displayed "900 W/m²" while service used correct 300 W/m². Calculation was correct, but UI was misleading
+- **`energy_rating` sort pushed NULLs first** — When user selected "Tiết kiệm điện" priority, products without energy rating appeared first. Now NULLs sort to end via `$p->energy_rating ?? 999`
+- **Landing page Quick BTU widget used flat 600 BTU/m²** — Replaced with accurate W/m²-based calculation using the same 27 space types as the main calculator, with Alpine.js reactive dropdown, real BTU tier rounding, and HP/W/m² display
+
+### Changed — BTU Calculator Architecture
+- **Hardcoded `<option>` tags → dynamic rendering** — Replaced 44 hardcoded `<option>` lines with `BtuCalculatorService::spaceTypeGrouped()` loop. Adding/editing space types in the service now auto-updates all UIs
+- **Added `group` field to cooling load table** — Each of the 27 space types now has a `group` key (Nhà ở, Văn phòng, Thương mại, F&B, etc.) for `<optgroup>` rendering
+- **Added `getCoolingLoad()` method** — Public accessor for W/m² values, used by landing page widget for client-side JS calculation
+- **Added 3 missing VN market BTU tiers** — 30,000 (3.3HP), 42,000 (4.7HP), 45,000 (5.0HP) with corresponding area ranges
+- **Updated `btuToAreaRange` map** — Added area ranges for new tiers: 30K→38-52m², 42K→55-72m², 45K→58-78m²
+
+### Files Changed (5 files)
+- `app/Services/Calculator/BtuCalculatorService.php` — +group field, +getCoolingLoad(), +spaceTypeGrouped(), +3 tiers, energy_rating fix
+- `resources/views/components/btu-calculator.blade.php` — Dynamic options from service, Showroom label fix
+- `resources/views/landing/sections/advisory_content.blade.php` — Full widget rewrite with W/m² accuracy
+- `public/build/manifest.json` — Updated asset hashes
+- `VERSION` — 1.7.0 → 1.7.1
+
+---
+
+## [1.7.0] - 2026-05-10
+
+### Added — Product Search Module
+- **`SearchController`** (`app/Http/Controllers/SearchController.php`) — Autocomplete API + full search results page
+- **`ProductSearchService`** (`app/Services/Search/ProductSearchService.php`) — Full-text search across product name, model, SKU, brand, category, BTU capacity with relevance scoring
+- **Search box component** (`resources/views/components/search-box.blade.php`) — Reusable component with `hero` and `inline` variants, Alpine.js autocomplete with debounce 300ms
+- **Search results page** (`/tim-kiem`) — Full results page with product cards, pagination, query highlighting
+- **Search suggest API** (`/api/search/suggest`) — JSON autocomplete endpoint with throttle (30/min)
+- **Inline search** added to `/san-pham` and category listing pages
+- **SEO schema** — Updated `SearchAction` URL template from `/san-pham?q=` to `/tim-kiem?q=`
+- Search logs table (`search_logs`) for analytics
+
+### Added — Hero Slider CMS Module
+- **`HeroSlide` model** (`app/Models/HeroSlide.php`) — Supports gradient, color, image, video, embed background types with overlay control
+- **`HeroSlideResource`** — Full Filament CRUD under "Landing & Pages → Hero Slider" with 5-tab form (Nội dung, Background, CTA, Hiệu ứng, Trạng thái)
+- **Hero slider component** (`resources/views/components/home/hero-slider.blade.php`) — Alpine.js carousel with autoplay, pause-on-hover, dot navigation, arrow controls, text animations (fade, slide-up, slide-left, zoom-in)
+- Drag-to-reorder slides, duplicate, per-slide toggle
+- CTA buttons with configurable URL, text, style (accent/outline)
+- Media upload via `MediaDiskService` (R2/local)
+- Fallback to static hero when no active slides exist
+- **`HeroSlideSeeder`** — Seeds default slide matching original static hero
+- Search box renders on **all slides** (not just first)
+
+### Added — Home Benefits CMS Module
+- **`HomeBenefitItem` model** (`app/Models/HomeBenefitItem.php`) — Supports heroicon (whitelist), image upload, custom SVG with sanitization
+- **`HomeBenefitItemResource`** — Full Filament CRUD under "Landing & Pages → Home Benefits" with drag reorder
+- **Benefit bar component** (`resources/views/components/home/benefit-bar.blade.php`) — Dynamic rendering with icon type switching, color presets, fallback to original 4 hardcoded items
+- 7 whitelisted icon names: shield-check, zap, clock, badge-dollar-sign, truck, wrench, check-circle
+- SVG sanitization (strips script tags, event handlers, javascript: URLs)
+- **`HomeBenefitItemSeeder`** — Seeds 4 default benefit items
+
+### Added — Quote Commitments CMS Module
+- **`QuoteCommitmentBlock` + `QuoteCommitmentItem` models** — Parent-child relationship with cascade delete
+- **`QuoteCommitmentBlockResource`** — Full Filament CRUD under "Landing & Pages → Quote Commitments" with Repeater for items (reorderable, collapsible, cloneable)
+- **Commitment block component** (`resources/views/components/quote/commitment-block.blade.php`) — Sidebar widget on `/bao-gia`, loads first active block with active items
+- 9 whitelisted icons: settings, file-text, map-pin, wrench, shield-check, check-circle, badge-dollar-sign, clock, phone
+- Block-level toggle: when OFF → fallback content displays
+- Per-item toggle + sort order control
+- **`QuoteCommitmentSeeder`** — Seeds 1 block with 5 professional HVAC commitment items
+
+### Fixed — Double HTML Escape (`&amp;` Bug)
+- **`{{ e($var) }}`** in Blade caused double-encoding — Blade `{{ }}` already calls `htmlspecialchars()`, wrapping with `e()` encodes `&` → `&amp;amp;`
+- Removed redundant `e()` calls in `benefit-bar.blade.php` (3 locations) and `commitment-block.blade.php` (3 locations)
+
+### Changed — Homepage Architecture
+- Replaced 42-line hardcoded Trust Badges section with `<x-home.benefit-bar />` component
+- Replaced 33-line hardcoded Hero section with `<x-home.hero-slider />` component
+- Homepage `home.blade.php` reduced from 198 to 126 lines
+
+### Changed — Quote Page
+- Replaced 11-line hardcoded "Cam kết của chúng tôi" block with `<x-quote.commitment-block />` component
+
+### Routes Added (2)
+- `GET /api/search/suggest` → `search.suggest` (throttle: 30/min)
+- `GET /tim-kiem` → `search.index` (throttle: 60/min)
+
+### Migrations (4)
+- `2026_05_10_110000_create_search_logs_table`
+- `2026_05_10_114600_create_hero_slides_table`
+- `2026_05_10_123300_create_home_benefit_items_table`
+- `2026_05_10_125000_create_quote_commitment_tables` (2 tables)
+
+### Files Changed (45 total: 37 new + 8 modified)
+
+**New Files (37)**
+- `app/Http/Controllers/SearchController.php`
+- `app/Services/Search/ProductSearchService.php`
+- `app/Models/HeroSlide.php`, `HomeBenefitItem.php`, `QuoteCommitmentBlock.php`, `QuoteCommitmentItem.php`
+- `app/Filament/Resources/HeroSlides/` (6 files)
+- `app/Filament/Resources/HomeBenefitItems/` (6 files)
+- `app/Filament/Resources/QuoteCommitments/` (6 files)
+- `database/migrations/` (4 files)
+- `database/seeders/` (3 files)
+- `resources/views/components/search-box.blade.php`
+- `resources/views/components/home/hero-slider.blade.php`, `benefit-bar.blade.php`
+- `resources/views/components/quote/commitment-block.blade.php`
+- `resources/views/pages/search.blade.php`
+- `public/build/assets/app-DdT-N7Am.css`
+
+**Modified Files (8)**
+- `routes/web.php` — +2 search routes
+- `resources/views/pages/home.blade.php` — Hero + Benefit Bar → components
+- `resources/views/pages/quote.blade.php` — Commitment block → component
+- `resources/views/products/index.blade.php` — +inline search
+- `resources/views/products/category.blade.php` — +inline search
+- `resources/views/components/layouts/app.blade.php` — SearchAction URL fix
+- `public/build/manifest.json` — Updated asset hashes
+- `VERSION` — 1.6.1 → 1.7.0
+
+---
+
+## [1.6.1] - 2026-05-10
+
+### Fixed — PDF Export Permission Denied on Production
+- **`mkdir(): Permission denied`** — mPDF's `Cache` class attempted to create `storage/app/mpdf-tmp` at runtime, but on production servers the web server user (www-data/nginx) may lack permission to create directories under `storage/app/`
+- Fix: `exportPdf()` now explicitly creates the temp directory with `mkdir($tempDir, 0775, true)` before mPDF instantiation
+- Added **fallback to `sys_get_temp_dir()`** — if `storage/app/mpdf-tmp` is not writable (e.g., restrictive hosting), mPDF falls back to the system temp directory
+- Removed unused `ConfigVariables` and `FontVariables` imports
+
+### Files Changed (2 files)
+- `app/Services/Product/ProductComparisonService.php` — Temp dir creation + fallback logic
+- `VERSION` — 1.6.0 → 1.6.1
+
+---
+
+## [1.6.0] - 2026-05-10
+
+### Added — Product Comparison Module Upgrade
+- **`ProductComparisonService`** (`app/Services/Product/ProductComparisonService.php`) — New central service that builds the full comparison matrix from both standard DB columns AND all `specs_json` extra specs
+- **9 HVAC-domain groups**: Thông tin chung, Công suất & Hiệu suất, Điện & Môi chất lạnh, Dàn lạnh, Mặt nạ (Panel), Dàn nóng, Lắp đặt, Nguồn dữ liệu, Thông số khác
+- **60+ spec fields** compared (up from 12 hardcoded fields) — includes EER/COP, rated current, refrigerant charge, indoor/outdoor packaging, panel specs, pipe dimensions, installation limits
+- **Auto-collects ungrouped specs** — any extra key in `specs_json` not in predefined groups appears under "Thông số khác" (no specs lost)
+- **Diff highlighting** — values that differ across products are highlighted in amber for easy identification
+
+### Added — Export Comparison Data
+- **PDF export** (`/so-sanh-san-pham/export/pdf`) — A4 landscape, mPDF with DejaVu Sans font for full Vietnamese diacritics support, grouped sections, diff highlighting, footer with site domain, multi-page support
+- **Excel export** (`/so-sanh-san-pham/export/excel`) — XLSX with frozen panes (B2), indigo group headers, amber diff cells, auto column width, sheet name "So sánh sản phẩm"
+- **CSV export** (`/so-sanh-san-pham/export/csv`) — UTF-8 BOM for Excel compatibility, comma delimiter, full Vietnamese character support
+- **`ProductComparisonExport`** (`app/Exports/ProductComparisonExport.php`) — Maatwebsite Excel export class with professional styling
+
+### Added — Compare Page UX Improvements
+- **Export dropdown button** — "Xuất dữ liệu" dropdown with PDF/Excel/CSV options with animated transition
+- **Sticky first column** — Label column stays visible when scrolling horizontally on wide tables
+- **Color-coded group headers** — Each HVAC domain has a unique pastel color (slate, blue, amber, cyan, violet, orange, emerald, gray)
+- **Text truncation with tooltip** — Long values truncate with hover-to-expand behavior
+- **Mobile scroll hint** — Animated arrow indicator for horizontal scroll on mobile/tablet
+- **Transition animations** — Smooth hover effects on spec rows
+
+### Changed — CompareController Refactored
+- Injected `ProductComparisonService` via constructor DI (replaced inline DB queries and `ProductCompareSpecService` usage)
+- View variable renamed: `$compareRows` → `$groupedSpecs` (grouped by HVAC domain instead of flat basic/technical/physical)
+- Added 3 export endpoints: `exportPdf()`, `exportExcel()`, `exportCsv()` with `resolveExportProducts()` helper
+- Products fetched via service with `brand` + `category` eager loading (was only loading `brand`)
+
+### Changed — Compare Blade View Rewritten
+- Replaced hardcoded `$row()` PHP closure with dynamic `@foreach` loop over grouped specs
+- Group headers rendered from service data instead of static HTML blocks
+- Product values escaped with `{{ }}` instead of mixed `{!! !!}` / `htmlspecialchars()` — eliminated raw HTML injection risk from `stock_status` and `inverter` fields
+- Added responsive scrollbar styling via `<style>` block
+
+### Changed — ProductSpecLabel
+- Added `source_table` → `'Bảng catalogue'` label mapping
+
+### Changed — .gitignore
+- Added `/storage/app/mpdf-tmp` to prevent mPDF runtime cache from being committed
+
+### Dependencies
+- Added `mpdf/mpdf` (^8.3) — PDF generation with full Unicode/Vietnamese support via DejaVu Sans font
+
+### Routes Added (3)
+- `GET /so-sanh-san-pham/export/pdf` → `compare.export.pdf`
+- `GET /so-sanh-san-pham/export/excel` → `compare.export.excel`
+- `GET /so-sanh-san-pham/export/csv` → `compare.export.csv`
+
+### Files Changed (10 files)
+- `app/Services/Product/ProductComparisonService.php` — **NEW** (377 lines)
+- `app/Exports/ProductComparisonExport.php` — **NEW** (157 lines)
+- `app/Http/Controllers/CompareController.php` — Refactored with DI + export methods
+- `resources/views/pages/compare.blade.php` — Full rewrite with grouped specs + UX
+- `routes/web.php` — +3 export routes
+- `app/Support/ProductSpecLabel.php` — +1 label
+- `.gitignore` — +1 mpdf-tmp exclusion
+- `composer.json` — +mpdf/mpdf dependency
+- `composer.lock` — Updated lock file
+- `public/build/` — Rebuilt production assets (new CSS hash)
+
+---
+
+## [1.5.1] - 2026-05-10
+
+### Added — ProductSpecLabel Mapping System
+- **`ProductSpecLabel`** (`app/Support/ProductSpecLabel.php`) — Central mapping of 89 HVAC spec keys to Vietnamese display labels
+- **100% coverage** of all spec keys in DB — no raw snake_case keys visible to users
+- 10 spec groups for organized frontend display: Hiệu suất năng lượng, Công suất & Điện năng, Dàn lạnh, Mặt nạ, Dàn nóng, Đường ống lắp đặt, Gas lạnh, Kích thước & Đóng gói, Vận hành, Solar/Inverter
+- Auto-formatting: adds units (mm, kg, dB, m), cleans pipe inch notation, normalizes dimension separators
+- Fallback `humanize()` for any future unmapped keys — always produces readable labels
+- Hidden metadata keys (`source_catalogue`, `source_page`, `indoor_model`, `outdoor_model`) excluded from frontend display
+
+### Changed — Frontend Product Spec Table
+- Specs now grouped with colored section headers (`bg-primary-50`) instead of flat list
+- All spec labels display in Vietnamese with proper HVAC terminology
+- Values auto-formatted with correct units (kg, mm, dB(A), m)
+
+### Changed — Admin Repeater UX
+- Key input now has `datalist` autocomplete with all mapped key suggestions
+- Live `hint()` shows Vietnamese label preview while typing
+- Collapsed view with `itemLabel` showing "Label: Value" for each spec entry
+- Improved helper text guidance
+
+### Files Changed (5 files)
+- `app/Support/ProductSpecLabel.php` — **NEW** (351 lines)
+- `resources/views/products/show.blade.php` — Grouped spec display
+- `app/Filament/Resources/Products/Schemas/ProductForm.php` — Repeater UX improvements
+- `public/build/manifest.json` — Updated asset hashes
+- `public/build/assets/app-Ct6c5dpS.css` — Rebuilt production CSS
+
+---
+
+## [1.5.0] - 2026-05-10
+
+### Added — Product Import Mapper Service
+- **`ProductImportMapper`** (`app/Services/Product/ProductImportMapper.php`) — Central mapping layer that routes import keys to dedicated DB columns and isolates unknown fields into `specs_json`
+- 30+ import key aliases mapped to 15 standard DB columns (e.g. `capacity_btu` → `btu`, `power_input_kw` → `power_consumption`, `phase` → `voltage`)
+- Metadata exclusion list prevents product identity fields (name, slug, brand_id) from leaking into JSON specs
+- `castValue()` — Type-safe casting per column (int for BTU, float for kW/HP, boolean for inverter, enum normalization for cooling_type)
+- `flattenSpecs()` / `toRepeaterFormat()` — Bidirectional conversion between Filament Repeater format and flat key-value
+
+### Added — `product:clean-specs` CLI Command
+- `php artisan product:clean-specs` — Migrates standard fields from `specs_json` back to dedicated DB columns, removes metadata keys, deduplicates
+- `--dry-run` mode for safe preview
+- Normalizes `cooling_type` values: `"1 chiều"` → `"1_chieu"`, `"2 chiều"` → `"2_chieu"`
+
+### Added — `product:audit-catalogue-specs` CLI Command
+- `php artisan product:audit-catalogue-specs` — Audits all products for spec coverage, detects misplaced standard fields in JSON, duplicate spec keys, and critical missing data
+- `--fix` flag to auto-repair: moves standard fields from JSON to columns, deduplicates, removes metadata
+- Reports: total standard fields filled, extra specs count, low coverage products, critical missing
+
+### Added — Database Schema: `capacity_kw` and `hp` Columns
+- New columns `capacity_kw` (decimal 8,2) and `hp` (decimal 5,1) on `products` table
+- Migration includes data normalization: `cooling_type` enum values standardized to `1_chieu` / `2_chieu`
+- Reversible migration with proper `down()` method
+
+### Changed — ProductForm Technical Specs Tab
+- Added `capacity_kw` (Công suất kW) and `hp` (Mã lực HP) input fields to the technical specifications section
+- Renamed specs_json Repeater label from `"Thông số kỹ thuật mở rộng (JSON)"` to `"Thông số kỹ thuật mở rộng"` with helper text explaining usage
+- Repeater now shows guidance: "Chỉ thêm thông số KHÔNG có field chuẩn ở trên"
+
+### Changed — Product Model Casts
+- Added explicit casts: `btu` → `integer`, `capacity_kw` → `decimal:2`, `hp` → `decimal:1`
+- Ensures consistent type handling across Filament forms, API responses, and import pipeline
+
+### DevOps — Build Assets
+- Rebuilt production CSS (`public/build/assets/app-B21MSLaX.css`)
+- Updated `public/build/manifest.json` with new asset hashes
+
+### Files Changed (8 files)
+- `app/Services/Product/ProductImportMapper.php` — **NEW** (287 lines)
+- `app/Console/Commands/CleanProductSpecs.php` — **NEW** (105 lines)
+- `app/Console/Commands/AuditCatalogueSpecs.php` — **NEW** (148 lines)
+- `database/migrations/2026_05_09_185109_add_capacity_kw_and_hp_to_products_table.php` — **NEW** (38 lines)
+- `app/Filament/Resources/Products/Schemas/ProductForm.php` — Added kW/HP fields + repeater label
+- `app/Models/Product.php` — Added casts for new columns
+- `public/build/manifest.json` — Updated asset hashes
+- `public/build/assets/app-B21MSLaX.css` — Rebuilt production CSS
+
+---
+
+## [1.4.1] - 2026-05-09
+
+### Fixed — Critical: R2 Upload Silent Failures
+- **R2 disk `throw => false`** — Upload failures were silently swallowed, returning `false` instead of throwing exceptions. Changed to `throw => true` on both `r2` and `public` disks in `config/filesystems.php`
+- **R2 disk `use_path_style_endpoint => false`** — Cloudflare R2 requires path-style endpoints. Without this, S3 requests fail silently. Changed to `true`
+- **`AppServiceProvider` missing R2 runtime config** — Runtime R2 config override (from DB settings) was missing `use_path_style_endpoint` and `throw` keys → requests defaulted to virtual-hosted style which R2 doesn't support
+
+### Fixed — PostForm Crash: Non-existent Config Key
+- `PostForm.php` used `config('media.directories.images')` — this key **did not exist** in `config/media.php`, returning `null` → FileUpload directory was empty, files uploaded to root
+- Cover image and RichEditor attachments both affected
+- Fixed: changed to `config('media.folders.blog')` which is the correct existing key
+- Added `directories.images` backward-compat alias in `config/media.php` for safety
+
+### Fixed — RichEditor Disk Bypass
+- `PostForm.php` and `ProductForm.php` RichEditor components used `config('media.disk')` (static `.env` value) instead of `MediaDiskService::getUploadDisk()` (dynamic R2-aware)
+- When R2 enabled via admin, RichEditor inline images still uploaded to local `public` disk
+- Now uses dynamic closure: `fn () => app(MediaDiskService::class)->getUploadDisk()`
+
+### Fixed — ProductReviewForm Deprecated Disk Pattern
+- Used `configureR2Disk()` (deprecated no-op) and captured disk into static `$disk` variable at form construction time
+- If R2 state changed after form was built, the old disk name persisted until next request
+- Replaced with dynamic closure matching all other upload fields in the system
+
+### Changed — MediaDiskService Config Validation
+- `getUploadDisk()` now validates R2 credentials (key, secret, bucket, endpoint) before returning `'r2'`
+- If R2 enabled but config incomplete → falls back to `'public'` with warning log instead of returning `'r2'` that will crash on first upload
+- New method: `r2ConfigValid()` — checks all 4 required R2 credentials exist
+- `putUploadedFile()` now **throws `RuntimeException`** on failure instead of returning `false` — prevents saving empty/fake paths to DB
+
+### Changed — `media_url()` Direct R2 Upload Support
+- Previously only returned CDN URL if file existed in `media_files` table with `is_synced_to_r2 = true`
+- Files uploaded directly to R2 via Filament FileUpload (bypassing sync flow) had no `media_files` record → always fell back to local URL
+- Now also checks `Storage::disk('r2')->exists()` as fallback when sync record doesn't exist
+- Added `media_disk()` helper function — shorthand for `MediaDiskService::getUploadDisk()`
+
+### DevOps — Build Assets
+- Updated `public/build/` CSS assets — previous commit had stale CSS causing MIME type errors on production
+
+### Files Changed (10 files)
+- `config/filesystems.php` — `throw => true`, `use_path_style_endpoint => true`
+- `config/media.php` — Added `directories.images` backward compat key
+- `app/Services/Media/MediaDiskService.php` — Config validation, throw on failure, new methods
+- `app/Support/helpers.php` — `media_url()` R2 direct check, `media_disk()` helper
+- `app/Providers/AppServiceProvider.php` — R2 `use_path_style_endpoint` + `throw`
+- `app/Filament/Resources/ProductReviews/Schemas/ProductReviewForm.php` — Dynamic disk closure
+- `app/Filament/Resources/Posts/Schemas/PostForm.php` — Dynamic disk + correct config key
+- `app/Filament/Resources/Products/Schemas/ProductForm.php` — Dynamic RichEditor disk
+- `public/build/manifest.json` — Updated asset hashes
+- `public/build/assets/app-*.css` — Rebuilt production CSS
+
+---
+
+## [1.4.0] - 2026-05-09
+
+### Fixed — Critical: Boolean Toggle Display Bug
+- **All toggles in Site Settings showed ON regardless of actual DB value** — Root cause: `mount()` loaded boolean-type settings as raw strings (`"0"`, `"1"`). Filament Toggle treats non-empty string `"0"` as truthy → every toggle appeared ON even when DB stored OFF
+- Fix: `mount()` now uses `filter_var($value, FILTER_VALIDATE_BOOLEAN)` to cast boolean-type settings to actual PHP `bool` before passing to form components
+- This affected **all 50+ toggles** across the entire Settings page (R2, Mail, SEO, Sitemap, etc.)
+- Also fixed corrupted UTF-8 comments in the file that prevented clean editing
+
+### Fixed — SyncR2MediaJob URL Generation
+- `SyncR2MediaJob` used `Storage::disk('r2')->url()` to generate public URLs — this relies on the disk driver config which may not be correctly configured
+- Now uses `R2SyncService::buildPublicUrl()` which reads the actual Public URL from database settings
+- Added **post-upload R2 object verification** (`$disk->fileExists()`) — if the file doesn't exist on R2 after upload, the item is marked as failed instead of falsely recorded as synced
+- Added mid-job cancellation support (checks `$job->fresh()->status` each iteration)
+- New status `completed_with_errors` when some files fail but others succeed
+- Added structured logging for each upload success/failure
+
+### Fixed — ProductDocumentsRelationManager Download URL
+- Download action used `Storage::disk(config('media.disk', 'public'))->url()` — but `config('media.disk')` doesn't exist, silently falling back to `'public'` which may not resolve CDN URLs
+- Now uses `media_url()` helper which correctly resolves to CDN or local URL
+
+### Added — `media:audit` CLI Command
+- `php artisan media:audit` — scans all media fields across 10 models (Product, Brand, Post, CaseStudy, ProductDocument, Testimonial, ProductReview, User, SiteSetting branding)
+- Reports: DB path, local file existence, R2 sync status, fake CDN URLs
+- Detects fake CDN URLs (CDN domain + path but `is_synced_to_r2 = false`)
+- Handles JSON array fields (gallery, images_json)
+- Options: `--model=Product` (filter), `--fix` (show repair suggestions)
+
+### Added — `media:repair-paths` CLI Command
+- `php artisan media:repair-paths` — converts full CDN/local URLs in DB back to relative paths
+- `--dry-run` preview mode (no DB writes)
+- Per-model filtering with `--model=`
+- Handles JSON arrays, simple string paths
+- Skips HTML content fields (needs full URLs to render)
+- Collects base URLs from: APP_URL, R2 settings, old base URLs config
+
+### Added — R2 Sync Manager Safety Guards
+- Upload, Dry Run, and Replace URLs actions now **block with notification** when R2 is OFF — previously they created a job that immediately failed
+- Modal descriptions explain what each action does
+- Warning banner when R2 is OFF with link to Site Settings configuration
+
+### Changed — MediaUrlReplaceService Rewrite
+- `replaceUrls()` now verifies R2 sync status before any URL replacement — only replaces paths that are confirmed in `media_files` table with `is_synced_to_r2 = true`
+- Pre-loads all synced paths into cache to avoid N+1 queries during batch replace
+- Tracks `skipped_files` count and reports `completed_with_errors` when files are skipped
+- Per-file regex-based replacement with individual logging
+
+### Changed — MediaDiskService Upgrade
+- Added `exists()`, `delete()`, `putUploadedFile()` methods for centralized storage operations
+- Enhanced `normalizePath()` to strip `/storage/` prefix
+- Added `isFullUrl()` utility
+- Deprecated `configureR2Disk()` (now a no-op — `AppServiceProvider` handles R2 config globally at boot)
+
+### Changed — R2 Storage Settings Tab Redesign
+- Reorganized into 4 clear sections: Trạng thái R2, Thông tin kết nối, Cấu hình đồng bộ, URL Replace Config
+- Added proper descriptions, helper texts, and danger warnings for destructive toggles
+- 2-column layout for connection credentials
+- R2 enabled toggle now has `->live()` for reactive UI feedback
+
+### Changed — R2 Sync Manager Blade View
+- Added `completed_with_errors` status badge (warning color)
+- Scan completed panel shows file count and next-step guidance
+- Warning banner with link to Settings when R2 is OFF
+
+### Files Changed (9 files)
+- `app/Filament/Pages/ManageSiteSettings.php` — Boolean cast fix + R2 tab redesign
+- `app/Filament/Pages/R2SyncManager.php` — R2 guards + status handling
+- `app/Filament/Resources/Products/RelationManagers/ProductDocumentsRelationManager.php` — media_url() fix
+- `app/Jobs/SyncR2MediaJob.php` — URL generation + verification + logging
+- `app/Services/Media/MediaDiskService.php` — Full service upgrade
+- `app/Services/Media/MediaUrlReplaceService.php` — R2 existence verification
+- `resources/views/filament/pages/r2-sync-manager.blade.php` — Status panel improvements
+- `app/Console/Commands/MediaAudit.php` — **NEW** CLI audit tool
+- `app/Console/Commands/MediaRepairPaths.php` — **NEW** CLI repair tool
+
+
+## [1.3.0] - 2026-05-09
+
+### Fixed — Critical: Fake CDN URL Bug
+- **`media_url()` generated fake CDN URLs**: When R2 was enabled and a file didn't exist locally, the helper assumed it was on R2 and returned a CDN URL — but the file was never uploaded to R2. This caused all media (logos, product images, etc.) to show broken on frontend
+- **Root cause**: `!file_exists($localFilePath)` was used as a proxy for "file is on R2" — this is fundamentally wrong. Replaced with strict check: only return CDN URL when `MediaFile.is_synced_to_r2 = true`
+- Also removed auto-rewriting of `/storage/` URLs to CDN URLs for full URL inputs — this was another vector for generating invalid CDN links
+
+### Fixed — Branding Uploads Ignored R2
+- All 5 branding FileUpload components (`logo_image`, `logo_dark_image`, `logo_mobile_image`, `favicon`, `apple_touch_icon`) were hardcoded to `disk('public')`, bypassing R2 entirely even when enabled
+- Now use `MediaDiskService::getUploadDisk()` for dynamic disk selection
+
+### Fixed — All Resource Uploads Missing Disk
+- FileUpload components across **all Resources** (Product, Brand, Post, CaseStudy, Category, Testimonial, User, ProductDocument) had no explicit disk set
+- Filament falls back to `config('filesystems.default')` = `local` (private storage!) — files were uploaded but inaccessible via URL
+- All now use `MediaDiskService::getUploadDisk()` for dynamic R2/local switching
+
+### Changed — Import FK Validation
+- `ProductImportHandler::validateRow()` now checks `brand_id` and `product_category_id` exist in DB before import
+- `prepareData()` adds defensive null-set for missing FK IDs to prevent SQL constraint violations on production
+
+### Files Changed (10 files)
+- `app/Support/helpers.php` — Rewrote `media_url()` core logic
+- `app/Filament/Pages/ManageSiteSettings.php` — 5 branding uploads
+- `app/Filament/Resources/Products/Schemas/ProductForm.php` — 4 uploads
+- `app/Filament/Resources/Brands/Schemas/BrandForm.php` — 1 upload
+- `app/Filament/Resources/Posts/Schemas/PostForm.php` — 2 uploads
+- `app/Filament/Resources/CaseStudies/Schemas/CaseStudyForm.php` — 3 uploads
+- `app/Filament/Resources/ProductCategories/Schemas/ProductCategoryForm.php` — 1 upload
+- `app/Filament/Resources/Testimonials/Schemas/TestimonialForm.php` — 2 uploads
+- `app/Filament/Resources/Users/UserResource.php` — 1 upload
+- `app/Filament/Resources/Products/RelationManagers/ProductDocumentsRelationManager.php` — 1 upload
+
+## [1.2.0] - 2026-05-09
+
+### Fixed — Critical Import Bugs
+- **SoftDeletes slug collision**: `Product::where('slug')->exists()` skipped soft-deleted rows, but MySQL unique index still enforced them → all imports crashed with duplicate entry errors. Fixed by adding `withTrashed()` to all uniqueness checks (`ensureUniqueSlug`, `findExisting`, `validateRow`)
+- **Cascade transaction failure**: Chunked `DB::beginTransaction()` meant one row's constraint violation invalidated the entire chunk (all 108 rows failed even though only 1 had an error). Replaced with per-row transaction isolation
+- **CREATE mode missing guard**: CREATE mode didn't check if record already existed → blind `Product::create()` → crash. Now detects existing records and skips with clear error message suggesting UPSERT mode
+
+### Improved — Import Preview Page (Production UI)
+- Rebuilt with card-based architecture: Summary Stats → File Info → Error Table → Preview Table
+- File info displayed as proper HTML table (Module / Tên file / Định dạng / Matching Key)
+- Summary stat cards with colored accent bars (green/red/blue/yellow/purple) and `text-3xl` numbers
+- Preview table: sticky header, zebra rows, hover highlight, monospace for model/sku codes
+- Smart data resolution: `brand_id → "Gree"`, `category_id → "Điều hòa âm trần Cassette"`, booleans → badges, prices → formatted
+- Footer info box with stat counters: **108** TỔNG DÒNG · **20** ĐANG PREVIEW · **88** CÒN LẠI
+- Tooltip on truncated text (product name, slug)
+- Error table with dot-list formatting and row badges
+
+### Improved — Import Confirmation UX
+- Confirm modal: warning icon (⚠), descriptive heading, bullet-point summary, "Hành động này không thể hoàn tác" notice
+- Cancel button now requires confirmation: "Dữ liệu preview sẽ bị xóa. Bạn sẽ cần upload lại file."
+
+### Improved — Data Transfer Dashboard
+- Refactored from debug-style text list to professional admin dashboard
+- 4 separate cards: Summary Stats (4-col grid) → Export Jobs table → Import Jobs table → Module Reference (collapsible)
+- Export table: ID, Module badge, Format badge, Row count, Status badge, Creator, Timestamp, Download icon
+- Import table: ID, Module badge, Filename (truncated + tooltip), Mode badge (CREATE/UPDATE/UPSERT), Total/OK/Error counts, Status badge, Timestamp, Action icon buttons
+- Status badges: Hoàn thành (green), Lỗi (red), Preview (yellow), Đang import (blue), Chờ xử lý (gray)
+- Action buttons: eye icon → preview, document icon → result, warning icon → error log
+- Empty states with icon + descriptive message
+- Responsive: mobile card stack, horizontal table scroll
+
+### Changed
+- `DataImportService::confirmImport()` — per-row transaction instead of chunked transaction
+- `ProductImportHandler::ensureUniqueSlug()` — truncates slug to 200 chars, uses `withTrashed()`
+- `ProductImportHandler::findExisting()` — includes soft-deleted records in all lookups
+- `ProductImportHandler::validateRow()` — detects existing records in CREATE mode, warns about duplicate slugs
+
+---
+
+## [1.1.0] - 2026-05-09
+
+### Added — Import/Export Data System
+- Full import/export system for 4 modules: Product, Lead, Quote Request, BTU Calculation
+- Support for 4 file formats: XLSX, CSV (UTF-8 BOM), XML, JSON
+- Export with selectable field groups (Basic, Pricing, Specs, SEO, Media, etc.)
+- Import with 3 modes: Create only, Update existing, Upsert
+- Import preview/validation before writing to DB (no data written without admin confirm)
+- Per-row validation: phone format, email format, numeric fields, JSON validity, foreign key checks
+- Import preview shows: total/valid/error counts, first 20 rows, per-row errors & actions
+- Import result page with created/updated/failed statistics and error details
+- Chunked processing for large files (configurable chunk sizes)
+- DB transaction safety per chunk during import
+- Export/Import buttons on all 4 module list pages (Products, Leads, Báo giá, BTU)
+- Central Data Transfer admin page (System → Import / Export) with job history
+- UTF-8 encoding detection & auto-conversion for imported files
+- CSV export with UTF-8 BOM for proper Vietnamese display in Excel
+- XML export with `<?xml version="1.0" encoding="UTF-8"?>` declaration
+- JSON export with `JSON_UNESCAPED_UNICODE` for Vietnamese characters
+
+### Added — Database
+- `data_import_jobs` table — tracks every import with full audit trail
+- `data_export_jobs` table — tracks every export with file path & expiration
+- 8 new permissions: `{product,lead,quote_request,btu_calculation}.{import,export}`
+- 6 new site settings for import/export configuration
+
+### Added — Services
+- `DataExportService` — core export logic (XLSX, CSV, XML, JSON writers)
+- `DataImportService` — core import logic (file parsing, validation, preview, confirm)
+- `ModuleRegistry` — central field group & module configuration registry
+- `ImportHandlerInterface` — contract for module-specific import handlers
+- `ProductImportHandler` — brand/category name resolution, JSON parsing, unique slug gen
+- `LeadImportHandler` — phone/email validation
+- `QuoteRequestImportHandler` — product existence validation, HVAC field parsing
+- `BtuCalculationImportHandler` — numeric/JSON validation
+- `HasDataTransferActions` trait — reusable export/import buttons for any list page
+
+### Security
+- Import/export buttons hidden when user lacks permission
+- File upload: MIME type whitelist, size limit, private storage
+- Export download route requires authentication + module permission check
+- Export files auto-expire after configurable days (default: 30)
+- No executable file uploads (MIME whitelist: xlsx, csv, xml, json only)
+- Import files stored in `storage/app/private/` — never publicly accessible
+
+### Dependencies
+- Added `maatwebsite/excel` (^3.1) — PhpSpreadsheet wrapper for XLSX support
+
+---
+
+## [1.0.0] - 2026-05-08
+
+### Added
+- Lead system with 3 flows: General CTA, Product CTA (Quick Quote), BTU Consultation
+- Multi-step quote form (5 steps) with HVAC-specific fields
+- BTU Calculator with standard W/m² cooling load coefficients
+- Product Quote Modal (AJAX, desktop centered / mobile bottom sheet)
+- Mail notification system with template engine (admin + customer)
+- Mail template management via admin panel
+- Admin CRM dashboard (Leads, Quote Requests, BTU Calculations)
+- Product management with brands, categories, FAQs, documents
+- Blog/content management system
+- SEO system (sitemap, robots.txt, meta tags, structured data)
+- Google Merchant Feed
+- Product comparison tool
+- Landing page builder with configurable sections
+- Case studies module
+- Policy pages management
+- Role-based access control (RBAC) with Filament Shield
+- Source/UTM tracking on all lead forms
+- GTM dataLayer integration for conversion tracking
+
+### Fixed
+- UTF-8 encoding across entire system (admin, frontend, email, DB)
+- Email template variable binding consistency
+- Product CTA UX (modal-only, no pre-rendered form)
+- Role/permission system (removed non-existent permissions, fixed privilege escalation)
+- N+1 query optimization on product detail page (8 queries → 2)
+- MySQL `only_full_group_by` compatibility for rating statistics
+- BTU calculator showroom W/m² coefficient (900 → 300)
+- Landing form source tracking (hardcoded literal → actual URL)
+- Phone validation regex on all forms (BTU, Full Quote)
+- Admin email empty field display (removed "—" fallback, use array_filter)
+- Quote admin email template double BTU suffix
+- BTU admin detail missing W/m² display and wrong area unit
+
+### Security
+- Honeypot spam protection on all public forms
+- Rate limiting on all form submissions (5-10/hour per IP)
+- CSRF protection on all POST routes
+- No secrets/API keys committed to repository
+- Standardized .env.example with no real values
+- Admin password reset restricted to super_admin role
+- Granular RBAC: user.create, user.edit, user.delete permissions
+
+### Changed
+- Centralized BTU calculation via BtuCalculatorService (single source of truth)
+- Standardized mail template variable descriptions (Vietnamese with diacritics)
+- Optimized product review rating statistics query
+- Consistent field naming across all lead forms (full_name, phone, email, province_city)
+- Production-ready .env.example defaults (debug=false, env=production)

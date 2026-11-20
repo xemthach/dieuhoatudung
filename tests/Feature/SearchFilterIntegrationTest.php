@@ -23,7 +23,7 @@ class SearchFilterIntegrationTest extends TestCase
             'product_category_id' => $category->id,
             'taxonomy_status' => 'VERIFIED',
             'marketing_capacity_status' => 'VERIFIED',
-            'marketing_capacity_btu' => 18000,
+            'technical_capacity_btu' => 18000,
             'is_active' => true,
         ];
         $higher = Product::factory()->create($governance + ['brand_id' => $brand->id, 'name' => 'Máy lạnh Alpha', 'regular_price' => 20_000_000]);

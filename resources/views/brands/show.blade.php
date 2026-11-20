@@ -74,8 +74,8 @@
                         <option value="latest" {{ request('sort', 'latest') === 'latest' ? 'selected' : '' }}>Mới nhất</option>
                         <option value="price_asc" {{ request('sort') === 'price_asc' ? 'selected' : '' }}>Giá: thấp đến cao</option>
                         <option value="price_desc" {{ request('sort') === 'price_desc' ? 'selected' : '' }}>Giá: cao đến thấp</option>
-                        <option value="btu_asc" {{ request('sort') === 'btu_asc' ? 'selected' : '' }}>BTU marketing: thấp đến cao</option>
-                        <option value="btu_desc" {{ request('sort') === 'btu_desc' ? 'selected' : '' }}>BTU marketing: cao đến thấp</option>
+                        <option value="btu_asc" {{ request('sort') === 'btu_asc' ? 'selected' : '' }}>Công suất BTU: thấp đến cao</option>
+                        <option value="btu_desc" {{ request('sort') === 'btu_desc' ? 'selected' : '' }}>Công suất BTU: cao đến thấp</option>
                     </select>
                     <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-surface-500">
                         <x-heroicon-s-chevron-down class="h-4 w-4" />

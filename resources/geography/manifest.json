@@ -1,0 +1,28 @@
+{
+  "current": {
+    "version": "v5.2.0",
+    "commit": "62b1abdfe39625289c37a58ef6678e9db3d37f84",
+    "source": "https://raw.githubusercontent.com/thanglequoc/vietnamese-provinces-database/62b1abdfe39625289c37a58ef6678e9db3d37f84/json/full_json_generated_data_vn_units.json",
+    "upstream_sha256": "965c9a2ad85481e18ed2464fd87666eda311856b86a72a87f1130c27376b8d2f",
+    "sha256": "b370078ff922ee51146c555023a7bff149527078815fbfed337ef52cfe0aedde",
+    "counts": {
+      "province": 34,
+      "district": 0,
+      "ward": 3321
+    },
+    "license": "MIT"
+  },
+  "legacy": {
+    "version": "v2.4.1",
+    "commit": "fc33b7411ec4e3697817fab8118718a8d39ef090",
+    "source": "https://raw.githubusercontent.com/thanglequoc/vietnamese-provinces-database/fc33b7411ec4e3697817fab8118718a8d39ef090/json/full_json_generated_data_vn_units.json",
+    "upstream_sha256": "9b0498612a737019374293273a31510757016e5a9c487e1782bab4443bf45309",
+    "sha256": "53ecfcdb480864389c1843931bcfa6c11dd27794a02f7c92f7249f17ac6e2aa7",
+    "counts": {
+      "province": 63,
+      "district": 696,
+      "ward": 10035
+    },
+    "license": "MIT"
+  }
+}

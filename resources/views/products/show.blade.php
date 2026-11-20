@@ -25,14 +25,7 @@
     @php
         $price = app(\App\Services\Product\PromotionPriceResolver::class)->resolve($product);
         $technicalFactResolver = app(\App\Services\Product\ProductTechnicalFactResolver::class);
-        $marketingCapacity = $technicalFactResolver->getDisplay($product, 'marketing_capacity_btu');
-        $technicalCapacity = $technicalFactResolver->getDisplay($product, 'technical_capacity_btu');
-        $marketingCapacityDisplay = $technicalFactResolver->formatBtuDisplay($marketingCapacity['value'] ?? null);
-        $technicalCapacityDisplay = $technicalFactResolver->formatBtuDisplay($technicalCapacity['value'] ?? null);
-        $ratedCapacityKw = $technicalFactResolver->value($product, 'capacity_kw');
-        $ratedCapacityKwDisplay = is_numeric($ratedCapacityKw)
-            ? rtrim(rtrim(number_format((float) $ratedCapacityKw, 2, ',', '.'), '0'), ',')
-            : null;
+        $ratedSummary = $technicalFactResolver->ratedSummary($product);
         $commercialSystemComponents = null;
         $schemaVersion = (string) ($product->category?->technical_schema_version ?? '');
         if (str_starts_with($schemaVersion, 'skyair-') && str_contains((string) $product->model_code, '/')) {
@@ -155,18 +148,12 @@
 
                     {{-- Quick Specs --}}
                     <div class="mt-6 grid grid-cols-2 gap-3">
-                        @if($marketingCapacityDisplay)
+                        @foreach($ratedSummary as $key => $value)
                             <div class="rounded-lg bg-white p-3 ring-1 ring-surface-200">
-                                <p class="text-xs text-surface-500">Công suất thương mại</p>
-                                <p class="text-sm font-semibold text-surface-800">{{ $marketingCapacityDisplay }} BTU</p>
+                                <p class="text-xs text-surface-500">{{ ['capacity_btu' => 'Công suất BTU', 'capacity_kw' => 'Công suất định mức', 'hp' => 'Mã lực'][$key] }}</p>
+                                <p class="text-sm font-semibold text-surface-800">{{ $value }}</p>
                             </div>
-                        @endif
-                        @if($ratedCapacityKwDisplay)
-                            <div class="rounded-lg bg-white p-3 ring-1 ring-surface-200">
-                                <p class="text-xs text-surface-500">Công suất định mức</p>
-                                <p class="text-sm font-semibold text-surface-800">{{ $ratedCapacityKwDisplay }} kW</p>
-                            </div>
-                        @endif
+                        @endforeach
                         @if($product->inverter !== null)
                             <div class="rounded-lg bg-white p-3 ring-1 ring-surface-200">
                                 <p class="text-xs text-surface-500">Công nghệ</p>
@@ -290,52 +277,17 @@
             <div x-show="tab === 'specs'" x-cloak class="mt-6">
                 <div class="overflow-hidden rounded-xl border border-surface-200">
                     <table class="w-full text-sm">
-                        <tbody class="divide-y divide-surface-100">
-                            @php
-                                $schemaSpecs = app(\App\Services\Catalog\CategoryTechnicalSchemaService::class)->productSpecsFor($product, 'frontend');
-                            @endphp
-                            @if($schemaSpecs !== [])
-                                @foreach($schemaSpecs as $item)
+                        @foreach(collect(app(\App\Services\Catalog\CategoryTechnicalSchemaService::class)->publicSpecificationRows($product))->groupBy('group') as $group => $rows)
+                            <tbody class="divide-y divide-surface-100">
+                                <tr><th scope="rowgroup" colspan="2" class="bg-primary-50 px-4 py-2 text-left text-sm font-semibold">{{ $group }}</th></tr>
+                                @foreach($rows as $row)
                                     <tr>
-                                        <td class="bg-surface-50 px-4 py-3 font-medium text-surface-700 w-1/3">{{ $item['label'] }}</td>
-                                        <td class="px-4 py-3 text-surface-600">{{ $item['value'] }}</td>
+                                        <th scope="row" class="w-1/3 bg-surface-50 px-4 py-3 text-left font-medium text-surface-700">{{ $row['label'] }}</th>
+                                        <td class="px-4 py-3 text-surface-600">{{ $row['value'] }}</td>
                                     </tr>
                                 @endforeach
-                            @else
-                            @if($marketingCapacityDisplay)<tr><td class="bg-surface-50 px-4 py-3 font-medium text-surface-700 w-1/3">Công suất thương mại</td><td class="px-4 py-3 text-surface-600">{{ $marketingCapacityDisplay }} BTU</td></tr>@endif
-                            @if($technicalCapacityDisplay)<tr><td class="bg-surface-50 px-4 py-3 font-medium text-surface-700 w-1/3">Công suất kỹ thuật</td><td class="px-4 py-3 text-surface-600">{{ $technicalCapacityDisplay }} BTU</td></tr>@endif
-                            @if($ratedCapacityKwDisplay)<tr><td class="bg-surface-50 px-4 py-3 font-medium text-surface-700 w-1/3">Công suất định mức</td><td class="px-4 py-3 text-surface-600">{{ $ratedCapacityKwDisplay }} kW</td></tr>@endif
-                            @if($product->inverter !== null)<tr><td class="bg-surface-50 px-4 py-3 font-medium text-surface-700">Inverter</td><td class="px-4 py-3 text-surface-600">{{ $product->inverter ? 'Có' : 'Không' }}</td></tr>@endif
-                            @if($product->cooling_type)<tr><td class="bg-surface-50 px-4 py-3 font-medium text-surface-700">Kiểu</td><td class="px-4 py-3 text-surface-600">{{ $product->cooling_type === '2_chieu' ? '2 chiều (Nóng/Lạnh)' : '1 chiều (Lạnh)' }}</td></tr>@endif
-                            @if($product->voltage)<tr><td class="bg-surface-50 px-4 py-3 font-medium text-surface-700">Điện áp</td><td class="px-4 py-3 text-surface-600">{{ $product->voltage }}</td></tr>@endif
-                            @if($product->refrigerant_gas)<tr><td class="bg-surface-50 px-4 py-3 font-medium text-surface-700">Gas lạnh</td><td class="px-4 py-3 text-surface-600">{{ $product->refrigerant_gas }}</td></tr>@endif
-                            @if(app(\App\Services\Product\ProductTechnicalFactResolver::class)->getDisplay($product, 'power_input_kw'))<tr><td class="bg-surface-50 px-4 py-3 font-medium text-surface-700">Tiêu thụ điện</td><td class="px-4 py-3 text-surface-600">{{ app(\App\Services\Product\ProductTechnicalFactResolver::class)->getDisplay($product, 'power_input_kw')['value'] }}</td></tr>@endif
-                            @if($product->airflow)<tr><td class="bg-surface-50 px-4 py-3 font-medium text-surface-700">Lưu lượng gió</td><td class="px-4 py-3 text-surface-600">{{ $product->airflow }}</td></tr>@endif
-                            @if($product->noise_level)<tr><td class="bg-surface-50 px-4 py-3 font-medium text-surface-700">Độ ồn</td><td class="px-4 py-3 text-surface-600">{{ $product->noise_level }}</td></tr>@endif
-                            @if($product->indoor_dimensions)<tr><td class="bg-surface-50 px-4 py-3 font-medium text-surface-700">Kích thước dàn lạnh</td><td class="px-4 py-3 text-surface-600">{{ $product->indoor_dimensions }}</td></tr>@endif
-                            @if($product->outdoor_dimensions)<tr><td class="bg-surface-50 px-4 py-3 font-medium text-surface-700">Kích thước dàn nóng</td><td class="px-4 py-3 text-surface-600">{{ $product->outdoor_dimensions }}</td></tr>@endif
-                            @if($product->weight)<tr><td class="bg-surface-50 px-4 py-3 font-medium text-surface-700">Trọng lượng</td><td class="px-4 py-3 text-surface-600">{{ $product->weight }}</td></tr>@endif
-                            @if($product->recommended_area)<tr><td class="bg-surface-50 px-4 py-3 font-medium text-surface-700">Diện tích phù hợp</td><td class="px-4 py-3 text-surface-600">{{ $product->recommended_area }}</td></tr>@endif
-
-                            {{-- Dynamic specs from JSON — grouped with Vietnamese labels --}}
-                            @if(app(\App\Services\Product\ProductTechnicalFactResolver::class)->allForDisplay($product) !== [])
-                                @php
-                                    $groupedSpecs = \App\Support\ProductSpecLabel::groupSpecs(app(\App\Services\Product\ProductTechnicalFactResolver::class)->allForDisplay($product));
-                                @endphp
-                                @foreach($groupedSpecs as $groupLabel => $items)
-                                    <tr>
-                                        <td colspan="2" class="bg-primary-50 px-4 py-2.5 text-xs font-bold uppercase tracking-wider text-primary-700">{{ $groupLabel }}</td>
-                                    </tr>
-                                    @foreach($items as $item)
-                                        <tr>
-                                            <td class="bg-surface-50 px-4 py-3 font-medium text-surface-700">{{ $item['label'] }}</td>
-                                            <td class="px-4 py-3 text-surface-600">{{ $item['value'] }}</td>
-                                        </tr>
-                                    @endforeach
-                                @endforeach
-                            @endif
-                            @endif
-                        </tbody>
+                            </tbody>
+                        @endforeach
                     </table>
                 </div>
             </div>

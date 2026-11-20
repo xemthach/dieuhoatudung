@@ -23,7 +23,7 @@ class DeterministicProductPaginationTest extends TestCase
             'product_category_id' => $category->id,
             'regular_price' => 10_000_000,
             'sale_price' => null,
-            'marketing_capacity_btu' => 18_000,
+            'technical_capacity_btu' => 18_000,
             'taxonomy_status' => 'VERIFIED',
             'marketing_capacity_status' => 'VERIFIED',
             'created_at' => '2026-01-01 00:00:00',

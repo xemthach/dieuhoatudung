@@ -86,9 +86,9 @@
                 <label class="mb-1 block text-xs font-semibold text-surface-600">Công suất BTU</label>
                 <select name="btu" class="w-full rounded-lg border border-surface-300 py-2 px-3 text-sm">
                     <option value="">-- Tất cả --</option>
-                    @foreach([24000, 28000, 36000, 48000, 50000, 60000, 100000] as $btu)
+                    @foreach($btuOptions as $btu => $label)
                     <option value="{{ $btu }}" {{ ($filters['btu'] ?? '') == $btu ? 'selected' : '' }}>
-                        {{ number_format($btu) }} BTU
+                        {{ $label }}
                     </option>
                     @endforeach
                 </select>
@@ -238,7 +238,7 @@
                         </td>
                         {{-- BTU --}}
                         <td class="px-4 py-3 text-center font-semibold text-primary-700">
-                            {{ ($capacity = app(\App\Services\Product\ProductTechnicalFactResolver::class)->getDisplay($product, 'marketing_capacity_btu')) ? number_format($capacity['value']) : '—' }}
+                            {{ $product->technical_capacity_btu > 0 ? number_format($product->technical_capacity_btu, 0, ',', '.') : '—' }}
                         </td>
                         {{-- Inverter --}}
                         <td class="px-4 py-3 text-center">
@@ -330,8 +330,8 @@
                         @if($product->brand)
                         <span class="font-medium">{{ $product->brand->name }}</span>
                         @endif
-                        @if($capacity = app(\App\Services\Product\ProductTechnicalFactResolver::class)->getDisplay($product, 'marketing_capacity_btu'))
-                        <span>• {{ number_format($capacity['value']) }} BTU</span>
+                        @if($product->technical_capacity_btu > 0)
+                        <span>• {{ number_format($product->technical_capacity_btu, 0, ',', '.') }} BTU</span>
                         @endif
                         @if($product->inverter)
                         <span class="text-green-600">• Inverter</span>

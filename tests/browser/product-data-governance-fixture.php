@@ -64,32 +64,32 @@ $base = [
 $verified = Product::factory()->create($base + [
     'id' => 900001, 'name' => 'Browser Verified Wall 18000', 'slug' => 'browser-verified-wall-18000',
     'sku' => 'BROWSER-VERIFIED-WALL-18000', 'model_code' => 'BROWSER-VERIFIED-WALL-18000',
-    'product_category_id' => $wall->id, 'marketing_capacity_btu' => 18000,
+    'product_category_id' => $wall->id, 'marketing_capacity_btu' => 18000, 'technical_capacity_btu' => 18000,
     'taxonomy_status' => 'VERIFIED', 'marketing_capacity_status' => 'VERIFIED',
 ]);
 $unverified = Product::factory()->create($base + [
     'id' => 900002, 'name' => 'Browser Unverified Capacity 18000', 'slug' => 'browser-unverified-capacity-18000',
     'sku' => 'BROWSER-UNVERIFIED-18000', 'model_code' => 'BROWSER-UNVERIFIED-18000',
-    'product_category_id' => $wall->id, 'marketing_capacity_btu' => 18000,
+    'product_category_id' => $wall->id, 'marketing_capacity_btu' => 18000, 'technical_capacity_btu' => 18000,
     'taxonomy_status' => 'VERIFIED', 'marketing_capacity_status' => 'UNVERIFIED',
 ]);
 $unresolved = Product::factory()->create($base + [
     'id' => 900003, 'name' => 'Browser Unresolved Taxonomy 18000', 'slug' => 'browser-unresolved-taxonomy-18000',
     'sku' => 'BROWSER-UNRESOLVED-18000', 'model_code' => 'BROWSER-UNRESOLVED-18000',
-    'product_category_id' => $wall->id, 'marketing_capacity_btu' => 18000,
+    'product_category_id' => $wall->id, 'marketing_capacity_btu' => 18000, 'technical_capacity_btu' => 18000,
     'taxonomy_status' => 'UNRESOLVED', 'marketing_capacity_status' => 'VERIFIED',
 ]);
 $vrfProduct = Product::factory()->create($base + [
     'id' => 900004, 'name' => 'Browser VRF Must Not Leak 18000', 'slug' => 'browser-vrf-no-leak-18000',
     'sku' => 'BROWSER-VRF-18000', 'model_code' => 'BROWSER-VRF-18000',
-    'product_category_id' => $vrf->id, 'marketing_capacity_btu' => 18000,
+    'product_category_id' => $vrf->id, 'marketing_capacity_btu' => 18000, 'technical_capacity_btu' => 18000,
     'taxonomy_status' => 'VERIFIED', 'marketing_capacity_status' => 'VERIFIED',
 ]);
 $cassetteProduct = Product::factory()->create($base + [
     'id' => 900005, 'name' => 'Browser Verified SkyAir Cassette 24000', 'slug' => 'browser-skyair-cassette-24000',
     'sku' => 'FCTF50AVM-RZF50DVM', 'model_code' => 'FCTF50AVM/RZF50DVM',
     'product_category_id' => $cassette->id, 'marketing_capacity_btu' => 24000,
-    'technical_capacity_btu' => 17100, 'capacity_kw' => 5.0,
+    'technical_capacity_btu' => 24000, 'capacity_kw' => 5.0,
     'taxonomy_status' => 'VERIFIED', 'marketing_capacity_status' => 'VERIFIED',
 ]);
 

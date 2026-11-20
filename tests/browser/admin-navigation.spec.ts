@@ -15,6 +15,7 @@ test.describe.serial('Admin navigation governance round-trip', () => {
     });
 
     test('edits, targets, reorders, disables and restores a safe menu item', async ({ page }) => {
+        test.setTimeout(180000);
         page.on('console', message => { if (message.type() === 'error') errors.push(`console:${message.text()}`); });
         page.on('pageerror', error => errors.push(`pageerror:${error.message}`));
         page.on('requestfailed', request => errors.push(`requestfailed:${request.url()}`));
@@ -25,6 +26,9 @@ test.describe.serial('Admin navigation governance round-trip', () => {
         await page.locator('#form\\.password').fill(fixture.password);
         await page.locator('button[type="submit"]').click();
         await expect(page).toHaveURL(/\/admin(?:\/)?$/);
+        const dashboardResponse = await page.goto('/admin');
+        expect(dashboardResponse?.status()).toBe(200);
+        await expect(page.locator('body')).not.toContainText('500 Server Error');
         await page.goto('/admin/manage-settings');
 
         const navigationSection = page.locator('section').filter({ hasText: 'Điều hướng public' }).first();
@@ -40,23 +44,33 @@ test.describe.serial('Admin navigation governance round-trip', () => {
         const originalLabel = await firstLabel.inputValue();
         await firstLabel.fill('Sản phẩm kiểm thử');
 
-        const typeIndex = await page.locator('select').evaluateAll(elements => elements.findIndex(element => (element as HTMLSelectElement).value === 'route'));
-        if (typeIndex < 0) throw new Error('Navigation type select was not rendered');
-        const type = page.locator('select').nth(typeIndex);
+        const labelId = await firstLabel.getAttribute('id') ?? '';
+        const fieldId = (name: string) => `[id="${labelId.replace(/\.label$/, `.${name}`)}"]`;
+        const type = page.locator(fieldId('link_type'));
+        await expect(type).toBeVisible();
+        await page.waitForLoadState('networkidle');
+        const typeUpdate = page.waitForResponse(response =>
+            response.request().method() === 'POST'
+            && /livewire-[^/]+\/update/.test(response.url()),
+            { timeout: 15000 },
+        );
         await type.selectOption('product_category');
-        await page.waitForTimeout(5000);
-        const categoryIndex = await page.locator('select').evaluateAll(elements => elements.findIndex(element => (element as HTMLSelectElement).options.length > 1 && Array.from((element as HTMLSelectElement).options).some(option => option.textContent?.includes('Cassette'))));
-        if (categoryIndex < 0) throw new Error('Navigation category select was not rendered: ' + JSON.stringify(await page.locator('select').evaluateAll(elements => elements.map(element => ({ value: (element as HTMLSelectElement).value, options: Array.from((element as HTMLSelectElement).options).slice(0, 5).map(option => ({ value: option.value, text: option.textContent })) })) )));
-        const category = page.locator('select').nth(categoryIndex);
-        await expect(category).toBeVisible();
-        const activeCategory = await category.locator('option').evaluateAll(options => options.find(option => option.value !== '')?.value);
-        if (!activeCategory) throw new Error('No category target option available');
-        await category.selectOption(activeCategory);
+        const typeResponse = await typeUpdate;
+        expect(typeResponse.status()).toBe(200);
+        const livewireId = await type.evaluate(element => element.closest('[wire\\:id]')?.getAttribute('wire:id') ?? '');
+        const livewireType = await page.evaluate(id => (window as any).Livewire.find(id).get('data.navigation__header_primary.0.link_type'), livewireId);
+        expect(livewireType).toBe('product_category');
+        const category = page.locator(fieldId('category_target'));
+        const categoryId = await category.locator('option').filter({ hasText: 'Browser Navigation Category' }).getAttribute('value') ?? '';
+        await category.selectOption(categoryId);
+        const categoryState = await page.evaluate(id => (window as any).Livewire.find(id).get('data.navigation__header_primary.0'), livewireId);
+        expect(categoryState).toMatchObject({ link_type: 'product_category', category_target: categoryId });
 
         const save = page.getByRole('button', { name: /Lưu cấu hình/i }).last();
         const saveAndReload = async () => {
             const request = page.waitForRequest(
-                request => request.method() === 'POST' && /livewire-[^/]+\/update/.test(request.url()),
+                request => request.method() === 'POST' && /livewire-[^/]+\/update/.test(request.url())
+                    && (request.postData() ?? '').includes('saveSettings'),
                 { timeout: 15000 },
             );
             await page.locator('button[wire\\:click="saveSettings"]').last().click({ noWaitAfter: true, force: true });
@@ -67,6 +81,8 @@ test.describe.serial('Admin navigation governance round-trip', () => {
             await page.goto('/', { waitUntil: 'commit' });
         };
         await saveAndReload();
+        const savedNavigation = fixtureNavigation();
+        expect(savedNavigation[0]).toMatchObject({ type: 'product_category', category_target: categoryId });
 
         await page.goto('/', { waitUntil: 'commit' });
         await expect(page.locator('header nav')).toContainText('Sản phẩm kiểm thử');
@@ -107,3 +123,7 @@ test.describe.serial('Admin navigation governance round-trip', () => {
         expect(errors, errors.join('\n')).toEqual([]);
     });
 });
+
+function fixtureNavigation() {
+    return JSON.parse(execFileSync('php', ['tests/browser/fixture.php', 'snapshot'], { cwd: root, encoding: 'utf8' })).navigation;
+}

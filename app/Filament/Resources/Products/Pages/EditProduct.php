@@ -52,11 +52,23 @@ class EditProduct extends EditRecord
         ];
     }
 
+    protected function mutateFormDataBeforeFill(array $data): array
+    {
+        $data['manual_extended_specs'] = app(ProductTechnicalSpecWriter::class)->manualRows($data['specs_json'] ?? []);
+        $manual = $data['manual_extended_specs'];
+        $data['specs_json'] = array_filter($data['specs_json'] ?? [], static fn ($row) =>
+            ! in_array($row, $manual, true));
+        return $data;
+    }
+
     protected function mutateFormDataBeforeSave(array $data): array
     {
         $technicalSubmission = $data;
-        $technicalSubmission['phase'] = $data['technical_phase'] ?? null;
-        $technicalSubmission['frequency'] = $data['technical_frequency'] ?? null;
+        foreach (['phase', 'frequency'] as $key) {
+            if (array_key_exists('technical_'.$key, $data)) {
+                $technicalSubmission[$key] = $data['technical_'.$key];
+            }
+        }
 
         $override = app(ProductTechnicalSpecWriter::class)->manualOverrideAttributes(
             $this->record,
@@ -68,7 +80,47 @@ class EditProduct extends EditRecord
         // service in specs_json, never as phantom Product columns.
         unset($data['technical_phase'], $data['technical_frequency']);
 
+        if (array_key_exists('manual_extended_specs', $data)) {
+            $specs = $override['specs_json'] ?? $this->record->specs_json ?? [];
+            $category = \App\Models\ProductCategory::find($data['product_category_id'] ?? $this->record->product_category_id);
+            $aliases = $category ? app(\App\Services\Catalog\CategoryTechnicalSchemaService::class)->aliasMap($category) : [];
+            $merged = app(ProductTechnicalSpecWriter::class)->mergeManualRows($specs, $data['manual_extended_specs'], $aliases);
+            if ($merged !== $specs) {
+                $override['specs_json'] = $merged;
+            }
+        }
+        unset($data['specs_json'], $data['manual_extended_specs']);
         return array_replace($data, $override);
+    }
+
+    protected function handleRecordUpdate(\Illuminate\Database\Eloquent\Model $record, array $data): \Illuminate\Database\Eloquent\Model
+    {
+        $actor = auth()->user();
+        abort_unless($actor?->is_active && $actor->can('product.edit'), 403);
+
+        return \Illuminate\Support\Facades\DB::transaction(function () use ($record, $data, $actor) {
+            $current = Product::whereKey($record->getKey())->lockForUpdate()->firstOrFail();
+            $fields = array_merge(array_keys(\App\Services\Product\ProductBulkTechnicalService::FIELDS), [
+                'specs_json', 'technical_specs_source', 'technical_specs_override_reason',
+                'technical_specs_overridden_at', 'technical_capacity_status',
+            ]);
+            $fields = array_diff($fields, ['phase', 'frequency']);
+            $before = $current->only($fields);
+            if (! $record->fill($data)->saveOrFail()) {
+                throw new \RuntimeException('Không thể lưu sản phẩm.');
+            }
+            $after = $record->only($fields);
+            $changed = array_filter($after, static fn ($value, $field) => json_encode($value, JSON_THROW_ON_ERROR) !== json_encode($before[$field], JSON_THROW_ON_ERROR), ARRAY_FILTER_USE_BOTH);
+            if ($changed !== []) {
+                app(\App\Services\Product\ProductTechnicalAudit::class)->record(
+                    $actor, [$record->getKey()], 'TECHNICAL_UPDATE',
+                    [$record->getKey() => array_intersect_key($before, $changed)],
+                    [$record->getKey() => $changed],
+                    (string) ($record->technical_specs_override_reason ?? ''),
+                );
+            }
+            return $record;
+        });
     }
 
     protected function getHeaderActions(): array
