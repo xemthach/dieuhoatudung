@@ -25,12 +25,11 @@ test.describe.serial('Admin navigation governance round-trip', () => {
         await page.locator('#form\\.email').fill(fixture.email);
         await page.locator('#form\\.password').fill(fixture.password);
         await page.locator('button[type="submit"]').click();
-        // Filament's Livewire login can render the authenticated dashboard while its
-        // login component remains in the DOM; verify the dashboard and protected route.
-        await expect(page.getByText('Bảng điều khiển', { exact: true }).first()).toBeVisible();
+        await expect(page).toHaveURL(/\/admin(?:\/)?$/, { timeout: 30_000 });
         const dashboardResponse = await page.goto('/admin');
         expect(dashboardResponse?.status()).toBe(200);
         await expect(page.locator('body')).not.toContainText('500 Server Error');
+        await expect(page.getByText('Bảng điều khiển', { exact: true }).first()).toBeVisible();
         await expect(page.locator('body')).toContainText('Bảng điều khiển');
         await page.goto('/admin/manage-settings');
 
