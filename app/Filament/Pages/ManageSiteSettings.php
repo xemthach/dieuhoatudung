@@ -530,7 +530,7 @@ class ManageSiteSettings extends Page
                                 Select::make('display__homepage_dealers_mode')->label('Chế độ')
                                     ->options(['auto' => 'Tự động', 'nearby' => 'Gần tôi (cần khách bấm nút)',
                                         'featured' => 'Đại lý nổi bật', 'region' => 'Theo khu vực mặc định', 'manual' => 'Chọn thủ công'])
-                                    ->default('auto')->required(),
+                                    ->default('auto')->required()->live(),
                                 TextInput::make('display__homepage_dealers_limit')->label('Số đại lý')->numeric()
                                     ->minValue(1)->maxValue(12)->default(4)->required(),
                                 Select::make('display__homepage_dealers_radius_km')->label('Bán kính mặc định')
@@ -543,7 +543,8 @@ class ManageSiteSettings extends Page
                                     ->searchable()->placeholder('Chưa chọn')
                                     ->visible(fn (callable $get) => $get('display__homepage_dealers_mode') === 'region'),
                                 Select::make('display__homepage_dealers_manual')->label('Đại lý được chọn')
-                                    ->multiple()->searchable()->preload()
+                                    ->multiple()->reorderable()->searchable()->preload()
+                                    ->helperText('Kéo thả các đại lý đã chọn để sắp xếp thứ tự hiển thị.')
                                     ->options(fn () => \App\Models\Dealer::query()->where('is_active', true)->orderBy('name')->pluck('name', 'id')->all())
                                     ->visible(fn (callable $get) => $get('display__homepage_dealers_mode') === 'manual'),
                                 Toggle::make('display__homepage_dealers_show_logo')->label('Logo đại lý')->default(true),

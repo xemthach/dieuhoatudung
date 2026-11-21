@@ -114,6 +114,7 @@ test.describe.serial('Admin navigation governance round-trip', () => {
         const activeToggle = page.locator(fieldId('is_active'));
         if (await activeToggle.isChecked()) await activeToggle.uncheck();
         await saveAndReload();
+        expect(fixtureNavigation()[0]).toMatchObject({ is_active: false });
         await expect(page.locator('header nav a').filter({ hasText: 'Sản phẩm kiểm thử' })).toHaveCount(0);
 
         await page.goto('/admin/manage-settings');

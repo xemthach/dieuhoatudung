@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.33.15] - 2026-11-21
+
+### Changed
+- Allow administrators to reorder manually selected homepage dealers and update dependent controls when the display mode changes.
+- Clarify deployment and homepage dealer configuration instructions.
+
+### Tests
+- Cover manual ordering, featured visibility, and persisted navigation visibility.
+
 ## [1.33.14] - 2026-11-21
 
 ### Fixed

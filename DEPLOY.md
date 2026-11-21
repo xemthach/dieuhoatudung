@@ -10,10 +10,10 @@ cd /home/lps_chonmaylanhcom
 git clone https://github.com/xemthach/dieuhoatudung.git public_html
 cd public_html
 git fetch --tags origin
-git checkout --detach v1.33.14
+git checkout --detach v1.33.15
 git rev-parse HEAD
 cat VERSION
-test "$(cat VERSION)" = 1.33.14
+test "$(cat VERSION)" = 1.33.15
 test -f public/build/manifest.json
 ```
 
@@ -253,12 +253,16 @@ Master được đóng gói tại `resources/geography/`: hệ hiện hành `v5.
 
 Leaflet/CSS được Vite build cùng source; kiểm tra manifest và asset theo phần build ở trên. Bản đồ mặc định dùng tile OpenStreetMap với attribution; không prefetch hoặc tải offline. Có thể đặt `DEALER_TILE_URL` và `DEALER_TILE_ATTRIBUTION` cho nhà cung cấp raster tương thích và tuân thủ chính sách của nhà cung cấp. Nếu tile lỗi, liên kết chỉ đường vẫn dùng được.
 
-GPS cần HTTPS và header `Permissions-Policy` của Nginx/CDN không được ghi đè thành `geolocation=()`. Laravel chỉ cho `geolocation=(self)` ở `/dai-ly` và các trang con. Khách chủ động bấm nút mới được hỏi vị trí; tọa độ gửi POST có CSRF, không xuất hiện trên URL. Review khách không cần tài khoản, luôn chờ duyệt tại `/admin/dealer-reviews`.
+GPS cần HTTPS và header `Permissions-Policy` của Nginx/CDN không được ghi đè thành `geolocation=()`. Laravel cho `geolocation=(self)` ở `/dai-ly` và các trang con; trang chủ cũng được phép khi block Đại lý và tùy chọn định vị đều bật. Khách chủ động bấm nút mới được hỏi vị trí; tọa độ gửi POST có CSRF, không xuất hiện trên URL. Review khách không cần tài khoản, luôn chờ duyệt tại `/admin/dealer-reviews`.
 
 Phân giải map short-link chỉ chạy khi Admin bấm lấy tọa độ. Server cần PHP CLI có `dns_get_record`, quyền chạy subprocess, cURL/TLS và truy cập HTTPS outbound. DNS và HTTP đều có timeout, kiểm tra IP public và pin kết nối; nếu hosting không cho subprocess hoặc link không trả tọa độ, nhập latitude/longitude thủ công. Không cần API key Google Maps.
 
 ### Cấu hình hiển thị Đại lý trên trang chủ
 
 Trong **Cài đặt → Display**, bật/tắt block Đại lý, chọn chế độ `auto`, `nearby`, `featured`, `region` hoặc `manual`, đặt số lượng và kiểu thẻ. Dùng mục **Thứ tự section trang chủ** để kéo section Đại lý tới vị trí mong muốn; thay đổi vị trí không tự bật block. Chọn kiểu hiển thị Brand, dòng sản phẩm và dịch vụ tại nhóm tùy chọn hiển thị Đại lý. Nếu danh sách thủ công không có đại lý đang hoạt động/công khai, block không tự thay bằng đại lý khác.
+
+Để dùng `manual`, chọn **Chọn thủ công**, chọn các đại lý đang công khai, kéo thả các mục đã chọn theo thứ tự muốn hiển thị rồi nhấn **Lưu cấu hình**. Tải lại trang cài đặt và trang chủ để kiểm tra thứ tự; đại lý bị tắt hoặc xóa sẽ không xuất hiện. Để dùng `region`, chọn **Theo khu vực mặc định** rồi chọn tỉnh hiện hành. Chế độ `featured` chỉ hiển thị đại lý công khai được đánh dấu nổi bật; khi chưa có đại lý nổi bật, danh sách sẽ rỗng. Dữ liệu địa giới hiện hành là Tỉnh/Thành → Phường/Xã; địa chỉ cũ có thêm Quận/Huyện.
+
+Sau khi cập nhật từ phiên bản cũ, chạy các lệnh import và đồng bộ quyền ở mục **Module Đại lý** nếu server chưa thực hiện các bước đó. Đây là các lệnh riêng, không nằm trong `migrate --force`; chạy bản kiểm tra trước, sao lưu database và xem kết quả trước khi dùng `--apply`. Trên server đã cài module, chúng có thể được chạy lại để đồng bộ bộ dữ liệu đi kèm. Trước khi cập nhật hãy lưu backup database và giữ nguyên `.env` cùng `APP_KEY`.
 
 GPS không được hỏi lúc tải trang. Khách phải bấm **Tìm đại lý gần tôi**; nếu từ chối, directory và lọc theo Tỉnh/Xã vẫn dùng được. Bản đồ tải tile theo cấu hình `DEALER_TILE_URL`; giữ attribution và tuân thủ chính sách sử dụng/cache của nhà cung cấp.

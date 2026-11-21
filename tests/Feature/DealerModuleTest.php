@@ -96,6 +96,27 @@ class DealerModuleTest extends TestCase
             ->assertViewHas('homepageDealers', fn ($rows) => $rows->pluck('id')->all() === [$other->id]);
     }
 
+    public function test_homepage_manual_and_featured_modes_respect_selection_and_visibility(): void
+    {
+        $first = $this->dealer(['name' => 'First Dealer', 'is_featured' => true, 'sort_order' => 10]);
+        $second = $this->dealer(['name' => 'Second Dealer', 'is_featured' => true, 'sort_order' => 20]);
+        $ordinary = $this->dealer(['name' => 'Ordinary Dealer', 'is_featured' => false]);
+        $inactive = $this->dealer(['name' => 'Inactive Dealer', 'is_featured' => true, 'is_active' => false]);
+        $settings = app(SettingService::class);
+        $settings->set('homepage_dealers_enabled', true, 'display', type: 'boolean');
+        $settings->set('homepage_dealers_limit', 12, 'display', type: 'integer');
+        $homepage = app(\App\Services\Dealer\DealerHomepageService::class);
+        $directory = app(DealerDirectoryService::class);
+
+        $settings->set('homepage_dealers_mode', 'manual', 'display');
+        $settings->set('homepage_dealers_manual', [$second->id, $inactive->id, $first->id], 'display', type: 'json');
+        $this->assertSame([$second->id, $first->id], $homepage->resolve([], $directory)['dealers']->pluck('id')->all());
+
+        $settings->set('homepage_dealers_mode', 'featured', 'display');
+        $this->assertSame([$first->id, $second->id], $homepage->resolve([], $directory)['dealers']->pluck('id')->all());
+        $this->assertNotContains($ordinary->id, $homepage->resolve([], $directory)['dealers']->pluck('id')->all());
+    }
+
     public function test_dealer_public_pages_render_seo_metadata_without_raw_template_attributes(): void
     {
         $dealer = $this->dealer([
