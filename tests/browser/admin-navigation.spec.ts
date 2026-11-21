@@ -111,7 +111,7 @@ test.describe.serial('Admin navigation governance round-trip', () => {
         await page.goto('/admin/manage-settings');
         await page.locator('section').filter({ hasText: 'Điều hướng public' }).first().getByText('Điều hướng public', { exact: true }).click();
         await page.waitForTimeout(3000);
-        const activeToggle = page.getByRole('switch').first();
+        const activeToggle = page.locator(fieldId('is_active'));
         if (await activeToggle.isChecked()) await activeToggle.uncheck();
         await saveAndReload();
         await expect(page.locator('header nav a').filter({ hasText: 'Sản phẩm kiểm thử' })).toHaveCount(0);
@@ -119,7 +119,7 @@ test.describe.serial('Admin navigation governance round-trip', () => {
         await page.goto('/admin/manage-settings');
         await page.locator('section').filter({ hasText: 'Điều hướng public' }).first().getByText('Điều hướng public', { exact: true }).click();
         await inputs.nth(labelIndex).fill(originalLabel || 'Sản phẩm');
-        const restoreActive = page.getByRole('switch').first();
+        const restoreActive = page.locator(fieldId('is_active'));
         if (!(await restoreActive.isChecked())) await restoreActive.check();
         await saveAndReload();
         expect(errors, errors.join('\n')).toEqual([]);

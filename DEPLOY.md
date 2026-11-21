@@ -10,10 +10,10 @@ cd /home/lps_chonmaylanhcom
 git clone https://github.com/xemthach/dieuhoatudung.git public_html
 cd public_html
 git fetch --tags origin
-git checkout --detach v1.33.13
+git checkout --detach v1.33.14
 git rev-parse HEAD
 cat VERSION
-test "$(cat VERSION)" = 1.33.13
+test "$(cat VERSION)" = 1.33.14
 test -f public/build/manifest.json
 ```
 

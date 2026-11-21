@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.33.14] - 2026-11-21
+
+### Fixed
+- Scoped the Navigation browser test to the selected menu item's active field so it cannot toggle an unrelated switch.
+
+### Deployment
+- No production deployment is included.
+
 ## [1.33.13] - 2026-11-21
 
 ### Fixed
