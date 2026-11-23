@@ -42,7 +42,7 @@ class BtuCalculatorService
     protected const BTU_PER_HP = 9000;
 
     /**
-     * Standard BTU tiers for floor-standing AC units.
+     * Standard BTU tiers used for AC capacity recommendations.
      */
     protected array $btuTiers = [
         9000, 12000, 18000, 24000, 28000, 30000, 36000, 42000, 45000, 48000, 50000, 60000, 100000,

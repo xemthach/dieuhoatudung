@@ -17,7 +17,7 @@ class AppInstall extends Command
     {
         $this->info('');
         $this->info('====================================');
-        $this->info('  Dieu Hoa Tu Dung  App Install');
+        $this->info('  HVAC App Install');
         $this->info('====================================');
         $this->info('');
 

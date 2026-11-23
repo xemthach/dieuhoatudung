@@ -134,7 +134,7 @@ class MerchantFeedService
         if (! empty($product->product_type)) {
             $xml .= '    <g:product_type>'.$this->escape($product->product_type)."</g:product_type>\n";
         } elseif ($product->category) {
-            $xml .= '    <g:product_type>Điều Hòa Tủ Đứng > '.$this->escape($product->category->name)."</g:product_type>\n";
+            $xml .= '    <g:product_type>Điều Hòa > '.$this->escape($product->category->name)."</g:product_type>\n";
         }
 
         // Shipping weight

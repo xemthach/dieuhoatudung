@@ -1,11 +1,11 @@
 <x-layouts.app
     :seo-title="($category->seo_title ?? $category->name) . config('seo.defaults.title_suffix')"
-    :seo-description="$category->seo_description ?? 'Xem danh sách điều hòa tủ đứng ' . $category->name . '. Liên hệ để được tư vấn sản phẩm phù hợp theo nhu cầu công trình.'"
+    :seo-description="$category->seo_description ?? 'Xem danh sách sản phẩm ' . $category->name . '. Liên hệ để được tư vấn phù hợp theo nhu cầu công trình.'"
     :canonical="route('category.show', $category->slug)"
     :robots="isset($hasActiveFilters) && $hasActiveFilters ? 'noindex,follow' : setting('seo.default_robots', 'index,follow')"
 >
     <x-breadcrumb :items="[
-        ['label' => 'Điều hòa tủ đứng', 'url' => route('products.index')],
+        ['label' => 'Sản phẩm điều hòa', 'url' => route('products.index')],
         ['label' => $category->name],
     ]" />
 

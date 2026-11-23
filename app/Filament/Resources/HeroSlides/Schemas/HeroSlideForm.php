@@ -31,7 +31,7 @@ class HeroSlideForm
                             TextInput::make('title')
                                 ->label('Tiêu đề chính')
                                 ->maxLength(255)
-                                ->placeholder('Điều Hòa Tủ Đứng'),
+                                ->placeholder('Điều Hòa Không Khí'),
 
                             TextInput::make('highlight_text')
                                 ->label('Text highlight (màu nhấn)')

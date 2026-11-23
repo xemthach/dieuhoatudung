@@ -1,0 +1,25 @@
+{
+  "baseline": "c971dfc2b047a8a0623f73cf0f7486de2008cd1e",
+  "unit": "matching_source_lines",
+  "legacy": {
+    "before": 209,
+    "remaining": 130,
+    "removed_or_rewritten": 92,
+    "added_or_rewritten": 13,
+    "unexplained": 0
+  },
+  "hardcoded_urls": {
+    "before": 152,
+    "remaining": 153,
+    "removed_or_rewritten": 24,
+    "added_or_rewritten": 25,
+    "unexplained": 0
+  },
+  "domain": {
+    "before": 1,
+    "remaining": 1,
+    "removed_or_rewritten": 0,
+    "added_or_rewritten": 0,
+    "unexplained": 0
+  }
+}

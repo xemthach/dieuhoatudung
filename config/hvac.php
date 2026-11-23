@@ -65,7 +65,7 @@ return [
                 'answer' => 'Trong công cụ, HP là nhãn nhóm công suất thị trường quy ước từ BTU/h với mốc cấu hình 9.000 BTU/h cho 1 HP. Đây không phải phép quy đổi công suất cơ học 746 W và không thay thế thông số rated capacity của model.',
             ],
             [
-                'question' => 'Nên chọn inverter hay on/off cho điều hòa tủ đứng?',
+                'question' => 'Nên chọn inverter hay on/off cho điều hòa?',
                 'answer' => 'Inverter hỗ trợ máy nén điều chỉnh tải theo nhu cầu vận hành. Hiệu quả điện năng và độ ồn cần đối chiếu theo thông số từng model, điều kiện lắp đặt và thời gian sử dụng thực tế.',
             ],
         ],

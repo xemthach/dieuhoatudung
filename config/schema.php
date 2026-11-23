@@ -75,7 +75,7 @@ return [
     */
 
     'publisher' => [
-        'name' => function_exists('setting') ? setting('general.site_name', 'Điều Hòa Tủ Đứng') : 'Điều Hòa Tủ Đứng',
+        'name' => function_exists('setting') ? setting('general.site_name', 'Điều Hòa Không Khí') : 'Điều Hòa Không Khí',
         'logo' => '/images/logo.png',
     ],
 

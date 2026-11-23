@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { mkdirSync } from 'node:fs';
+import { mkdirSync, rmSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 
 const browserDatabase = resolve('storage/framework/testing/product-data-governance-browser-isolated.sqlite');
@@ -8,6 +8,11 @@ export default function globalSetup(): void {
     const browserEnvironment = {
         ...process.env,
         APP_ENV: 'testing',
+        APP_CONFIG_CACHE: 'storage/framework/testing/browser-config.php',
+        AI_SINGLE_OPERATOR_ENABLED: 'true',
+        AI_SINGLE_OPERATOR_USER_ID: '1',
+        AI_SINGLE_OPERATOR_SUPER_ADMIN_EXCEPTION: 'true',
+        AI_SINGLE_OPERATOR_ENFORCE_IN_TESTING: 'true',
         APP_DEBUG: 'false',
         APP_URL: 'http://127.0.0.1:8098',
         DB_CONNECTION: 'sqlite',
@@ -19,6 +24,7 @@ export default function globalSetup(): void {
     };
 
     mkdirSync(dirname(browserDatabase), { recursive: true });
+    rmSync(resolve(browserEnvironment.APP_CONFIG_CACHE), { force: true });
     execFileSync('php', ['artisan', 'migrate:fresh', '--force', '--no-ansi'], {
         cwd: process.cwd(),
         env: browserEnvironment,
@@ -28,5 +34,8 @@ export default function globalSetup(): void {
         cwd: process.cwd(),
         env: browserEnvironment,
         stdio: 'inherit',
+    });
+    execFileSync('php', ['tests/browser/configure-http-runtime.php'], {
+        cwd: process.cwd(), env: browserEnvironment, stdio: 'inherit',
     });
 }

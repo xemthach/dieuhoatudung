@@ -1,4 +1,12 @@
 <x-filament-panels::page>
+    @php($health = app(\App\Services\Product\ProductGovernanceHealth::class)->inspect())
+    @if(!$health['ready'])
+        <x-filament::section heading="Product Data Governance chưa sẵn sàng">
+            <p role="status">Cần bổ sung schema hoặc evidence đã kiểm chứng trước khi duyệt dữ liệu.</p>
+            <ul class="mt-3 list-disc pl-5">@foreach($health['issues'] as $issue)<li>{{ $issue['code'] }}: {{ $issue['resource'] }}</li>@endforeach</ul>
+            <p class="mt-3">Chạy <code>php artisan products:governance-health --json</code> trên server để chẩn đoán. Không thay đổi dữ liệu sản phẩm để bỏ qua bước này.</p>
+        </x-filament::section>
+    @else
     @php($taxonomy = $this->taxonomy())
     @php($marketing = $this->marketing())
 
@@ -75,4 +83,5 @@
         @foreach($this->recentEvents() as $event)<tr><td>{{ $event->domain }}</td><td>{{ $event->action }}</td><td><code>{{ $event->ledger_digest }}</code></td><td>{{ $event->operator?->name ?? '#'.$event->operator_id }}</td><td>{{ $event->occurred_at }}</td><td>{{ $event->reason }}</td></tr>@endforeach
         </tbody></table></div>
     </x-filament::section>
+    @endif
 </x-filament-panels::page>

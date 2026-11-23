@@ -344,7 +344,7 @@ Kiến thức HVAC bắt buộc:
 SEO:
 - Không nhồi keyword, không duplicate, không viết chung chung.
 - Tags gồm brand nếu có, loại máy, công suất nếu có, intent/topic.
-- Internal link fallback: nếu không có product thì gợi ý /dieu-hoa-tu-dung.
+- Internal link fallback: nếu không có product thì gợi ý danh sách sản phẩm chung.
 PROMPT;
     }
 
@@ -499,13 +499,13 @@ PROMPT;
             $normalized[] = [
                 'type' => 'product',
                 'anchor' => 'Xem sản phẩm liên quan',
-                'url' => '/san-pham/'.$input['product']->slug,
+                'url' => route('product.show', $input['product']->slug, false),
             ];
         } else {
             $normalized[] = [
                 'type' => 'category',
-                'anchor' => 'Xem danh mục điều hòa tủ đứng',
-                'url' => '/dieu-hoa-tu-dung',
+                'anchor' => 'Xem danh sách sản phẩm điều hòa',
+                'url' => route('products.index', [], false),
             ];
         }
 

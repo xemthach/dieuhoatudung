@@ -227,10 +227,18 @@ class DealerModuleTest extends TestCase
 
         Livewire::test(ManageSiteSettings::class)
             ->set('data.navigation__header_primary', $navigation)
+            ->set('data.site__product_scope', 'primary_category')
+            ->set('data.site__primary_product_category_id', (string) $category->id)
+            ->set('data.site__product_cta_type', 'product_category')
+            ->set('data.site__product_cta_product_category', (string) $category->id)
             ->call('saveSettings')
             ->assertHasNoErrors();
 
         $saved = app(SettingService::class)->get('navigation.header_primary');
+        $this->assertSame('primary_category', $settings->get('site.product_scope'));
+        $this->assertSame((string) $category->id, $settings->get('site.primary_product_category_id'));
+        $this->assertSame('product_category', $settings->get('site.product_cta_type'));
+        $this->assertSame((string) $category->id, $settings->get('site.product_cta_product_category'));
         $this->assertSame('product_category', $saved[0]['type']);
         $this->assertSame((string) $category->id, (string) $saved[0]['category_target']);
     }

@@ -1,11 +1,11 @@
 <x-layouts.app
     :seo-title="setting('general.site_name', '') . ' - Danh Sách Sản Phẩm'"
-    :seo-description="'Xem toàn bộ danh sách điều hòa tủ đứng Daikin, LG, Panasonic, Gree. So sánh giá, thông số kỹ thuật và chọn model phù hợp.'"
+    :seo-description="'Xem danh sách điều hòa, so sánh giá và thông số kỹ thuật để chọn sản phẩm phù hợp.'"
     :canonical="route('products.index')"
     :robots="isset($hasActiveFilters) && $hasActiveFilters ? 'noindex,follow' : setting('seo.default_robots', 'index,follow')"
 >
     <x-breadcrumb :items="[
-        ['label' => 'Điều hòa tủ đứng'],
+        ['label' => app(\App\Services\Navigation\SiteProductScope::class)->productLabel()],
     ]" />
 
     {{-- Inline Search --}}
@@ -21,7 +21,7 @@
         $schemaService = app(\App\Services\Schema\SchemaService::class);
     @endphp
     {!! \App\Services\Schema\SchemaService::toScript($schemaService->itemListPage(
-        'Điều hòa tủ đứng - Danh sách sản phẩm',
+        'Danh sách sản phẩm điều hòa',
         route('products.index'),
         $products
     )) !!}

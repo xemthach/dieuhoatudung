@@ -32,6 +32,15 @@ class ImportResultPage extends Page
         }
     }
 
+    public function refreshProgress(): void
+    {
+        if ($this->jobId) {
+            $job = DataImportJob::find($this->jobId);
+            abort_unless($job && $this->canAccessJob($job), 403);
+            $this->job = $job;
+        }
+    }
+
     public function getTitle(): string
     {
         $moduleName = ModuleRegistry::modules()[$this->job?->module ?? ''] ?? '';

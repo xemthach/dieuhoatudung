@@ -21,8 +21,8 @@ class CaseStudyController extends Controller
             ->distinct()
             ->pluck('project_type');
 
-        $seoTitle = 'Dự Án Lắp Đặt Điều Hòa Tủ Đứng Thực Tế';
-        $seoDescription = 'Tham khảo các dự án lắp đặt điều hòa tủ đứng thực tế cho nhà hàng, văn phòng, nhà xưởng, showroom... Hình ảnh thi công chân thực, chi tiết kỹ thuật.';
+        $seoTitle = 'Dự Án Lắp Đặt Điều Hòa Thực Tế';
+        $seoDescription = 'Tham khảo các dự án lắp đặt điều hòa cho nhà hàng, văn phòng, nhà xưởng và showroom.';
 
         return view('pages.case-studies.index', compact('caseStudies', 'projectTypes', 'seoTitle', 'seoDescription'));
     }
@@ -44,7 +44,7 @@ class CaseStudyController extends Controller
             ->limit(3)
             ->get();
 
-        $seoTitle = $caseStudy->seo_title ?: "Dự án: {$caseStudy->title} | Điều Hòa Tủ Đứng";
+        $seoTitle = $caseStudy->seo_title ?: "Dự án: {$caseStudy->title} | Điều Hòa";
         $seoDescription = $caseStudy->seo_description ?: \Illuminate\Support\Str::limit(strip_tags($caseStudy->problem ?? ''), 150);
         $canonical = $caseStudy->canonical_url ?: route('case-studies.show', $caseStudy->slug);
         

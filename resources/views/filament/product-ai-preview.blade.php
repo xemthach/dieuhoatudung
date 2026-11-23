@@ -61,7 +61,16 @@
         </section>
 
         <section class="rounded-lg border border-gray-200 p-4">
+            @if(($combinedReview ?? false) && $item?->draft)
+                <h3 class="font-semibold">Thay đổi dự kiến</h3>
+                @foreach(app(\App\Services\Product\AIProductDraftApplyService::class)->reviewChanges($item->draft) as $change)
+                    <details class="mt-3 rounded-lg border p-3"><summary class="cursor-pointer font-medium">{{ $change['label'] }}</summary>
+                        <dl class="mt-3 grid gap-3 sm:grid-cols-2"><div><dt class="text-sm font-semibold">Hiện tại</dt><dd class="mt-1 max-h-48 overflow-y-auto whitespace-pre-wrap break-words text-sm">{{ strip_tags($change['before']) ?: 'Chưa có nội dung' }}</dd></div><div><dt class="text-sm font-semibold">Sau khi áp dụng</dt><dd class="mt-1 max-h-48 overflow-y-auto whitespace-pre-wrap break-words text-sm">{{ strip_tags($change['after']) }}</dd></div></dl>
+                    </details>
+                @endforeach
+            @else
             <h3 class="font-semibold">Bản nháp AI sẽ cập nhật các trường sau</h3><p class="mt-2">{{ implode(', ', $readiness['field_labels'] ?? []) ?: 'Chưa có trường được duyệt để áp dụng.' }}</p>
+            @endif
             <p class="mt-3 font-medium">Không thay đổi</p><p>{{ implode(', ', $readiness['protected_fields'] ?? []) }}</p>
         </section>
 

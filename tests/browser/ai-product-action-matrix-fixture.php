@@ -18,6 +18,11 @@ use Spatie\Permission\Models\Permission;
 require dirname(__DIR__, 2).'/vendor/autoload.php';
 $app = require dirname(__DIR__, 2).'/bootstrap/app.php';
 $app->make(Kernel::class)->bootstrap();
+if (! app()->environment('testing') || config('database.default') !== 'sqlite'
+    || basename(config('database.connections.sqlite.database')) !== 'product-data-governance-browser-isolated.sqlite'
+    || basename(config('ai.worker_desired_state_path')) !== 'browser-worker-desired-state.json') {
+    throw new RuntimeException('Isolated browser runtime required.');
+}
 $mode = $argv[1] ?? 'setup';
 $key = $argv[2] ?? null;
 $statePath = storage_path('framework/testing/ai-product-action-matrix.json');
@@ -26,6 +31,9 @@ $state = is_file($statePath) ? json_decode((string) file_get_contents($statePath
 $contentHash = static fn (Product $product): string => app(AIProductDraftApplyService::class)->contentHash($product);
 
 if ($mode === 'cleanup') {
+    App\Models\AiProvider::where('name', '[BROWSER] Deterministic AI')->forceDelete();
+    App\Models\QueueWorkerHeartbeat::where('hostname', 'browser-fake-worker')->delete();
+    @unlink(config('ai.worker_desired_state_path'));
     $itemIds = array_values(array_filter(array_map('intval', (array) ($state['item_ids'] ?? []))));
     $draftIds = array_values(array_filter(array_map('intval', (array) ($state['draft_ids'] ?? []))));
     $jobIds = array_values(array_filter(array_map('intval', (array) ($state['job_ids'] ?? []))));
@@ -70,6 +78,7 @@ if ($mode === 'cleanup') {
 }
 
 if ($mode === 'snapshot') {
+    App\Models\QueueWorkerHeartbeat::where('hostname', 'browser-fake-worker')->update(['last_seen_at'=>now()]);
     $row = (array) data_get($state, "products.{$key}", []);
     $product = Product::withTrashed()->findOrFail((int) $row['product_id']);
     $draft = isset($row['draft_id']) ? AiProductDraft::find((int) $row['draft_id']) : null;
@@ -110,6 +119,18 @@ if ($mode === 'snapshot') {
 }
 
 if ($mode !== 'setup') throw new RuntimeException('Unknown mode');
+
+// Exercise production preflight with an explicitly simulated, isolated runtime.
+// No real worker is enabled and this adapter cannot perform network requests.
+file_put_contents(config('ai.worker_desired_state_path'), json_encode(['desired_state'=>'ENABLED', 'changed_by'=>'browser-fixture']));
+App\Models\QueueWorkerHeartbeat::updateOrCreate(
+    ['worker_name'=>'queue-worker', 'queue'=>'ai_governed', 'hostname'=>'browser-fake-worker'],
+    ['status'=>'running', 'pid'=>0, 'last_seen_at'=>now()],
+);
+App\Models\AiProvider::updateOrCreate(['name'=>'[BROWSER] Deterministic AI'], [
+    'provider'=>'custom', 'model'=>'fake-browser-ui', 'api_key'=>'fixture-only',
+    'status'=>'active', 'priority'=>'primary', 'weight'=>1,
+]);
 
 // Recover only leftovers created by this fixture if a prior setup was interrupted.
 $leftoverProductIds = Product::withTrashed()->where('name', 'like', '[AI MATRIX] %')->pluck('id')->map(fn ($id) => (int) $id)->all();

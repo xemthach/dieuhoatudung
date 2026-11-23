@@ -79,7 +79,7 @@ test.describe.serial('AI Product browser action and RBAC certification', () => {
     test('approve without warning records actor and does not mutate Product', async ({ page }) => {
         await login(page, state.operator);
         await openProduct(page, state, 'approve');
-        await page.getByRole('button', { name: 'Duyệt' }).click();
+        await page.getByRole('button', { name: 'Duyệt', exact: true }).click();
         await dialogSubmit(page, /Duyệt|Xác nhận/);
         const row = fixture('snapshot', 'approve');
         expect(row.approval_status).toBe('APPROVED_FOR_APPLY');
@@ -318,7 +318,7 @@ test.describe.serial('AI Product browser action and RBAC certification', () => {
         await login(page, state.users.approve);
         await openProduct(page, state, 'preview');
         await expect(page.getByRole('button', { name: 'Xem bản nháp' })).toBeVisible();
-        await expect(page.getByRole('button', { name: 'Duyệt' })).toBeVisible();
+        await expect(page.getByRole('button', { name: 'Duyệt', exact: true })).toBeVisible();
         await expect(page.getByRole('button', { name: /Tạo nội dung AI|Tạo lại|Từ chối|Loại bỏ/ })).toHaveCount(0);
         await openMore(page);
         await expect(moreItem(page, 'Từ chối')).toBeVisible();

@@ -1,12 +1,12 @@
 <x-layouts.app
-    :seo-title="'Chính sách | ' . setting('general.site_name', 'Điều Hòa Tủ Đứng')"
-    :seo-description="'Các chính sách mua hàng, bảo hành, lắp đặt, vận chuyển và đổi trả tại ' . setting('general.company_name', 'Điều Hòa Tủ Đứng')"
+    :seo-title="'Chính sách | ' . setting('general.site_name', 'Điều Hòa Không Khí')"
+    :seo-description="'Các chính sách mua hàng, bảo hành, lắp đặt, vận chuyển và đổi trả tại ' . setting('general.company_name', 'Điều Hòa Không Khí')"
 >
     <div class="container-main py-8 lg:py-12">
         {{-- Breadcrumb --}}
         <nav class="mb-6 text-sm text-surface-500" aria-label="Breadcrumb">
             <ol class="flex flex-wrap items-center gap-1">
-                <li><a href="/" class="hover:text-primary-600 transition-colors">Trang chủ</a></li>
+                <li><a href="{{ route('home') }}" class="hover:text-primary-600 transition-colors">Trang chủ</a></li>
                 <li class="text-surface-400">/</li>
                 <li class="text-surface-700 font-medium">Chính sách</li>
             </ol>

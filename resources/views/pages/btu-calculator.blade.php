@@ -43,7 +43,7 @@
 
     {{-- Breadcrumb --}}
     <nav class="mb-6 flex items-center gap-2 text-sm text-surface-500" aria-label="Breadcrumb">
-        <a href="/" class="hover:text-primary-600">Trang chủ</a>
+        <a href="{{ route('home') }}" class="hover:text-primary-600">Trang chủ</a>
         <span>/</span>
         <span class="text-surface-700 font-medium">Công cụ tính BTU</span>
     </nav>
@@ -51,7 +51,7 @@
     {{-- Hero heading --}}
     <div class="mb-8 text-center">
         <h1 class="text-2xl font-extrabold text-surface-900 sm:text-3xl lg:text-4xl">
-            Công Cụ Chọn Công Suất Điều Hòa Tủ Đứng
+            Công Cụ Chọn Công Suất Điều Hòa
         </h1>
         <p class="mx-auto mt-3 max-w-2xl text-base text-surface-600">
             Chọn tính theo diện tích hoặc thể tích để ước tính nhóm công suất BTU tham khảo và xem các sản phẩm RAC không thấp hơn nhu cầu đã tính.
@@ -67,7 +67,7 @@
 
     {{-- FAQ Section --}}
     <div class="mx-auto mt-12 max-w-3xl">
-        <h2 class="mb-6 text-xl font-bold text-surface-900">Câu Hỏi Thường Gặp Về BTU Điều Hòa Tủ Đứng</h2>
+        <h2 class="mb-6 text-xl font-bold text-surface-900">Câu Hỏi Thường Gặp Về BTU Điều Hòa</h2>
 
         <div class="space-y-3">
             @foreach($calculatorFaqs as $faq)
@@ -87,17 +87,17 @@
     {{-- Internal links --}}
     <div class="mx-auto mt-10 max-w-3xl">
         <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <a href="/dieu-hoa-tu-dung"
+            <a href="{{ app(\App\Services\Navigation\SiteProductScope::class)->productUrl() }}"
                 class="flex items-center gap-3 rounded-xl border border-surface-200 bg-white p-4 transition-all hover:border-primary-300 hover:shadow-sm">
                 <div class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-primary-100 text-primary-600">
                     <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
                 </div>
                 <div>
-                    <div class="text-sm font-semibold text-surface-800">Xem điều hòa tủ đứng</div>
+                    <div class="text-sm font-semibold text-surface-800">Xem sản phẩm điều hòa</div>
                     <div class="text-xs text-surface-500">Toàn bộ danh mục sản phẩm</div>
                 </div>
             </a>
-            <a href="/bang-gia/dieu-hoa-tu-dung"
+            <a href="{{ route('price-list') }}"
                 class="flex items-center gap-3 rounded-xl border border-surface-200 bg-white p-4 transition-all hover:border-primary-300 hover:shadow-sm">
                 <div class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-accent-100 text-accent-600">
                     <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>

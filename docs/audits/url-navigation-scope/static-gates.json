@@ -1,0 +1,14 @@
+{
+  "composer": {
+    "exit_code": 0,
+    "output": "./composer.json is valid\r\n"
+  },
+  "diff": {
+    "exit_code": 0,
+    "output": ""
+  },
+  "php_lint": {
+    "files": 61,
+    "errors": []
+  }
+}

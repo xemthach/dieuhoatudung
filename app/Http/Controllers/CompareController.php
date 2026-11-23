@@ -4,14 +4,15 @@ namespace App\Http\Controllers;
 
 use App\Models\Product;
 use App\Services\Product\ProductComparisonService;
+use App\Services\Product\ProductCompareSession;
+use Illuminate\Validation\Rule;
 use Illuminate\Http\Request;
 
 class CompareController extends Controller
 {
-    private const MAX_PRODUCTS = 4;
-
     public function __construct(
-        private readonly ProductComparisonService $comparisonService
+        private readonly ProductComparisonService $comparisonService,
+        private readonly ProductCompareSession $compareSession
     ) {}
 
     /**
@@ -19,28 +20,25 @@ class CompareController extends Controller
      */
     public function index(Request $request)
     {
-        // 1. Get slugs from query string OR session
-        if ($request->has('products')) {
-            $slugs = array_filter(explode(',', $request->query('products')));
-            // Save to session
-            $slugs = array_slice($slugs, 0, self::MAX_PRODUCTS);
-            $request->session()->put('compare.products', $slugs);
-        } else {
-            $slugs = $request->session()->get('compare.products', []);
-        }
-
-        // 2. Fetch products using service
-        $products = $this->comparisonService->getProducts($slugs);
+        $request->validate(['products' => 'sometimes|nullable|string|max:2048']);
+        $selection = $request->has('products') ? explode(',', (string) $request->query('products')) : null;
+        $products = $this->compareSession->products($request->session(), $selection);
 
         // 3. SEO Metadata
-        $seoTitle = 'So sánh sản phẩm điều hòa tủ đứng';
+        $scope = app(\App\Services\Navigation\SiteProductScope::class);
+        $compareTitle = $scope->compareTitle();
+        if ($products->pluck('product_category_id')->unique()->count() > 1) {
+            $compareTitle = 'So sánh sản phẩm';
+        }
+        $productUrl = $scope->productUrl();
+        $seoTitle = $compareTitle;
         if ($products->count() > 0) {
             $names = $products->pluck('name')->join(' vs ');
             $seoTitle = "So sánh: {$names}";
         }
         
-        $seoDescription = 'Công cụ so sánh thông số kỹ thuật, tính năng, và giá bán các dòng máy lạnh điều hòa tủ đứng. Giúp bạn chọn mua sản phẩm phù hợp nhất.';
-        $canonical = url('/so-sanh-san-pham');
+        $seoDescription = $scope->compareDescription();
+        $canonical = route('compare.index');
 
         // 4. Build grouped compare specs using service
         $groupedSpecs = [];
@@ -48,7 +46,7 @@ class CompareController extends Controller
             $groupedSpecs = $this->comparisonService->buildGroupedSpecs($products);
         }
 
-        return view('pages.compare', compact('products', 'groupedSpecs', 'seoTitle', 'seoDescription', 'canonical'));
+        return view('pages.compare', compact('products', 'groupedSpecs', 'seoTitle', 'seoDescription', 'canonical', 'compareTitle', 'productUrl'));
     }
 
     /**
@@ -57,106 +55,46 @@ class CompareController extends Controller
     public function add(Request $request)
     {
         $validated = $request->validate([
-            'slug' => 'required|string|exists:products,slug',
+            'slug' => ['required', 'string', 'max:255', Rule::exists('products', 'slug')->where('is_active', true)],
         ]);
+        $items = $this->compareSession->add($request->session(), $validated['slug']);
 
-        $slug = $validated['slug'];
-        $slugs = $request->session()->get('compare.products', []);
-
-        if (in_array($slug, $slugs)) {
-            return response()->json([
-                'success' => true,
-                'message' => 'Sản phẩm đã có trong danh sách so sánh.',
-                'count'   => count($slugs)
-            ]);
-        }
-
-        if (count($slugs) >= self::MAX_PRODUCTS) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Chỉ có thể so sánh tối đa 4 sản phẩm cùng lúc.'
-            ], 400);
-        }
-
-        $slugs[] = $slug;
-        $request->session()->put('compare.products', $slugs);
-
-        // Optional: tracking compare event here if needed
-        $product = Product::where('slug', $slug)->first();
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Đã thêm vào danh sách so sánh.',
-            'count'   => count($slugs),
-            'product' => [
-                'slug' => $product->slug,
-                'name' => $product->name,
-                'image_url' => $product->compare_image_url
-            ]
-        ]);
+        return $this->mutationResponse($request, $items, 'Đã thêm vào danh sách so sánh.');
     }
 
-    /**
-     * Remove a product from compare list.
-     */
     public function remove(Request $request)
     {
-        // Accept either 'slug' or 'product_id' for backward compatibility
-        $slug = $request->input('slug') ?? $request->input('product_id');
+        $validated = $request->validate([
+            'slug' => ['required_without:product_id', 'nullable', 'string', 'max:255', 'exists:products,slug'],
+            'product_id' => ['required_without:slug', 'nullable', 'integer', 'min:1', 'exists:products,id'],
+        ]);
+        $slug = $validated['slug'] ?? Product::query()->findOrFail($validated['product_id'])->slug;
+        $items = $this->compareSession->remove($request->session(), $slug);
 
-        if (empty($slug)) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Thiếu thông tin sản phẩm cần xóa.',
-            ], 422);
+        return $this->mutationResponse($request, $items, 'Đã xóa sản phẩm khỏi danh sách.');
+    }
+
+    public function clear(Request $request)
+    {
+        $items = $this->compareSession->clear($request->session());
+
+        return $this->mutationResponse($request, $items, 'Đã xóa tất cả sản phẩm so sánh.');
+    }
+
+    private function mutationResponse(Request $request, array $items, string $message)
+    {
+        if (! $request->expectsJson()) {
+            return redirect()->route('compare.index')->with('status', $message);
         }
-
-        $slugs = $request->session()->get('compare.products', []);
-        $slugs = array_values(array_filter($slugs, fn($s) => $s !== $slug));
-
-        if (empty($slugs)) {
-            // Clear session entirely when no products remain
-            $request->session()->forget('compare.products');
-        } else {
-            $request->session()->put('compare.products', $slugs);
-        }
-
-        // Build remaining items with full data for frontend sync
-        $remainingItems = Product::whereIn('slug', $slugs)->get()->map(fn($p) => [
-            'slug' => $p->slug,
-            'name' => $p->name,
-            'image_url' => $p->compare_image_url
-        ])->values()->toArray();
 
         return response()->json([
             'success' => true,
-            'message' => 'Đã xóa sản phẩm khỏi danh sách.',
-            'count'   => count($remainingItems),
-            'items'   => $remainingItems
+            'message' => $message,
+            'count' => count($items),
+            'items' => $items,
         ]);
     }
 
-    /**
-     * Clear all products from compare list.
-     */
-    public function clear(Request $request)
-    {
-        $request->session()->forget('compare.products');
-
-        if ($request->wantsJson() || $request->ajax()) {
-            return response()->json([
-                'success' => true,
-                'message' => 'Đã xóa tất cả sản phẩm so sánh.',
-                'count'   => 0,
-                'items'   => []
-            ]);
-        }
-
-        return redirect()->route('compare.index');
-    }
-
-    // ──────────────────────────────────────────────
-    // Export endpoints
     // ──────────────────────────────────────────────
 
     /**

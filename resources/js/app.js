@@ -1,10 +1,12 @@
 /**
- * Frontend JS Foundation — Điều Hòa Tủ Đứng
+ * Frontend JS Foundation — Điều Hòa Không Khí
  * Lightweight, vanilla JS. No heavy frameworks.
  */
 
 import Alpine from 'alpinejs';
 import collapse from '@alpinejs/collapse';
+import './compare';
+import './dealer-reviews';
 
 Alpine.plugin(collapse);
 window.Alpine = Alpine;
@@ -28,7 +30,7 @@ window.getCsrfToken = () => {
  */
 window.refreshCsrfToken = async () => {
     try {
-        const res = await fetch('/csrf-token', {
+        const res = await fetch(document.querySelector('meta[name="csrf-refresh-url"]')?.content, {
             method: 'GET',
             headers: { 'Accept': 'application/json' },
             credentials: 'same-origin'
@@ -68,6 +70,7 @@ window.refreshCsrfToken = async () => {
  *   3. On second 419 → prompts user to reload
  */
 window.csrfFetch = async (url, options = {}) => {
+    const { reloadOnExpired = true, ...fetchOptions } = options;
     const headers = {
         'X-CSRF-TOKEN': getCsrfToken(),
         'Accept': 'application/json',
@@ -79,7 +82,7 @@ window.csrfFetch = async (url, options = {}) => {
         headers['Content-Type'] = headers['Content-Type'] || 'application/json';
     }
 
-    let res = await fetch(url, { ...options, headers, credentials: 'same-origin' });
+    let res = await fetch(url, { ...fetchOptions, headers, credentials: 'same-origin' });
 
     // Handle 419 CSRF token mismatch — refresh and retry once
     if (res.status === 419) {
@@ -93,11 +96,11 @@ window.csrfFetch = async (url, options = {}) => {
                 options.body.set('_token', newToken);
             }
 
-            res = await fetch(url, { ...options, headers, credentials: 'same-origin' });
+            res = await fetch(url, { ...fetchOptions, headers, credentials: 'same-origin' });
         }
 
         // Still 419 after refresh → session completely dead
-        if (res.status === 419) {
+        if (res.status === 419 && reloadOnExpired) {
             // Show a friendly toast instead of crude alert
             const toast = document.createElement('div');
             toast.className = 'fixed top-4 left-1/2 -translate-x-1/2 z-[99999] rounded-xl bg-surface-800 px-6 py-3 text-sm font-medium text-white shadow-2xl transition-all';

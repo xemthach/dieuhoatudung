@@ -81,6 +81,59 @@ class Phase2CControlledDraftApplyTest extends TestCase
         $service->apply($draft, $reviewer->id);
     }
 
+    public function test_super_admin_can_approve_and_apply_once_with_existing_integrity_checks(): void
+    {
+        [$actor, $product, $draft] = $this->fixture($this->contentPayload());
+        $actor->assignRole(\Spatie\Permission\Models\Role::firstOrCreate(['name'=>'super_admin', 'guard_name'=>'web']));
+        $actor->update(['is_active'=>true]);
+        $service = app(AIProductDraftApplyService::class);
+        $before = $product->technical_capacity_btu;
+        $result = $service->approveAndApply($draft, $actor, 'Reviewed in combined action');
+        $this->assertSame('APPLIED', $result['result']);
+        $this->assertSame($before, $product->fresh()->technical_capacity_btu);
+        $this->assertNotNull($draft->fresh()->applied_at);
+        $again = $service->approveAndApply($draft->fresh(), $actor, 'Already applied');
+        $this->assertSame('NOOP_ALREADY_APPLIED', $again['result']);
+    }
+
+    public function test_combined_action_rejects_non_super_admin_and_rolls_back_approval_on_failure(): void
+    {
+        [$actor, $product, $draft] = $this->fixture($this->contentPayload());
+        $service = app(AIProductDraftApplyService::class);
+        try {
+            $service->approveAndApply($draft, $actor);
+            $this->fail('Non super admin must not use the combined action.');
+        } catch (\RuntimeException $e) {
+            $this->assertSame('SUPER_ADMIN_REQUIRED', $e->getMessage());
+        }
+        $actor->assignRole(\Spatie\Permission\Models\Role::firstOrCreate(['name'=>'super_admin', 'guard_name'=>'web']));
+        $actor->update(['is_active'=>true]);
+        try {
+            $service->approveAndApply($draft, $actor, 'Rollback test', false, null, true);
+            $this->fail('Injected apply failure must roll back both steps.');
+        } catch (\RuntimeException) {
+            $this->assertNull($draft->fresh()->approved_at);
+            $this->assertNull($draft->fresh()->applied_at);
+            $this->assertSame('Cũ content', $product->fresh()->long_description);
+        }
+    }
+
+    public function test_combined_action_blocks_stale_technical_context_before_approval(): void
+    {
+        [$actor, $product, $draft] = $this->fixture($this->contentPayload());
+        $actor->assignRole(\Spatie\Permission\Models\Role::firstOrCreate(['name'=>'super_admin', 'guard_name'=>'web']));
+        $actor->update(['is_active'=>true]);
+        $draft->update(['token_usage_json'=>['technical_context_hash'=>str_repeat('0', 64)]]);
+        try {
+            app(AIProductDraftApplyService::class)->approveAndApply($draft->fresh(), $actor);
+            $this->fail('A stale draft must not be approved.');
+        } catch (\RuntimeException $error) {
+            $this->assertStringContainsString('STALE_TECHNICAL_CONTEXT', $error->getMessage());
+            $this->assertNull($draft->fresh()->approved_at);
+            $this->assertSame('Cũ content', $product->fresh()->long_description);
+        }
+    }
+
     public function test_single_operator_apply_requires_and_accepts_exact_confirmation(): void
     {
         [$reviewer, $product, $draft] = $this->fixture($this->contentPayload());

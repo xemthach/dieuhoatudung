@@ -426,7 +426,7 @@
     <section class="border-t border-surface-200 py-8 lg:py-12">
         <div class="container-main">
             <x-section-heading title="Sản Phẩm Liên Quan" />
-            <div class="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 lg:gap-6">
+            <div class="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 lg:gap-6">
                 @foreach($relatedProducts as $related)
                     <x-product-card :product="$related" />
                 @endforeach

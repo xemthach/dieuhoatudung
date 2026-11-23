@@ -56,11 +56,11 @@ class PriceListController extends Controller
         if ($faqs->isEmpty()) {
             $faqs = collect([
                 (object)[
-                    'question' => 'Giá điều hòa tủ đứng trên trang có phải giá chính thức không?',
+                    'question' => 'Giá điều hòa trên trang có phải giá chính thức không?',
                     'answer'   => 'Giá niêm yết trên trang là giá tham khảo từ nhà sản xuất, giá thực tế có thể thay đổi theo chương trình khuyến mãi. Vui lòng liên hệ để nhận báo giá chính xác nhất.',
                 ],
                 (object)[
-                    'question' => 'Điều hòa tủ đứng bao nhiêu BTU phù hợp với văn phòng 50m²?',
+                    'question' => 'Điều hòa bao nhiêu BTU phù hợp với văn phòng 50m²?',
                     'answer'   => 'Văn phòng 50m² với trần cao 3m thường cần khoảng 24.000–28.000 BTU. Sử dụng công cụ tính BTU để có kết quả chính xác theo điều kiện thực tế.',
                 ],
                 (object)[
@@ -75,9 +75,9 @@ class PriceListController extends Controller
         }
 
         // ── SEO ───────────────────────────────────────────────
-        $seoTitle       = 'Bảng Giá Điều Hòa Tủ Đứng Mới Nhất ' . date('Y') . ' - Tất Cả Thương Hiệu';
-        $seoDescription = 'Xem bảng giá điều hòa tủ đứng ' . date('Y') . ' đầy đủ theo BTU, thương hiệu GREE, Daikin, Panasonic. So sánh giá, tình trạng hàng, nhận báo giá ngay.';
-        $canonical      = url('/bang-gia/dieu-hoa-tu-dung');
+        $seoTitle       = 'Bảng Giá Điều Hòa ' . date('Y') . ' - Các Thương Hiệu';
+        $seoDescription = 'Xem bảng giá điều hòa theo công suất và thương hiệu. So sánh giá và nhận báo giá.';
+        $canonical      = route('price-list');
 
         // Filtered page → noindex để không gây duplicate content
         $robots = $hasFilter ? 'noindex,follow' : setting('seo.default_robots', 'index,follow');

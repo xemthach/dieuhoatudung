@@ -36,7 +36,7 @@ return [
     'prompts' => [
 
         'blog_outline' => <<<'PROMPT'
-Bạn là chuyên gia SEO content về lĩnh vực điều hòa không khí, đặc biệt là điều hòa tủ đứng.
+Bạn là chuyên gia SEO content về lĩnh vực điều hòa không khí.
 
 Hãy tạo outline chi tiết cho bài viết với chủ đề: "{topic}"
 Từ khóa chính: "{keyword}"
@@ -54,7 +54,7 @@ Yêu cầu:
 PROMPT,
 
         'blog_draft' => <<<'PROMPT'
-Bạn là chuyên gia viết content SEO về điều hòa tủ đứng.
+Bạn là chuyên gia viết content SEO về điều hòa không khí.
 
 Dựa trên outline sau, hãy viết bài viết đầy đủ:
 
@@ -73,7 +73,7 @@ Yêu cầu:
 PROMPT,
 
         'tag_suggestions' => <<<'PROMPT'
-Dựa trên nội dung bài viết về điều hòa tủ đứng sau:
+Dựa trên nội dung bài viết về điều hòa không khí sau:
 
 Tiêu đề: "{title}"
 Nội dung tóm tắt: "{excerpt}"

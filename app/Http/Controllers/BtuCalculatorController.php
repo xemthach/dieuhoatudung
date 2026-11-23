@@ -22,7 +22,7 @@ class BtuCalculatorController extends Controller
     ) {}
 
     /**
-     * GET /cong-cu/chon-cong-suat-dieu-hoa-tu-dung
+     * GET /cong-cu/chon-cong-suat-dieu-hoa
      */
     public function index(Request $request)
     {
@@ -37,7 +37,7 @@ class BtuCalculatorController extends Controller
             $calc     = $request->session()->get('btu_calc');          // plain array
         }
 
-        $seoTitle       = 'Công Cụ Tính Công Suất Điều Hòa Tủ Đứng - Chọn BTU Phù Hợp';
+        $seoTitle       = 'Công Cụ Tính Công Suất Điều Hòa - Chọn BTU Phù Hợp';
         $seoDescription = 'Ước tính tham khảo công suất BTU theo diện tích hoặc thể tích không gian, sau đó gợi ý sản phẩm RAC có công suất không thấp hơn nhu cầu đã tính.';
         $canonical      = route('btu-calculator.index');
         $calculatorFaqs = config('hvac.btu.faq', []);
@@ -49,7 +49,7 @@ class BtuCalculatorController extends Controller
     }
 
     /**
-     * POST /cong-cu/chon-cong-suat-dieu-hoa-tu-dung
+     * POST /cong-cu/chon-cong-suat-dieu-hoa
      */
     public function calculate(Request $request)
     {

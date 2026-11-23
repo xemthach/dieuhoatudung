@@ -30,11 +30,19 @@ test.describe.serial('AI guard policy settings', () => {
         await expect(contentMode).toBeVisible();
         await expect(page.locator('#settingsSchema\\.ai_guard_locked_fact')).toBeDisabled();
         await contentMode.selectOption('IGNORE');
-        await page.getByRole('button', { name: /Lưu cấu hình/i }).first().click();
+        {
+            const request = page.waitForRequest(r => r.method() === 'POST' && (r.postData() ?? '').includes('saveSettings'));
+            await page.locator('button[wire\\:click="saveSettings"]').last().click();
+            expect((await (await request).response())?.status()).toBe(200);
+        }
         await expect(page.getByText(/Đã lưu cấu hình/i).first()).toBeVisible();
 
         await contentMode.selectOption('WARN');
-        await page.getByRole('button', { name: /Lưu cấu hình/i }).first().click();
+        {
+            const request = page.waitForRequest(r => r.method() === 'POST' && (r.postData() ?? '').includes('saveSettings'));
+            await page.locator('button[wire\\:click="saveSettings"]').last().click();
+            expect((await (await request).response())?.status()).toBe(200);
+        }
         await expect(page.getByText(/Đã lưu cấu hình/i).first()).toBeVisible();
         expect(errors).toEqual([]);
     });

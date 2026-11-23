@@ -80,19 +80,19 @@
 <div class="container-main py-8 lg:py-12">
     {{-- Breadcrumb --}}
     <nav class="mb-6 flex items-center gap-2 text-sm text-surface-500" aria-label="Breadcrumb">
-        <a href="/" class="hover:text-primary-600">Trang chủ</a>
+        <a href="{{ route('home') }}" class="hover:text-primary-600">Trang chủ</a>
         <span>/</span>
         <span class="text-surface-700 font-medium">So sánh sản phẩm</span>
     </nav>
 
     <div class="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-            <h1 class="text-2xl font-extrabold text-surface-900 sm:text-3xl">So sánh điều hòa tủ đứng</h1>
-            <p class="mt-2 text-surface-600">So sánh chi tiết thông số kỹ thuật, tính năng và giá bán để chọn sản phẩm phù hợp nhất.</p>
+            <h1 class="text-2xl font-extrabold text-surface-900 sm:text-3xl">{{ $compareTitle }}</h1>
+            <p class="mt-2 text-surface-600">{{ $seoDescription }}</p>
         </div>
         
         @if(count($products) > 0)
-        <div class="flex items-center gap-3 shrink-0 flex-wrap">
+        <div data-compare-actions class="flex items-center gap-3 shrink-0 flex-wrap">
             {{-- Export buttons --}}
             @php
                 $exportSlugs = collect($products)->pluck('slug')->join(',');
@@ -123,7 +123,7 @@
                 </div>
             </div>
 
-            <form method="POST" action="{{ route('compare.clear') }}">
+            <form method="POST" action="{{ route('compare.clear') }}" data-compare-clear>
                 @csrf
                 <button type="submit" class="inline-flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm font-medium text-red-600 transition hover:bg-red-100 hover:text-red-700">
                     <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
@@ -134,35 +134,35 @@
         @endif
     </div>
 
-    @if(count($products) === 0)
-    <div class="rounded-2xl border border-surface-200 bg-white p-12 text-center shadow-sm">
+    <div data-compare-empty @if(count($products) > 0) hidden @endif class="rounded-2xl border border-surface-200 bg-white p-12 text-center shadow-sm">
         <div class="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-surface-100 text-surface-400">
             <svg class="h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
         </div>
         <h2 class="mb-2 text-lg font-bold text-surface-900">Chưa có sản phẩm nào để so sánh</h2>
         <p class="mb-6 text-surface-600">Vui lòng chọn các sản phẩm bạn đang phân vân để xem bảng so sánh chi tiết.</p>
-        <a href="{{ route('price-list') }}" class="inline-flex items-center justify-center rounded-xl bg-primary-600 px-6 py-3 text-sm font-bold text-white transition hover:bg-primary-700">
+        <a href="{{ $productUrl }}" class="inline-flex items-center justify-center rounded-xl bg-primary-600 px-6 py-3 text-sm font-bold text-white transition hover:bg-primary-700">
             Xem danh sách sản phẩm
         </a>
     </div>
-    @else
+    <p data-compare-error role="alert" hidden class="my-4 text-red-700">Không thể cập nhật so sánh. Vui lòng thử lại.</p>
+    @if(count($products) > 0)
     
-    <div class="compare-table-wrap rounded-2xl border border-surface-200 bg-white shadow-sm">
+    <div data-compare-table class="compare-table-wrap rounded-2xl border border-surface-200 bg-white shadow-sm">
         <table class="compare-table w-full text-left text-sm">
             {{-- HEADER: Product images & names --}}
             <thead class="bg-surface-50">
                 <tr>
                     <th class="sticky-col w-48 border-b border-surface-200 p-4 font-semibold text-surface-700 bg-surface-50">
-                        Sản phẩm ({{ count($products) }}/4)
+                        Sản phẩm (<span data-compare-count>{{ count($products) }}</span>/4)
                     </th>
                     @foreach($products as $product)
-                    <th class="w-64 border-b border-l border-surface-200 p-4 align-top bg-surface-50">
+                    <th data-compare-product="{{ $product->slug }}" class="w-64 border-b border-l border-surface-200 p-4 align-top bg-surface-50">
                         <div class="relative flex h-full flex-col">
                             {{-- Remove button --}}
-                            <form method="POST" action="{{ route('compare.remove') }}" class="absolute right-0 top-0">
+                            <form method="POST" action="{{ route('compare.remove') }}" data-compare-remove class="absolute right-0 top-0">
                                 @csrf
                                 <input type="hidden" name="slug" value="{{ $product->slug }}">
-                                <button type="submit" class="rounded-full bg-surface-100 p-1.5 text-surface-400 transition hover:bg-red-100 hover:text-red-600" title="Xóa khỏi so sánh">
+                                <button type="submit" aria-label="Xóa {{ $product->name }} khỏi so sánh" class="rounded-full bg-surface-100 p-1.5 text-surface-400 transition hover:bg-red-100 hover:text-red-600" title="Xóa khỏi so sánh">
                                     <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
                                 </button>
                             </form>
@@ -249,7 +249,7 @@
                             {{ $row['label'] }}
                         </td>
                         @foreach($row['values'] as $idx => $value)
-                        <td class="border-b border-l border-surface-200 p-4 text-surface-600 text-[13px] {{ $row['differs'] && $value !== '—' ? 'compare-diff' : '' }}">
+                        <td data-compare-product="{{ $products[$idx]->slug }}" class="border-b border-l border-surface-200 p-4 text-surface-600 text-[13px] {{ $row['differs'] && $value !== '—' ? 'compare-diff' : '' }}">
                             <span class="compare-cell-value inline-block" title="{{ $value }}">{{ $value }}</span>
                         </td>
                         @endforeach
@@ -264,7 +264,7 @@
     </div>
 
     {{-- Mobile scroll hint --}}
-    <div class="mt-3 flex items-center justify-center gap-2 text-xs text-surface-400 lg:hidden">
+    <div data-compare-hint class="mt-3 flex items-center justify-center gap-2 text-xs text-surface-400 lg:hidden">
         <svg class="h-4 w-4 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/></svg>
         Vuốt ngang để xem thêm
     </div>
@@ -272,4 +272,65 @@
     @endif
 </div>
 
+@push('scripts')
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const updatePage = (items) => {
+        const slugs = new Set(items.map(item => item.slug));
+        const pageUrl = new URL(window.location.href);
+        if (pageUrl.searchParams.has('products')) {
+            pageUrl.searchParams.delete('products');
+            history.replaceState(null, '', pageUrl);
+        }
+        document.querySelectorAll('[data-compare-product]').forEach(el => {
+            if (!slugs.has(el.dataset.compareProduct)) el.remove();
+        });
+        const table = document.querySelector('[data-compare-table] table');
+        if (table) {
+            const columns = table.querySelectorAll('thead th').length;
+            table.querySelectorAll('.compare-group-header td').forEach(cell => { cell.colSpan = columns; });
+            table.querySelectorAll('tbody tr:not(.compare-group-header)').forEach(row => {
+                const cells = [...row.querySelectorAll('[data-compare-product]')];
+                const values = cells.map(cell => cell.textContent.trim()).filter(value => value !== '—');
+                const differs = new Set(values).size > 1;
+                cells.forEach(cell => cell.classList.toggle('compare-diff', differs && cell.textContent.trim() !== '—'));
+            });
+        }
+        document.querySelectorAll('[data-compare-actions] a').forEach(link => {
+            const url = new URL(link.href, window.location.href);
+            if (url.searchParams.has('products')) {
+                url.searchParams.set('products', items.map(item => item.slug).join(','));
+                link.href = url.href;
+            }
+        });
+        const count = document.querySelector('[data-compare-count]');
+        if (count) count.textContent = String(items.length);
+        if (!items.length) {
+            document.querySelector('[data-compare-empty]').hidden = false;
+            ['[data-compare-table]', '[data-compare-actions]', '[data-compare-hint]'].forEach(selector => document.querySelector(selector)?.remove());
+        }
+    };
+    window.addEventListener('compare:updated', event => updatePage(event.detail));
+    window.addEventListener('compare:busy', event => {
+        document.querySelectorAll('[data-compare-remove] button, [data-compare-clear] button').forEach(button => {
+            button.disabled = event.detail;
+            button.setAttribute('aria-busy', String(event.detail));
+            button.classList.toggle('opacity-50', event.detail);
+        });
+    });
+    document.addEventListener('submit', async event => {
+        const form = event.target.closest('[data-compare-remove], [data-compare-clear]');
+        if (!form || typeof window.updateComparison !== 'function') return;
+        event.preventDefault();
+        document.querySelector('[data-compare-error]').hidden = true;
+        try {
+            await window.updateComparison(form.action, new FormData(form));
+        } catch (_) {
+            document.querySelector('[data-compare-error]').hidden = false;
+            window.__compareToast?.('Không thể cập nhật so sánh. Vui lòng thử lại.');
+        }
+    });
+});
+</script>
+@endpush
 </x-layouts.app>

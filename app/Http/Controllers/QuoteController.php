@@ -68,8 +68,8 @@ class QuoteController extends Controller
             'entryContext'     => $entryContext,
             'submissionToken'  => old('submission_token', (string) Str::uuid()),
             'thanks'           => $thanks,
-            'seoTitle'         => setting('cta.quote_cta_text', 'Báo Giá') . ' Điều Hòa Tủ Đứng',
-            'seoDescription'   => 'Điền form nhận báo giá điều hòa tủ đứng. Tư vấn chọn công suất BTU theo dữ liệu khảo sát và điều kiện công trình.',
+            'seoTitle'         => setting('cta.quote_cta_text', 'Báo Giá') . ' Điều Hòa',
+            'seoDescription'   => 'Điền form nhận báo giá điều hòa. Tư vấn chọn công suất BTU theo dữ liệu khảo sát và điều kiện công trình.',
             'canonical'        => route('quote.index'),
         ]);
     }

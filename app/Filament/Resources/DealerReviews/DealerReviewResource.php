@@ -42,9 +42,9 @@ class DealerReviewResource extends Resource
     {
         $actions = [];
         foreach (['approve' => 'Duyệt', 'reject' => 'Từ chối', 'hide' => 'Ẩn', 'show' => 'Hiện'] as $action => $label) {
-            $actions[] = Action::make($action)->label($label)->requiresConfirmation()->modalSubmitActionLabel('Confirm')
+            $actions[] = Action::make($action)->label($label)->modalSubmitActionLabel('Xác nhận')
                 ->visible(fn () => auth()->user()?->can('dealer_review.moderate'))
-                ->schema([Textarea::make('admin_note')->label('Ghi chú nội bộ')->maxLength(2000)])
+
                 ->action(fn (DealerReview $record, array $data) => app(DealerReviewService::class)->moderate($record, $action, auth()->user(), $data['admin_note'] ?? null));
         }
 

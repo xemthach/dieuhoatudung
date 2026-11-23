@@ -6,7 +6,7 @@
 
             {{-- Company Info --}}
             <div>
-                <a href="/" class="mb-4 flex items-center gap-2">
+                <a href="{{ route('home') }}" class="mb-4 flex items-center gap-2">
                     <x-site-logo context="footer" theme="dark" />
                 </a>
                 @if(setting('branding.footer_show_slogan', true))

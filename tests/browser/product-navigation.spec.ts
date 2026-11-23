@@ -29,22 +29,24 @@ test.describe('Product listing and public navigation certification', () => {
         await expect(page.locator('article[id^="product-card-"]').first()).toBeVisible();
         await expect(page.locator('header nav')).toContainText('Sản phẩm');
 
-        const category = page.locator('a[href*="/danh-muc/"]').filter({ hasText: /Cassette/i }).first();
+        const category = page.locator('a[href*="/danh-muc/"]').filter({ hasText: /Điều hòa treo tường/i }).first();
         await expect(category).toBeVisible();
         await category.click();
         await expect(page).toHaveURL(/danh-muc\//);
         await expect(page.locator('article[id^="product-card-"]').first()).toBeVisible();
 
         await page.goto('/san-pham');
-        const daikin = page.locator('label').filter({ hasText: /Daikin/i }).locator('input[name="brand[]"]').first();
-        await expect(daikin).toBeVisible();
-        await daikin.check();
+        const brand = page.locator('label').filter({ hasText: /Filter Test Brand/i }).locator('input[name="brand[]"]').first();
+        await expect(brand).toBeVisible();
+        await brand.check();
+        await page.locator('aside form').getByRole('button', { name: 'Áp dụng bộ lọc' }).click();
         await expect(page).toHaveURL(/brand%5B%5D=|brand\[\]=/);
         await expect(page.locator('article[id^="product-card-"]').first()).toBeVisible();
 
         await page.goto('/san-pham');
         const btu = page.locator('input[name="btu[]"]').first();
         await btu.check();
+        await page.locator('aside form').getByRole('button', { name: 'Áp dụng bộ lọc' }).click();
         await expect(page).toHaveURL(/btu%5B%5D=|btu\[\]=/);
         await page.selectOption('select', 'price_asc');
         await expect(page).toHaveURL(/sort=price_asc/);

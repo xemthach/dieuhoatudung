@@ -9,9 +9,9 @@ return [
     */
 
     'defaults' => [
-        'title_suffix'    => ' | ' . (function_exists('setting') ? setting('general.site_name', 'Điều Hòa Tủ Đứng') : 'Điều Hòa Tủ Đứng'),
+        'title_suffix'    => ' | ' . (function_exists('setting') ? setting('general.site_name', 'Điều Hòa Không Khí') : 'Điều Hòa Không Khí'),
         'title_separator' => ' - ',
-        'meta_description'=> 'Danh sách điều hòa tủ đứng Daikin, LG, Panasonic, Gree. Xem sản phẩm, thông số kỹ thuật và gửi yêu cầu tư vấn theo công trình.',
+        'meta_description'=> 'Danh sách điều hòa, thông số kỹ thuật và tư vấn theo nhu cầu công trình.',
         'robots'          => 'index,follow',
         // Không hardcode dev domain — lấy APP_URL từ .env (sẽ fail rõ ràng nếu chưa set).
         'canonical_base'  => env('APP_URL'),
@@ -24,7 +24,7 @@ return [
     */
 
     'og' => [
-        'site_name' => function_exists('setting') ? setting('general.site_name', 'Điều Hòa Tủ Đứng') : 'Điều Hòa Tủ Đứng',
+        'site_name' => function_exists('setting') ? setting('general.site_name', 'Điều Hòa Không Khí') : 'Điều Hòa Không Khí',
         'type'      => 'website',
         'locale'    => 'vi_VN',
         'image'     => '/images/og-default.jpg',
@@ -37,7 +37,7 @@ return [
     */
 
     'organization' => [
-        'name'  => function_exists('setting') ? setting('schema_organization.organization_name', 'Điều Hòa Tủ Đứng') : 'Điều Hòa Tủ Đứng',
+        'name'  => function_exists('setting') ? setting('schema_organization.organization_name', 'Điều Hòa Không Khí') : 'Điều Hòa Không Khí',
         'url'   => env('APP_URL'),
         'logo'  => '/images/logo.png',
         'phone' => '',

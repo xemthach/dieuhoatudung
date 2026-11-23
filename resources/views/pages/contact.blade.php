@@ -1,6 +1,6 @@
 <x-layouts.app
     :seo-title="'Liên Hệ' . config('seo.defaults.title_suffix')"
-    :seo-description="'Liên hệ với chúng tôi để được tư vấn về điều hòa tủ đứng. Hotline hỗ trợ 24/7.'"
+    :seo-description="'Liên hệ với chúng tôi để được tư vấn về điều hòa.'"
     :canonical="route('contact')"
 >
     <x-breadcrumb :items="[['label' => 'Liên hệ']]" />
@@ -9,7 +9,7 @@
         <div class="container-main">
             <div class="mx-auto max-w-2xl text-center">
                 <h1 class="text-3xl font-bold text-surface-900">Liên Hệ Với Chúng Tôi</h1>
-                <p class="mt-3 text-surface-500">Đội ngũ tư vấn sẵn sàng hỗ trợ bạn lựa chọn giải pháp điều hòa tủ đứng phù hợp nhất.</p>
+                <p class="mt-3 text-surface-500">Đội ngũ tư vấn sẵn sàng hỗ trợ bạn lựa chọn giải pháp điều hòa phù hợp.</p>
             </div>
 
             <div class="mx-auto mt-10 grid max-w-4xl grid-cols-1 gap-8 sm:grid-cols-3">

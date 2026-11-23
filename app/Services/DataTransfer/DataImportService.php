@@ -25,10 +25,12 @@ class DataImportService
         string $mode = 'create',
         string $matchingKey = 'id',
         ?int $userId = null,
+        string $intent = 'auto',
+        array $columnMapping = [],
     ): DataImportJob {
         // Store the uploaded file privately
         $storagePath = 'data-imports/' . $module;
-        $fileName = time() . '_' . preg_replace('/[^a-zA-Z0-9._-]/', '_', $originalName);
+        $fileName = \Illuminate\Support\Str::uuid() . '_' . preg_replace('/[^a-zA-Z0-9._-]/', '_', $originalName);
         Storage::disk('local')->makeDirectory($storagePath);
         
         $destination = $storagePath . '/' . $fileName;
@@ -37,6 +39,14 @@ class DataImportService
         $formatContext = $module === 'product' && $fileType === 'xlsx'
             ? ($this->detectProductSystemRestore($destination) ?? $this->detectProductTransfer($destination))
             : null;
+        if (! in_array($intent, ['auto', 'business', 'product_transfer', 'system_restore'], true)) throw new \InvalidArgumentException('Mục đích import không hợp lệ.');
+        if ($intent === 'business' && ($module !== 'product' || ! in_array($fileType, ['xlsx', 'csv'], true) || $formatContext !== null)) {
+            throw new \InvalidArgumentException('Luồng nghiệp vụ chỉ nhận Product CSV/XLSX không có manifest Transfer/Restore.');
+        }
+        if (in_array($intent, ['product_transfer', 'system_restore'], true)
+            && ($formatContext === null || ($intent === 'product_transfer') !== (($formatContext['contract'] ?? '') === 'PRODUCT_TRANSFER'))) {
+            throw new \InvalidArgumentException('File thiếu manifest đúng loại. Hãy xuất lại đúng Product Transfer hoặc System Backup.');
+        }
         if ($formatContext !== null) {
             $mode = ($formatContext['contract'] ?? null) === 'PRODUCT_TRANSFER' ? 'product_transfer' : 'system_restore';
             $matchingKey = $mode === 'system_restore' ? 'id' : 'sku';
@@ -44,6 +54,11 @@ class DataImportService
             $formatContext['previewed_at'] = now()->toIso8601String();
             $formatContext['previewed_by'] = $userId ?? auth()->id();
         }
+
+        $formatContext ??= [];
+        $formatContext['file_sha256'] = hash_file('sha256', Storage::disk('local')->path($destination));
+        $formatContext['intent'] = $intent;
+        $formatContext['column_mapping'] = $columnMapping;
 
         $job = DataImportJob::create([
             'module'       => $module,
@@ -61,6 +76,8 @@ class DataImportService
         try {
             // Parse the file
             $rows = $this->parseFile($destination, $fileType);
+            $job->update(['total_rows'=>$rows->count()]);
+            if ($intent === 'business') $rows = app(BusinessProductImport::class)->map($rows, $columnMapping, $matchingKey);
 
             if ($rows->isEmpty()) {
                 $job->update([
@@ -89,6 +106,9 @@ class DataImportService
                 }
             }
 
+            $handler = $this->getModuleHandler($module);
+            $formatContext['target_hashes'] = $this->targetHashes($rows, $handler, $matchingKey);
+
             // Build preview data (first 20 rows)
             $previewRows = $rows->take(20)->map(fn ($row, $i) => [
                 'row_number' => $i + 1,
@@ -110,10 +130,11 @@ class DataImportService
                 'format_context_json'=> $formatContext,
             ]);
         } catch (\Throwable $e) {
+            $report = $e instanceof \Illuminate\Validation\ValidationException
+                ? collect($e->errors())->map(fn ($errors, $line) => ['row'=>(int) $line, 'errors'=>$errors])->values()->all()
+                : [['row'=>0, 'errors'=>[$e->getMessage()]]];
             $job->update([
-                'status'            => 'failed',
-                'error_report_json' => [['row' => 0, 'errors' => [$e->getMessage()]]],
-                'finished_at'       => now(),
+                'status'=>'failed', 'failed_rows'=>count($report), 'error_report_json'=>$report, 'finished_at'=>now(),
             ]);
         }
 
@@ -123,17 +144,54 @@ class DataImportService
     /**
      * Confirm and execute the import after preview.
      */
-    public function confirmImport(DataImportJob $job): DataImportJob
+    public function confirmImport(DataImportJob $job, bool $queuedExecution = false): DataImportJob
     {
-        if ($job->status !== 'previewing') {
-            throw new \RuntimeException('Import job is not in preview state.');
-        }
-
-        $job->update(['status' => 'importing', 'started_at' => now()]);
-
+        $lock = \Illuminate\Support\Facades\Cache::lock('data-import:'.$job->id, 960);
+        if (! $lock->get()) throw new \RuntimeException('Import đang được xử lý.');
         try {
+            $job->refresh();
+            $allowed = $queuedExecution ? ['queued', 'importing'] : ['previewing'];
+            if (! in_array($job->status, $allowed, true)) throw new \RuntimeException('Import job is not in preview state.');
+            if (! $queuedExecution && $job->total_rows > 500 && config('queue.default') !== 'sync') {
+                $job->update(['status'=>'queued', 'started_at'=>now()]);
+                \App\Jobs\ExecuteDataImport::dispatch($job->id);
+                return $job->refresh();
+            }
+            return $this->executeImport($job);
+        } finally { $lock->release(); }
+    }
+
+    private function executeImport(DataImportJob $job): DataImportJob
+    {
+        $job->update(['status'=>'importing', 'started_at'=>now()]);
+        try {
+            if ($job->created_by !== null) {
+                $actor = \App\Models\User::find($job->created_by);
+                if (! $actor?->is_active || ! $actor->can($job->module.'.import')
+                    || ($job->mode === 'system_restore' && ! $actor->can('system_restore.run'))
+                    || ($job->mode === 'product_transfer' && ! $actor->can('product_transfer.run'))) {
+                    throw new \RuntimeException('IMPORT_PERMISSION_REVOKED');
+                }
+            }
+            $expected = data_get($job->format_context_json, 'file_sha256');
+            if ($expected && ! hash_equals($expected, hash_file('sha256', Storage::disk('local')->path($job->file_path)))) throw new \RuntimeException('File đã thay đổi sau Preview. Vui lòng tải lên lại.');
             $rows = $this->parseFile($job->file_path, $job->file_type);
+            if (data_get($job->format_context_json, 'intent') === 'business') {
+                $rows = app(BusinessProductImport::class)->map($rows, data_get($job->format_context_json, 'column_mapping', []), $job->matching_key);
+            }
             $handler = $this->getModuleHandler($job->module);
+            $receipts = DB::table('data_import_receipts')->where('data_import_job_id', $job->id)->pluck('result', 'row_number')->all();
+            $expectedTargets = data_get($job->format_context_json, 'target_hashes', []);
+            $currentTargets = $this->targetHashes($rows, $handler, $job->matching_key);
+            foreach ($expectedTargets as $index => $hash) {
+                if (! isset($receipts[$index + 1]) && $hash !== ($currentTargets[$index] ?? null)) throw new \RuntimeException('Dữ liệu đích đã thay đổi sau Preview. Vui lòng xem trước lại.');
+            }
+            $remaining = $rows->reject(fn ($row, $index) => isset($receipts[$index + 1]));
+            $validation = $this->validateRows($remaining, $job->module, $job->mode, $job->matching_key);
+            if ($validation['error_count'] > 0) {
+                $job->update(['status'=>data_get($job->format_context_json, 'intent') === 'auto' && ! in_array($job->mode, ['system_restore', 'product_transfer']) ? 'failed' : 'blocked', 'failed_rows'=>$validation['error_count'], 'error_report_json'=>$validation['all_errors'], 'finished_at'=>now()]);
+                return $job;
+            }
 
             // A system restore is an all-or-nothing, manifest-bound operation.
             // Re-check the workbook after preview so a replaced file cannot cause
@@ -170,36 +228,45 @@ class DataImportService
                 }
             }
 
-            $stats = [
-                'success' => 0,
-                'failed'  => 0,
-                'created' => 0,
-                'updated' => 0,
-                'skipped' => 0,
-                'errors'  => [],
-            ];
-
-            $chunkSize = (int) setting('import_export.import_chunk_size', 100);
-
-            foreach ($rows as $index => $row) {
-                try {
-                    DB::beginTransaction();
-                    $result = $handler->importRow($row, $job->mode, $job->matching_key);
-                    DB::commit();
-
-                    $stats['success']++;
-                    if ($result === 'created') $stats['created']++;
-                    if ($result === 'updated') $stats['updated']++;
-                    if ($result === 'skipped') $stats['skipped']++;
-                } catch (\Throwable $e) {
-                    DB::rollBack();
-                    $stats['failed']++;
-                    $stats['errors'][] = [
-                        'row'    => $index + 1,
-                        'errors' => [$e->getMessage()],
-                        'data'   => array_slice($row, 0, 5),
-                    ];
+            $stats = ['success'=>count($receipts), 'failed'=>0, 'created'=>0, 'updated'=>0, 'skipped'=>0, 'errors'=>[]];
+            foreach ($receipts as $result) {
+                if ($result === 'created') $stats['created']++;
+                if ($result === 'updated') $stats['updated']++;
+                if ($result === 'skipped') $stats['skipped']++;
+            }
+            $chunkSize = max(1, min(500, (int) setting('import_export.import_chunk_size', 100)));
+            $restore = $job->mode === 'system_restore';
+            if ($restore) DB::beginTransaction();
+            try {
+                foreach ($rows->chunk($chunkSize) as $chunk) {
+                    foreach ($chunk as $index => $row) {
+                        if (isset($receipts[$index + 1])) continue;
+                        try {
+                            $result = DB::transaction(function () use ($handler, $row, $job, $index): string {
+                                $result = $handler->importRow($row, $job->mode, $job->matching_key);
+                                DB::table('data_import_receipts')->insert([
+                                    'data_import_job_id'=>$job->id, 'row_number'=>$index + 1,
+                                    'payload_hash'=>hash('sha256', json_encode($row, JSON_THROW_ON_ERROR)),
+                                    'result'=>$result, 'created_at'=>now(),
+                                ]);
+                                return $result;
+                            });
+                            $stats['success']++;
+                            if ($result === 'created') $stats['created']++;
+                            if ($result === 'updated') $stats['updated']++;
+                            if ($result === 'skipped') $stats['skipped']++;
+                        } catch (\Throwable $error) {
+                            if ($restore) throw $error;
+                            $stats['failed']++;
+                            $stats['errors'][] = ['row'=>$index + 1, 'errors'=>[$error->getMessage()]];
+                        }
+                    }
+                    $job->update(['success_rows'=>$stats['success'], 'failed_rows'=>$stats['failed']]);
                 }
+                if ($restore) DB::commit();
+            } catch (\Throwable $error) {
+                if ($restore) DB::rollBack();
+                throw $error;
             }
 
             $job->update([
@@ -213,14 +280,26 @@ class DataImportService
                 'finished_at'       => now(),
             ]);
         } catch (\Throwable $e) {
+            $completed = DB::table('data_import_receipts')->where('data_import_job_id', $job->id)->get(['result']);
             $job->update([
-                'status'            => 'failed',
-                'error_report_json' => [['row' => 0, 'errors' => [$e->getMessage()]]],
-                'finished_at'       => now(),
+                'status'=>$completed->isEmpty() ? 'failed' : 'completed_with_errors',
+                'success_rows'=>$completed->count(), 'failed_rows'=>max(0, $job->total_rows - $completed->count()),
+                'created_rows'=>$completed->where('result', 'created')->count(),
+                'updated_rows'=>$completed->where('result', 'updated')->count(),
+                'skipped_rows'=>$completed->where('result', 'skipped')->count(),
+                'error_report_json'=>[['row'=>0, 'errors'=>[$e->getMessage()]]], 'finished_at'=>now(),
             ]);
         }
 
         return $job;
+    }
+
+    private function targetHashes(Collection $rows, Contracts\ImportHandlerInterface $handler, string $matchingKey): array
+    {
+        return $rows->map(function ($row) use ($handler, $matchingKey) {
+            $record = $handler->findExisting($row, $matchingKey);
+            return $record ? hash('sha256', json_encode($record->getRawOriginal(), JSON_THROW_ON_ERROR)) : null;
+        })->all();
     }
 
     /**

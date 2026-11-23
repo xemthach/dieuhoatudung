@@ -429,11 +429,11 @@
 
     {{-- Internal links --}}
     <div class="mt-6 flex flex-wrap gap-2">
-        <a href="/dieu-hoa-tu-dung" class="rounded-full border border-surface-200 bg-white px-4 py-2 text-xs text-surface-600 hover:border-primary-300 hover:text-primary-600">
-            ← Xem toàn bộ điều hòa tủ đứng
+        <a href="{{ app(\App\Services\Navigation\SiteProductScope::class)->productUrl() }}" class="rounded-full border border-surface-200 bg-white px-4 py-2 text-xs text-surface-600 hover:border-primary-300 hover:text-primary-600">
+            ← Xem sản phẩm
         </a>
-        <a href="/bang-gia/dieu-hoa-tu-dung" class="rounded-full border border-surface-200 bg-white px-4 py-2 text-xs text-surface-600 hover:border-primary-300 hover:text-primary-600">
-             Bảng giá điều hòa tủ đứng
+        <a href="{{ route('price-list') }}" class="rounded-full border border-surface-200 bg-white px-4 py-2 text-xs text-surface-600 hover:border-primary-300 hover:text-primary-600">
+             Bảng giá
         </a>
         <a href="#btu-calculator" class="rounded-full border border-surface-200 bg-white px-4 py-2 text-xs text-surface-600 hover:border-primary-300 hover:text-primary-600">
              Tính lại

@@ -45,6 +45,43 @@ class AIProductDraftApplyService
 
     public function __construct(private readonly AIProductContentSystem $contentSystem) {}
 
+    /** One explicit operator decision; both existing audit steps commit together. */
+    public function approveAndApply(AiProductDraft $draft, User $actor, string $note = '', bool $warningOverride = false, ?string $confirmation = null, bool $injectFailure = false, ?array $approvedFields = null): array
+    {
+        if (! $actor->is_active || ! $actor->isSuperAdmin()) throw new RuntimeException('SUPER_ADMIN_REQUIRED');
+        $authorization = app(\App\Services\AI\BulkRuntimeAuthorizationService::class);
+        $authorization->requireApprove($actor);
+        $authorization->requireApply($actor);
+
+        return DB::transaction(function () use ($draft, $actor, $note, $warningOverride, $confirmation, $injectFailure, $approvedFields): array {
+            $locked = AiProductDraft::query()->whereKey($draft->id)->lockForUpdate()->firstOrFail();
+            Product::query()->whereKey($locked->product_id)->lockForUpdate()->firstOrFail();
+            if ($locked->applied_at) return $this->apply($locked, $actor->id, false, $confirmation);
+            $eligibility = $this->eligibility($locked);
+            if (! $eligibility['eligible_for_approval']) throw new RuntimeException(implode(', ', $eligibility['reasons']) ?: 'DRAFT_NOT_REVIEWABLE');
+            $this->approve($locked, $actor->id, $actor, $note, $approvedFields, $warningOverride);
+
+            return $this->apply($locked->fresh(), $actor->id, $injectFailure, $confirmation);
+        });
+    }
+
+    public function reviewChanges(AiProductDraft $draft): array
+    {
+        $payload = $this->payload($draft);
+        $product = $draft->product()->with(['tags', 'faqs'])->firstOrFail();
+        $changes = [];
+        foreach ($this->approvedFieldsForDraft($draft, $payload) as $field) {
+            $before = isset(self::FIELD_MAP[$field]) ? $product->getAttribute(self::FIELD_MAP[$field])
+                : ($field === 'tags' ? $product->tags->pluck('name')->all() : $product->faqs->map->only(['question', 'answer'])->all());
+            $changes[$field] = [
+                'label'=>ProductAiApplyReadiness::FIELD_LABELS[$field] ?? $field,
+                'before'=>is_array($before) ? json_encode($before, JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR) : (string) $before,
+                'after'=>is_array($payload[$field] ?? null) ? json_encode($payload[$field], JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR) : (string) ($payload[$field] ?? ''),
+            ];
+        }
+        return $changes;
+    }
+
     public function payloadHash(array $payload): string
     {
         return hash('sha256', (string) json_encode(

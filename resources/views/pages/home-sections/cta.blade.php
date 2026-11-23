@@ -1,11 +1,11 @@
 <section class="bg-gradient-to-r from-primary-700 to-primary-900 py-12 lg:py-16">
         <div class="container-main text-center">
-            <h2 class="text-2xl font-bold text-white sm:text-3xl">Cần tư vấn điều hòa tủ đứng?</h2>
+            <h2 class="text-2xl font-bold text-white sm:text-3xl">{{ app(\App\Services\Navigation\SiteProductScope::class)->consultationTitle() }}</h2>
             <p class="mx-auto mt-3 max-w-2xl text-primary-100">
-                Đội ngũ chuyên gia HVAC sẵn sàng hỗ trợ bạn chọn model phù hợp với không gian và ngân sách.
+                {{ app(\App\Services\Navigation\SiteProductScope::class)->consultationDescription() }}
             </p>
             <div class="mt-6 flex flex-col items-center justify-center gap-4 sm:flex-row">
-                <a href="{{ setting('cta.quote_cta_link', route('quote.index')) }}" class="btn-accent px-8 py-4 text-base">
+                <a href="{{ app(\App\Services\Navigation\SiteProductScope::class)->consultationUrl() }}" class="btn-accent px-8 py-4 text-base">
                     {{ setting('cta.global_cta_text', 'Nhận báo giá ngay') }}
                 </a>
                 @if(setting('contact.hotline'))

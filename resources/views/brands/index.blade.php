@@ -1,6 +1,6 @@
 <x-layouts.app
     :seo-title="'Thương Hiệu ' . setting('general.site_name', '') . config('seo.defaults.title_suffix', '')"
-    :seo-description="'Khám phá các thương hiệu điều hòa tủ đứng: Daikin, Gree, LG, Panasonic, Midea. Xem sản phẩm và thông số đã được lưu trong hệ thống.'"
+    :seo-description="'Khám phá các thương hiệu điều hòa, sản phẩm và thông số kỹ thuật.'"
     :canonical="route('brands.index')"
 >
     <x-breadcrumb :items="[
@@ -11,7 +11,7 @@
         <div class="container-main">
             <div class="mb-8 text-center">
                 <h1 class="text-2xl font-extrabold text-surface-900 sm:text-3xl">Thương Hiệu {{ setting('general.site_name', '') }}</h1>
-                <p class="mx-auto mt-3 max-w-2xl text-surface-600">Tham khảo các thương hiệu điều hòa tủ đứng và đối chiếu thông số theo dữ liệu sản phẩm đã công bố.</p>
+                <p class="mx-auto mt-3 max-w-2xl text-surface-600">Tham khảo các thương hiệu điều hòa và đối chiếu thông số theo dữ liệu sản phẩm đã công bố.</p>
             </div>
 
             @if($brands->isNotEmpty())

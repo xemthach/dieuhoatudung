@@ -11,9 +11,9 @@ class SiteSettingSeeder extends Seeder
     {
         $settings = [
             // === GENERAL ===
-            ['group' => 'general', 'key' => 'site_name',        'value' => 'Điều Hòa Tủ Đứng',                       'type' => 'text'],
+            ['group' => 'general', 'key' => 'site_name',        'value' => 'Điều Hòa Không Khí',                       'type' => 'text'],
             ['group' => 'general', 'key' => 'site_slogan',      'value' => 'Giải pháp làm mát chuyên nghiệp',         'type' => 'text'],
-            ['group' => 'general', 'key' => 'company_name',     'value' => 'Công Ty TNHH Điều Hòa Tủ Đứng',          'type' => 'text'],
+            ['group' => 'general', 'key' => 'company_name',     'value' => 'Công Ty TNHH Điều Hòa Không Khí',          'type' => 'text'],
             ['group' => 'general', 'key' => 'company_address',  'value' => '123 Đường ABC, Quận XYZ, TP.HCM',         'type' => 'text'],
             ['group' => 'general', 'key' => 'company_phone',    'value' => '0909.123.456',                             'type' => 'text'],
             ['group' => 'general', 'key' => 'company_email',    'value' => env('MAIL_FROM_ADDRESS', ''),              'type' => 'text'],
@@ -48,8 +48,8 @@ class SiteSettingSeeder extends Seeder
             ['group' => 'cta', 'key' => 'mobile_bar_quote_enabled', 'value' => '1', 'type' => 'boolean'],
 
             // === SEO ===
-            ['group' => 'seo', 'key' => 'default_seo_title',       'value' => 'Điều Hòa Tủ Đứng Chính Hãng | Giá Tốt Nhất', 'type' => 'text'],
-            ['group' => 'seo', 'key' => 'default_meta_description', 'value' => 'Chuyên cung cấp điều hòa tủ đứng chính hãng các thương hiệu hàng đầu.', 'type' => 'text'],
+            ['group' => 'seo', 'key' => 'default_seo_title',       'value' => 'Sản Phẩm Điều Hòa | Tư Vấn Theo Nhu Cầu', 'type' => 'text'],
+            ['group' => 'seo', 'key' => 'default_meta_description', 'value' => 'Tham khảo sản phẩm điều hòa và thông số kỹ thuật theo nhu cầu công trình.', 'type' => 'text'],
             ['group' => 'seo', 'key' => 'default_robots',           'value' => 'index,follow',                    'type' => 'text'],
             ['group' => 'seo', 'key' => 'canonical_base_url',       'value' => env('APP_URL', ''),       'type' => 'text'],
             ['group' => 'seo', 'key' => 'enable_schema',            'value' => '1',                                'type' => 'boolean'],
@@ -59,7 +59,7 @@ class SiteSettingSeeder extends Seeder
             ['group' => 'seo', 'key' => 'enable_article_schema',    'value' => '1',                                'type' => 'boolean'],
 
             // === SCHEMA ORGANIZATION ===
-            ['group' => 'schema_organization', 'key' => 'organization_name',    'value' => 'Điều Hòa Tủ Đứng',           'type' => 'text'],
+            ['group' => 'schema_organization', 'key' => 'organization_name',    'value' => 'Điều Hòa Không Khí',           'type' => 'text'],
             ['group' => 'schema_organization', 'key' => 'organization_url',     'value' => env('APP_URL', ''),  'type' => 'text'],
             ['group' => 'schema_organization', 'key' => 'organization_logo',    'value' => '/images/logo.png',            'type' => 'text'],
             ['group' => 'schema_organization', 'key' => 'organization_phone',   'value' => '0909.123.456',                'type' => 'text'],
@@ -103,7 +103,7 @@ class SiteSettingSeeder extends Seeder
             // === MAIL SERVER ===
             ['group' => 'mail', 'key' => 'mail_enabled',            'value' => '0', 'type' => 'boolean'],
             ['group' => 'mail', 'key' => 'mail_provider',           'value' => 'smtp', 'type' => 'text'],
-            ['group' => 'mail', 'key' => 'mail_from_name',          'value' => 'Điều Hòa Tủ Đứng', 'type' => 'text'],
+            ['group' => 'mail', 'key' => 'mail_from_name',          'value' => 'Điều Hòa Không Khí', 'type' => 'text'],
             ['group' => 'mail', 'key' => 'mail_from_address',       'value' => env('MAIL_FROM_ADDRESS', ''), 'type' => 'text'],
             ['group' => 'mail', 'key' => 'mail_test_recipient',     'value' => '', 'type' => 'text'],
             ['group' => 'mail', 'key' => 'smtp_host',               'value' => '', 'type' => 'text'],
@@ -178,10 +178,22 @@ class SiteSettingSeeder extends Seeder
             ['group' => 'display', 'key' => 'landing_featured_products_limit','value' => '6', 'type' => 'integer'],
 
             // === CTA ===
+            // Site scope references a canonical category; empty copy means automatic defaults.
+            ['group' => 'site', 'key' => 'product_scope', 'value' => 'all_products', 'type' => 'text'],
+            ['group' => 'site', 'key' => 'primary_product_category_id', 'value' => '', 'type' => 'text'],
+            ['group' => 'site', 'key' => 'product_label', 'value' => '', 'type' => 'text'],
+            ['group' => 'site', 'key' => 'compare_title', 'value' => '', 'type' => 'text'],
+            ['group' => 'site', 'key' => 'compare_description', 'value' => '', 'type' => 'text'],
+            ['group' => 'site', 'key' => 'consultation_title', 'value' => '', 'type' => 'text'],
+            ['group' => 'site', 'key' => 'consultation_description', 'value' => '', 'type' => 'text'],
+            ['group' => 'site', 'key' => 'product_cta_label', 'value' => '', 'type' => 'text'],
+            ['group' => 'site', 'key' => 'product_cta_type', 'value' => 'auto', 'type' => 'text'],
+            ['group' => 'site', 'key' => 'consultation_cta_type', 'value' => 'auto', 'type' => 'text'],
+
             ['group' => 'cta', 'key' => 'global_cta_text',  'value' => 'Nhận báo giá',     'type' => 'text'],
-            ['group' => 'cta', 'key' => 'global_cta_link',  'value' => '/bao-gia',          'type' => 'text'],
+            ['group' => 'cta', 'key' => 'global_cta_link',  'value' => '',          'type' => 'text'],
             ['group' => 'cta', 'key' => 'quote_cta_text',   'value' => 'Yêu cầu báo giá',  'type' => 'text'],
-            ['group' => 'cta', 'key' => 'quote_cta_link',   'value' => '/bao-gia',          'type' => 'text'],
+            ['group' => 'cta', 'key' => 'quote_cta_link',   'value' => '',          'type' => 'text'],
             ['group' => 'cta', 'key' => 'phone_cta_text',   'value' => 'Gọi ngay',          'type' => 'text'],
             ['group' => 'cta', 'key' => 'zalo_cta_text',    'value' => 'Chat Zalo',         'type' => 'text'],
         ];

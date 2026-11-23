@@ -1,6 +1,6 @@
 <x-layouts.app
     :seo-title="'Blog Kiến Thức ' . setting('general.site_name', '') . config('seo.defaults.title_suffix')"
-    :seo-description="'Tổng hợp bài viết kiến thức, hướng dẫn chọn mua, lắp đặt và bảo trì điều hòa tủ đứng. Cập nhật liên tục từ chuyên gia HVAC.'"
+    :seo-description="'Tổng hợp bài viết kiến thức, hướng dẫn chọn mua, lắp đặt và bảo trì điều hòa.'"
     :canonical="route('blog.index')"
 >
     <x-breadcrumb :items="[

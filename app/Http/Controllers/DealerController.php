@@ -68,14 +68,16 @@ class DealerController extends Controller
     {
         $dealer = $directory->query(['scheme' => 'current'])->where('slug', $dealerSlug)->firstOrFail();
         $reviews = $dealer->publicReviews()->latest('id')->paginate(10)->withQueryString();
+        $ratingDistribution = $dealer->reviews_visible
+            ? $dealer->publicReviews()->selectRaw('rating, COUNT(*) as total')->groupBy('rating')->pluck('total', 'rating')->all() : [];
         $seo = app(SeoManager::class)->fromRecord($dealer, [
             'canonical' => route('dealers.show', $dealer->slug),
             'robots' => $dealer->is_indexable ? 'index,follow' : 'noindex,follow',
         ]);
 
-        $dealerDisplay = app(\App\Services\Dealer\DealerHomepageService::class)->displayOptions();
+        $dealerDisplay = app(\App\Services\Dealer\DealerHomepageService::class)->cardOptions();
 
-        return view('dealers.show', compact('dealer', 'reviews', 'seo', 'dealerDisplay'));
+        return view('dealers.show', compact('dealer', 'reviews', 'seo', 'dealerDisplay', 'ratingDistribution'));
     }
 
     public function locations(Request $request)
@@ -135,6 +137,10 @@ class DealerController extends Controller
     {
         $dealer = Dealer::publiclyListed()->where('slug', $dealerSlug)->firstOrFail();
         $service->submit($dealer, $request->all(), $request->user(), $request->ip());
+
+        if ($request->expectsJson()) {
+            return response()->json(['status'=>'pending', 'message'=>'Đánh giá đã được gửi và đang chờ duyệt.'], 201);
+        }
 
         return redirect()->route('dealers.show', $dealer->slug)->with('dealer_review_success', 'Đánh giá đã được gửi và đang chờ duyệt.')->withFragment('reviews');
     }

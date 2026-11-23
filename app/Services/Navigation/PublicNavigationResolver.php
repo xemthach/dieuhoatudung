@@ -3,6 +3,8 @@
 namespace App\Services\Navigation;
 
 use App\Models\ProductCategory;
+use App\Models\Brand;
+use App\Models\PolicyPage;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Str;
 
@@ -43,6 +45,23 @@ final class PublicNavigationResolver
         return array_values(array_filter(array_map(fn (array $item): ?array => $this->resolve($item), $items)));
     }
 
+    public function targetUrl(string $type, mixed $target): ?string
+    {
+        if ($type === 'quote') return route('quote.index');
+        if ($type === 'phone') {
+            $phone = trim((string) $target);
+            return preg_match('/^\+?[0-9][0-9 .()-]{5,24}$/', $phone)
+                ? 'tel:'.preg_replace('/[^0-9+]/', '', $phone) : null;
+        }
+
+        return $this->resolve(['label' => 'target', 'type' => $type, 'target' => $target])['url'] ?? null;
+    }
+
+    public function categoryUrl(ProductCategory $category): string
+    {
+        return route('category.show', $category->slug);
+    }
+
     /** @return array{label:string,url:string,type:string,target:mixed,sort_order:int,open_new_tab:bool}|null */
     private function resolve(array $item): ?array
     {
@@ -57,18 +76,30 @@ final class PublicNavigationResolver
         $url = null;
         $target = match ($type) {
             'product_category' => $item['category_target'] ?? $item['target'] ?? null,
+            'brand' => $item['brand_target'] ?? $item['target'] ?? null,
+            'page' => $item['page_target'] ?? $item['target'] ?? null,
             'custom_url' => $item['custom_target'] ?? $item['target'] ?? null,
             default => $item['target'] ?? null,
         };
         if ($type === 'route') {
-            $allowed = ['home','products.index','price-list','blog.index','faq.dieu-hoa','contact','quote.index','brands.index','case-studies.index','policy-pages.index','dealers.index'];
+            $allowed = ['home','products.index','price-list','blog.index','faq.dieu-hoa','contact','quote.index','compare.index','brands.index','case-studies.index','policy-pages.index','dealers.index'];
             if (! in_array((string) $target, $allowed, true) || ! Route::has((string) $target)) return null;
             $url = route((string) $target);
         } elseif ($type === 'product_category') {
-            $category = ProductCategory::query()->whereKey((int) $target)->where('is_active', true)->where('is_indexable', true)->first();
+            $category = ProductCategory::query()->whereKey((int) $target)->where('is_active', true)->first();
             if (! $category) return null;
             $target = $category->id;
-            $url = route('category.show', $category->slug);
+            $url = $this->categoryUrl($category);
+        } elseif ($type === 'brand') {
+            $brand = Brand::query()->whereKey((int) $target)->where('is_active', true)->first();
+            if (! $brand) return null;
+            $target = $brand->id;
+            $url = route('brands.show', $brand->slug);
+        } elseif ($type === 'page') {
+            $page = PolicyPage::query()->whereKey((int) $target)->where('is_active', true)->first();
+            if (! $page) return null;
+            $target = $page->id;
+            $url = route('policy-pages.show', $page->slug);
         } elseif ($type === 'custom_url') {
             $url = trim((string) $target);
             if (! $this->isSafeUrl($url)) return null;
@@ -89,7 +120,12 @@ final class PublicNavigationResolver
     private function isSafeUrl(string $url): bool
     {
         if ($url === '' || Str::startsWith(strtolower($url), ['javascript:', 'data:', 'vbscript:'])) return false;
-        if (str_starts_with($url, '/')) return true;
-        return filter_var($url, FILTER_VALIDATE_URL) && in_array(parse_url($url, PHP_URL_SCHEME), ['http','https'], true);
+        if (str_contains($url, '\\') || preg_match('/[\s\x00-\x1f\x7f]/', $url)) return false;
+        if (str_starts_with($url, '/') && ! str_starts_with($url, '//')) return true;
+        if (! filter_var($url, FILTER_VALIDATE_URL)) return false;
+        $scheme = strtolower((string) parse_url($url, PHP_URL_SCHEME));
+        $host = strtolower((string) parse_url($url, PHP_URL_HOST));
+        $siteHost = strtolower((string) parse_url(config('app.url'), PHP_URL_HOST));
+        return $scheme === 'https' || ($scheme === 'http' && $siteHost !== '' && $host === $siteHost);
     }
 }

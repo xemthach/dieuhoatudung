@@ -15,6 +15,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
     <meta name="csrf-token" content="{{ csrf_token() }}">
+    <meta name="csrf-refresh-url" content="{{ route('csrf.token') }}">
 
     {{-- SEO Meta --}}
     <title>{{ $seoTitle ?? setting('seo.default_seo_title', config('seo.defaults.title')) }}</title>

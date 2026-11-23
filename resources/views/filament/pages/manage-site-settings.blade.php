@@ -1,4 +1,5 @@
 <x-filament-panels::page>
+    @if($savedStatus ?? null)<p role="status" class="rounded-xl bg-emerald-50 p-4 text-sm text-emerald-900">{{ $savedStatus }}</p>@endif
     <x-filament::section>
         {{ $this->settingsSchema }}
     </x-filament::section>

@@ -22,9 +22,12 @@ class DataExportController extends Controller
             abort(403, 'Bạn không có quyền tải file này.');
         }
 
+        abort_unless($user->isSuperAdmin() || (int) $dataExportJob->created_by === (int) $user->id, 403);
+
         if (!$dataExportJob->isDownloadable()) {
             abort(404, 'File không tồn tại hoặc đã hết hạn.');
         }
+
 
         $service = app(DataExportService::class);
         $path = $service->getDownloadPath($dataExportJob);

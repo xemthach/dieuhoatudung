@@ -5,6 +5,11 @@ const browserDatabase = resolve('storage/framework/testing/product-data-governan
 const browserEnvironment = {
     ...process.env,
     APP_ENV: 'testing',
+    APP_CONFIG_CACHE: 'storage/framework/testing/browser-config.php',
+    AI_SINGLE_OPERATOR_ENABLED: 'true',
+    AI_SINGLE_OPERATOR_USER_ID: '1',
+    AI_SINGLE_OPERATOR_SUPER_ADMIN_EXCEPTION: 'true',
+    AI_SINGLE_OPERATOR_ENFORCE_IN_TESTING: 'true',
     APP_DEBUG: 'false',
     APP_URL: 'http://127.0.0.1:8098',
     DB_CONNECTION: 'sqlite',

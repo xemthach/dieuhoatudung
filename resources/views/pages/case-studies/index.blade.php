@@ -8,7 +8,7 @@
                     Dự Án Thực Tế
                 </h1>
                 <p class="mx-auto mt-4 max-w-2xl text-lg text-surface-600">
-                    Khám phá các công trình tiêu biểu chúng tôi đã thi công lắp đặt điều hòa tủ đứng. 
+                    Khám phá các công trình tiêu biểu chúng tôi đã thi công lắp đặt điều hòa.
                     Từ không gian nhà hàng, văn phòng đến showroom và nhà xưởng.
                 </p>
             </div>

@@ -32,7 +32,7 @@
                             <svg class="h-5 w-5 opacity-50 sm:h-6 sm:w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
                         </template>
 
-                        <button @click="removeItem(item.slug || item)" class="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-100 text-red-600 hover:bg-red-200 sm:-right-2 sm:-top-2 sm:h-5 sm:w-5" title="Xóa">
+                        <button type="button" @click="removeItem(item.slug || item)" :disabled="busy" :aria-busy="busy" :class="{ 'opacity-50': busy }" :aria-label="'Xóa ' + (item.name || 'sản phẩm') + ' khỏi so sánh'" class="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-100 text-red-600 hover:bg-red-200 sm:-right-2 sm:-top-2 sm:h-5 sm:w-5" title="Xóa">
                             <svg class="h-2.5 w-2.5 sm:h-3 sm:w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
                         </button>
                     </div>
@@ -49,12 +49,12 @@
 
         {{-- Right: Actions --}}
         <div class="flex shrink-0 items-center gap-2 sm:gap-3">
-            <button @click="clearAll()" x-show="count > 0" class="hidden text-xs font-medium text-surface-500 hover:text-red-600 sm:block sm:text-sm">
+            <button type="button" @click="clearAll()" :disabled="busy" :aria-busy="busy" :class="{ 'opacity-50': busy }" x-show="count > 0" class="hidden text-xs font-medium text-surface-500 hover:text-red-600 sm:block sm:text-sm">
                 Xóa hết
             </button>
             <a href="{{ route('compare.index') }}"
                class="inline-flex items-center justify-center whitespace-nowrap rounded-lg bg-primary-600 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-primary-700 sm:rounded-xl sm:px-4 sm:py-2 sm:text-sm"
-               :class="{'opacity-50 pointer-events-none': count < 2}">
+               :class="{'opacity-50 pointer-events-none': count < 1}">
                 So sánh ngay
             </a>
             <button @click="dismiss()" class="text-surface-400 hover:text-surface-600 sm:hidden" title="Đóng">
@@ -83,6 +83,7 @@ function compareBar() {
         show: false,
         items: [],
         count: 0,
+        busy: false,
         toast: false,
         toastMsg: '',
         toastTimer: null,
@@ -104,6 +105,9 @@ function compareBar() {
                 else localStorage.setItem('compare_items', JSON.stringify(this.items));
             };
 
+            window.addEventListener('compare:updated', event => window.__compareBarUpdate(event.detail));
+            window.addEventListener('compare:busy', event => { this.busy = event.detail; });
+
             // Manage body padding when bar visibility changes
             this.$watch('show', (val) => {
                 this.updateBodyPadding(val);
@@ -113,16 +117,9 @@ function compareBar() {
         loadInitialState() {
             // Server-rendered data (single source of truth on page load)
             @php
-                $slugs = array_values(session('compare.products', []));
-                $sessionItems = \App\Models\Product::whereIn('slug', $slugs)->get()->map(function($p) {
-                    return [
-                        'slug' => $p->slug,
-                        'name' => $p->name,
-                        'image_url' => $p->compare_image_url
-                    ];
-                })->toArray();
+                $sessionItems = app(\App\Services\Product\ProductCompareSession::class)->items(request()->session());
             @endphp
-            let serverItems = {!! json_encode($sessionItems, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) !!};
+            let serverItems = {{ Illuminate\Support\Js::from($sessionItems) }};
 
             this.items = serverItems;
             this.count = this.items.length;
@@ -138,58 +135,19 @@ function compareBar() {
 
         async removeItem(slug) {
             try {
-                const res = await csrfFetch('{{ route('compare.remove') }}', {
-                    method: 'POST',
-                    body: JSON.stringify({ slug: slug })
-                });
-
-                const data = await res.json();
-
-                if (res.ok && data.success) {
-                    // Update state from server response (authoritative)
-                    if (data.items !== undefined) {
-                        this.items = data.items;
-                    } else {
-                        // Fallback: remove from local array
-                        this.items = this.items.filter(i => (typeof i === 'string' ? i : i.slug) !== slug);
-                    }
-                    this.count = this.items.length;
-
-                    if (this.count === 0) {
-                        this.show = false;
-                        this.clearAllStorage();
-                    } else {
-                        localStorage.setItem('compare_items', JSON.stringify(this.items));
-                    }
-
-                    this.showToast(data.message || 'Đã xóa sản phẩm.');
-                } else {
-                    this.showToast(data.message || 'Có lỗi xảy ra.');
-                }
-            } catch (e) {
-                console.error('[CompareBar] Remove error:', e);
-                this.showToast('Không thể kết nối server.');
+                const data = await window.updateComparison('{{ route('compare.remove') }}', JSON.stringify({ slug }));
+                if (data) this.showToast(data.message);
+            } catch (_) {
+                this.showToast('Không thể cập nhật so sánh. Vui lòng thử lại.');
             }
         },
 
         async clearAll() {
             try {
-                const res = await csrfFetch('{{ route('compare.clear') }}', {
-                    method: 'POST'
-                });
-
-                const data = await res.json();
-
-                if (res.ok && data.success) {
-                    this.items = [];
-                    this.count = 0;
-                    this.show = false;
-                    this.clearAllStorage();
-                    this.showToast('Đã xóa tất cả sản phẩm so sánh.');
-                }
-            } catch (e) {
-                console.error('[CompareBar] Clear error:', e);
-                this.showToast('Không thể kết nối server.');
+                const data = await window.updateComparison('{{ route('compare.clear') }}');
+                if (data) this.showToast(data.message);
+            } catch (_) {
+                this.showToast('Không thể cập nhật so sánh. Vui lòng thử lại.');
             }
         },
 
@@ -230,54 +188,11 @@ function compareBar() {
  * Called from product cards and product detail pages.
  */
 window.addToCompare = async function(slug) {
-    // Check cached items for quick feedback
-    let cachedItems = [];
     try {
-        cachedItems = JSON.parse(localStorage.getItem('compare_items') || '[]');
-        if (!Array.isArray(cachedItems)) cachedItems = [];
-    } catch (e) {
-        cachedItems = [];
-    }
-
-    if (cachedItems.some(i => (typeof i === 'string' ? i : i.slug) === slug)) {
-        window.__compareToast && window.__compareToast('Sản phẩm đã có trong danh sách so sánh.');
-        return;
-    }
-
-    if (cachedItems.length >= 4) {
-        window.__compareToast && window.__compareToast('Bạn chỉ có thể so sánh tối đa 4 sản phẩm cùng lúc.');
-        return;
-    }
-
-    try {
-        const res = await csrfFetch('{{ route('compare.add') }}', {
-            method: 'POST',
-            body: JSON.stringify({ slug: slug })
-        });
-
-        const data = await res.json();
-
-        if (data.success) {
-            // Add new product to cached items
-            if (data.product) {
-                cachedItems.push(data.product);
-            } else {
-                cachedItems.push({ slug: slug, name: slug, image_url: '' });
-            }
-            localStorage.setItem('compare_items', JSON.stringify(cachedItems));
-
-            // Update compare bar directly
-            if (window.__compareBarUpdate) {
-                window.__compareBarUpdate(cachedItems);
-            }
-
-            window.__compareToast && window.__compareToast(data.message || 'Đã thêm vào so sánh.');
-        } else {
-            window.__compareToast && window.__compareToast(data.message || 'Có lỗi xảy ra.');
-        }
-    } catch (e) {
-        console.error('[Compare] Add error:', e);
-        window.__compareToast && window.__compareToast('Không thể kết nối server.');
+        const data = await window.updateComparison('{{ route('compare.add') }}', JSON.stringify({ slug }));
+        if (data) window.__compareToast?.(data.message);
+    } catch (error) {
+        window.__compareToast?.(error.message || 'Không thể cập nhật so sánh.');
     }
 };
 </script>

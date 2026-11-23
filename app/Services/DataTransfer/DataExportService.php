@@ -69,7 +69,18 @@ class DataExportService
                 $fields = ProductSystemRestoreContract::fields();
             }
             $query = $this->buildQuery($module, $filters, $selectedIds, $scope);
-            if ($productTransfer) {
+            if ($intent === 'business_edit') {
+                if ($module !== 'product' || ! in_array($fileType, ['xlsx', 'csv'], true)) throw new \InvalidArgumentException('File nghiệp vụ chỉ hỗ trợ Product CSV/XLSX.');
+                $fields = ['sku', 'slug', 'name', 'brand_slug', 'category_slug', 'regular_price', 'sale_price', 'short_description', 'long_description', 'seo_title', 'seo_description', 'is_active'];
+                $data = $query->with(['brand', 'category'])->orderBy('id')->get()->map(function ($product) use ($fields): array {
+                    $row = [];
+                    foreach ($fields as $field) $row[$field] = match ($field) {
+                        'brand_slug'=>$product->brand?->slug ?? '', 'category_slug'=>$product->category?->slug ?? '',
+                        default=>$product->getRawOriginal($field),
+                    };
+                    return $row;
+                });
+            } elseif ($productTransfer) {
                 $fields = ProductTransferContract::fields();
                 $data = $this->fetchProductTransferData($query);
             } else {

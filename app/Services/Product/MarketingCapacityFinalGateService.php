@@ -139,14 +139,14 @@ final class MarketingCapacityFinalGateService
         $results = [];
         foreach ($cases as $name => $input) {
             $query = Product::query()->where('is_active', true);
-            $rows = $this->filters->apply($query, Request::create('/san-pham', 'GET', $input))
+            $rows = $this->filters->apply($query, Request::create(route('products.index'), 'GET', $input))
                 ->orderBy('id')->get(['id', 'sku', 'model_code']);
             $results[$name] = ['input' => $input, 'count' => $rows->count(), 'products' => $rows->toArray()];
         }
         $categoryInput = ['btu' => ['18000']];
         $categoryRows = $this->filters->apply(
             Product::query()->where('is_active', true)->whereHas('category', fn ($query) => $query->where('slug', 'dieu-hoa-treo-tuong')),
-            Request::create('/san-pham', 'GET', $categoryInput),
+            Request::create(route('products.index'), 'GET', $categoryInput),
         )->orderBy('id')->get(['id', 'sku', 'model_code']);
         $results['wall-mounted-category+18000'] = [
             'input' => ['category' => 'dieu-hoa-treo-tuong', ...$categoryInput],

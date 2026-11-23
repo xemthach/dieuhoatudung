@@ -66,7 +66,7 @@ class DemoDataSeeder extends Seeder
         LandingSection::factory()->create([
             'page_key'     => 'home',
             'section_type' => LandingSectionType::Hero,
-            'title'        => 'Dieu Hoa Tu Dung Chinh Hang',
+            'title'        => 'Sản phẩm điều hòa chính hãng',
             'sort_order'   => 1,
         ]);
         LandingSection::factory()->create([

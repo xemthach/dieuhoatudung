@@ -37,6 +37,7 @@ class DataImportJob extends Model
     {
         return match ($this->status) {
             'pending'    => 'Chờ xử lý',
+            'queued' => 'Đang chờ worker',
             'validating' => 'Đang kiểm tra',
             'previewing' => 'Đang xem trước',
             'importing'  => 'Đang import',
@@ -53,6 +54,7 @@ class DataImportJob extends Model
     {
         return match ($this->status) {
             'pending'    => 'gray',
+            'queued' => 'info',
             'validating' => 'info',
             'previewing' => 'warning',
             'importing'  => 'primary',

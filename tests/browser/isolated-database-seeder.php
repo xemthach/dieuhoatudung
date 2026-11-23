@@ -99,3 +99,21 @@ Product::query()->updateOrCreate(['id' => 9405], array_merge($base, [
 ]));
 $promotion = Promotion::query()->updateOrCreate(['slug' => 'filter-scoped-promotion'], ['title' => 'Filter scoped promotion', 'scope' => 'product', 'discount_type' => DiscountType::Percent, 'discount_value' => 20, 'start_at' => now()->subDay(), 'end_at' => now()->addDay(), 'is_active' => true]);
 $promotion->products()->syncWithoutDetaching([9002]);
+
+// Stable fixtures for the decimal price/BTU formatting certification.
+$gree = Brand::query()->updateOrCreate(['slug'=>'browser-gree'], ['name'=>'Gree', 'is_active'=>true]);
+$floor = ProductCategory::query()->updateOrCreate(['slug'=>'dieu-hoa-tu-dung'], ['name'=>'Điều hòa tủ đứng', 'type'=>'main', 'is_active'=>true]);
+$cassette = ProductCategory::query()->updateOrCreate(['slug'=>'dieu-hoa-am-tran-cassette'], ['name'=>'Điều hòa âm trần Cassette', 'type'=>'main', 'is_active'=>true]);
+Product::query()->updateOrCreate(['slug'=>'dieu-hoa-tu-dung-gree-i-shine-inverter-2-chieu-24000-btu-gvh24akxf-k6dnc8a'], [
+    'name'=>'Gree i-Shine 24000 BTU', 'sku'=>'BROWSER-NUMERIC-RANGE', 'model_code'=>'GVH24AKXF-K6DNC8A', 'brand_id'=>$gree->id,
+    'product_category_id'=>$floor->id, 'is_active'=>true, 'regular_price'=>39000000, 'btu'=>24225, 'technical_capacity_btu'=>null,
+    'specs_json'=>[['key'=>'capacity_btu','value'=>'24225.2 / 28660.8']],
+]);
+Product::query()->updateOrCreate(['slug'=>'dieu-hoa-am-tran-gree-cassette-all-match-inverter-1-chieu-36000-btu-gcc36s6igmc36s6i'], [
+    'name'=>'Gree Cassette All Match 36000 BTU', 'sku'=>'BROWSER-NUMERIC-PRICE', 'model_code'=>'GCC36S6I/GMC36S6I', 'brand_id'=>$gree->id,
+    'product_category_id'=>$cassette->id, 'is_active'=>true, 'regular_price'=>39390000, 'technical_capacity_btu'=>36000,
+]);
+Product::query()->updateOrCreate(['slug'=>'dieu-hoa-am-tran-gree-cassette-u-match-inverter-1-chieu-18000-btu-guld50t1a-sguld50w1nha-s'], [
+    'name'=>'Gree Cassette U Match 18000 BTU', 'sku'=>'BROWSER-NUMERIC-NO-PRICE', 'model_code'=>'GULD50T1A', 'brand_id'=>$gree->id,
+    'product_category_id'=>$cassette->id, 'is_active'=>true, 'regular_price'=>null, 'sale_price'=>null, 'technical_capacity_btu'=>18000,
+]);

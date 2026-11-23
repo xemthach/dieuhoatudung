@@ -313,7 +313,7 @@ class AIProviderGatewayTest extends TestCase
         $output = app(HVACSeoContentEngine::class)->generate($aiManager, $contentJob, 'ctx-test');
 
         $this->assertSame('Hướng dẫn chọn điều hòa tủ đứng cho nhà xưởng', $output['title']);
-        $this->assertSame('/dieu-hoa-tu-dung', $output['internal_links'][1]['url']);
+        $this->assertSame(route('products.index', [], false), $output['internal_links'][1]['url']);
     }
 
     private function validHvacOutput(): array

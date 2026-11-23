@@ -86,6 +86,7 @@ test('Admin creates dealer with current and legacy address, map and relationship
         expect(await publicPage.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
     }
     await publicPage.locator('[name=customer_name]').fill('Guest Browser');
+    await publicPage.getByRole('radio',{name:'5 sao',exact:true}).check();
     await publicPage.locator('[name=title]').fill('Service browser review');
     await publicPage.locator('[name=content]').fill('Dịch vụ lắp đặt chu đáo và rất chuyên nghiệp.');
     await publicPage.getByRole('button',{name:'Gửi đánh giá',exact:true}).click();
@@ -94,8 +95,6 @@ test('Admin creates dealer with current and legacy address, map and relationship
     expect(fixture('snapshot').reviews[0].status).toBe('pending');
     await page.goto('/admin/dealer-reviews');
     await page.getByRole('button',{name:'Duyệt',exact:true}).first().click();
-    await expect(page.getByRole('button',{name:'Confirm',exact:true})).toBeVisible();
-    await page.getByRole('button',{name:'Confirm',exact:true}).click();
     await expect.poll(()=>fixture('snapshot').reviews[0].status).toBe('approved');
     expect(fixture('snapshot').reviews[0].approved_by).toBe(state.user_id);
     await publicPage.reload();

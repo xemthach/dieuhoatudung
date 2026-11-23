@@ -3,6 +3,8 @@
 namespace Tests\Feature;
 
 use App\Models\ProductCategory;
+use App\Models\Brand;
+use App\Models\PolicyPage;
 use App\Services\Navigation\PublicNavigationResolver;
 use App\Services\Settings\SettingService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -38,6 +40,10 @@ class PublicNavigationResolverTest extends TestCase
 
         $this->assertSame(route('category.show', $category->slug), app(PublicNavigationResolver::class)->items('header_primary')[0]['url']);
 
+        // Search indexability must not prevent people from visiting an active category.
+        $category->update(['is_indexable' => false]);
+        $this->assertSame(route('category.show', $category->slug), app(PublicNavigationResolver::class)->items('header_primary')[0]['url']);
+
         $category->update(['is_active' => false]);
         $this->assertSame([], app(PublicNavigationResolver::class)->items('header_primary'));
     }
@@ -52,6 +58,31 @@ class PublicNavigationResolverTest extends TestCase
             'is_active' => true,
         ]], 'navigation');
 
+        $this->assertSame([], app(PublicNavigationResolver::class)->items('header_primary'));
+    }
+
+    public function test_protocol_relative_and_insecure_external_urls_are_rejected(): void
+    {
+        $settings = app(SettingService::class);
+        foreach (['//example.com/path', 'http://example.com/path', 'data:text/html,unsafe'] as $url) {
+            $settings->set('header_primary', [['label' => 'Unsafe', 'type' => 'custom_url', 'custom_target' => $url]], 'navigation');
+            $this->assertSame([], app(PublicNavigationResolver::class)->items('header_primary'));
+        }
+    }
+
+    public function test_brand_and_policy_targets_resolve_only_active_records(): void
+    {
+        $brand = Brand::factory()->create(['is_active' => true]);
+        $page = PolicyPage::factory()->create(['is_active' => true]);
+        app(SettingService::class)->set('header_primary', [
+            ['label' => 'Brand', 'type' => 'brand', 'brand_target' => $brand->id, 'sort_order' => 1],
+            ['label' => 'Policy', 'type' => 'page', 'page_target' => $page->id, 'sort_order' => 2],
+        ], 'navigation');
+        $items = app(PublicNavigationResolver::class)->items('header_primary');
+        $this->assertSame(route('brands.show', $brand->slug), $items[0]['url']);
+        $this->assertSame(route('policy-pages.show', $page->slug), $items[1]['url']);
+        $brand->update(['is_active' => false]);
+        $page->update(['is_active' => false]);
         $this->assertSame([], app(PublicNavigationResolver::class)->items('header_primary'));
     }
 }

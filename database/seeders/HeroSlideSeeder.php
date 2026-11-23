@@ -16,7 +16,7 @@ class HeroSlideSeeder extends Seeder
         }
 
         HeroSlide::create([
-            'title'              => setting('general.site_name', 'Điều Hòa Tủ Đứng'),
+            'title'              => setting('general.site_name', 'Điều Hòa Không Khí'),
             'highlight_text'     => 'Chính Hãng',
             'subtitle'           => 'Giải pháp làm mát chuyên nghiệp cho không gian lớn. Đa dạng thương hiệu, công suất phù hợp mọi nhu cầu. Miễn phí lắp đặt, bảo hành chính hãng toàn quốc.',
             'description'        => null,

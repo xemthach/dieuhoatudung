@@ -8,7 +8,7 @@
                     [
                         'icon'  => 'heroicon-o-arrow-down-tray',
                         'label' => 'Exports gần đây',
-                        'value' => \App\Models\DataExportJob::where('created_at', '>=', now()->subDays(7))->count(),
+                        'value' => $this->exportJobsQuery()->where('created_at', '>=', now()->subDays(7))->count(),
                         'sub'   => '7 ngày qua',
                         'accent'=> 'ac-export',
                         'cls'   => 'text-success-500 dark:text-success-400',
@@ -16,7 +16,7 @@
                     [
                         'icon'  => 'heroicon-o-arrow-up-tray',
                         'label' => 'Imports gần đây',
-                        'value' => \App\Models\DataImportJob::where('created_at', '>=', now()->subDays(7))->count(),
+                        'value' => $this->importJobsQuery()->where('created_at', '>=', now()->subDays(7))->count(),
                         'sub'   => '7 ngày qua',
                         'accent'=> 'ac-import',
                         'cls'   => 'text-primary-500 dark:text-primary-400',
@@ -24,7 +24,7 @@
                     [
                         'icon'  => 'heroicon-o-check-circle',
                         'label' => 'Thành công',
-                        'value' => \App\Models\DataImportJob::where('status','completed')->count() + \App\Models\DataExportJob::where('status','completed')->count(),
+                        'value' => $this->importJobsQuery()->where('status','completed')->count() + $this->exportJobsQuery()->where('status','completed')->count(),
                         'sub'   => 'Tổng jobs hoàn thành',
                         'accent'=> 'ac-success',
                         'cls'   => 'text-emerald-500 dark:text-emerald-400',
@@ -32,7 +32,7 @@
                     [
                         'icon'  => 'heroicon-o-x-circle',
                         'label' => 'Thất bại',
-                        'value' => \App\Models\DataImportJob::where('status','failed')->count() + \App\Models\DataExportJob::where('status','failed')->count(),
+                        'value' => $this->importJobsQuery()->where('status','failed')->count() + $this->exportJobsQuery()->where('status','failed')->count(),
                         'sub'   => 'Tổng jobs lỗi',
                         'accent'=> 'ac-danger',
                         'cls'   => 'text-red-500 dark:text-red-400',
@@ -59,7 +59,7 @@
                     <x-filament::icon icon="heroicon-o-arrow-down-tray" class="fi-wi-stats-overview-stat-icon text-success-500" />
                     Export Jobs gần đây
                 </h3>
-                <span class="text-xs text-gray-400 dark:text-gray-500">{{ \App\Models\DataExportJob::count() }} tổng</span>
+                <span class="text-xs text-gray-400 dark:text-gray-500">{{ $this->exportJobsQuery()->count() }} tổng</span>
             </div>
             <div class="dt-tw">
                 <table class="dt-tbl" style="min-width:760px;">
@@ -74,7 +74,7 @@
                         <th style="width:48px;"></th>
                     </tr></thead>
                     <tbody>
-                        @forelse(\App\Models\DataExportJob::latest()->take(10)->get() as $ej)
+                        @forelse($this->exportJobsQuery()->latest()->take(10)->get() as $ej)
                         <tr>
                             <td class="mono text-gray-400">#{{ $ej->id }}</td>
                             <td><x-filament::badge color="info" size="sm">{{ \App\Services\DataTransfer\ModuleRegistry::modules()[$ej->module] ?? $ej->module }}</x-filament::badge></td>
@@ -119,7 +119,7 @@
                     <x-filament::icon icon="heroicon-o-arrow-up-tray" class="fi-wi-stats-overview-stat-icon text-primary-500" />
                     Import Jobs gần đây
                 </h3>
-                <span class="text-xs text-gray-400 dark:text-gray-500">{{ \App\Models\DataImportJob::count() }} tổng</span>
+                <span class="text-xs text-gray-400 dark:text-gray-500">{{ $this->importJobsQuery()->count() }} tổng</span>
             </div>
             <div class="dt-tw">
                 <table class="dt-tbl" style="min-width:960px;">
@@ -136,7 +136,7 @@
                         <th style="width:80px;text-align:center;">Thao tác</th>
                     </tr></thead>
                     <tbody>
-                        @forelse(\App\Models\DataImportJob::latest()->take(15)->get() as $ij)
+                        @forelse($this->importJobsQuery()->latest()->take(15)->get() as $ij)
                         @php
                             $stColor = match($ij->status) {
                                 'completed'  => 'success',

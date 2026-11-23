@@ -53,7 +53,8 @@ test.describe.serial('Admin navigation governance round-trip', () => {
         await page.waitForLoadState('networkidle');
         const typeUpdate = page.waitForResponse(response =>
             response.request().method() === 'POST'
-            && /livewire-[^/]+\/update/.test(response.url()),
+            && /livewire-[^/]+\/update/.test(response.url())
+            && (response.request().postData() ?? '').includes(':"product_category"'),
             { timeout: 15000 },
         );
         await type.selectOption('product_category');
@@ -113,6 +114,7 @@ test.describe.serial('Admin navigation governance round-trip', () => {
         await page.waitForTimeout(3000);
         const activeToggle = page.locator(fieldId('is_active'));
         if (await activeToggle.isChecked()) await activeToggle.uncheck();
+        await expect.poll(() => activeToggle.evaluate(element => { const id = element.closest('[wire\\:id]')?.getAttribute('wire:id'); return (window as any).Livewire.find(id).get('data.navigation__header_primary.0.is_active'); })).toBe(false);
         await saveAndReload();
         expect(fixtureNavigation()[0]).toMatchObject({ is_active: false });
         await expect(page.locator('header nav a').filter({ hasText: 'Sản phẩm kiểm thử' })).toHaveCount(0);

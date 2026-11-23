@@ -77,8 +77,8 @@ Route::get('/huong-dan-chon-mua/{slug}', [MiscController::class, 'buyingGuide'])
 Route::get('/lap-dat-bao-tri/{slug}', [MiscController::class, 'maintenance'])->name('maintenance.show');
 Route::get('/du-an', [\App\Http\Controllers\CaseStudyController::class, 'index'])->name('case-studies.index');
 Route::get('/du-an/{slug}', [\App\Http\Controllers\CaseStudyController::class, 'show'])->name('case-studies.show');
-Route::get('/bang-gia/dieu-hoa-tu-dung', [PriceListController::class, 'index'])->name('price-list');
-Route::get('/faq/dieu-hoa-tu-dung', [MiscController::class, 'faq'])->name('faq.dieu-hoa');
+Route::get('/bang-gia', [PriceListController::class, 'index'])->name('price-list');
+Route::get('/faq', [MiscController::class, 'faq'])->name('faq.dieu-hoa');
 
 /*
 |--------------------------------------------------------------------------
@@ -86,10 +86,17 @@ Route::get('/faq/dieu-hoa-tu-dung', [MiscController::class, 'faq'])->name('faq.d
 |--------------------------------------------------------------------------
 */
 
-Route::get('/cong-cu/chon-cong-suat-dieu-hoa-tu-dung', [BtuCalculatorController::class, 'index'])
+Route::get('/cong-cu/chon-cong-suat-dieu-hoa', [BtuCalculatorController::class, 'index'])
     ->name('btu-calculator.index');
-Route::post('/cong-cu/chon-cong-suat-dieu-hoa-tu-dung', [BtuCalculatorController::class, 'calculate'])
+Route::post('/cong-cu/chon-cong-suat-dieu-hoa', [BtuCalculatorController::class, 'calculate'])
     ->name('btu-calculator.calculate');
+
+// Preserve indexed URLs while generic pages use category-neutral canonical routes.
+Route::get('/bang-gia/dieu-hoa-tu-dung', fn (\Illuminate\Http\Request $request) => redirect()->route('price-list', $request->query(), 301));
+Route::get('/faq/dieu-hoa-tu-dung', fn (\Illuminate\Http\Request $request) => redirect()->route('faq.dieu-hoa', $request->query(), 301));
+Route::get('/cong-cu/chon-cong-suat-dieu-hoa-tu-dung', fn (\Illuminate\Http\Request $request) => redirect()->route('btu-calculator.index', $request->query(), 301));
+// Old submitted forms remain valid; this endpoint does not define a canonical page.
+Route::post('/cong-cu/chon-cong-suat-dieu-hoa-tu-dung', [BtuCalculatorController::class, 'calculate']);
 
 // Compare
 Route::get('/so-sanh-san-pham', [\App\Http\Controllers\CompareController::class, 'index'])->name('compare.index');

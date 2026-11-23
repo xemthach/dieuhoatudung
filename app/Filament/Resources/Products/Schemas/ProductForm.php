@@ -398,7 +398,7 @@ class ProductForm
                                                             ->helperText('ID danh mục Google (mặc định 604 = HVAC)'),
                                                         TextInput::make('product_type')
                                                             ->label('Product Type')
-                                                            ->placeholder('Điều Hòa Tủ Đứng > Daikin')
+                                                            ->placeholder('Điều hòa > Danh mục sản phẩm')
                                                             ->helperText('Đường dẫn danh mục tùy chỉnh'),
                                                     ]),
                                                 Grid::make(['default' => 1, 'md' => 2])

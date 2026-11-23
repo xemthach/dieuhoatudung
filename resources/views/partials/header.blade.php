@@ -29,7 +29,7 @@
     <div class="container-main">
         <nav class="flex items-center justify-between py-3 lg:py-4" aria-label="Main navigation">
             {{-- Logo --}}
-            <a href="/" class="flex items-center gap-2" aria-label="Trang chủ - {{ setting('general.site_name', '') }}">
+            <a href="{{ route('home') }}" class="flex items-center gap-2" aria-label="Trang chủ - {{ setting('general.site_name', '') }}">
                 <x-site-logo context="header" theme="light" />
             </a>
 
@@ -42,7 +42,7 @@
 
             {{-- CTA + Mobile Toggle --}}
             <div class="flex items-center gap-3">
-                <a href="{{ setting('cta.global_cta_link', '/bao-gia') }}" class="btn-accent hidden text-sm lg:inline-flex">
+                <a href="{{ app(\App\Services\Navigation\SiteProductScope::class)->consultationUrl() }}" class="btn-accent hidden text-sm lg:inline-flex">
                     <svg class="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
                     {{ setting('cta.global_cta_text', 'Nhận báo giá') }}
                 </a>
@@ -66,7 +66,7 @@
                 @foreach($headerPrimaryNavigation as $item)
                     <a href="{{ $item['url'] }}" @if($item['open_new_tab']) target="_blank" rel="noopener" @endif class="rounded-lg px-3 py-2 text-sm font-medium text-surface-700 hover:bg-surface-100">{{ $item['label'] }}</a>
                 @endforeach
-                <a href="{{ setting('cta.global_cta_link', '/bao-gia') }}" class="btn-accent mt-2 text-center text-sm">{{ setting('cta.global_cta_text', 'Nhận báo giá') }}</a>
+                <a href="{{ app(\App\Services\Navigation\SiteProductScope::class)->consultationUrl() }}" class="btn-accent mt-2 text-center text-sm">{{ setting('cta.global_cta_text', 'Nhận báo giá') }}</a>
             </div>
         </div>
     </div>

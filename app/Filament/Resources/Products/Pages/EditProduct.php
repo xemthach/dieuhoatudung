@@ -156,6 +156,41 @@ class EditProduct extends EditRecord
                     'item' => $this->latestAiDraftItem(),
                     'readiness' => $this->latestApplyReadiness(),
                 ])),
+            Action::make('ai_approve_and_apply')
+                ->label('Duyệt và áp dụng')->icon('heroicon-o-check-badge')->color('success')
+                ->authorize(fn (): bool => (bool) auth()->user()?->isSuperAdmin())
+                ->visible(fn (): bool => auth()->user()?->isSuperAdmin()
+                    && $this->aiActionPolicy()['can_approve'] && $this->canRunAiMutation('APPROVE') && $this->canRunAiMutation('APPLY'))
+                ->requiresConfirmation()->modalHeading('Duyệt và áp dụng nội dung AI')
+                ->modalWidth('4xl')->stickyModalHeader()->stickyModalFooter()
+                ->modalDescription('Áp dụng các trường nội dung đã xem trước. Quyền, thông số kỹ thuật và xung đột vẫn được kiểm tra. Hai bước được ghi audit trong cùng giao dịch.')
+                ->modalContent(fn () => view('filament.product-ai-preview', [
+                    'item'=>$this->latestAiDraftItem(), 'readiness'=>$this->latestApplyReadiness(), 'combinedReview'=>true,
+                ]))
+                ->schema([
+                    \Filament\Forms\Components\CheckboxList::make('approved_fields')->label('Trường nội dung sẽ áp dụng')
+                        ->options(fn () => $this->latestAiDraftItem()?->draft ? array_map(fn ($change) => $change['label'], app(AIProductDraftApplyService::class)->reviewChanges($this->latestAiDraftItem()->draft)) : [])
+                        ->default(fn () => $this->latestAiDraftItem()?->draft ? array_keys(app(AIProductDraftApplyService::class)->reviewChanges($this->latestAiDraftItem()->draft)) : [])
+                        ->required(),
+                    \Filament\Forms\Components\Toggle::make('warning_override')->label('Tôi đã đọc và chấp nhận các cảnh báo nội dung')->required(),
+                    Textarea::make('review_note')->label('Ghi chú duyệt')->maxLength(2000),
+                    TextInput::make('apply_confirmation')->label('Mã xác nhận áp dụng')
+                        ->helperText(fn () => $this->latestApplyReadiness()['confirmation'] ?? 'Không yêu cầu mã với policy hiện tại.')
+                        ->required(fn () => app(\App\Services\AI\SingleOperatorControlledRolloutPolicy::class)->active()),
+                ])
+                ->action(function (array $data): void {
+                    $draft = app(AiProductContentStateResolver::class)->reviewableDraft($this->record);
+                    if (! $draft) { Notification::make()->warning()->title('Chưa có bản nháp để duyệt')->send(); return; }
+                    try {
+                        app(AIProductDraftApplyService::class)->approveAndApply($draft, auth()->user(),
+                            $data['review_note'] ?? '', (bool) ($data['warning_override'] ?? false), $data['apply_confirmation'] ?? null, approvedFields: $data['approved_fields'] ?? []);
+                        Notification::make()->success()->title('Đã duyệt và áp dụng nội dung')->send();
+                        $this->record->refresh();
+                        $this->fillForm();
+                    } catch (\Throwable $error) {
+                        Notification::make()->danger()->title('Không thể áp dụng nội dung')->body($error->getMessage())->persistent()->send();
+                    }
+                }),
             Action::make('ai_approve_latest_draft')
                 ->label(fn (): string => $this->latestDraftWarnings() === []
                     ? 'Duyệt'

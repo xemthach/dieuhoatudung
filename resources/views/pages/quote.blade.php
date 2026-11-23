@@ -22,7 +22,7 @@
 
     {{-- Breadcrumb --}}
     <nav class="mb-6 flex items-center gap-2 text-sm text-surface-500" aria-label="Breadcrumb">
-        <a href="/" class="hover:text-primary-600">Trang chủ</a>
+        <a href="{{ route('home') }}" class="hover:text-primary-600">Trang chủ</a>
         <span>/</span>
         <span class="text-surface-700 font-medium">Báo giá</span>
     </nav>
@@ -100,8 +100,8 @@
 
 
         <div class="mt-8 flex flex-wrap justify-center gap-3">
-            <a href="/" class="btn-ghost">← Về trang chủ</a>
-            <a href="/dieu-hoa-tu-dung" class="btn-primary">Xem sản phẩm</a>
+            <a href="{{ route('home') }}" class="btn-ghost">← Về trang chủ</a>
+            <a href="{{ app(\App\Services\Navigation\SiteProductScope::class)->productUrl() }}" class="btn-primary">Xem sản phẩm</a>
         </div>
     </div>
 
@@ -140,7 +140,7 @@
         <div class="lg:col-span-2">
             <div class="mb-6">
                 <h1 class="text-2xl font-extrabold text-surface-900 sm:text-3xl">
-                    {{ setting('cta.quote_cta_text', 'Nhận báo giá') }} Điều Hòa Tủ Đứng
+                    {{ setting('cta.quote_cta_text', 'Nhận báo giá') }}
                 </h1>
                 <p class="mt-2 text-surface-600">Điền thông tin để nhận báo giá và tư vấn theo điều kiện công trình.</p>
             </div>

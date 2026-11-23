@@ -99,7 +99,8 @@ class DataTransferPage extends Page
                 Select::make('export_intent')
                     ->label('Mục đích xuất Product')
                     ->options([
-                        'normal' => 'Normal Export — xem/chỉnh sửa, không import trực tiếp',
+                        'normal' => 'Normal Export — tham khảo dữ liệu',
+                        'business_edit' => 'File nghiệp vụ — chỉnh sửa và nhập lại CSV/XLSX',
                         'product_transfer' => 'Product Transfer — chuyển Product giữa môi trường',
                         'system_backup' => 'System Backup — khôi phục toàn bộ có manifest',
                     ])
@@ -164,6 +165,8 @@ class DataTransferPage extends Page
     {
         return Action::make('import')
             ->label('Import Dữ liệu')
+            ->modalSubmitActionLabel('Xem trước dữ liệu')
+            ->modalWidth('4xl')->stickyModalHeader()->stickyModalFooter()
             ->icon('heroicon-o-arrow-up-tray')
             ->color('primary')
             ->form([
@@ -184,6 +187,15 @@ class DataTransferPage extends Page
                     ->default('xlsx')
                     ->required(),
 
+                Select::make('import_intent')->label('Mục đích nhập Product')
+                    ->options(['business'=>'File nghiệp vụ chỉnh sửa', 'product_transfer'=>'Product Transfer', 'system_restore'=>'System Restore'])
+                    ->default('business')->required(fn ($get) => $get('module') === 'product')
+                    ->visible(fn ($get) => $get('module') === 'product'),
+                \Filament\Forms\Components\KeyValue::make('column_mapping')->label('Mapping cột (tùy chọn)')
+                    ->keyLabel('Tên cột trong file')->valueLabel('Tên trường hệ thống')
+                    ->helperText('Ví dụ: Giá bán → regular_price; dùng _skip để bỏ cột. SKU/slug không được trùng. Brand/category dùng brand_slug hoặc category_slug.')
+                    ->visible(fn ($get) => $get('module') === 'product'),
+
                 Select::make('mode')
                     ->label('Chế độ import')
                     ->options([
@@ -202,7 +214,7 @@ class DataTransferPage extends Page
                         if (!$module) return ['id' => 'ID'];
                         return ModuleRegistry::matchingKeys($module);
                     })
-                    ->default('id')
+                    ->default('sku')
                     ->visible(fn ($get) => in_array($get('mode'), ['update', 'upsert'])),
 
                 FileUpload::make('import_file')
@@ -231,7 +243,9 @@ class DataTransferPage extends Page
                         originalName: $originalName,
                         fileType: $fileType,
                         mode: $data['mode'],
-                        matchingKey: $data['matching_key'] ?? 'id',
+                        matchingKey: $data['matching_key'] ?? ($data['module'] === 'product' ? 'sku' : 'id'),
+                        intent: $data['module'] === 'product' ? ($data['import_intent'] ?? 'business') : 'auto',
+                        columnMapping: $data['column_mapping'] ?? [],
                     );
                     if ($job->mode === 'product_transfer') $this->authorizeNamed('product_transfer.run');
                     if ($job->mode === 'system_restore') $this->authorizeNamed('system_restore.run');
@@ -266,6 +280,20 @@ class DataTransferPage extends Page
     }
 
     // ─── Helpers ─────────────────────────────────────────────────────
+
+    public function importJobsQuery(): \Illuminate\Database\Eloquent\Builder
+    {
+        $query = DataImportJob::query();
+        return auth()->user()?->isSuperAdmin() ? $query
+            : $query->where('created_by', auth()->id())->whereIn('module', array_keys($this->getImportableModules()));
+    }
+
+    public function exportJobsQuery(): \Illuminate\Database\Eloquent\Builder
+    {
+        $query = DataExportJob::query();
+        return auth()->user()?->isSuperAdmin() ? $query
+            : $query->where('created_by', auth()->id())->whereIn('module', array_keys($this->getExportableModules()));
+    }
 
     protected function getExportableModules(): array
     {

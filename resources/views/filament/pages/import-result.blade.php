@@ -6,12 +6,14 @@
         @media (min-width: 1024px) { .result-stats-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); } .result-info-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
     </style>
     @if($job)
-    <div class="space-y-6">
+    <div class="space-y-6" @if(in_array($job->status, ['queued', 'importing'])) wire:poll.3s="refreshProgress" @endif>
 
         {{-- Result Banner --}}
-        <div class="rounded-xl shadow-sm ring-1 p-6 {{ match($job->status) { 'completed' => 'bg-success-50 ring-success-200 dark:bg-success-400/10 dark:ring-success-400/20', 'completed_with_errors' => 'bg-warning-50 ring-warning-200 dark:bg-warning-400/10 dark:ring-warning-400/20', 'empty' => 'bg-gray-50 ring-gray-200 dark:bg-gray-400/10 dark:ring-gray-400/20', 'blocked' => 'bg-orange-50 ring-orange-200 dark:bg-orange-400/10 dark:ring-orange-400/20', default => 'bg-danger-50 ring-danger-200 dark:bg-danger-400/10 dark:ring-danger-400/20' } }}">
+        <div class="rounded-xl shadow-sm ring-1 p-6 {{ match($job->status) { 'queued', 'importing' => 'bg-primary-50 ring-primary-200 dark:bg-primary-400/10 dark:ring-primary-400/20', 'completed' => 'bg-success-50 ring-success-200 dark:bg-success-400/10 dark:ring-success-400/20', 'completed_with_errors' => 'bg-warning-50 ring-warning-200 dark:bg-warning-400/10 dark:ring-warning-400/20', 'empty' => 'bg-gray-50 ring-gray-200 dark:bg-gray-400/10 dark:ring-gray-400/20', 'blocked' => 'bg-orange-50 ring-orange-200 dark:bg-orange-400/10 dark:ring-orange-400/20', default => 'bg-danger-50 ring-danger-200 dark:bg-danger-400/10 dark:ring-danger-400/20' } }}">
             <div class="flex items-start gap-4">
-                @if($job->status === 'completed')
+                @if(in_array($job->status, ['queued', 'importing']))
+                    <div role="status"><h3 class="text-lg font-bold">{{ $job->status === 'queued' ? 'Đang chờ worker' : 'Đang nhập dữ liệu' }}</h3><p>Đã xử lý {{ $job->success_rows + $job->failed_rows }}/{{ $job->total_rows }} dòng. Bạn có thể rời trang và quay lại.</p></div>
+                @elseif($job->status === 'completed')
                     <div class="shrink-0 flex items-center justify-center rounded-full bg-success-100 dark:bg-success-400/20" style="width: 48px; height: 48px;">
                         <x-filament::icon icon="heroicon-o-check-circle" class="text-success-600 dark:text-success-400" />
                     </div>

@@ -1,6 +1,6 @@
 <x-layouts.app
     :seo-title="($brand->seo_title ?? 'Điều hòa ' . $brand->name) . config('seo.defaults.title_suffix', '')"
-    :seo-description="$brand->seo_description ?? 'Xem danh sách điều hòa tủ đứng ' . $brand->name . '. Liên hệ để được tư vấn sản phẩm phù hợp theo nhu cầu công trình.'"
+    :seo-description="$brand->seo_description ?? 'Xem danh sách điều hòa ' . $brand->name . '. Liên hệ để được tư vấn sản phẩm phù hợp theo nhu cầu công trình.'"
     :canonical="$brand->canonical_url ?? route('brands.show', $brand->slug)"
     :robots="($hasActiveSort ?? false) ? 'noindex,follow' : ($brand->robots ?? setting('seo.default_robots', 'index,follow'))"
 >
@@ -84,7 +84,7 @@
             </div>
 
             @if($products->isNotEmpty())
-                <div class="grid grid-cols-2 gap-4 sm:grid-cols-2 lg:grid-cols-4 lg:gap-6">
+                <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 lg:gap-6">
                     @foreach($products as $product)
                         <x-product-card :product="$product" />
                     @endforeach

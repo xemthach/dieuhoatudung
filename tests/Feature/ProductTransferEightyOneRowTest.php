@@ -26,7 +26,7 @@ class ProductTransferEightyOneRowTest extends TestCase
         for ($i=1;$i<=81;$i++) $sheet->fromArray([["Legacy Gree {$i}","LEGACY-GREE-{$i}",$category->id,18000]], null, 'A'.($i+1));
         $path=storage_path('app/private/legacy-81.xlsx'); IOFactory::createWriter($book,'Xlsx')->save($path); $book->disconnectWorksheets();
         $job=app(DataImportService::class)->uploadAndPreview('product',$path,'legacy-81.xlsx','xlsx','create','sku');
-        $this->assertSame('create',$job->mode); $this->assertSame(81,$job->failed_rows); $this->assertNull($job->format_context_json);
+        $this->assertSame('create',$job->mode); $this->assertSame(81,$job->failed_rows); $this->assertNull(data_get($job->format_context_json, 'contract'));
         $result=app(DataImportService::class)->confirmImport($job);
         $this->assertSame('failed',$result->status); $this->assertSame(81,$result->failed_rows); $this->assertSame(0,Product::count());
         unlink($path); Storage::disk('local')->delete($job->file_path);

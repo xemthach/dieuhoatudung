@@ -333,6 +333,8 @@ class ImportPreviewPage extends Page
                             ->body("Tạo mới: {$result->created_rows} | Cập nhật: {$result->updated_rows} | Lỗi: {$result->failed_rows}")
                             ->duration(10000)
                             ->send();
+                    } elseif (in_array($result->status, ['queued', 'importing'], true)) {
+                        Notification::make()->info()->title('Đã xếp hàng nhập dữ liệu')->body('Tiến độ cập nhật tại trang kết quả.')->send();
                     } elseif ($result->status === 'completed_with_errors') {
                         Notification::make()
                             ->warning()
@@ -363,7 +365,9 @@ class ImportPreviewPage extends Page
                 ->modalCancelActionLabel('Quay lại')
                 ->action(function () {
                     abort_unless($this->job && $this->canAccessJob($this->job), 403);
-                    $this->job?->update(['status' => 'failed', 'finished_at' => now()]);
+                    $cancelled = \App\Models\DataImportJob::whereKey($this->job->id)->where('status', 'previewing')
+                        ->update(['status'=>'failed', 'finished_at'=>now()]);
+                    abort_unless($cancelled === 1, 409, 'Chỉ có thể hủy bản xem trước chưa thực thi.');
                     Notification::make()
                         ->info()
                         ->title('Import đã hủy.')

@@ -199,19 +199,17 @@ class ProductComparisonService
 
     private function buildSchemaGroupedSpecs(Collection $products): array
     {
-        $category = $products->first()?->category;
-        if (! $category?->hasTechnicalSchema()) {
-            return [];
-        }
-
         $schema = app(CategoryTechnicalSchemaService::class);
-        $fields = $schema->fieldsFor($category, 'compare');
-        if ($fields === []) {
-            return [];
-        }
-
+        $fields = [];
+        $fieldsByProduct = [];
         $flatByProduct = [];
         foreach ($products as $product) {
+            $productFields = $product->category?->hasTechnicalSchema()
+                ? $schema->fieldsFor($product->category, 'compare') : [];
+            foreach ($productFields as $field) {
+                $fields[$field['key']] ??= $field;
+                $fieldsByProduct[$product->id][$field['key']] = $field;
+            }
             $flatByProduct[$product->id] = $schema->flatProductSpecs($product);
         }
 
@@ -221,7 +219,10 @@ class ProductComparisonService
             $hasAnyValue = false;
 
             foreach ($products as $product) {
-                $formatted = $this->formatSchemaDisplayValue($field, $flatByProduct[$product->id][$field['key']] ?? null);
+                // Each category owns the type/unit of its field; include the union
+                // of comparison fields instead of assuming the first category.
+                $definition = $fieldsByProduct[$product->id][$field['key']] ?? $field;
+                $formatted = $this->formatSchemaDisplayValue($definition, $flatByProduct[$product->id][$field['key']] ?? null);
                 $values[] = $formatted;
                 $hasAnyValue = $hasAnyValue || $formatted !== '—';
             }
@@ -533,7 +534,7 @@ class ProductComparisonService
     public function exportPdf(Collection $products): Response
     {
         $grouped = $this->buildGroupedSpecs($products);
-        $siteName = setting('site.name', 'Điều Hòa Tủ Đứng');
+        $siteName = setting('general.site_name', config('app.name', ''));
         $siteUrl = config('app.url', url('/'));
         $date = now()->format('d/m/Y H:i');
         $layout = $this->resolvePdfLayout($products);

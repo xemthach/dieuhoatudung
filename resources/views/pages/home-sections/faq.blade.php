@@ -3,7 +3,7 @@
         <div class="container-main">
             <x-section-heading
                 title="Câu Hỏi Thường Gặp"
-                subtitle="Những thắc mắc phổ biến về điều hòa tủ đứng"
+                subtitle="Những thắc mắc phổ biến về điều hòa"
             />
             <div class="mx-auto mt-8 max-w-3xl space-y-3">
                 @foreach($faqs as $index => $faq)

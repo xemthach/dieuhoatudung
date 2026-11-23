@@ -162,7 +162,7 @@
     <div class="container-main relative py-16 lg:py-24">
         <div class="mx-auto max-w-3xl text-center">
             <h1 class="text-2xl font-extrabold tracking-tight text-white sm:text-3xl lg:text-5xl">
-                {{ setting('general.site_name', '') }} <span class="text-accent-400">Điều Hòa Tủ Đứng</span>
+                {{ setting('general.site_name', '') }} <span class="text-accent-400">Điều hòa không khí</span>
             </h1>
             <p class="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-primary-100">
                 Giải pháp làm mát chuyên nghiệp cho không gian lớn. Đa dạng thương hiệu, công suất phù hợp mọi nhu cầu.

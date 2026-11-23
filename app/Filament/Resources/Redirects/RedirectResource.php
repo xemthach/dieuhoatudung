@@ -91,7 +91,7 @@ class RedirectResource extends Resource
             TextInput::make('target_url')
                 ->label('URL đích (mới)')
                 ->required()
-                ->placeholder('/dieu-hoa-tu-dung hoặc https://site.com/trang-moi')
+                ->placeholder('/san-pham hoặc https://site.com/trang-moi')
                 ->helperText('Có thể là đường dẫn nội bộ hoặc URL tuyệt đối.'),
 
             Select::make('status_code')

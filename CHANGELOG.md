@@ -2,6 +2,34 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.33.16] - 2026-11-24
+
+### Added
+- Form đánh giá đại lý có sao tương tác, gửi bất đồng bộ, lỗi theo từng trường và phản hồi chờ duyệt; email/điện thoại giữ riêng tư.
+- Luồng nhập/xuất file nghiệp vụ Product CSV/XLSX với mapping cột, ghép SKU/slug, mapping brand/category và kiểm tra trước khi ghi.
+- Import lớn qua queue nghiệp vụ, receipt từng dòng để không ghi lại khi worker chạy tiếp; kết quả và tiến độ cập nhật trên Admin.
+- SuperAdmin có thể duyệt và áp dụng bản nháp AI trong một modal có diff và chọn trường; giữ kiểm tra kỹ thuật, quyền, xác nhận theo policy, audit và rollback.
+- Chẩn đoán chỉ đọc `products:governance-health --json` và hướng dẫn readiness ngay trên PDG khi thiếu schema/evidence.
+- Phạm vi website tất cả sản phẩm hoặc danh mục chính; copy và CTA/menu/footer phân giải qua named routes và đích ngữ nghĩa.
+
+### Fixed
+- Compare remove/clear cập nhật UI và sticky bar tại chỗ; POST thông thường redirect HTML, không mở trang JSON. So sánh nhiều danh mục giữ các trường riêng và dấu — khi thiếu dữ liệu.
+- File và dữ liệu đích thay đổi sau preview bị chặn; Transfer/Restore tiếp tục kiểm tra manifest/checksum. System Restore ghi trong giao dịch toàn bộ.
+- Lịch sử Import/Export và tải file được giới hạn theo người tạo và quyền; SuperAdmin giữ quyền kiểm tra toàn bộ.
+- Product card hiển thị giá đầy đủ, CTA có nhãn và không tràn ngang trên mobile; sửa handler sort dùng URL constructor đúng.
+- Bảng giá, FAQ và công cụ BTU dùng URL chung, URL cũ 301 giữ query; bảo toàn landing/danh mục tủ đứng có chủ đích.
+
+### Changed
+- Homepage sections dùng kéo thả, nút đổi vị trí và toggle; giữ tương thích thứ tự/cấu hình cũ. Lưu settings trong một giao dịch.
+- Đại lý dùng card/badge chung, tùy chọn hiển thị địa chỉ/liên hệ, phân bố rating và layout responsive. Review Admin duyệt/từ chối một thao tác.
+- Browser tests có cấu hình riêng cho upload Livewire qua HTTP và kiểm chứng policy single-operator; không đổi `.env` hay logic production để vượt test.
+
+### Deployment
+- Migration bổ sung: `2026_11_24_000001_create_data_import_receipts`; không xóa hoặc seed lại dữ liệu nghiệp vụ.
+- Cần worker queue `default` cho import trên 500 dòng; giữ AI ở `ai_governed`. Bảo toàn desired state khi restart runtime.
+- Backup/restore và migration upgrade đã được kiểm chứng trên DB local tách biệt; đọc DEPLOY.md trước khi đưa mã lên server.
+- PDG production chưa có truy cập xác minh: `NOT_VERIFIED`. Bản phát hành GitHub không đồng nghĩa đã deploy production.
+
 ## [1.33.15] - 2026-11-21
 
 ### Changed

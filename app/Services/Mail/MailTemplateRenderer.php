@@ -25,7 +25,7 @@ class MailTemplateRenderer
     private static array $variableRegistry = [
 
         'site' => [
-            'site_name'    => ['name' => 'site_name',    'description' => 'Tên website',         'example' => 'Điều Hòa Tủ Đứng'],
+            'site_name'    => ['name' => 'site_name',    'description' => 'Tên website',         'example' => 'Điều Hòa Không Khí'],
             'company_name' => ['name' => 'company_name', 'description' => 'Tên công ty',          'example' => 'Công ty TNHH Điện Lạnh ABC'],
             'hotline'      => ['name' => 'hotline',      'description' => 'Hotline liên hệ',      'example' => '09.4321.6060'],
             'email'        => ['name' => 'email',        'description' => 'Email liên hệ',        'example' => 'contact@dieuhoa.vn'],
@@ -308,7 +308,7 @@ class MailTemplateRenderer
     {
         // Full sample data pool
         $allSamples = [
-            'site_name'      => 'Điều Hòa Tủ Đứng',
+            'site_name'      => 'Điều Hòa Không Khí',
             'company_name'   => 'Công ty TNHH Điện Lạnh ABC',
             'hotline'        => '09.4321.6060',
             'email'          => 'contact@dieuhoa.vn',
@@ -319,7 +319,7 @@ class MailTemplateRenderer
             'customer_email' => 'khachhang@gmail.com',
             'message'        => 'Tôi cần tư vấn điều hòa cho phòng ngủ 30m2, ngân sách khoảng 15 triệu.',
             'product_name'   => 'Điều hòa GREE GWH18AGB 18000BTU',
-            'product_url'    => config('app.url', 'https://dieuhoa.vn') . '/san-pham/gree-18000',
+            'product_url'    => route('product.show', 'gree-18000'),
             'product_sku'    => 'GWH18AGB-K6DNA1B',
             'product_price'  => 'Liên hệ báo giá',
             'source'         => 'Trang chi tiết sản phẩm',

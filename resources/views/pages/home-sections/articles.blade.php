@@ -3,7 +3,7 @@
         <div class="container-main">
             <x-section-heading
                 title="Kiến Thức Điều Hòa"
-                subtitle="Bài viết hữu ích giúp bạn lựa chọn và sử dụng điều hòa tủ đứng hiệu quả"
+                subtitle="Bài viết hữu ích giúp bạn lựa chọn và sử dụng điều hòa hiệu quả"
             />
             <div class="mt-8 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
                 @foreach($latestPosts as $post)

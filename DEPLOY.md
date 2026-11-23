@@ -1,5 +1,57 @@
 # Triển khai Điều Hòa Tủ Đứng
 
+## Nâng cấp 1.33.16 — dữ liệu và runtime
+
+Bản cập nhật này được phát hành mã lên GitHub. Production chưa được triển khai hoặc xác minh PDG trong lượt này. Không coi menu hiện được trên local là bằng chứng live đã hoạt động.
+
+### Trước khi triển khai
+
+- Xác nhận release SHA/tag, đường dẫn ứng dụng và PHP CLI/FPM thực tế; không dùng đường dẫn hoặc tên Supervisor suy đoán.
+- Backup DB, media uploads và các evidence/catalogue nguồn được cấu hình; thử restore trên DB riêng trước khi migrate. Không commit SQL backup, `.env`, APP_KEY hay private reports.
+- Ghi counts và checksum dữ liệu nghiệp vụ/settings/media. Không chạy `migrate:fresh`, rollback hàng loạt, `db:seed` hoặc `app:install` trên site có dữ liệu.
+- Ghi desired/actual state, heartbeat và version của AI worker; giữ nguyên trạng thái ban đầu. Nếu đang enabled, ngừng nhận việc mới bằng cơ chế hiện có và chờ việc đang chạy kết thúc.
+
+### Các bước trên release/staging đã được operator kiểm tra
+
+```bash
+cd "$APP_ROOT"
+composer install --no-dev --prefer-dist --no-interaction
+npm ci
+npm run build
+php artisan migrate --force
+php artisan config:cache
+php artisan route:cache
+php artisan view:cache
+php artisan products:governance-health --json
+php artisan ai:queue-health --json
+```
+
+Migration mới chỉ bổ sung `data_import_receipts`, có FK tới job import. Code import mới cần bảng này trước khi mở lại chức năng nhập. Bảng dữ liệu sản phẩm, brands, dealers, reviews và settings không bị xóa hoặc seed lại.
+
+Import trên 500 dòng được đưa vào queue `default`; cần worker nghiệp vụ cho queue này. AI tiếp tục dùng `ai_governed`. Không để hai worker cùng tranh queue AI. Kiểm tra `retry_after` lớn hơn timeout 900 giây của job import/AI. Restart đúng chương trình do process manager quản lý sau khi thay mã; không thay desired state tự động. `queue:restart` không thay thế restart supervisor cha/con của managed AI worker.
+
+### PDG production: bộ kiểm tra chỉ đọc
+
+Operator thu thập version/SHA, migration status, quyền của tài khoản cần sử dụng và kết quả:
+
+```bash
+php artisan migrate:status
+php artisan route:list --path=product-data-governance
+php artisan products:governance-health --json
+php artisan ai:queue-health --json
+```
+
+`EVIDENCE_MISSING` hoặc `EVIDENCE_MISMATCH` yêu cầu đối chiếu catalogue nguồn, coverage report và checksum đã duyệt. Coverage nằm ở đường dẫn cấu hình `catalog_evidence.coverage_path`; không được chép một report của DB khác sang rồi tự coi là hợp lệ. Không tự cấp quyền, tạo approval, bỏ guard hoặc bật worker để làm health xanh. Kết quả trên live vẫn `NOT_VERIFIED` đến khi có bằng chứng từ operator.
+
+### Kiểm tra và rollback
+
+- Staging: login Admin; review pending → approve; file nghiệp vụ upload → preview → confirm; Transfer/Restore; settings kéo thả/toggle; AI preview → duyệt/apply có kiểm tra; Compare; sản phẩm và đại lý trên mobile.
+- Đối chiếu business counts/checksum và các media cũ sau migrate. Không chạy test dùng RefreshDatabase trên DB production.
+- Xác nhận worker mới cùng version, DB, queue và working directory với web; heartbeat mới; self-test không gọi provider; sau đó mới khôi phục desired state ban đầu.
+- Nếu phải quay lại bản code trước, giữ bảng receipt bổ sung; không tự drop bảng hoặc rollback migration trên production. Khôi phục DB từ backup chỉ sau khi đối chiếu dữ liệu phát sinh kể từ backup.
+- Settings section order cũ được đọc tương thích; chỉ chuẩn hóa khi Admin lưu. Link/menu sửa riêng tại local từ lượt audit trước không tự được đưa sang DB production: operator phải rà đúng bản ghi rồi sao lưu trước khi sửa.
+
+
 ## Cài lần đầu
 
 Dùng tài khoản sở hữu website. Xác nhận đường dẫn hosting và PHP CLI 8.3 trở lên trong nhánh 8.x, cùng phiên bản và extension với PHP-FPM. Nginx phục vụ thư mục `/home/lps_chonmaylanhcom/public_html/public`. Chỉ clone khi `public_html` trống hoặc chưa tồn tại.

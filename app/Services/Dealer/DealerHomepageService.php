@@ -10,7 +10,7 @@ final class DealerHomepageService
 {
     public function enabled(): bool
     {
-        return (bool) setting('display.homepage_dealers_enabled', false);
+        return app(\App\Services\Navigation\HomepageLayout::class)->enabled('dealers');
     }
 
     public function limit(): int
@@ -22,6 +22,8 @@ final class DealerHomepageService
     public function cardOptions(): array
     {
         return [
+            'address' => (bool) setting('display.homepage_dealers_show_address', true),
+            'contact' => (bool) setting('display.homepage_dealers_show_contact', true),
             'logo' => (bool) setting('display.homepage_dealers_show_logo', true),
             'verified' => (bool) setting('display.homepage_dealers_show_verified', true),
             'distance' => (bool) setting('display.homepage_dealers_show_distance', true),
@@ -52,18 +54,7 @@ final class DealerHomepageService
     /** @return list<string> */
     public function sectionOrder(): array
     {
-        $defaults = ['hero', 'benefits', 'dealers', 'featured_products', 'brands', 'articles', 'faq', 'cta'];
-        $configured = setting('display.homepage_section_order', null);
-        if (! is_array($configured)) return $defaults;
-
-        $allowed = array_fill_keys($defaults, true);
-        $ordered = collect($configured)
-            ->sortBy(fn ($item) => (int) (is_array($item) ? ($item['sort_order'] ?? 0) : 0))
-            ->map(fn ($item) => is_array($item) ? (string) ($item['section'] ?? '') : (string) $item)
-            ->filter(fn (string $section) => isset($allowed[$section]))
-            ->unique()->values()->all();
-
-        return [...$ordered, ...array_values(array_diff($defaults, $ordered))];
+        return app(\App\Services\Navigation\HomepageLayout::class)->order();
     }
 
     private function choice(string $key, array $allowed, string $default): string

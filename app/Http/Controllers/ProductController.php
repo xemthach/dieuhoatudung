@@ -11,7 +11,7 @@ use Illuminate\Http\Request;
 class ProductController extends Controller
 {
     /**
-     * Trang danh sách / landing sản phẩm điều hòa tủ đứng.
+     * Trang danh sách / landing sản phẩm điều hòa.
      */
     public function index(Request $request, ProductFilterService $filterService)
     {

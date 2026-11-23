@@ -33,7 +33,7 @@
     "@@type": "BreadcrumbList",
     "itemListElement": [
         {"@@type": "ListItem","position": 1,"name": "Trang chủ","item": "{{ url('/') }}"},
-        {"@@type": "ListItem","position": 2,"name": "Bảng giá điều hòa tủ đứng"}
+        {"@@type": "ListItem","position": 2,"name": "Bảng giá điều hòa"}
     ]
 }
 </script>
@@ -44,18 +44,18 @@
 
     {{-- Breadcrumb --}}
     <nav class="mb-6 flex items-center gap-2 text-sm text-surface-500" aria-label="Breadcrumb">
-        <a href="/" class="hover:text-primary-600">Trang chủ</a>
+        <a href="{{ route('home') }}" class="hover:text-primary-600">Trang chủ</a>
         <span>/</span>
-        <span class="font-medium text-surface-700">Bảng giá điều hòa tủ đứng</span>
+        <span class="font-medium text-surface-700">Bảng giá điều hòa</span>
     </nav>
 
     {{-- H1 + Intro --}}
     <div class="mb-8">
         <h1 class="text-2xl font-extrabold text-surface-900 sm:text-3xl lg:text-4xl">
-             Bảng Giá Điều Hòa Tủ Đứng {{ date('Y') }}
+             Bảng Giá Điều Hòa {{ date('Y') }}
         </h1>
         <p class="mt-3 max-w-3xl text-base text-surface-600 leading-relaxed">
-            Cập nhật bảng giá điều hòa tủ đứng từ các thương hiệu GREE, Daikin, Panasonic, Mitsubishi, LG theo dữ liệu sản phẩm đang công bố.
+            Cập nhật bảng giá điều hòa theo dữ liệu sản phẩm đang công bố.
             So sánh công suất BTU, giá niêm yết, giá khuyến mãi và tình trạng hàng tồn kho.
         </p>
         <div class="mt-3 inline-flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs text-amber-700">
@@ -381,7 +381,7 @@
             Bảng giá trên chỉ mang tính tham khảo. Liên hệ để nhận báo giá chính xác theo nhu cầu thực tế của bạn.
         </p>
         <div class="mt-4 flex flex-wrap justify-center gap-3">
-            <a href="{{ setting('cta.quote_cta_link', '/bao-gia') }}"
+            <a href="{{ app(\App\Services\Navigation\SiteProductScope::class)->consultationUrl() }}"
                 class="rounded-xl bg-white px-6 py-3 text-sm font-bold text-primary-700 shadow-md transition hover:bg-primary-50">
                 {{ setting('cta.quote_cta_text', 'Nhận báo giá') }}
             </a>
@@ -415,7 +415,7 @@
     {{-- ── Internal links ──────────────────────────────── --}}
     <div class="mt-8 grid grid-cols-2 gap-4 sm:grid-cols-4">
         @foreach([
-            [route('landing'), '', 'Điều hòa tủ đứng', 'Danh sách sản phẩm'],
+            [app(\App\Services\Navigation\SiteProductScope::class)->productUrl(), '', 'Sản phẩm điều hòa', 'Danh sách sản phẩm'],
             [route('btu-calculator.index'), '', 'Tính BTU', 'Chọn công suất theo dữ liệu khảo sát'],
             [route('quote.index'), '', 'Nhận báo giá', 'Báo giá theo nhu cầu'],
             [route('faq.dieu-hoa'), '', 'FAQ điều hòa', 'Giải đáp thắc mắc'],

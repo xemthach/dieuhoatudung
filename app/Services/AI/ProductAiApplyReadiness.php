@@ -8,7 +8,7 @@ use App\Services\Product\AIProductDraftApplyService;
 
 final class ProductAiApplyReadiness
 {
-    private const FIELD_LABELS = [
+    public const FIELD_LABELS = [
         'excerpt' => 'Mô tả ngắn',
         'content_html' => 'Nội dung dài',
         'seo_title' => 'SEO title',
