@@ -71,6 +71,7 @@ class ImportResultPage extends Page
         $user = Auth::user();
         if (! $user) return false;
         if ($user->isSuperAdmin()) return true;
+        if (in_array($job->mode, ['product_transfer', 'system_restore'], true) && ! $user->can($job->mode.'.run')) return false;
 
         return (int) $job->created_by === (int) $user->getAuthIdentifier()
             && $user->can($job->module.'.import');

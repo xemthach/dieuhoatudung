@@ -20,6 +20,7 @@ test.describe.serial('Product Transfer browser contract', () => {
         expect(fixture.contract).toBe('PRODUCT_TRANSFER');
         expect(fixture.valid).toBe(1);
         expect(fixture.errors).toBe(0);
+        expect(fixture.catalog_remapped).toBe(1);
 
         await page.goto('/admin/login');
         await page.locator('#form\\.email').fill(fixture.email);
@@ -44,7 +45,11 @@ test.describe.serial('Product Transfer browser contract', () => {
         expect(snapshot.marketing).toBe(18000);
         expect(snapshot.technical).toBe(17100);
         expect(snapshot.kw).toBe('5.00');
-        expect(snapshot.provenance).toBe('PRODUCT_TRANSFER');
+        expect(snapshot.catalog_source_id).toBe(fixture.target_catalog_source_id);
+        expect(snapshot.catalog_model_id).toBe(fixture.target_catalog_model_id);
+        expect(snapshot.catalog_match_status).toBe('verified');
+        expect(snapshot.specs).toEqual(fixture.catalog_evidence);
+        expect(snapshot.provenance).toBe('catalog_verified_specs');
         expect(runtimeErrors, runtimeErrors.join('\n')).toEqual([]);
     });
 });

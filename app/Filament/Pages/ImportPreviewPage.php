@@ -321,10 +321,17 @@ class ImportPreviewPage extends Page
                 ->modalHeading('Xác nhận import dữ liệu')
                 ->modalDescription(fn () => $this->getConfirmDescription())
                 ->modalSubmitActionLabel('Xác nhận và Import')
+                ->disabled(fn (): bool => ! $this->job || $this->job->failed_rows > 0)
                 ->action(function () {
                     abort_unless($this->job && $this->canAccessJob($this->job), 403);
+                    abort_if($this->job->failed_rows > 0, 422, 'Cần sửa toàn bộ lỗi và tải lên lại trước khi import.');
                     $service = app(DataImportService::class);
-                    $result = $service->confirmImport($this->job);
+                    try {
+                        $result = $service->confirmImport($this->job);
+                    } catch (\Illuminate\Contracts\Cache\LockTimeoutException $error) {
+                        Notification::make()->warning()->title($error->getMessage())->send();
+                        return;
+                    }
 
                     if ($result->status === 'completed') {
                         Notification::make()
@@ -391,7 +398,7 @@ class ImportPreviewPage extends Page
         $parts[] = "• Cập nhật: {$this->job->updated_rows} dòng";
 
         if ($this->job->failed_rows > 0) {
-            $parts[] = "• Lỗi (sẽ bỏ qua): {$this->job->failed_rows} dòng";
+            $parts[] = "• Lỗi: {$this->job->failed_rows} dòng. Toàn bộ file bị chặn; sửa lỗi và tải lên lại trước khi import.";
         }
 
         $parts[] = "";

@@ -11,7 +11,6 @@ use Illuminate\Support\Facades\Storage;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Cell\DataType;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
-use PhpOffice\PhpSpreadsheet\Writer\Csv;
 
 class DataExportService
 {
@@ -30,6 +29,14 @@ class DataExportService
     ): DataExportJob {
         $scope = $this->normalizeScope($scope);
         $selectedIds = $this->normalizeIds($selectedIds);
+        if (! in_array($intent, ['normal', 'auto', 'system_backup', 'product_transfer', 'business_edit'], true)) {
+            throw new \InvalidArgumentException('Unsupported export intent.');
+        }
+        foreach (array_keys($filters) as $field) {
+            if (! in_array($field, ModuleRegistry::allFields($module), true)) {
+                throw new \InvalidArgumentException('Unknown export filter field.');
+            }
+        }
         $governance = app(ImportGovernanceService::class);
         if ($intent === 'product_transfer' && ! $governance->enabled('product_transfer.enabled')) {
             throw new \RuntimeException('PRODUCT_TRANSFER is disabled by Import Governance.');
@@ -69,14 +76,20 @@ class DataExportService
                 $fields = ProductSystemRestoreContract::fields();
             }
             $query = $this->buildQuery($module, $filters, $selectedIds, $scope);
-            if ($intent === 'business_edit') {
+            if ($systemRestoreExport) {
+                $data = $query->withTrashed()->select($fields)->orderBy('id')->get()->map(
+                    fn (Product $product): array => collect($fields)->mapWithKeys(fn (string $field): array => [
+                        $field => json_encode($product->getRawOriginal($field), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR),
+                    ])->all(),
+                );
+            } elseif ($intent === 'business_edit') {
                 if ($module !== 'product' || ! in_array($fileType, ['xlsx', 'csv'], true)) throw new \InvalidArgumentException('File nghiệp vụ chỉ hỗ trợ Product CSV/XLSX.');
-                $fields = ['sku', 'slug', 'name', 'brand_slug', 'category_slug', 'regular_price', 'sale_price', 'short_description', 'long_description', 'seo_title', 'seo_description', 'is_active'];
-                $data = $query->with(['brand', 'category'])->orderBy('id')->get()->map(function ($product) use ($fields): array {
+                $fields = ProductDataImportContract::fields();
+                $data = $query->with(['brand' => fn ($query) => $query->withTrashed(), 'category' => fn ($query) => $query->withTrashed()])->orderBy('id')->get()->map(function ($product) use ($fields): array {
                     $row = [];
                     foreach ($fields as $field) $row[$field] = match ($field) {
                         'brand_slug'=>$product->brand?->slug ?? '', 'category_slug'=>$product->category?->slug ?? '',
-                        default=>$product->getRawOriginal($field),
+                        default => $product->getRawOriginal($field),
                     };
                     return $row;
                 });
@@ -88,13 +101,18 @@ class DataExportService
             }
 
             $fileName = $this->generateFileName($module, $fileType, $scope, $data->count());
-            $filePath = $this->writeFile($data, $fields, $fileType, $fileName, $module, $systemRestoreExport, $productTransfer, $scope);
+            $filePath = $this->writeFile($data, $fields, $fileType, $fileName, $module, $systemRestoreExport, $productTransfer, $scope, $job->id);
 
             $job->update([
                 'status'      => 'completed',
                 'file_path'   => $filePath,
                 'file_name'   => $fileName,
                 'total_rows'  => $data->count(),
+                'format_context_json' => [
+                    'intent' => $systemRestoreExport ? 'system_backup' : $intent,
+                    'scope' => $scope,
+                    'sha256' => hash_file('sha256', Storage::disk('local')->path($filePath)) ?: throw new \RuntimeException('Cannot read export checksum.'),
+                ],
                 'finished_at' => now(),
                 'expires_at'  => now()->addDays((int) setting('import_export.keep_files_days', 30)),
             ]);
@@ -111,10 +129,12 @@ class DataExportService
 
     private function fetchProductTransferData(Builder $query): Collection
     {
-        return $query->with(['brand:id,slug', 'category:id,slug'])->select(ProductSystemRestoreContract::fields())->orderBy('id')->get()
+        return $query->with([
+            'brand:id,slug', 'category:id,slug', 'catalogSource.brand', 'catalogSource.category', 'catalogModel',
+        ])->select(ProductSystemRestoreContract::fields(1))->orderBy('id')->get()
             ->map(function ($product): array {
                 $row = [];
-                foreach (ProductSystemRestoreContract::fields() as $field) {
+                foreach (ProductSystemRestoreContract::fields(1) as $field) {
                     $value = $product->getAttribute($field);
                     if (is_array($value)) $value = EncodingGuard::jsonEncode($value, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
                     if ($value instanceof \BackedEnum) $value = $value->value;
@@ -124,7 +144,7 @@ class DataExportService
                 'source_brand_id' => $product->brand_id, 'brand_slug' => $product->brand?->slug,
                 'source_category_id' => $product->product_category_id, 'category_slug' => $product->category?->slug,
                 'source_catalog_source_id' => $product->catalog_source_id, 'source_catalog_model_id' => $product->catalog_model_id,
-                ]);
+                ], app(ProductTransferCatalogReferences::class)->export($product));
             });
     }
 
@@ -191,10 +211,10 @@ class DataExportService
                 throw new \InvalidArgumentException('Chưa chọn bản ghi để export.');
             }
 
-            if (empty($selectedIds)) {
-                $query->whereRaw('1 = 0');
-            } else {
-                $query->whereIn('id', $selectedIds);
+            $filterWithoutIdSnapshot = $scope === 'filter' && $selectedIds === []
+                && array_filter($filters, fn ($value) => $value !== '' && $value !== null) !== [];
+            if (! $filterWithoutIdSnapshot) {
+                $query->whereKey($selectedIds);
             }
         } elseif (!empty($selectedIds)) {
             $query->whereIn('id', $selectedIds);
@@ -283,6 +303,7 @@ class DataExportService
         bool $systemRestoreExport = false,
         bool $productTransfer = false,
         string $scope = 'all',
+        ?int $jobId = null,
     ): string
     {
         if ($systemRestoreExport && (
@@ -295,7 +316,8 @@ class DataExportService
 
         $dir = 'data-exports/' . $module;
         Storage::disk('local')->makeDirectory($dir);
-        $fullPath = storage_path('app/private/' . $dir . '/' . $fileName);
+        $relativePath = $dir.'/'.$jobId.'-'.$fileName;
+        $fullPath = Storage::disk('local')->path($relativePath);
 
         match ($fileType) {
             'xlsx' => $this->writeXlsx($data, $fields, $fullPath, $systemRestoreExport, $productTransfer, $scope),
@@ -305,7 +327,7 @@ class DataExportService
             default => throw new \InvalidArgumentException("Unsupported file type: {$fileType}"),
         };
 
-        return $dir . '/' . $fileName;
+        return $relativePath;
     }
 
     /**
@@ -334,9 +356,9 @@ class DataExportService
                     // sheet. Keep IDs, decimal scale and JSON as literal strings;
                     // Excel's automatic numeric coercion alters the manifest.
                     $serialized = (string) $value;
-                    if (mb_strlen($serialized) > ProductSystemRestoreContract::XLSX_CELL_SAFE_LENGTH) {
+                    if (strlen(mb_convert_encoding($serialized, 'UTF-16LE', 'UTF-8')) > ProductSystemRestoreContract::XLSX_CELL_SAFE_LENGTH * 2) {
                         $token = ProductSystemRestoreContract::PAYLOAD_TOKEN_PREFIX.$field;
-                        foreach (mb_str_split($serialized, ProductSystemRestoreContract::XLSX_CELL_SAFE_LENGTH) as $chunkIndex => $chunk) {
+                        foreach (mb_str_split($serialized, intdiv(ProductSystemRestoreContract::XLSX_CELL_SAFE_LENGTH, 2)) as $chunkIndex => $chunk) {
                             $payloadRows[] = [(string) ($row['id'] ?? ''), $field, $chunkIndex, $chunk];
                         }
                         $sheet->setCellValueExplicit([$colIndex + 1, $rowIndex], $token, DataType::TYPE_STRING);
@@ -344,7 +366,14 @@ class DataExportService
                         $sheet->setCellValueExplicit([$colIndex + 1, $rowIndex], $serialized, DataType::TYPE_STRING);
                     }
                 } else {
-                    $sheet->setCellValue([$colIndex + 1, $rowIndex], (string) $value);
+                    if (strlen(mb_convert_encoding((string) $value, 'UTF-16LE', 'UTF-8')) > 32767 * 2) {
+                        throw new \InvalidArgumentException("XLSX field {$field} at row {$rowIndex} exceeds the safe cell size. Use CSV or JSON for long text.");
+                    }
+                    $sheet->setCellValueExplicit(
+                        [$colIndex + 1, $rowIndex],
+                        (string) $value,
+                        DataType::TYPE_STRING,
+                    );
                 }
             }
             $rowIndex++;
@@ -377,7 +406,7 @@ class DataExportService
             $contractMetadata = $productTransfer ? ProductTransferContract::metadata($fields, $data, $scope) : ProductSystemRestoreContract::metadata($fields, $data);
             foreach ($contractMetadata as $key => $value) {
                 $metadata->setCellValue([1, $metadataRow], $key);
-                $metadata->setCellValue([2, $metadataRow], (string) $value);
+                $metadata->setCellValueExplicit([2, $metadataRow], (string) $value, DataType::TYPE_STRING);
                 $metadataRow++;
             }
             $metadata->setSheetState(\PhpOffice\PhpSpreadsheet\Worksheet\Worksheet::SHEETSTATE_HIDDEN);
@@ -404,15 +433,16 @@ class DataExportService
         }
 
         // Write header
-        fputcsv($fp, $fields);
+        fputcsv($fp, $fields, escape: '');
 
         // Write data
         foreach ($data as $row) {
             $csvRow = [];
             foreach ($fields as $field) {
-                $csvRow[] = $row[$field] ?? '';
+                $value = $row[$field] ?? '';
+                $csvRow[] = SpreadsheetFileGuard::looksLikeFormula($value) ? "'".$value : $value;
             }
-            fputcsv($fp, $csvRow);
+            fputcsv($fp, $csvRow, escape: '');
         }
 
         fclose($fp);
@@ -478,7 +508,7 @@ class DataExportService
             return null;
         }
 
-        return storage_path('app/private/' . $job->file_path);
+        return Storage::disk('local')->path($job->file_path);
     }
 
     /**

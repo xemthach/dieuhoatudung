@@ -20,6 +20,7 @@ class DataImportResultStateTest extends TestCase
             'all succeeded' => [81, 81, 0, 'completed'],
             'mixed result' => [81, 80, 1, 'completed_with_errors'],
             'all failed' => [81, 0, 81, 'failed'],
+            'incomplete without reported row errors' => [81, 79, 0, 'failed'],
             'empty input' => [0, 0, 0, 'empty'],
         ];
     }

@@ -7,6 +7,7 @@
     $isCollapsible = $settings['collapsible'] ?? true;
     $collapsedHeight = $settings['collapsed_height'] ?? 420;
     $showButton = $settings['show_button'] ?? true;
+    $safeContent = filled($content) ? \Illuminate\Support\Str::sanitizeHtml($content) : '';
 @endphp
 
 @if($content)
@@ -29,7 +30,7 @@
                 class="relative overflow-hidden transition-all duration-500 ease-in-out"
             >
                 <div class="prose prose-sm max-w-none text-surface-700 sm:prose-base prose-headings:text-surface-900 prose-a:text-primary-600 prose-img:rounded-xl">
-                    {!! $content !!}
+                    {!! $safeContent !!}
                 </div>
 
                 {{-- Gradient overlay --}}
@@ -63,7 +64,7 @@
     @else
         {{-- Non-collapsible fallback --}}
         <div class="prose prose-sm max-w-none text-surface-700 sm:prose-base prose-headings:text-surface-900 prose-a:text-primary-600 prose-img:rounded-xl">
-            {!! $content !!}
+            {!! $safeContent !!}
         </div>
     @endif
 @else

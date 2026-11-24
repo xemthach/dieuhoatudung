@@ -74,6 +74,7 @@ class DataImportJob extends Model
             $total === 0 => 'empty',
             $failed > 0 && $success === 0 => 'failed',
             $failed > 0 => 'completed_with_errors',
+            $success !== $total => 'failed',
             default => 'completed',
         };
     }

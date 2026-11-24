@@ -21,11 +21,15 @@ class ProductTransferTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_selected_product_transfer_is_signed_and_maps_brand_category_by_slug(): void
+    public function test_selected_product_transfer_preserves_source_values_without_granting_verification(): void
     {
         $brand = Brand::factory()->create(['slug' => 'transfer-brand']);
         $category = ProductCategory::factory()->create(['slug' => 'transfer-category', 'technical_schema_status' => 'missing']);
         $product = Product::factory()->create(['brand_id' => $brand->id, 'product_category_id' => $category->id, 'sku' => 'TRANSFER-18000', 'slug' => 'transfer-18000', 'marketing_capacity_btu' => 18000, 'technical_capacity_btu' => 16400, 'capacity_kw' => '4.80']);
+        $product->update(['technical_capacity_status' => 'verified', 'specs_json' => [[
+            'key' => 'capacity_kw', 'value' => '4.80', 'unit' => 'kW', 'source_native' => true,
+            'source_section' => 'TECHNICAL_APPENDIX', 'verification_status' => 'verified',
+        ]]]);
 
         $export = app(DataExportService::class)->export('product', 'xlsx', [], [], [$product->id], 'selected', null, 'product_transfer');
         $path = storage_path('app/private/'.$export->file_path);
@@ -46,10 +50,14 @@ class ProductTransferTest extends TestCase
         $this->assertSame($category->id, $restored->product_category_id);
         $this->assertSame(18000, $restored->marketing_capacity_btu);
         $this->assertSame(16400, $restored->technical_capacity_btu);
+        $facts = app(\App\Services\Product\ProductTechnicalFactResolver::class);
+        $this->assertSame($product->specs_json, $restored->specs_json);
+        $this->assertSame([], $facts->allVerified($restored));
+        $this->assertSame([], $facts->unitAwareFacts($restored));
         Storage::disk('local')->delete([$export->file_path, $job->file_path]);
     }
 
-    public function test_catalog_lineage_is_blocked_until_governed_detach_then_provenance_is_transfer(): void
+    public function test_missing_catalog_lineage_is_blocked_even_when_detach_policy_is_enabled(): void
     {
         $brand = Brand::factory()->create(['slug' => 'lineage-brand']);
         $category = ProductCategory::factory()->create(['slug' => 'lineage-category', 'technical_schema_status' => 'missing']);
@@ -58,6 +66,7 @@ class ProductTransferTest extends TestCase
             'category_id' => $category->id,
             'source_name' => 'Source environment catalog',
             'source_type' => 'xlsx',
+            'source_sha256' => str_repeat('a', 64),
         ]);
         $model = CatalogModel::create([
             'catalog_source_id' => $source->id,
@@ -80,6 +89,7 @@ class ProductTransferTest extends TestCase
         $export = app(DataExportService::class)->export('product', 'xlsx', [], [], [$product->id], 'selected', null, 'product_transfer');
         $path = storage_path('app/private/'.$export->file_path);
         $product->forceDelete();
+        $source->delete();
 
         $blocked = app(DataImportService::class)->uploadAndPreview('product', $path, 'lineage-blocked.xlsx', 'xlsx');
         $this->assertSame(1, $blocked->failed_rows);
@@ -92,14 +102,10 @@ class ProductTransferTest extends TestCase
         app(SettingService::class)->forgetCache('product_transfer.detach_catalog_lineage');
 
         $allowed = app(DataImportService::class)->uploadAndPreview('product', $path, 'lineage-allowed.xlsx', 'xlsx');
-        $this->assertSame(0, $allowed->failed_rows);
-        $this->assertSame(1, data_get($allowed->format_context_json, 'preview_summary.catalog_lineage.detach_required'));
-        $result = app(DataImportService::class)->confirmImport($allowed);
-        $this->assertSame('completed', $result->status);
-        $restored = Product::where('sku', 'LINEAGE-18')->firstOrFail();
-        $this->assertNull($restored->catalog_source_id);
-        $this->assertNull($restored->catalog_model_id);
-        $this->assertSame('PRODUCT_TRANSFER', $restored->technical_specs_source);
+        $this->assertSame(1, $allowed->failed_rows);
+        $this->assertSame(1, data_get($allowed->format_context_json, 'preview_summary.catalog_lineage.blocked'));
+        $this->assertSame('blocked', app(DataImportService::class)->confirmImport($allowed)->status);
+        $this->assertFalse(Product::where('sku', 'LINEAGE-18')->exists());
 
         Storage::disk('local')->delete([$export->file_path, $blocked->file_path, $allowed->file_path]);
     }

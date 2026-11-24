@@ -225,7 +225,7 @@ class DealerModuleTest extends TestCase
             'sort_order' => 10, 'is_active' => true, 'open_new_tab' => false,
         ]];
 
-        Livewire::test(ManageSiteSettings::class)
+        $component = Livewire::test(ManageSiteSettings::class)
             ->set('data.navigation__header_primary', $navigation)
             ->set('data.site__product_scope', 'primary_category')
             ->set('data.site__primary_product_category_id', (string) $category->id)
@@ -241,6 +241,15 @@ class DealerModuleTest extends TestCase
         $this->assertSame((string) $category->id, $settings->get('site.product_cta_product_category'));
         $this->assertSame('product_category', $saved[0]['type']);
         $this->assertSame((string) $category->id, (string) $saved[0]['category_target']);
+
+        // Mirror the browser's nested toggle update in a later Livewire
+        // request. Explicit false must survive schema dehydration and reload.
+        $component->set('data.navigation__header_primary.0.is_active', false)
+            ->call('saveSettings')
+            ->assertHasNoErrors();
+        $this->assertFalse($settings->get('navigation.header_primary')[0]['is_active']);
+        Livewire::test(ManageSiteSettings::class)
+            ->assertSet('data.navigation__header_primary.0.is_active', false);
     }
 
     public function test_pinned_master_dry_run_then_idempotent_import_preserves_codes_and_custom_seo(): void

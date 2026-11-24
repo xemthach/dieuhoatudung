@@ -16,8 +16,8 @@ final class ImportGovernanceService
     public static function definitions(): array
     {
         return [
-            'product_transfer.enabled' => ['module'=>'product_transfer','default'=>'ON','modes'=>['ON','OFF'],'risk'=>'HIGH','description'=>'Enable signed Product Transfer imports and exports.'],
-            self::DETACH_CATALOG_LINEAGE => ['module'=>'product_transfer','default'=>'OFF','modes'=>['ON','OFF'],'risk'=>'HIGH','description'=>'Detach non-portable catalog lineage during transfer.'],
+            'product_transfer.enabled' => ['module'=>'product_transfer','default'=>'ON','modes'=>['ON','OFF'],'risk'=>'HIGH','description'=>'Enable Product Transfer imports and exports with a verified checksum.'],
+            self::DETACH_CATALOG_LINEAGE => ['module'=>'product_transfer','default'=>'OFF','modes'=>['ON','OFF'],'risk'=>'HIGH','description'=>'Historical detach preference. Transfer v2 always requires a verified Catalog mapping for linked products.'],
             'product_transfer.allow_create' => ['module'=>'product_transfer','default'=>'ON','modes'=>['ON','OFF'],'risk'=>'MEDIUM','description'=>'Allow transfer to create missing Products.'],
             'product_transfer.allow_update' => ['module'=>'product_transfer','default'=>'OFF','modes'=>['ON','OFF'],'risk'=>'HIGH','description'=>'Allow transfer to update matched Products.'],
             'product_transfer.allow_upsert' => ['module'=>'product_transfer','default'=>'OFF','modes'=>['ON','OFF'],'risk'=>'HIGH','description'=>'Allow mixed create/update transfer packages.'],
@@ -28,7 +28,7 @@ final class ImportGovernanceService
             'bulk.import.enabled' => ['module'=>'bulk','default'=>'ON','modes'=>['ON','OFF'],'risk'=>'MEDIUM','description'=>'Allow bulk import.'],
             'bulk.update.enabled' => ['module'=>'bulk','default'=>'OFF','modes'=>['ON','OFF'],'risk'=>'HIGH','description'=>'Allow bulk updates.'],
             'bulk.retry.enabled' => ['module'=>'bulk','default'=>'OFF','modes'=>['ON','OFF'],'risk'=>'HIGH','description'=>'Allow retry of failed import rows.'],
-            'integrity.manifest' => ['module'=>'integrity','default'=>'ENFORCE','modes'=>['ENFORCE'],'risk'=>'CRITICAL','description'=>'Signed manifest and checksum validation.','system_locked'=>true],
+            'integrity.manifest' => ['module'=>'integrity','default'=>'ENFORCE','modes'=>['ENFORCE'],'risk'=>'CRITICAL','description'=>'Manifest and checksum validation.','system_locked'=>true],
             'integrity.checksum' => ['module'=>'integrity','default'=>'ENFORCE','modes'=>['ENFORCE'],'risk'=>'CRITICAL','description'=>'Canonical columns and payload checksums.','system_locked'=>true],
             'integrity.authorization' => ['module'=>'integrity','default'=>'ENFORCE','modes'=>['ENFORCE'],'risk'=>'CRITICAL','description'=>'Server-side authorization.','system_locked'=>true],
             'integrity.fk' => ['module'=>'integrity','default'=>'ENFORCE','modes'=>['ENFORCE'],'risk'=>'CRITICAL','description'=>'Foreign-key and identity integrity.','system_locked'=>true],

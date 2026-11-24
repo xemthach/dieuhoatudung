@@ -69,18 +69,21 @@ test.describe.serial('Admin navigation governance round-trip', () => {
         const categoryState = await page.evaluate(id => (window as any).Livewire.find(id).get('data.navigation__header_primary.0'), livewireId);
         expect(categoryState).toMatchObject({ link_type: 'product_category', category_target: categoryId });
 
-        const save = page.getByRole('button', { name: /Lưu cấu hình/i }).last();
         const saveAndReload = async () => {
             const request = page.waitForRequest(
                 request => request.method() === 'POST' && /livewire-[^/]+\/update/.test(request.url())
                     && (request.postData() ?? '').includes('saveSettings'),
                 { timeout: 15000 },
             );
-            await page.locator('button[wire\\:click="saveSettings"]').last().click({ noWaitAfter: true, force: true });
+            // Respect the save button's loading state: reactive form updates
+            // must finish before the next action captures the server state.
+            await page.locator('button[wire\\:click="saveSettings"]').last().click();
             const livewireRequest = await request;
             const response = await livewireRequest.response();
             expect(response, `Livewire request had no response: ${livewireRequest.url()}`).not.toBeNull();
             expect(response?.status()).toBe(200);
+            await response?.finished();
+            await expect(page.getByRole('status').filter({ hasText: 'Đã lưu cấu hình. Cache đã được xóa.' })).toBeVisible();
             await page.goto('/', { waitUntil: 'commit' });
         };
         await saveAndReload();
@@ -111,10 +114,26 @@ test.describe.serial('Admin navigation governance round-trip', () => {
 
         await page.goto('/admin/manage-settings');
         await page.locator('section').filter({ hasText: 'Điều hướng public' }).first().getByText('Điều hướng public', { exact: true }).click();
-        await page.waitForTimeout(3000);
-        const activeToggle = page.locator(fieldId('is_active'));
-        if (await activeToggle.isChecked()) await activeToggle.uncheck();
-        await expect.poll(() => activeToggle.evaluate(element => { const id = element.closest('[wire\\:id]')?.getAttribute('wire:id'); return (window as any).Livewire.find(id).get('data.navigation__header_primary.0.is_active'); })).toBe(false);
+        const setMenuVisibility = async (active: boolean) => {
+            const toggle = page.locator(fieldId('is_active'));
+            if ((await toggle.isChecked()) === active) return;
+            const updated = page.waitForResponse(response => {
+                if (response.request().method() !== 'POST' || ! /livewire-[^/]+\/update/.test(response.url())) return false;
+                const payload = JSON.parse(response.request().postData() ?? '{}');
+                return payload.components?.some((component: any) =>
+                    component.updates?.['data.navigation__header_primary.0.is_active'] === active,
+                ) ?? false;
+            });
+            await toggle.setChecked(active);
+            const response = await updated;
+            expect(response.status()).toBe(200);
+            await response.finished();
+            await expect.poll(() => toggle.evaluate(element => {
+                const id = element.closest('[wire\\:id]')?.getAttribute('wire:id');
+                return (window as any).Livewire.find(id).get('data.navigation__header_primary.0.is_active');
+            })).toBe(active);
+        };
+        await setMenuVisibility(false);
         await saveAndReload();
         expect(fixtureNavigation()[0]).toMatchObject({ is_active: false });
         await expect(page.locator('header nav a').filter({ hasText: 'Sản phẩm kiểm thử' })).toHaveCount(0);
@@ -122,8 +141,7 @@ test.describe.serial('Admin navigation governance round-trip', () => {
         await page.goto('/admin/manage-settings');
         await page.locator('section').filter({ hasText: 'Điều hướng public' }).first().getByText('Điều hướng public', { exact: true }).click();
         await inputs.nth(labelIndex).fill(originalLabel || 'Sản phẩm');
-        const restoreActive = page.locator(fieldId('is_active'));
-        if (!(await restoreActive.isChecked())) await restoreActive.check();
+        await setMenuVisibility(true);
         await saveAndReload();
         expect(errors, errors.join('\n')).toEqual([]);
     });

@@ -1,5 +1,93 @@
 # Triển khai Điều Hòa Tủ Đứng
 
+## Nâng cấp Import/Export: quy trình live có kiểm chứng
+
+Tag nâng cấp Import/Export là `v1.33.17`. Đối chiếu commit của tag với SHA trong thông báo phát hành. Trên website đang có dữ liệu, dùng quy trình nâng cấp dưới đây. `deploy.sh` mặc định chạy `--check`. Dùng `--apply` sau khi hoàn thành bước kiểm tra và phục hồi thử bản sao lưu.
+
+### Chuẩn bị bản phát hành và bản sao lưu
+
+1. Trên local/staging: kiểm tra test PHP, browser, queue thật trên DB riêng; chạy thử nâng cấp migration từ bản DB sao lưu; ghi SHA, kết quả và thời điểm. Import/Restore thử nghiệm chỉ chạy trên DB riêng. Không chạy PHPUnit, browser fixture, `app:install`, `db:seed`, `migrate:fresh`, `migrate:refresh`, `migrate:rollback` hoặc restore thử trên production.
+2. Trên live, dùng tài khoản owner đã xác minh. Ghi `git status --short`, `git branch --show-current`, `git rev-parse HEAD`, `git describe --tags --always`, `cat VERSION`, `php artisan migrate:status`. Nếu worktree bẩn hoặc lịch sử phân kỳ, dừng để bảo toàn thay đổi. Fetch tag đã duyệt bằng `git fetch --prune --tags origin`; đối chiếu SHA đầy đủ của tag local và remote. Không `git reset --hard`, `git clean`, `git pull` có merge tự động.
+3. Ghi tên thật của các chương trình worker, queue, desired state và heartbeat bằng công cụ quản lý hiện có. Ngừng nhận yêu cầu Import/Export mới; chờ job đang chạy kết thúc; dừng đúng chương trình worker đã xác minh. `php artisan down --retry=60` chặn request web thông thường nhưng không dừng worker. Không tắt giữa một transaction đang chạy và không đổi desired state AI chỉ để triển khai.
+4. Khi cửa sổ ghi dữ liệu đã dừng: backup toàn bộ DB bằng tài khoản có quyền backup; backup `.env`, storage private/public và nguồn catalog/evidence ngoài storage nếu đang cấu hình. Giữ `APP_KEY`. Lưu ngoài document root/repository với quyền `0700` cho thư mục, `0600` cho file. Dùng file cấu hình client MySQL private; không đặt mật khẩu trong command line, report hoặc Git. Với MySQL dùng `mysqldump --defaults-extra-file=/private/mysql.cnf --single-transaction --quick --routines --triggers <database> | gzip > /private/database.sql.gz`; xác nhận mọi bảng nghiệp vụ dùng engine hỗ trợ snapshot. Với media lưu ở R2, cần snapshot/version của bucket tương ứng, không chỉ backup disk local.
+5. Kiểm tra `gzip -t`/`tar -tzf` và SHA-256. Restore DB cùng storage sang môi trường riêng, so sánh counts/hash, kiểm tra nội dung nguồn và chạy thử migration tới release SHA. Bản backup có kích thước khác 0 chưa đủ để coi là đã kiểm chứng. Không chạy `scripts/verify_local_backup.php` trên live: công cụ này chỉ dành cho local và tạo DB tạm. Giữ biên bản xác nhận bên cạnh các backup.
+
+Tạo JSON bằng chứng `/private/verified-release.json` sau các kiểm tra trên, điền giá trị thực tế. Không điền `PASS` khi chưa chạy. Hai hash phải trùng đúng file đưa cho script; `source_sha` là SHA code đang cài trên live, `release_sha` là SHA tag mới. Bằng chứng này ghi nhận xác nhận vận hành, không tự thay thế việc thử restore.
+
+```json
+{
+  "verified_at": "<ISO-8601>",
+  "verified_by": "<operator>",
+  "source_sha": "<full installed SHA>",
+  "release_sha": "<full reviewed release SHA>",
+  "database_sha256": "<SHA-256 of database.sql.gz>",
+  "storage_sha256": "<SHA-256 of storage.tar.gz>",
+  "database_restore": "PASS",
+  "storage_restore": "PASS",
+  "migration_upgrade": "PASS",
+  "ci": "PASS",
+  "staging": "PASS",
+  "workers_drained": true,
+  "workers_stopped": true
+}
+```
+
+### Áp dụng code và kiểm tra trước khi mở live
+
+Thay các đường dẫn và tag/SHA bằng giá trị đã duyệt. Không dùng đường dẫn hosting hay tên Supervisor trong tài liệu cũ nếu chưa xác minh tại máy đích. Chạy bản `deploy.sh` đã review từ vị trí ngoài thư mục code để giữ script trong lúc checkout.
+
+```bash
+bash /private/release/deploy.sh \
+  --app-dir /absolute/application \
+  --tag vX.Y.Z --sha <full-release-SHA> \
+  --db-backup /private/database.sql.gz \
+  --storage-backup /private/storage.tar.gz \
+  --proof /private/verified-release.json --check
+# Sau khi preflight PASS, chạy lại cùng tham số với --apply thay cho --check.
+```
+
+`--apply` bật maintenance, ghi fingerprint read-only của các bảng nghiệp vụ, checkout đúng SHA, cài Composer theo lock, kiểm tra platform, chạy `php artisan migrate --force`, dựng lại cache và đối chiếu fingerprint. Script lưu báo cáo riêng bên cạnh proof, giữ maintenance bật ở trạng thái `CODE_READY_FOR_OPERATOR_CHECK`. Nếu dữ liệu khác hoặc lệnh lỗi, giữ worker dừng và điều tra; script không tự rollback DB và không tự chạy `artisan up` trong trap. Không đặt script này dưới public/ để gọi bằng HTTP.
+
+Operator kiểm tra `migrations-after.txt`, `business-before.json`/`business-after.json`, Product Governance health và queue health trong thư mục report. Dữ liệu nghiệp vụ phải trùng trước/sau. Kiểm tra `public/build/manifest.json`, cấu hình PHP-FPM/opcache theo process manager hiện có và quyền đọc/ghi runtime. Kiểm tra Admin bằng bypass maintenance riêng của operator nếu cần; không ghi dữ liệu thử vào live. Đường tải file export phải yêu cầu login, đúng quyền/owner và còn hạn. `storage:link` chỉ phục vụ public media khi liên kết thiếu; không public hóa `storage/app/private`.
+
+Khởi động lại đúng worker đã dừng, dùng cùng SHA, PHP, DB, cache lock và storage với web. Queue `default` cần xử lý `ExecuteDataImport` (timeout 900 giây); `retry_after` phải lớn hơn timeout. AI dùng `ai_governed`, giữ desired state ban đầu và không chạy hai supervisor tranh cùng worker. Kiểm tra heartbeat/SHA, không tự dispatch import sản phẩm để thử live. Chỉ chạy `php artisan up` khi kiểm tra đạt; sau đó kiểm tra `/up`, trang sản phẩm, Admin, log mới và scheduler. Production chỉ được ghi nhận `VERIFIED` sau khi lưu bằng chứng này.
+
+### Rollback code và phục hồi dữ liệu
+
+Nếu bước upgrade lỗi, giữ maintenance và worker dừng. Đọc `previous-sha.txt`; kiểm tra tương thích schema với code cũ rồi checkout đúng SHA cũ, cài Composer theo lock và dựng lại cache. Các migration bổ sung `data_import_receipts`/`data_export_jobs.format_context_json` được giữ nguyên; không drop bảng/cột để rollback code. Kiểm tra lại fingerprint, runtime và worker trước khi mở site. Script không tự khởi động worker và không giả định desired state.
+
+Nếu dữ liệu đã đổi, phục hồi trước trên DB riêng từ backup đã kiểm chứng để tìm nguyên nhân. Production restore là quyết định riêng sau khi đối chiếu các ghi nhận phát sinh từ thời điểm backup; ghi kế hoạch giữ các thay đổi mới và cửa sổ bảo trì. Không restore full DB vào live chỉ để sửa một job lỗi. Không xóa job 40 hay sửa status/history để làm UI xanh.
+
+### Workbook Restore v1 và điều tra job import
+
+Restore v2 cố ý từ chối workbook v1 thiếu bằng chứng danh tính FK và snapshot đầy đủ. Không chỉnh `_SYSTEM_EXPORT`, ID hoặc tự tính lại checksum để biến file v1 thành v2. Nếu DB nguồn còn nguyên, backup DB nguồn, nâng code trên bản sao riêng có cùng dữ liệu/ID rồi tạo **System Backup v2 mới**. Nếu chỉ còn workbook v1, cần DB/backup nguồn đáng tin để xác minh và tái tạo export; khi thiếu nguồn, giữ file làm evidence và dừng restore. Chuyển môi trường dùng Product Transfer theo stable key, còn chỉnh dữ liệu dùng file nghiệp vụ; hai luồng này không được dùng làm đường vòng cho Restore v1.
+
+Ví dụ thu bằng chứng một job chỉ đọc trên live bằng Tinker (output để ngoài public/repository, quyền private). Không gọi `uploadAndPreview`, `confirmImport`, retry hay update job. Chỉ xuất metadata/counts/lỗi, không xuất toàn bộ row khách hàng:
+
+```php
+// php artisan tinker. Gán $jobId bằng ID cần kiểm tra trong lịch sử import.
+$job = App\Models\DataImportJob::query()->find($jobId);
+$job?->only(['id','module','file_name','file_path','file_type','mode','matching_key','status','total_rows','success_rows','failed_rows','created_rows','updated_rows','skipped_rows','created_by','started_at','finished_at']);
+$job?->error_report_json;
+$job?->format_context_json;
+$job ? Illuminate\Support\Facades\DB::table('data_import_receipts')->where('data_import_job_id', $jobId)->count() : null;
+$path = $job ? Illuminate\Support\Facades\Storage::disk('local')->path($job->file_path) : null;
+$path && is_file($path) ? ['bytes'=>filesize($path), 'sha256'=>hash_file('sha256', $path)] : ['file_exists'=>false];
+// XLSX: chỉ liệt kê sheet/metadata, không evaluate formula hoặc import.
+$reader = $path && $job->file_type === 'xlsx' ? new PhpOffice\PhpSpreadsheet\Reader\Xlsx() : null;
+$reader?->listWorksheetNames($path);
+```
+
+Kèm SHA/version code thực tế, migration status, queue state và đoạn log tương ứng thời điểm job. Sao lưu byte-for-byte file gốc vào kho evidence private, ghi hash của cả hai bản và đối chiếu `_SYSTEM_EXPORT`/`_PRODUCT_TRANSFER`, số dòng, loại contract, lỗi provenance và trạng thái UI. Checksum không xác thực nguồn xuất nên vẫn cần người xác nhận nguồn. Nếu không còn file gốc, ghi rõ `FILE_MISSING`; không tái dựng bằng cách đoán Product/category ID. Đối chiếu kết quả với bằng chứng gốc đã lưu riêng.
+
+## Nâng cấp Import / Export
+
+1. Xác nhận SHA của bản nâng cấp. Sao lưu DB và storage private, gồm gói import/export và dữ liệu catalog. Kiểm tra phục hồi bản sao lưu trên DB riêng. Cho các job `default` đang chạy kết thúc trước khi đổi code.
+2. Chạy `php artisan migrate --force`. Migration mới chỉ thêm `format_context_json` vào `data_export_jobs`. Giữ bảng `data_import_receipts` từ v1.33.16. Không chạy cài mới, seed, truncate hoặc recreate trên DB hiện có.
+3. Xóa rồi tạo lại cache theo cấu hình runtime thực tế bằng `php artisan optimize:clear`, `php artisan config:cache`, `php artisan route:cache` và `php artisan view:cache`. Xác nhận Livewire JS tải được ở Admin. Các file Import/Export dùng disk private.
+4. Restart worker `default` qua trình quản lý dịch vụ hiện có. Web và worker cần dùng chung DB, storage private và cache store hỗ trợ lock. Giữ timeout job import 900 giây và queue retry lớn hơn timeout. Kiểm tra trang kết quả cập nhật từ `queued` đến trạng thái cuối.
+5. Trên staging, kiểm tra file edit selected/filtered, Transfer với FK khác ID và Restore v2 trên DB riêng. Với các preview tạo trước nâng cấp, tải lại file để tạo preview theo hợp đồng mới. Downgrade code giữ nguyên cột audit đã thêm. File v2 cần bản ứng dụng hỗ trợ v2 để restore.
+
 ## Nâng cấp 1.33.16 — dữ liệu và runtime
 
 Bản cập nhật này được phát hành mã lên GitHub. Production chưa được triển khai hoặc xác minh PDG trong lượt này. Không coi menu hiện được trên local là bằng chứng live đã hoạt động.
@@ -62,10 +150,10 @@ cd /home/lps_chonmaylanhcom
 git clone https://github.com/xemthach/dieuhoatudung.git public_html
 cd public_html
 git fetch --tags origin
-git checkout --detach v1.33.15
+git checkout --detach v1.33.17
 git rev-parse HEAD
 cat VERSION
-test "$(cat VERSION)" = 1.33.15
+test "$(cat VERSION)" = 1.33.17
 test -f public/build/manifest.json
 ```
 

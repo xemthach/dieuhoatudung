@@ -5,7 +5,11 @@ const browserDatabase = resolve('storage/framework/testing/product-data-governan
 const browserEnvironment = {
     ...process.env,
     APP_ENV: 'testing',
+    BROWSER_ALLOW_REAL_PROVIDER: '0',
+    AI_PRODUCT_REAL_PROVIDER_TEST: '0',
+    AI_GUARD_REAL_PROVIDER_TEST: '0',
     APP_CONFIG_CACHE: 'storage/framework/testing/browser-config.php',
+    APP_ROUTES_CACHE: 'storage/framework/testing/browser-routes.php',
     AI_SINGLE_OPERATOR_ENABLED: 'true',
     AI_SINGLE_OPERATOR_USER_ID: '1',
     AI_SINGLE_OPERATOR_SUPER_ADMIN_EXCEPTION: 'true',

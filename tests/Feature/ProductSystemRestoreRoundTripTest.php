@@ -13,6 +13,8 @@ use App\Services\DataTransfer\DataExportService;
 use App\Services\DataTransfer\DataImportService;
 use App\Services\DataTransfer\ModuleRegistry;
 use App\Services\DataTransfer\Modules\ProductImportHandler;
+use App\Services\DataTransfer\Modules\ProductRestoreImportHandler;
+use App\Services\DataTransfer\Modules\ProductTransferImportHandler;
 use App\Services\DataTransfer\ProductSystemRestoreContract;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
@@ -27,6 +29,68 @@ class ProductSystemRestoreRoundTripTest extends TestCase
 
     /** @var array<int, string> */
     private array $generatedFiles = [];
+
+    public function test_valid_v1_manifest_is_refused_before_writes(): void
+    {
+        $fields = ProductSystemRestoreContract::fields(1);
+        $row = array_replace(array_fill_keys($fields, ''), ['id' => '40', 'name' => 'V1 fixture', 'slug' => 'v1-fixture']);
+        $book = new \PhpOffice\PhpSpreadsheet\Spreadsheet;
+        $book->getActiveSheet()->setTitle('Data')->fromArray([$fields, array_values($row)]);
+        $sheet = $book->createSheet()->setTitle('_SYSTEM_EXPORT');
+        $sheet->fromArray([
+            ['key', 'value'], ['format', ProductSystemRestoreContract::FORMAT], ['format_version', '1'],
+            ['product_count', '1'], ['columns_sha256', ProductSystemRestoreContract::columnsChecksum($fields)],
+            ['content_sha256', ProductSystemRestoreContract::contentChecksum($fields, collect([$row]), 1)],
+        ]);
+        $file = 'test-v1-'.bin2hex(random_bytes(8)).'.xlsx';
+        $this->generatedFiles[] = $file;
+        $path = Storage::disk('local')->path($file);
+        IOFactory::createWriter($book, 'Xlsx')->save($path);
+        $book->disconnectWorksheets();
+        try {
+            app(DataImportService::class)->uploadAndPreview('product', $path, 'legacy.xlsx', 'xlsx', intent: 'system_restore');
+            $this->fail('Legacy restore accepted');
+        } catch (\InvalidArgumentException $error) {
+            $this->assertStringContainsString('Restore không khả dụng với tệp v1', $error->getMessage());
+        }
+        $this->assertDatabaseCount('products', 0);
+        $this->assertDatabaseCount('data_import_receipts', 0);
+    }
+
+    public function test_v2_backup_restores_raw_values_and_soft_deleted_records(): void
+    {
+        $product = Product::factory()->create([
+            'short_description' => "  Dòng đầu\nDòng cuối  ",
+            'long_description' => '',
+            'taxonomy_status' => 'VERIFIED',
+            'taxonomy_evidence_json' => ['evidence' => 'snapshot'],
+        ]);
+        $product->delete();
+        $expected = $product->fresh()->getRawOriginal();
+        $export = app(DataExportService::class)->export('product', 'xlsx', intent: 'system_backup');
+        $this->generatedFiles[] = $export->file_path;
+        $product->forceDelete();
+
+        $service = app(DataImportService::class);
+        $job = $service->uploadAndPreview('product', Storage::disk('local')->path($export->file_path), 'backup.xlsx', 'xlsx', intent: 'system_restore');
+        $this->generatedFiles[] = $job->file_path;
+        $this->assertSame(0, $job->failed_rows, json_encode($job->error_report_json));
+        $this->assertSame('completed', $service->confirmImport($job)->status);
+        $this->assertSame($expected, Product::withTrashed()->findOrFail($product->id)->getRawOriginal());
+    }
+
+    public function test_backup_rejects_a_reused_foreign_key_even_when_its_id_exists(): void
+    {
+        $category = ProductCategory::factory()->create(['slug' => 'original-category']);
+        Product::factory()->create(['product_category_id' => $category->id]);
+        $export = app(DataExportService::class)->export('product', 'xlsx', intent: 'system_backup');
+        $this->generatedFiles[] = $export->file_path;
+        $category->update(['slug' => 'different-category']);
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('foreign key identities differ');
+        app(DataImportService::class)->uploadAndPreview('product', Storage::disk('local')->path($export->file_path), 'backup.xlsx', 'xlsx', intent: 'system_restore');
+    }
 
     protected function tearDown(): void
     {
@@ -153,6 +217,97 @@ class ProductSystemRestoreRoundTripTest extends TestCase
         $this->assertSame([], $errors);
     }
 
+    public function test_business_product_import_rejects_unknown_foreign_keys_instead_of_nulling_them(): void
+    {
+        $brand = Brand::factory()->create(['slug' => 'business-brand']);
+        $category = ProductCategory::factory()->create([
+            'slug' => 'business-category',
+            'technical_schema_status' => 'missing',
+        ]);
+
+        $handler = app(ProductImportHandler::class);
+        $errors = $handler->validateRow([
+            'name' => 'Business product with invalid FK',
+            'sku' => 'BUSINESS-INVALID-FK',
+            'slug' => 'business-invalid-fk',
+            'brand_id' => $brand->id + 999999,
+            'product_category_id' => $category->id,
+        ], 'create', 'sku');
+
+        $this->assertTrue(
+            collect($errors)->contains(fn (string $error): bool => str_contains($error, 'Brand ID')),
+            implode('; ', $errors),
+        );
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Brand ID');
+        $handler->importRow([
+                'name' => 'Business product with invalid FK',
+                'sku' => 'BUSINESS-INVALID-FK',
+                'slug' => 'business-invalid-fk',
+                'brand_id' => $brand->id + 999999,
+                'product_category_id' => $category->id,
+            ], 'create', 'sku');
+    }
+
+    public function test_business_product_import_maps_brand_and_category_by_stable_slug(): void
+    {
+        $brand = Brand::factory()->create(['slug' => 'stable-brand']);
+        $category = ProductCategory::factory()->create([
+            'slug' => 'stable-category',
+            'technical_schema_status' => 'active',
+            'technical_schema_json' => [
+                'allowed_fields' => ['technical_capacity_btu'],
+                'required_fields' => [],
+            ],
+        ]);
+
+        $handler = app(ProductImportHandler::class);
+        $errors = $handler->validateRow([
+            'name' => 'Business stable reference product',
+            'sku' => 'BUSINESS-STABLE-REF',
+            'slug' => 'business-stable-ref',
+            'brand_slug' => $brand->slug,
+            'category_slug' => $category->slug,
+        ], 'create', 'sku');
+
+        $this->assertSame([], $errors);
+        $result = $handler->importRow([
+            'name' => 'Business stable reference product',
+            'sku' => 'BUSINESS-STABLE-REF',
+            'slug' => 'business-stable-ref',
+            'brand_slug' => $brand->slug,
+            'category_slug' => $category->slug,
+        ], 'create', 'sku');
+
+        $this->assertSame('created', $result);
+        $product = Product::where('sku', 'BUSINESS-STABLE-REF')->firstOrFail();
+        $this->assertSame($brand->id, $product->brand_id);
+        $this->assertSame($category->id, $product->product_category_id);
+    }
+
+    public function test_product_import_rejects_foreign_key_conflict_with_stable_reference(): void
+    {
+        $brand = Brand::factory()->create(['slug' => 'stable-conflict-brand']);
+        $other = Brand::factory()->create();
+        $category = ProductCategory::factory()->create([
+            'slug' => 'stable-conflict-category',
+            'technical_schema_status' => 'active',
+            'technical_schema_json' => [
+                'allowed_fields' => ['technical_capacity_btu'],
+                'required_fields' => [],
+            ],
+        ]);
+        $errors = app(ProductImportHandler::class)->validateRow([
+            'name' => 'Stable reference conflict',
+            'sku' => 'STABLE-CONFLICT',
+            'brand_id' => $other->id,
+            'brand_slug' => $brand->slug,
+            'category_slug' => $category->slug,
+        ], 'create', 'sku');
+
+        $this->assertContains('Brand ID and stable reference do not match.', $errors);
+    }
+
     public function test_modified_system_export_manifest_is_rejected_before_preview(): void
     {
         $this->createSourceProducts();
@@ -168,6 +323,46 @@ class ProductSystemRestoreRoundTripTest extends TestCase
         $this->expectExceptionMessage('Invalid or modified PRODUCT_SYSTEM_RESTORE manifest.');
 
         app(DataImportService::class)->uploadAndPreview('product', $path, 'tampered.xlsx', 'xlsx');
+    }
+
+    public function test_restore_contract_rejects_noncanonical_slug_before_any_write(): void
+    {
+        $category = ProductCategory::factory()->create(['technical_schema_status' => 'missing']);
+        $errors = app(ProductRestoreImportHandler::class)->validateRow([
+            'id' => 900001,
+            'name' => 'Canonical restore fixture',
+            'slug' => 'Not A Canonical Slug',
+            'product_category_id' => $category->id,
+        ], 'system_restore', 'id');
+
+        $this->assertContains('SYSTEM RESTORE requires a canonical Product slug.', $errors);
+    }
+
+    public function test_transfer_handler_rejects_conflicting_sku_and_slug_identities(): void
+    {
+        $brand = Brand::factory()->create(['slug' => 'transfer-conflict-brand']);
+        $category = ProductCategory::factory()->create(['slug' => 'transfer-conflict-category', 'technical_schema_status' => 'missing']);
+        Product::factory()->create([
+            'brand_id' => $brand->id,
+            'product_category_id' => $category->id,
+            'sku' => 'TRANSFER-CONFLICT-SKU',
+            'slug' => 'transfer-conflict-sku',
+        ]);
+        Product::factory()->create([
+            'brand_id' => $brand->id,
+            'product_category_id' => $category->id,
+            'sku' => 'TRANSFER-CONFLICT-OTHER',
+            'slug' => 'transfer-conflict-slug',
+        ]);
+
+        $errors = app(ProductTransferImportHandler::class)->validateRow([
+            'sku' => 'TRANSFER-CONFLICT-SKU',
+            'slug' => 'transfer-conflict-slug',
+            'brand_slug' => $brand->slug,
+            'category_slug' => $category->slug,
+        ], 'product_transfer', 'sku');
+
+        $this->assertContains('PRODUCT_TRANSFER identity conflict: SKU and slug resolve different target Products.', $errors);
     }
 
     public function test_shuffled_complete_product_group_selection_is_a_system_restore_export(): void
@@ -192,26 +387,23 @@ class ProductSystemRestoreRoundTripTest extends TestCase
         $this->assertSystemRestoreWorkbook(storage_path('app/private/'.$export->file_path));
     }
 
-    public function test_data_transfer_page_all_groups_uses_the_system_restore_export_contract(): void
+    public function test_data_transfer_page_system_backup_exports_the_complete_contract(): void
     {
         $this->createSourceProducts();
         $role = Role::firstOrCreate(['name' => 'super_admin', 'guard_name' => 'web']);
         $user = User::factory()->create();
         $user->assignRole($role);
-        $groups = array_keys(ModuleRegistry::fieldGroups('product'));
-
         Livewire::actingAs($user)
             ->test(DataTransferPage::class)
             ->callAction('export', [
                 'module' => 'product',
                 'file_type' => 'xlsx',
-                'field_groups' => $groups,
                 'export_intent' => 'system_backup',
             ]);
 
         $export = \App\Models\DataExportJob::query()->latest('id')->firstOrFail();
         $this->generatedFiles[] = $export->file_path;
-        $this->assertSame($groups, $export->field_groups_json);
+        $this->assertSame('system_backup', data_get($export->format_context_json, 'intent'));
         $this->assertSame(2, $export->total_rows);
         $this->assertSystemRestoreWorkbook(storage_path('app/private/'.$export->file_path));
     }

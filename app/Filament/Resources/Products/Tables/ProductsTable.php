@@ -376,30 +376,33 @@ class ProductsTable
                             ->form([
                                 Select::make('file_type')
                                     ->label('Định dạng')
-                                    ->options([
-                                        'xlsx' => 'Excel (XLSX)',
-                                        'csv' => 'CSV (UTF-8)',
-                                        'xml' => 'XML',
-                                        'json' => 'JSON',
-                                    ])
+                                    ->options(fn ($get): array => match ($get('export_intent') ?? 'normal') {
+                                        'product_transfer' => ['xlsx' => 'Excel (XLSX) có manifest'],
+                                        'business_edit' => ['xlsx' => 'Excel (XLSX)', 'csv' => 'CSV (UTF-8)'],
+                                        default => ['xlsx' => 'Excel (XLSX)', 'csv' => 'CSV (UTF-8)', 'xml' => 'XML', 'json' => 'JSON'],
+                                    })
                                     ->default('xlsx')
                                     ->required(),
                                 Select::make('export_intent')
                                     ->label('Export contract')
                                     ->options([
                                         'normal' => 'Normal Export',
+                                        'business_edit' => 'File nghiệp vụ — chỉnh sửa và nhập lại CSV/XLSX',
                                         'product_transfer' => 'Product Transfer',
                                     ])
                                     ->default('normal')
+                                    ->live()
+                                    ->afterStateUpdated(fn ($set) => $set('file_type', 'xlsx'))
                                     ->required(),
                                 CheckboxList::make('field_groups')
                                     ->label('Nhóm dữ liệu')
                                     ->options(fn (): array => collect(ModuleRegistry::fieldGroups('product'))
                                         ->mapWithKeys(fn ($group, $key) => [$key => $group['label']])
                                         ->all())
-                                    ->columns(3),
+                                    ->columns(3)
+                                    ->visible(fn ($get): bool => ($get('export_intent') ?? 'normal') === 'normal'),
                             ])
-                            ->action(function (Collection $records, array $data): void {
+                            ->action(function (Collection $records, array $data) {
                                 abort_unless(auth()->user()?->isSuperAdmin() || auth()->user()?->can('product.export'), 403);
                                 $intent = (string) ($data['export_intent'] ?? 'normal');
                                 if ($intent === 'product_transfer') {
@@ -417,7 +420,9 @@ class ProductsTable
                                     return;
                                 }
 
-                                $job = app(DataExportService::class)->export(
+                                $service = app(DataExportService::class);
+                                try {
+                                $job = $service->export(
                                     module: 'product',
                                     fileType: $data['file_type'],
                                     fieldGroups: $data['field_groups'] ?? [],
@@ -425,6 +430,10 @@ class ProductsTable
                                     scope: 'selected',
                                     intent: $intent,
                                 );
+                                } catch (\Throwable $error) {
+                                    Notification::make()->danger()->title('Export thất bại')->body($error->getMessage())->send();
+                                    return;
+                                }
 
                                 Log::info('Product selected export payload', [
                                     'source' => 'products_table_bulk_action',
@@ -450,6 +459,8 @@ class ProductsTable
                                     ->body("Đã export {$job->total_rows} sản phẩm đã chọn.")
                                     ->success()
                                     ->send();
+
+                                return response()->download($service->getDownloadPath($job), $job->file_name);
                             }),
                     ])->label('Data')->icon('heroicon-o-arrow-down-tray'),
 

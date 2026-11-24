@@ -113,6 +113,9 @@ class ProductTechnicalFactResolver
 
     public function allVerified(Product $product): array
     {
+        if ($product->technical_specs_source === 'PRODUCT_TRANSFER') {
+            return [];
+        }
         $facts = [];
         if (in_array((string) $product->technical_capacity_status, ['verified', 'verified_candidate', 'approved'], true) && $product->technical_capacity_btu !== null) {
             $facts['technical_capacity_btu'] = $product->technical_capacity_btu;
@@ -132,6 +135,9 @@ class ProductTechnicalFactResolver
      */
     public function unitAwareFacts(Product $product): array
     {
+        if ($product->technical_specs_source === 'PRODUCT_TRANSFER') {
+            return [];
+        }
         $facts = [];
         foreach ((array) ($product->specs_json ?? []) as $item) {
             if (! is_array($item) || ! isset($item['key'], $item['value'], $item['unit'])) continue;

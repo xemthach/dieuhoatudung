@@ -32,8 +32,11 @@ foreach ([
     'MailTemplateSeeder',
     'DemoDataSeeder',
 ] as $seeder) {
-    Artisan::call('db:seed', ['--class' => $seeder, '--force' => true]);
-    echo Artisan::output();
+    if (Artisan::call('db:seed', ['--class' => $seeder, '--force' => true]) !== 0) {
+        throw new RuntimeException('Isolated browser seeder failed: '.$seeder);
+    }
+    // AdminUserSeeder prints fixture credentials; never copy those to CI logs.
+    echo $seeder." completed.\n";
 }
 
 foreach (SkyAirTechnicalSchema::CATEGORIES as $definition) {
@@ -43,8 +46,10 @@ foreach (SkyAirTechnicalSchema::CATEGORIES as $definition) {
     );
 }
 foreach (['ProductCategoryTechnicalSchemaSeeder', 'WallMountedProductCategorySeeder', 'SkyAirProductCategorySchemaSeeder'] as $seeder) {
-    Artisan::call('db:seed', ['--class' => $seeder, '--force' => true]);
-    echo Artisan::output();
+    if (Artisan::call('db:seed', ['--class' => $seeder, '--force' => true]) !== 0) {
+        throw new RuntimeException('Isolated browser seeder failed: '.$seeder);
+    }
+    echo $seeder." completed.\n";
 }
 
 ProductCategory::query()->updateOrCreate(

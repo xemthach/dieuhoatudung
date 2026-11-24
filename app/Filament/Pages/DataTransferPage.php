@@ -20,7 +20,6 @@ use Filament\Schemas\Schema;
 use Filament\Tables;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
-use Illuminate\Support\Facades\Storage;
 use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
 
 class DataTransferPage extends Page
@@ -87,12 +86,13 @@ class DataTransferPage extends Page
 
                 Select::make('file_type')
                     ->label('Định dạng file')
-                    ->options([
-                        'xlsx' => 'Excel (XLSX)',
-                        'csv'  => 'CSV (UTF-8)',
-                        'xml'  => 'XML',
-                        'json' => 'JSON',
-                    ])
+                    ->options(fn ($get): array => $get('module') === 'product'
+                        ? match ($get('export_intent') ?? 'normal') {
+                            'business_edit' => ['xlsx' => 'Excel (XLSX)', 'csv' => 'CSV (UTF-8)'],
+                            'product_transfer', 'system_backup' => ['xlsx' => 'Excel (XLSX) có manifest'],
+                            default => ['xlsx' => 'Excel (XLSX)', 'csv' => 'CSV (UTF-8)', 'xml' => 'XML', 'json' => 'JSON'],
+                        }
+                        : ['xlsx' => 'Excel (XLSX)', 'csv' => 'CSV (UTF-8)', 'xml' => 'XML', 'json' => 'JSON'])
                     ->default('xlsx')
                     ->required(),
 
@@ -105,6 +105,8 @@ class DataTransferPage extends Page
                         'system_backup' => 'System Backup — khôi phục toàn bộ có manifest',
                     ])
                     ->default('normal')
+                    ->live()
+                    ->afterStateUpdated(fn ($set) => $set('file_type', 'xlsx'))
                     ->visible(fn ($get) => $get('module') === 'product')
                     ->required(fn ($get) => $get('module') === 'product'),
 
@@ -116,7 +118,8 @@ class DataTransferPage extends Page
                         $groups = ModuleRegistry::fieldGroups($module);
                         return collect($groups)->mapWithKeys(fn ($g, $k) => [$k => $g['label']])->toArray();
                     })
-                    ->columns(3),
+                    ->columns(3)
+                    ->visible(fn ($get): bool => ($get('export_intent') ?? 'normal') === 'normal'),
             ])
             ->action(function (array $data) {
                 $this->authorizeTransfer($data['module'] ?? '', 'export');
@@ -174,27 +177,28 @@ class DataTransferPage extends Page
                     ->label('Module')
                     ->options($this->getImportableModules())
                     ->required()
-                    ->live(),
+                    ->live()
+                    ->afterStateUpdated(fn ($state, $set) => $set('matching_key', $state === 'product' ? 'sku' : 'id')),
 
                 Select::make('file_type')
                     ->label('Định dạng file')
-                    ->options([
-                        'xlsx' => 'Excel (XLSX)',
-                        'csv'  => 'CSV (UTF-8)',
-                        'xml'  => 'XML',
-                        'json' => 'JSON',
-                    ])
+                    ->options(fn ($get): array => $get('module') === 'product'
+                        ? (($get('import_intent') ?? 'business') === 'business'
+                            ? ['xlsx' => 'Excel (XLSX)', 'csv' => 'CSV (UTF-8)']
+                            : ['xlsx' => 'Excel (XLSX) có manifest'])
+                        : ['xlsx' => 'Excel (XLSX)', 'csv' => 'CSV (UTF-8)', 'json' => 'JSON'])
                     ->default('xlsx')
                     ->required(),
 
                 Select::make('import_intent')->label('Mục đích nhập Product')
                     ->options(['business'=>'File nghiệp vụ chỉnh sửa', 'product_transfer'=>'Product Transfer', 'system_restore'=>'System Restore'])
                     ->default('business')->required(fn ($get) => $get('module') === 'product')
+                    ->live()->afterStateUpdated(fn ($set) => $set('file_type', 'xlsx'))
                     ->visible(fn ($get) => $get('module') === 'product'),
                 \Filament\Forms\Components\KeyValue::make('column_mapping')->label('Mapping cột (tùy chọn)')
                     ->keyLabel('Tên cột trong file')->valueLabel('Tên trường hệ thống')
                     ->helperText('Ví dụ: Giá bán → regular_price; dùng _skip để bỏ cột. SKU/slug không được trùng. Brand/category dùng brand_slug hoặc category_slug.')
-                    ->visible(fn ($get) => $get('module') === 'product'),
+                    ->visible(fn ($get) => $get('module') === 'product' && ($get('import_intent') ?? 'business') === 'business'),
 
                 Select::make('mode')
                     ->label('Chế độ import')
@@ -205,76 +209,65 @@ class DataTransferPage extends Page
                     ])
                     ->default('create')
                     ->required()
-                    ->live(),
+                    ->live()
+                    ->visible(fn ($get): bool => $get('module') !== 'product' || ($get('import_intent') ?? 'business') === 'business'),
 
                 Select::make('matching_key')
                     ->label('Trường khóa để match (cho Update/Upsert)')
                     ->options(function ($get) {
                         $module = $get('module');
                         if (!$module) return ['id' => 'ID'];
-                        return ModuleRegistry::matchingKeys($module);
+                        return $module === 'product' ? ['sku' => 'SKU', 'slug' => 'Slug'] : ModuleRegistry::matchingKeys($module);
                     })
-                    ->default('sku')
-                    ->visible(fn ($get) => in_array($get('mode'), ['update', 'upsert'])),
+                    ->default(fn ($get): string => $get('module') === 'product' ? 'sku' : 'id')
+                    ->required()
+                    ->visible(fn ($get): bool => in_array($get('mode'), ['update', 'upsert'], true)
+                        && ($get('module') !== 'product' || ($get('import_intent') ?? 'business') === 'business')),
 
                 FileUpload::make('import_file')
                     ->label('Chọn file')
                     ->required()
                     ->acceptedFileTypes(DataImportService::allowedMimeTypes())
                     ->maxSize(DataImportService::maxFileSizeKb())
-                    ->disk('local')
-                    ->directory('temp-imports')
-                    ->visibility('private'),
+                    ->storeFiles(false),
             ])
             ->action(function (array $data) {
                 $this->authorizeTransfer($data['module'] ?? '', 'import');
 
                 $service = app(DataImportService::class);
+                $intent = $data['module'] === 'product' ? ($data['import_intent'] ?? 'business') : 'auto';
+                if ($intent === 'product_transfer') $this->authorizeNamed('product_transfer.run');
+                if ($intent === 'system_restore') $this->authorizeNamed('system_restore.run');
 
+                $upload = $data['import_file'] ?? null;
                 try {
-                    // Get the uploaded file path
-                    $filePath = storage_path('app/private/' . $data['import_file']);
-                    $originalName = basename($data['import_file']);
-                    $fileType = $data['file_type'];
+                    if (! $upload instanceof TemporaryUploadedFile) throw new \InvalidArgumentException('Cần chọn file import mới.');
 
                     $job = $service->uploadAndPreview(
                         module: $data['module'],
-                        filePath: $filePath,
-                        originalName: $originalName,
-                        fileType: $fileType,
-                        mode: $data['mode'],
+                        filePath: $upload->getRealPath(),
+                        originalName: $upload->getClientOriginalName(),
+                        fileType: $data['file_type'],
+                        mode: $data['mode'] ?? 'create',
                         matchingKey: $data['matching_key'] ?? ($data['module'] === 'product' ? 'sku' : 'id'),
-                        intent: $data['module'] === 'product' ? ($data['import_intent'] ?? 'business') : 'auto',
+                        intent: $intent,
                         columnMapping: $data['column_mapping'] ?? [],
                     );
                     if ($job->mode === 'product_transfer') $this->authorizeNamed('product_transfer.run');
                     if ($job->mode === 'system_restore') $this->authorizeNamed('system_restore.run');
 
-                    // Cleanup temp file
-                    Storage::disk('local')->delete($data['import_file']);
-
-                    if ($job->status === 'failed') {
-                        $errors = $job->error_report_json;
-                        $errorMsg = is_array($errors) && !empty($errors)
-                            ? collect($errors)->pluck('errors')->flatten()->first()
-                            : 'Không thể xử lý file.';
-
-                        Notification::make()
-                            ->danger()
-                            ->title('Import thất bại')
-                            ->body($errorMsg)
-                            ->send();
-                        return;
-                    }
-
-                    // Redirect to import preview page
-                    $this->redirect(ImportPreviewPage::getUrl(['job' => $job->id]));
+                    $page = $job->status === 'previewing'
+                        ? ImportPreviewPage::class
+                        : ImportResultPage::class;
+                    $this->redirect($page::getUrl(['job' => $job->id]));
                 } catch (\Throwable $e) {
                     Notification::make()
                         ->danger()
                         ->title('Import thất bại')
                         ->body($e->getMessage())
                         ->send();
+                } finally {
+                    if ($upload instanceof TemporaryUploadedFile) $upload->delete();
                 }
             });
     }

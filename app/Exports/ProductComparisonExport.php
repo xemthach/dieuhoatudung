@@ -3,11 +3,15 @@
 namespace App\Exports;
 
 use Maatwebsite\Excel\Concerns\FromArray;
+use Maatwebsite\Excel\Concerns\WithCustomValueBinder;
 use Maatwebsite\Excel\Concerns\WithTitle;
 use Maatwebsite\Excel\Concerns\WithStyles;
 use Maatwebsite\Excel\Concerns\WithColumnWidths;
 use Maatwebsite\Excel\Concerns\ShouldAutoSize;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
+use PhpOffice\PhpSpreadsheet\Cell\Cell;
+use PhpOffice\PhpSpreadsheet\Cell\DataType;
+use PhpOffice\PhpSpreadsheet\Cell\DefaultValueBinder;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
@@ -16,7 +20,7 @@ use PhpOffice\PhpSpreadsheet\Style\Border;
  * Excel export for product comparison.
  * Each row is either a group header or a spec row.
  */
-class ProductComparisonExport implements FromArray, WithTitle, WithStyles, ShouldAutoSize
+class ProductComparisonExport extends DefaultValueBinder implements FromArray, WithTitle, WithStyles, ShouldAutoSize, WithCustomValueBinder
 {
     private array $matrix;
     private array $productNames;
@@ -44,6 +48,17 @@ class ProductComparisonExport implements FromArray, WithTitle, WithStyles, Shoul
         }
 
         return $rows;
+    }
+
+    public function bindValue(Cell $cell, $value): bool
+    {
+        if (is_string($value)) {
+            $cell->setValueExplicit($value, DataType::TYPE_STRING);
+
+            return true;
+        }
+
+        return parent::bindValue($cell, $value);
     }
 
     public function title(): string

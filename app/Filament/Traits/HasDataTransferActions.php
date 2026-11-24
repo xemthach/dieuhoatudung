@@ -10,13 +10,14 @@ use Filament\Actions\Action;
 use Filament\Forms\Components\Checkbox;
 use Filament\Forms\Components\CheckboxList;
 use Filament\Forms\Components\FileUpload;
+use Filament\Forms\Components\KeyValue;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Select;
 use Filament\Notifications\Notification;
 use Illuminate\Contracts\Pagination\Paginator;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Storage;
+use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
 
 /**
  * Add export/import header actions to a Filament List page.
@@ -45,12 +46,11 @@ trait HasDataTransferActions
             ->form([
                 Select::make('file_type')
                     ->label('Định dạng')
-                    ->options([
-                        'xlsx' => 'Excel (XLSX)',
-                        'csv'  => 'CSV (UTF-8)',
-                        'xml'  => 'XML',
-                        'json' => 'JSON',
-                    ])
+                    ->options(fn ($get): array => match ($get('export_intent') ?? 'normal') {
+                        'product_transfer' => ['xlsx' => 'Excel (XLSX) có manifest'],
+                        'business_edit' => ['xlsx' => 'Excel (XLSX)', 'csv' => 'CSV (UTF-8)'],
+                        default => ['xlsx' => 'Excel (XLSX)', 'csv' => 'CSV (UTF-8)', 'xml' => 'XML', 'json' => 'JSON'],
+                    })
                     ->default('xlsx')
                     ->required(),
 
@@ -58,9 +58,12 @@ trait HasDataTransferActions
                     ->label('Export contract')
                     ->options(fn (): array => $module === 'product' ? [
                         'normal' => 'Normal Export',
+                        'business_edit' => 'File nghiệp vụ — chỉnh sửa và nhập lại CSV/XLSX',
                         'product_transfer' => 'Product Transfer',
                     ] : ['normal' => 'Normal Export'])
                     ->default('normal')
+                    ->live()
+                    ->afterStateUpdated(fn ($set) => $set('file_type', 'xlsx'))
                     ->required(),
 
                 Select::make('export_scope')
@@ -90,7 +93,8 @@ trait HasDataTransferActions
 
                         return collect($groups)->mapWithKeys(fn ($g, $k) => [$k => $g['label']])->toArray();
                     })
-                    ->columns(3),
+                    ->columns(3)
+                    ->visible(fn ($get): bool => ($get('export_intent') ?? 'normal') === 'normal'),
             ])
             ->action(function (array $data) use ($module, $exportPerm) {
                 abort_unless(auth()->user()?->isSuperAdmin() || auth()->user()?->can($exportPerm), 403);
@@ -144,15 +148,6 @@ trait HasDataTransferActions
                         return;
                     }
 
-                    if ($scope === 'filter' && method_exists($this, 'getFilteredTableQuery')) {
-                        $selectedIds = $this->getFilteredTableQuery()
-                            ->pluck('id')
-                            ->map(fn ($id) => (int) $id)
-                            ->unique()
-                            ->values()
-                            ->all();
-                    }
-
                     Log::info('Data export header payload', [
                         'module' => $module,
                         'scope' => $scope,
@@ -174,7 +169,7 @@ trait HasDataTransferActions
                         : (ModuleRegistry::modelClass($module))::query();
                     $selection = app(BulkSelectionResolver::class)->resolvePayload([
                         'scope' => $scope,
-                        'selected_ids' => $scope === 'selected' ? $selectedIds : $this->resolveExportSelectedIds(),
+                        'selected_ids' => $scope === 'selected' ? $selectedIds : [],
                         'current_page_ids' => $currentPageIds,
                         'filters' => $this->exportFilterSummary(),
                         'confirm_filter_scope' => (bool) ($data['confirm_filter_scope'] ?? false),
@@ -245,16 +240,35 @@ trait HasDataTransferActions
             ->color('primary')
             ->visible(fn () => auth()->user()?->isSuperAdmin() || auth()->user()?->can($importPerm))
             ->form([
+                Select::make('import_intent')
+                    ->label('Mục đích nhập Product')
+                    ->options([
+                        'business' => 'File nghiệp vụ chỉnh sửa',
+                        'product_transfer' => 'Product Transfer',
+                        'system_restore' => 'System Restore',
+                    ])
+                    ->default('business')
+                    ->live()
+                    ->afterStateUpdated(fn ($set) => $set('file_type', 'xlsx'))
+                    ->required($module === 'product')
+                    ->visible($module === 'product'),
+
                 Select::make('file_type')
                     ->label('Định dạng file')
-                    ->options([
-                        'xlsx' => 'Excel (XLSX)',
-                        'csv'  => 'CSV (UTF-8)',
-                        'xml'  => 'XML',
-                        'json' => 'JSON',
-                    ])
+                    ->options(fn ($get): array => $module === 'product'
+                        ? (($get('import_intent') ?? 'business') === 'business'
+                            ? ['xlsx' => 'Excel (XLSX)', 'csv' => 'CSV (UTF-8)']
+                            : ['xlsx' => 'Excel (XLSX) có manifest'])
+                        : ['xlsx' => 'Excel (XLSX)', 'csv' => 'CSV (UTF-8)', 'json' => 'JSON'])
                     ->default('xlsx')
                     ->required(),
+
+                KeyValue::make('column_mapping')
+                    ->label('Mapping cột (tùy chọn)')
+                    ->keyLabel('Tên cột trong file')
+                    ->valueLabel('Tên trường hệ thống')
+                    ->helperText('Ví dụ: Giá bán → regular_price; dùng _skip để bỏ cột. Brand/category dùng brand_slug hoặc category_slug.')
+                    ->visible(fn ($get): bool => $module === 'product' && ($get('import_intent') ?? 'business') === 'business'),
 
                 Select::make('mode')
                     ->label('Chế độ import')
@@ -265,65 +279,66 @@ trait HasDataTransferActions
                     ])
                     ->default('create')
                     ->required()
-                    ->live(),
+                    ->live()
+                    ->visible(fn ($get): bool => $module !== 'product' || ($get('import_intent') ?? 'business') === 'business'),
 
                 Select::make('matching_key')
                     ->label('Trường khóa match')
                     ->options(function () use ($module) {
-                        return ModuleRegistry::matchingKeys($module);
+                        return $module === 'product'
+                            ? ['sku' => 'SKU', 'slug' => 'Slug']
+                            : ModuleRegistry::matchingKeys($module);
                     })
-                    ->default('id')
-                    ->visible(fn ($get) => in_array($get('mode'), ['update', 'upsert'], true)),
+                    ->default($module === 'product' ? 'sku' : 'id')
+                    ->visible(fn ($get): bool => in_array($get('mode'), ['update', 'upsert'], true)
+                        && ($module !== 'product' || ($get('import_intent') ?? 'business') === 'business')),
 
                 FileUpload::make('import_file')
                     ->label('Chọn file')
                     ->required()
                     ->acceptedFileTypes(DataImportService::allowedMimeTypes())
                     ->maxSize(DataImportService::maxFileSizeKb())
-                    ->disk('local')
-                    ->directory('temp-imports')
-                    ->visibility('private'),
+                    ->storeFiles(false),
             ])
             ->action(function (array $data) use ($module, $importPerm) {
                 abort_unless(auth()->user()?->isSuperAdmin() || auth()->user()?->can($importPerm), 403);
 
                 $service = app(DataImportService::class);
+                $intent = $module === 'product' ? ($data['import_intent'] ?? 'business') : 'auto';
+                if ($intent === 'product_transfer') {
+                    abort_unless(auth()->user()?->isSuperAdmin() || auth()->user()?->can('product_transfer.run'), 403);
+                }
+                if ($intent === 'system_restore') {
+                    abort_unless(auth()->user()?->isSuperAdmin() || auth()->user()?->can('system_restore.run'), 403);
+                }
 
+                $upload = $data['import_file'] ?? null;
                 try {
-                    $filePath = storage_path('app/private/' . $data['import_file']);
-                    $originalName = basename($data['import_file']);
+                    if (! $upload instanceof TemporaryUploadedFile) throw new \InvalidArgumentException('Cần chọn file import mới.');
 
                     $job = $service->uploadAndPreview(
                         module: $module,
-                        filePath: $filePath,
-                        originalName: $originalName,
+                        filePath: $upload->getRealPath(),
+                        originalName: $upload->getClientOriginalName(),
                         fileType: $data['file_type'],
-                        mode: $data['mode'],
-                        matchingKey: $data['matching_key'] ?? 'id',
+                        mode: $data['mode'] ?? 'create',
+                        matchingKey: $data['matching_key'] ?? ($module === 'product' ? 'sku' : 'id'),
+                        intent: $intent,
+                        columnMapping: $data['column_mapping'] ?? [],
                     );
 
-                    Storage::disk('local')->delete($data['import_file']);
-
-                    if ($job->status === 'failed') {
-                        $errorMsg = collect($job->error_report_json ?? [])
-                            ->pluck('errors')->flatten()->first() ?? 'Không thể xử lý file.';
-
-                        Notification::make()
-                            ->danger()
-                            ->title('Import thất bại')
-                            ->body($errorMsg)
-                            ->send();
-
-                        return;
-                    }
-
-                    $this->redirect(\App\Filament\Pages\ImportPreviewPage::getUrl(['job' => $job->id]));
+                    $page = $job->status === 'previewing'
+                        ? \App\Filament\Pages\ImportPreviewPage::class
+                        : \App\Filament\Pages\ImportResultPage::class;
+                    $this->redirect($page::getUrl(['job' => $job->id]));
                 } catch (\Throwable $e) {
                     Notification::make()
                         ->danger()
                         ->title('Import thất bại')
                         ->body($e->getMessage())
                         ->send();
+                } finally {
+                    if ($upload instanceof TemporaryUploadedFile) $upload->delete();
                 }
             });
     }

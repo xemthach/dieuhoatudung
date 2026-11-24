@@ -3,14 +3,9 @@
 namespace App\Services\DataTransfer\Modules;
 
 use App\Models\Brand;
-use App\Models\CatalogModel;
-use App\Models\CatalogSource;
 use App\Models\Product;
 use App\Models\ProductCategory;
 use App\Services\DataTransfer\Contracts\ImportHandlerInterface;
-use App\Services\DataTransfer\ProductSystemRestoreContract;
-use App\Services\DataTransfer\ImportGovernanceService;
-use App\Services\Product\ProductImportMapper;
 use App\Services\Product\ProductTechnicalSpecWriter;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
@@ -22,13 +17,20 @@ class ProductImportHandler implements ImportHandlerInterface
     public function validateRow(array $row, string $mode, string $matchingKey): array
     {
         if ($mode === 'system_restore') {
-            return $this->validateSystemRestoreRow($row);
+            return app(ProductRestoreImportHandler::class)->validateRow($row, $mode, $matchingKey);
         }
         if ($mode === 'product_transfer') {
-            return $this->validateProductTransferRow($row);
+            return app(ProductTransferImportHandler::class)->validateRow($row, $mode, $matchingKey);
         }
 
         $errors = [];
+
+        // Business/product edits may carry stable brand_slug/category_slug
+        // references. Resolve those before validating schema and FK values so
+        // a file exported in another environment cannot attach a foreign
+        // numeric ID. Resolution is deliberately fail-closed: an unknown or
+        // ambiguous reference is an error and is never converted to NULL.
+        $row = $this->resolveReferences($row, $errors);
 
         // Name required for create mode
         if ($mode === 'create' && empty($row['name'] ?? null)) {
@@ -143,10 +145,16 @@ class ProductImportHandler implements ImportHandlerInterface
     public function importRow(array $row, string $mode, string $matchingKey): string
     {
         if ($mode === 'system_restore') {
-            return $this->restoreSystemRow($row);
+            return app(ProductRestoreImportHandler::class)->importRow($row, $mode, $matchingKey);
         }
         if ($mode === 'product_transfer') {
-            return $this->transferProductRow($row);
+            return app(ProductTransferImportHandler::class)->importRow($row, $mode, $matchingKey);
+        }
+
+        $referenceErrors = [];
+        $row = $this->resolveReferences($row, $referenceErrors);
+        if ($referenceErrors !== []) {
+            throw new \InvalidArgumentException(implode(' ', $referenceErrors));
         }
 
         $technical = $this->technicalInput($row);
@@ -269,28 +277,27 @@ class ProductImportHandler implements ImportHandlerInterface
             }
         }
 
-        // Resolve brand_id from name if not numeric
-        if (! empty($data['brand_id']) && ! is_numeric($data['brand_id'])) {
-            $brand = Brand::where('name', $data['brand_id'])->first();
-            $data['brand_id'] = $brand?->id;
+        // References have already been normalised and validated by
+        // resolveReferences(). Keep this guard in the write path as well so
+        // direct handler callers cannot accidentally persist a dangling FK.
+        foreach ([
+            'brand_id' => Brand::class,
+            'product_category_id' => ProductCategory::class,
+        ] as $field => $model) {
+            if (blank($data[$field] ?? null)) {
+                continue;
+            }
+            if (! is_numeric($data[$field])) {
+                throw new \InvalidArgumentException("{$field} must reference an existing record.");
+            }
+            if (! $model::query()->whereKey((int) $data[$field])->exists()) {
+                throw new \InvalidArgumentException("{$field} {$data[$field]} does not exist.");
+            }
+            $data[$field] = (int) $data[$field];
         }
 
-        // Resolve category from name if not numeric
-        if (! empty($data['product_category_id']) && ! is_numeric($data['product_category_id'])) {
-            $cat = ProductCategory::where('name', $data['product_category_id'])->first();
-            $data['product_category_id'] = $cat?->id;
-        }
-
-        // Defensive: verify numeric FK IDs exist (prevent FK constraint violation)
-        if (! empty($data['brand_id']) && is_numeric($data['brand_id'])) {
-            if (! Brand::find((int) $data['brand_id'])) {
-                $data['brand_id'] = null;
-            }
-        }
-        if (! empty($data['product_category_id']) && is_numeric($data['product_category_id'])) {
-            if (! ProductCategory::find((int) $data['product_category_id'])) {
-                $data['product_category_id'] = null;
-            }
+        if (blank($data['product_category_id'] ?? null)) {
+            throw new \InvalidArgumentException('product_category_id is required for Product imports.');
         }
 
         // Parse JSON fields
@@ -316,6 +323,65 @@ class ProductImportHandler implements ImportHandlerInterface
         }
 
         return $data;
+    }
+
+    /**
+     * Resolve stable references and fail closed on FK/slug/name conflicts.
+     *
+     * @param array<string, mixed> $row
+     * @param array<int, string>   $errors
+     * @return array<string, mixed>
+     */
+    private function resolveReferences(array $row, array &$errors): array
+    {
+        foreach ([
+            ['brand', 'brand_id', Brand::class, false],
+            ['category', 'product_category_id', ProductCategory::class, true],
+        ] as [$prefix, $foreign, $model, $required]) {
+            $rawId = $row[$foreign] ?? null;
+            $slug = trim((string) ($row[$prefix.'_slug'] ?? ''));
+            $name = trim((string) ($row[$prefix.'_name'] ?? ''));
+
+            // Legacy files sometimes put a category/brand name in the *_id
+            // column. Treat that as a name reference, never as a guessed ID.
+            if ($slug === '' && $name === '' && filled($rawId) && ! is_numeric($rawId)) {
+                $name = trim((string) $rawId);
+                $rawId = null;
+            }
+
+            $reference = $slug !== '' ? ['slug', $slug] : ($name !== '' ? ['name', $name] : null);
+            $resolved = null;
+            if ($reference !== null) {
+                [$column, $value] = $reference;
+                $matches = $model::query()->where($column, $value)->get(['id']);
+                if ($matches->count() !== 1) {
+                    $errors[] = sprintf(
+                        '%s %s "%s" must resolve exactly one existing record.',
+                        ucfirst((string) $prefix),
+                        $column,
+                        $value,
+                    );
+                } else {
+                    $resolved = (int) $matches->sole()->id;
+                    if (filled($rawId) && is_numeric($rawId) && (int) $rawId !== $resolved) {
+                        $errors[] = sprintf('%s ID and stable reference do not match.', ucfirst((string) $prefix));
+                    }
+                    $row[$foreign] = $resolved;
+                }
+            } elseif (filled($rawId)) {
+                if (! is_numeric($rawId) || ! $model::query()->whereKey((int) $rawId)->exists()) {
+                    $errors[] = sprintf('%s ID %s does not exist.', ucfirst((string) $prefix), (string) $rawId);
+                } else {
+                    $row[$foreign] = (int) $rawId;
+                }
+            } elseif ($required) {
+                $errors[] = sprintf('%s is required.', $foreign);
+            }
+
+            unset($row[$prefix.'_slug'], $row[$prefix.'_name']);
+        }
+
+        return $row;
     }
 
     private function technicalInput(array $row): array
@@ -483,153 +549,6 @@ class ProductImportHandler implements ImportHandlerInterface
             array_intersect_key($row, array_flip(array_values(array_unique($keys)))),
             static fn ($value): bool => $value !== null && $value !== '',
         );
-    }
-
-    private function validateSystemRestoreRow(array $row): array
-    {
-        $errors = [];
-
-        if (! isset($row['id']) || ! filter_var($row['id'], FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]])) {
-            $errors[] = 'SYSTEM RESTORE requires a positive Product ID.';
-        }
-        if (blank($row['name'] ?? null)) {
-            $errors[] = 'SYSTEM RESTORE requires Product name.';
-        }
-        if (blank($row['slug'] ?? null)) {
-            $errors[] = 'SYSTEM RESTORE requires Product slug.';
-        }
-
-        foreach (['brand_id' => Brand::class, 'product_category_id' => ProductCategory::class, 'catalog_source_id' => CatalogSource::class, 'catalog_model_id' => CatalogModel::class] as $field => $model) {
-            if (blank($row[$field] ?? null)) {
-                continue;
-            }
-            if (! is_numeric($row[$field]) || ! $model::query()->whereKey((int) $row[$field])->exists()) {
-                $errors[] = "SYSTEM RESTORE foreign key {$field} is missing on this target.";
-            }
-        }
-
-        if (filled($row['catalog_model_id'] ?? null) && filled($row['catalog_source_id'] ?? null)) {
-            $matchesSource = CatalogModel::query()
-                ->whereKey((int) $row['catalog_model_id'])
-                ->where('catalog_source_id', (int) $row['catalog_source_id'])
-                ->exists();
-            if (! $matchesSource) {
-                $errors[] = 'SYSTEM RESTORE catalog_model_id does not belong to catalog_source_id.';
-            }
-        }
-
-        foreach (['specs_json', 'gallery_json', 'documents_json'] as $jsonField) {
-            if (blank($row[$jsonField] ?? null) || is_array($row[$jsonField])) {
-                continue;
-            }
-            json_decode((string) $row[$jsonField], true);
-            if (json_last_error() !== JSON_ERROR_NONE) {
-                $errors[] = "SYSTEM RESTORE {$jsonField} must contain valid JSON.";
-            }
-        }
-
-        $byId = filled($row['id'] ?? null) ? Product::withTrashed()->find((int) $row['id']) : null;
-        foreach (['sku', 'slug'] as $field) {
-            if (blank($row[$field] ?? null)) {
-                continue;
-            }
-            $byUnique = Product::withTrashed()->where($field, $row[$field])->first();
-            if ($byUnique && (! $byId || $byUnique->id !== $byId->id)) {
-                $errors[] = "SYSTEM RESTORE {$field} belongs to Product #{$byUnique->id}, not the exported ID.";
-            }
-        }
-
-        return $errors;
-    }
-
-    private function restoreSystemRow(array $row): string
-    {
-        $data = $this->prepareSystemRestoreData($row);
-        $id = (int) $data['id'];
-        $target = Product::withTrashed()->find($id);
-
-        if ($target) {
-            if ($target->trashed()) {
-                $target->restore();
-            }
-            $target->fill($data);
-            $target->save();
-
-            return 'updated';
-        }
-
-        Product::create($data);
-
-        return 'created';
-    }
-
-    private function validateProductTransferRow(array $row): array
-    {
-        $errors = [];
-        if (blank($row['sku'] ?? null) && blank($row['slug'] ?? null)) $errors[] = 'PRODUCT_TRANSFER requires SKU or slug as stable Product identity.';
-        foreach ([['brand_slug', Brand::class], ['category_slug', ProductCategory::class]] as [$field, $model]) {
-            $slug = (string) ($row[$field] ?? '');
-            $count = $slug === '' ? 0 : $model::withTrashed()->where('slug', $slug)->count();
-            if ($count !== 1) $errors[] = "PRODUCT_TRANSFER {$field} must resolve exactly one target record.";
-        }
-        $skuTarget = filled($row['sku'] ?? null) ? Product::withTrashed()->where('sku', $row['sku'])->first() : null;
-        $slugTarget = filled($row['slug'] ?? null) ? Product::withTrashed()->where('slug', $row['slug'])->first() : null;
-        if ($skuTarget && $slugTarget && $skuTarget->id !== $slugTarget->id) $errors[] = 'PRODUCT_TRANSFER identity conflict: SKU and slug resolve different target Products.';
-        $target = $skuTarget ?? $slugTarget;
-        $governance = app(ImportGovernanceService::class);
-        if ($target && ! $governance->enabled('product_transfer.allow_update')) $errors[] = 'PRODUCT_TRANSFER update is disabled by governance.';
-        if (! $target && ! $governance->enabled('product_transfer.allow_create')) $errors[] = 'PRODUCT_TRANSFER create is disabled by governance.';
-        if ((filled($row['catalog_source_id'] ?? null) || filled($row['catalog_model_id'] ?? null)) && ! $governance->catalogDetachEnabled()) {
-            $errors[] = 'PRODUCT_TRANSFER catalog lineage is not portable. Enable the governed detach policy or transfer a row without catalog lineage.';
-        }
-        return $errors;
-    }
-
-    private function transferProductRow(array $row): string
-    {
-        $brand = Brand::withTrashed()->where('slug', $row['brand_slug'])->sole();
-        $category = ProductCategory::withTrashed()->where('slug', $row['category_slug'])->sole();
-        $data = $this->prepareSystemRestoreData($row);
-        unset($data['id']);
-        $data['brand_id'] = $brand->id; $data['product_category_id'] = $category->id;
-        // A transfer carries the current persisted technical snapshot, not the
-        // source environment's catalog authority. Keep that distinction
-        // explicit even when the source row had no catalog relationship.
-        $data['technical_specs_source'] = 'PRODUCT_TRANSFER';
-        $hasCatalogLineage = filled($row['catalog_source_id'] ?? null) || filled($row['catalog_model_id'] ?? null);
-        if ($hasCatalogLineage) {
-            if (! app(ImportGovernanceService::class)->catalogDetachEnabled()) throw new \InvalidArgumentException('PRODUCT_TRANSFER catalog lineage detach is not enabled.');
-            $data['catalog_source_id'] = null; $data['catalog_model_id'] = null;
-        }
-        $target = $this->findExisting(['sku' => $row['sku'] ?? null, 'slug' => $row['slug'] ?? null], 'sku')
-            ?? $this->findExisting(['slug' => $row['slug'] ?? null], 'slug');
-        if ($target) { if ($target->trashed()) $target->restore(); $target->fill($data); $target->save(); return 'updated'; }
-        Product::create($data); return 'created';
-    }
-
-    private function prepareSystemRestoreData(array $row): array
-    {
-        $data = [];
-        foreach (ProductSystemRestoreContract::fields() as $field) {
-            if (! array_key_exists($field, $row)) {
-                continue;
-            }
-
-            $value = $row[$field];
-            if (in_array($field, ['specs_json', 'gallery_json', 'documents_json'], true) && is_string($value)) {
-                $value = blank($value) ? null : json_decode($value, true, 512, JSON_THROW_ON_ERROR);
-            }
-            if (in_array($field, ['inverter', 'is_featured', 'is_bestseller', 'is_new', 'is_active', 'schema_enabled', 'identifier_exists', 'price_includes_vat'], true)) {
-                $value = filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) ?? false;
-            }
-            if (in_array($field, ['promotion_start_at', 'promotion_end_at', 'technical_specs_overridden_at'], true) && blank($value)) {
-                $value = null;
-            }
-
-            $data[$field] = $value === '' ? null : $value;
-        }
-
-        return $data;
     }
 
     private function flattenSpecs(array $specs): array

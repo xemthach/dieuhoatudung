@@ -15,6 +15,7 @@ class DataExportJob extends Model
             'field_groups_json'  => 'array',
             'filters_json'      => 'array',
             'selected_ids_json' => 'array',
+            'format_context_json' => 'array',
             'total_rows'        => 'integer',
             'started_at'        => 'datetime',
             'finished_at'       => 'datetime',

@@ -4,6 +4,7 @@ namespace App\Services\Product;
 
 use App\Exports\ProductComparisonExport;
 use App\Models\Product;
+use App\Services\DataTransfer\SpreadsheetFileGuard;
 use App\Services\Catalog\CategoryTechnicalSchemaService;
 use App\Support\ProductSpecLabel;
 use Illuminate\Support\Collection;
@@ -765,7 +766,9 @@ class ProductComparisonService
     private function csvLine(array $fields): string
     {
         return implode(',', array_map(function ($field) {
-            return '"'.str_replace('"', '""', (string) $field).'"';
+            $value = SpreadsheetFileGuard::looksLikeFormula($field) ? "'".$field : (string) $field;
+
+            return '"'.str_replace('"', '""', $value).'"';
         }, $fields))."\r\n";
     }
 }

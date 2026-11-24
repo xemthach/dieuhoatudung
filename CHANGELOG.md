@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.33.17] - 2026-11-24
+
+### Fixed
+- Product Data Edit kiểm tra SKU/slug, mapping Brand/Category và các cột nghiệp vụ mà không yêu cầu schema Catalog. File Product bị rollback toàn bộ nếu ghi lỗi.
+- CSV giữ nội dung nhiều dòng. XLSX từ chối công thức khi import và xuất text an toàn. Hiển thị số dòng lỗi, trạng thái worker và tải trực tiếp file của nhóm đã chọn.
+
+### Added
+- System Backup v2 giữ giá trị Product, ID, dấu thời gian, bản ghi xóa mềm và kiểm tra danh tính FK. Export job mới lưu SHA-256, mục đích và phạm vi.
+- Product Transfer v2 giữ liên kết Catalog bằng SHA-256 của nguồn, slug Brand/Category và model hoặc SKU đã chuẩn hóa. Preview báo lỗi khi nguồn bị xóa, trùng hoặc thay đổi trước khi xác nhận. Restore v1 bị chặn vì thiếu bằng chứng danh tính FK.
+
+### Changed
+- Trang trung tâm và danh sách dùng cùng các hợp đồng Product Data Edit, Product Transfer và System Restore. Import nhận CSV/XLSX/JSON theo module.
+
+### Deployment
+- Sao lưu DB và storage. Chạy migration `2026_11_24_000002_add_format_context_to_data_export_jobs` và tải lại worker `default` theo `DEPLOY.md`.
+
 ## [1.33.16] - 2026-11-24
 
 ### Added

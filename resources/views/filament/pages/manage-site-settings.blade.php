@@ -5,7 +5,7 @@
     </x-filament::section>
 
     <div class="mt-4 flex justify-start">
-        <x-filament::button wire:click="saveSettings" color="primary" size="lg">
+        <x-filament::button wire:click="saveSettings" wire:loading.attr="disabled" color="primary" size="lg">
              Lưu cấu hình
         </x-filament::button>
     </div>

@@ -7,12 +7,32 @@ use App\Models\ProductCategory;
 use App\Services\Catalog\CategoryTechnicalSchemaService;
 use App\Services\Product\ProductComparisonService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use PhpOffice\PhpSpreadsheet\Cell\DataType;
+use PhpOffice\PhpSpreadsheet\IOFactory;
 use ReflectionMethod;
 use Tests\TestCase;
 
 class ProductComparisonPdfExportTest extends TestCase
 {
     use RefreshDatabase;
+
+    public function test_comparison_spreadsheets_export_product_names_as_text(): void
+    {
+        $products = collect([Product::factory()->create(['name' => '=1+1'])]);
+        $service = app(ProductComparisonService::class);
+        $this->assertStringContainsString('"\'=1+1"', $service->exportCsv($products)->getContent());
+
+        $path = $service->exportExcel($products)->getFile()->getPathname();
+        try {
+            $workbook = IOFactory::load($path);
+            $cell = $workbook->getActiveSheet()->getCell('B1');
+            $this->assertSame(DataType::TYPE_STRING, $cell->getDataType());
+            $this->assertSame('=1+1', $cell->getValue());
+            $workbook->disconnectWorksheets();
+        } finally {
+            unlink($path);
+        }
+    }
 
     public function test_pdf_header_shows_full_title_and_real_model_without_truncation(): void
     {
